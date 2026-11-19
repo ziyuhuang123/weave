@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env python3
+#!/usr/bin/env python3
 """Validate Weave Eq.(1)-(3) and CTA-0 selection across B300/H20/MI308X.
 
 Inputs:
@@ -74,18 +74,20 @@ def run() -> Dict:
         routing = json.load(f)
 
     configs = [
-        ("b300", 8),
-        ("h20", 8),
-        ("mi308x", 8),
-        ("mi308x", 16),
+        ("b300", 8, "fp8xfp4"),
+        ("b300", 8, "fp4xfp4"),
+        ("h20", 8, "fp8xfp4"),
+        ("mi308x", 8, "fp8xfp4"),
+        ("mi308x", 16, "fp8xfp4"),
     ]
     report = {
-        "schema": "weave-cost-model-validation-3hw/v2",
+        "schema": "weave-cost-model-validation-3hw/v3",
         "model": "deep_gemm/include/deep_gemm/scheduler/weave_cost_model.cuh",
         "python_mirror": "deep_gemm/mega/cost_model.py",
         "routing_source": routing["source"],
         "routing_reality_boundary": routing["reality_boundary"],
         "cpp_golden_match": False,
+        "precision_modes": {},
         "platforms": [],
         "pass": True,
     }
@@ -104,9 +106,40 @@ def run() -> Dict:
     report["cpp_golden_match"] = golden_ok
     report["pass"] = report["pass"] and golden_ok
 
+    # 1b. Precision knob: the default must stay bit-identical, while NVFP4 must
+    # change both byte widths and tensor-core rate in the documented direction.
+    precision_report = {}
+    base = M.select_policy("b300", wl, m_e, 23, 17)
+    for mode in ("fp8xfp4", "fp4xfp4", "fp8", "bf16"):
+        hw = M.hardware_for("b300", mode)
+        br = M.select_policy("b300", wl, m_e, 23, 17, precision_mode=mode)
+        precision_report[mode] = {
+            "weight_bytes": hw.weight_bytes,
+            "act_in_bytes": hw.act_in_bytes,
+            "p_tc_full_tflops": hw.p_tc_full_tflops,
+            "predicted_total_us": round(br.t_total_us, 4),
+        }
+    default_ok = (precision_report["fp8xfp4"]["predicted_total_us"] ==
+                  round(base.t_total_us, 4))
+    nv_ok = (precision_report["fp4xfp4"]["weight_bytes"] == 0.5625 and
+             precision_report["fp4xfp4"]["p_tc_full_tflops"] ==
+             2.0 * precision_report["fp8xfp4"]["p_tc_full_tflops"])
+    bf16_ok = (precision_report["bf16"]["weight_bytes"] == 2.0 and
+               precision_report["bf16"]["p_tc_full_tflops"] ==
+               0.5 * precision_report["fp8xfp4"]["p_tc_full_tflops"])
+    if not (default_ok and nv_ok and bf16_ok):
+        report["pass"] = False
+        print("[FAIL] precision knob invariants")
+    report["precision_modes"] = precision_report
+    report["precision_invariants"] = {
+        "default_bit_identical": default_ok,
+        "nvfp4_bytes_and_rate": nv_ok,
+        "bf16_bytes_and_rate": bf16_ok,
+    }
+
     # 2. Replay each real routing aggregate across every architecture.
     by_arch: Dict[str, List[Dict]] = {}
-    for arch, ep in configs:
+    for arch, ep, precision in configs:
         rows = []
         for cell in routing["cells"]:
             if ep == 16 and cell["model"] == "qwen38max":
@@ -118,7 +151,8 @@ def run() -> Dict:
                                 INTERMEDIATE[cell["model"]])
             dedup_pulls = cell["local_contributions"] + cell["dedup_remote_scatter_rows"]
             scatter_count = cell["baseline_remote_scatter_rows"]
-            b = M.select_policy(arch, wl, m_proxy, dedup_pulls, scatter_count)
+            b = M.select_policy(arch, wl, m_proxy, dedup_pulls, scatter_count,
+                                precision_mode=precision)
             cand = candidate_by_mask(arch, b.r_mask)
             assert b.total_tokens == sum(m_proxy)
             assert b.v_head > 0
@@ -127,6 +161,7 @@ def run() -> Dict:
                 "model": cell["model"],
                 "S": cell["S"],
                 "ep": ep,
+                "precision_mode": precision,
                 "local_experts": local_experts,
                 "total_tokens_M": b.total_tokens,
                 "dedup_pulls_Din": dedup_pulls,
@@ -142,7 +177,7 @@ def run() -> Dict:
                 "m_e_histogram_source": "zipf0.9_proxy_from_real_local_contributions",
             })
 
-        key = f"{arch}_ep{ep}"
+        key = f"{arch}_ep{ep}" if precision == "fp8xfp4" else f"{arch}_ep{ep}_{precision}"
         by_arch[key] = rows
         scatter_counts = {0: sum(x["selected_scatter_mode"] == 0 for x in rows),
                           1: sum(x["selected_scatter_mode"] == 1 for x in rows)}

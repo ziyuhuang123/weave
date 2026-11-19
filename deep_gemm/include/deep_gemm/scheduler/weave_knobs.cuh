@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 // =============================================================================
 // Weave unified spatial / temporal / dataflow knobs.
 //
@@ -101,6 +101,20 @@
 #define WEAVE_KNOB_V_HEAD 0xffffffffu
 #endif
 
+// First-class precision selector.  FP8xFP4 is the paper/Table-I default; the
+// value must stay 0 so every default prediction remains bit-identical.
+#ifndef WEAVE_KNOB_PRECISION_MODE
+#define WEAVE_KNOB_PRECISION_MODE 0u
+#endif
+#if WEAVE_KNOB_PRECISION_MODE > 3
+#error "WEAVE_KNOB_PRECISION_MODE must be in [0, 3]"
+#endif
+
+// Compatibility alias used by the HIP EP16 headers (ep16_combine.hpp).
+#ifndef WEAVE_SCATTER_MODE
+#define WEAVE_SCATTER_MODE WEAVE_KNOB_SCATTER_MODE
+#endif
+
 namespace weave {
 
 enum class HardwareArch : uint32_t {
@@ -108,6 +122,22 @@ enum class HardwareArch : uint32_t {
   H20_SM90 = 1,
   MI308X_GFX942 = 2,
 };
+
+// Unified B300 precision knob.  The same enum is mirrored by mma_type in
+// deep_gemm.mega.weave_mega_moe and by csrc/apis/mega.hpp.
+enum class PrecisionMode : uint32_t {
+  FP8xFP4 = 0,
+  NVFP4 = 1,
+  FP8xFP8 = 2,
+  BF16 = 3,
+};
+
+WEAVE_HOST_DEVICE constexpr const char* precision_mode_name(
+    PrecisionMode mode) {
+  return mode == PrecisionMode::FP8xFP4 ? "fp8xfp4" :
+         mode == PrecisionMode::NVFP4 ? "fp4xfp4" :
+         mode == PrecisionMode::FP8xFP8 ? "fp8" : "bf16";
+}
 
 enum class ScatterPath : uint32_t {
   EpilogueInline = 0,
@@ -185,6 +215,7 @@ struct WeaveKnobs {
   uint32_t fused_input_quant;
   uint32_t fused_swiglu_requant;
   uint32_t profiler_mode;
+  uint32_t precision_mode;
 };
 
 WEAVE_HOST_DEVICE constexpr uint32_t default_r_mask_for_arch(
@@ -197,7 +228,9 @@ WEAVE_HOST_DEVICE constexpr uint32_t default_r_mask_for_arch(
 }
 
 WEAVE_HOST_DEVICE constexpr WeaveKnobs default_weave_knobs(
-    HardwareArch arch, uint32_t fused_input_quant = 0u) {
+    HardwareArch arch, uint32_t fused_input_quant = 0u,
+    PrecisionMode precision =
+        static_cast<PrecisionMode>(WEAVE_KNOB_PRECISION_MODE)) {
   // Presets 1/2/3 correspond to the -S, -S-T and -S-T-C ablations: the
   // runtime spatial search is disabled and a fixed per-architecture spatial
   // candidate is used.  Preset 0 enables the full CTA-0 cost model.
@@ -234,7 +267,8 @@ WEAVE_HOST_DEVICE constexpr WeaveKnobs default_weave_knobs(
       WEAVE_KNOB_LOCAL_FIRST_ORDER,
       fused_input_quant,
       WEAVE_KNOB_FUSED_SWIGLU_REQUANT,
-      0u};
+      0u,
+      static_cast<uint32_t>(precision)};
 }
 
 WEAVE_HOST_DEVICE constexpr bool has_override(

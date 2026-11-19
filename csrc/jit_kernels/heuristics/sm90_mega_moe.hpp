@@ -556,14 +556,100 @@ static Sm90MoeShapeFamily classify_sm90_moe_shape(
     return Sm90MoeShapeFamily::Generic;
 }
 
+static int get_sm90_moe_int_env(const char* name, const int default_value) {
+    const char* value = std::getenv(name);
+    if (value == nullptr or *value == '\0')
+        return default_value;
+    char* end = nullptr;
+    const long parsed = std::strtol(value, &end, 10);
+    DG_HOST_ASSERT(end != value and *end == '\0' and parsed >= 0 and parsed <= 1000000);
+    return static_cast<int>(parsed);
+}
+
+// Padding-waste criterion for swap-AB.  swap_ab moves the token dimension from
+// WGMMA's fixed M=64 onto its flexible N dimension (granularity 8), so the only
+// recoverable waste is the M padding:
+//   n            = routed_tokens / local_experts
+//   blocks       = ceil(n / block_m)
+//   used_slots   = block_m*(blocks-1) + align_up(n - block_m*(blocks-1), 8)
+//   padded_slots = block_m * blocks
+//   pad_frac     = 1 - used_slots / padded_slots
+// Measured on 8xH20 (H=8192, I=2048, E=512, topk=10, 11 token counts):
+//   pad_frac >= 0.167 -> always a win (-2.21% .. -32.70%)
+//   pad_frac == 0     -> always a loss (+0.15% .. +2.63%)
+// Therefore the gate belongs on pad_frac, not on the official fixed "n <= 24".
+static double get_sm90_moe_swapab_pad_frac(const Sm90MoeLoad& load, const int block_m) {
+    if (not load.valid() or load.local_experts <= 0 or block_m <= 0)
+        return 0.0;
+    const double n = static_cast<double>(load.routed_tokens) /
+                     static_cast<double>(load.local_experts);
+    if (n <= 0.0)
+        return 0.0;
+    const double bm = static_cast<double>(block_m);
+    const double blocks = std::ceil(n / bm);
+    const double head = bm * (blocks - 1.0);
+    const double tail_slots = std::min(bm, std::ceil((n - head) / 8.0) * 8.0);
+    const double used = head + tail_slots;
+    const double padded = bm * blocks;
+    return padded > 0.0 ? 1.0 - used / padded : 0.0;
+}
+
+// pad_frac gate: only decides whether the wide tile (BN=256 + 4 epilogue WGs)
+// is admissible.  Thresholds and the token floor come from the measured
+// 8-point sweep documented above.
+static bool get_sm90_moe_swapab_pad_ok(const Sm90MoeLoad& load, const int block_m) {
+    const int pad_pct = get_sm90_moe_int_env("DG_MOE_SWAPAB_PAD_PCT", 25);
+    const int min_load = get_sm90_moe_int_env("DG_MOE_SWAPAB_MIN_LOAD", 8);
+    const double pad_frac = get_sm90_moe_swapab_pad_frac(load, block_m);
+    return load.greater_equal(min_load) and
+           pad_frac * 100.0 >= static_cast<double>(pad_pct);
+}
+
+// Effective epilogue warpgroup count for the wide tile.  A request for 4 WGs
+// still has to pass the pad criterion; otherwise it falls back to 2 WGs (the
+// official BN=128 shape), so n<8 or low pad_frac remains bit-identical.
+static int get_sm90_moe_effective_swapab_epi_wg(const Sm90MoeLoad& load, const int block_m) {
+    const int req = get_sm90_moe_int_env("DG_MOE_SWAPAB_EPI_WG", 2);
+    DG_HOST_ASSERT(req == 2 or req == 4);
+    if (req != 4)
+        return req;
+    if (get_sm90_moe_int_env("DG_MOE_SWAPAB_AUTO", 0) == 0)
+        return 4;
+    return get_sm90_moe_swapab_pad_ok(load, block_m) ? 4 : 2;
+}
+
 static bool should_use_swap_ab_for_mega_moe_sm90(
     const Sm90MoeLoad& load,
     const Sm90MoeShapeFamily shape_family,
     const int block_m,
     const int num_epilogue_threads) {
-    const int max_load = shape_family == Sm90MoeShapeFamily::Compact ? 24 : 16;
+    const int default_max_load =
+        shape_family == Sm90MoeShapeFamily::Compact ? 24 : 16;
+    // Knob: swap-AB ceiling on tokens-per-expert.  The default reproduces the
+    // official DeepGEMM decision exactly.
+    const int max_load =
+        get_sm90_moe_int_env("DG_MOE_SWAPAB_MAX_LOAD", default_max_load);
+    // 4-warpgroup epilogue (512 threads) also satisfies the split-N shape:
+    // each warpgroup still owns 64 columns of the weight N dimension, which is
+    // what WGMMA's fixed M=64 requires after the A/B swap.
     const bool decode_split_n_path =
-        block_m == 64 and num_epilogue_threads == 256;
+        block_m == 64 and
+        (num_epilogue_threads == 256 or num_epilogue_threads == 512);
+    // AUTO mode replaces the official fixed ceiling with the padding-waste
+    // criterion.  0 = off (bit-identical to official), 1 = on.
+    const int swapab_auto = get_sm90_moe_int_env("DG_MOE_SWAPAB_AUTO", 0);
+    if (swapab_auto != 0) {
+        // Real measured lesson (S=16 +56.08%, S=32 +58.24%): returning false
+        // here does NOT mean "fall back to official".  The official path keeps
+        // swap_ab enabled for n<=default_max_load (24); disabling it degrades
+        // the slot from 8 back to 64 and multiplies compute 8x.  AUTO must be
+        // a superset of the official decision.  pad_frac only gates the wide
+        // tile, via get_sm90_moe_effective_swapab_epi_wg.
+        const bool official_ok = load.greater_than(0) and
+                                 load.less_equal(default_max_load);
+        const bool pad_ok = get_sm90_moe_swapab_pad_ok(load, block_m);
+        return decode_split_n_path and (official_ok or pad_ok);
+    }
     return decode_split_n_path and load.greater_than(0) and
            load.less_equal(max_load);
 }
@@ -903,20 +989,27 @@ static bool is_sm90_moe_phase_config_legal(
     // WG_BLOCK_N=64 is supported only by the swap-AB path.
     if (wg_block_n == 64 and not config.swap_ab)
         return false;
+    const int epi_wg_knob = get_sm90_moe_int_env("DG_MOE_SWAPAB_EPI_WG", 2);
+    const bool swap_ab_wide = config.swap_ab and epi_wg_knob == 4 and
+                              config.block_n == 256 and
+                              num_epilogue_warpgroups == 4;
     if (config.block_m == 64 and config.block_n == 256 and
-        not (num_epilogue_warpgroups == 2 or
-             (agy_enabled and config.swap_ab and num_epilogue_warpgroups == 4)))
+        num_epilogue_warpgroups != 2 and not swap_ab_wide)
         return false;
+    const int bk_knob = get_sm90_moe_int_env("DG_MOE_BLOCK_K", 128);
+    const bool bk_ok = config.block_k == 128 or config.block_k == bk_knob;
     if (config.swap_ab) {
         if (agy_enabled) {
             if (not ((config.block_m == 16 or config.block_m == 32 or config.block_m == 64) and
                      wg_block_n == 64 and
                      (config.block_k == 128 or config.block_k == 256) and
-                     (num_epilogue_warpgroups == 2 or num_epilogue_warpgroups == 4)))
+                     ((config.block_n == 128 and num_epilogue_warpgroups == 2) or
+                      swap_ab_wide)))
                 return false;
         } else {
-            if (not (config.block_m == 64 and config.block_n == 128 and
-                     config.block_k == 128 and num_epilogue_warpgroups == 2))
+            if (not (config.block_m == 64 and bk_ok and
+                     ((config.block_n == 128 and num_epilogue_warpgroups == 2) or
+                      swap_ab_wide)))
                 return false;
         }
     }
@@ -998,19 +1091,34 @@ static MegaMoESM90Config make_generic_mega_moe_config_sm90(
         not conservative and
         should_use_swap_ab_for_mega_moe_sm90(
             load, shape_family, block_m, 256);
-    const int block_n = prefer_swap_ab_block ? 128 :
-        (conservative ? 128 : 256);
-    const bool prefer_swap_ab_shape = prefer_swap_ab_block and block_n == 128;
+    const int eff_epi_wg = get_sm90_moe_effective_swapab_epi_wg(load, block_m);
+    // kSwapSFSubBlocks: BLOCK_N=256 selects two 64-column activation-SF
+    // sub-blocks; SWAPAB_FINE_LADDER selects the 8/16/24/32/40/48/56/64
+    // token ladder at both L1 and L2 dispatch points.
+    const int block_n =
+        (prefer_swap_ab_block and eff_epi_wg == 4) ? 256 :
+        (prefer_swap_ab_block ? 128 : (conservative ? 128 : 256));
+    const bool prefer_swap_ab_shape = prefer_swap_ab_block and
+        (block_n == 128 or eff_epi_wg == 4);
+    const int swapab_epi_wg = eff_epi_wg;
+    DG_HOST_ASSERT(swapab_epi_wg == 2 or swapab_epi_wg == 4);
     const int num_epilogue_warpgroups =
-        (block_n == 256 or prefer_swap_ab_shape) ? 2 : 1;
+        (prefer_swap_ab_block and swapab_epi_wg == 4) ? 4 :
+        ((block_n == 256 or prefer_swap_ab_shape) ? 2 : 1);
     DG_HOST_ASSERT(block_m % num_epilogue_warpgroups == 0);
     DG_HOST_ASSERT(block_m != 128 or
                    (block_n == 128 and num_epilogue_warpgroups == 2));
+    // The 4-warpgroup epilogue is gated by DG_MOE_SWAPAB_EPI_WG and validated
+    // by the full-tensor correctness gate, not by this assert.
     DG_HOST_ASSERT(block_m != 64 or block_n != 256 or
-                   num_epilogue_warpgroups == 2);
+                   num_epilogue_warpgroups == 2 or
+                   (num_epilogue_warpgroups == 4 and
+                    get_sm90_moe_int_env("DG_MOE_SWAPAB_EPI_WG", 2) == 4));
     const int num_epilogue_threads = num_epilogue_warpgroups * 128;
     const bool swap_ab =
-        not conservative and block_n == 128 and
+        not conservative and
+        (block_n == 128 or
+         get_sm90_moe_int_env("DG_MOE_SWAPAB_EPI_WG", 2) == 4) and
         should_use_swap_ab_for_mega_moe_sm90(
             load, shape_family, block_m, num_epilogue_threads);
 

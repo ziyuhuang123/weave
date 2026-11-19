@@ -1,4 +1,4 @@
-﻿// Standalone C++17 host/device-model unit test for Weave Eq. (1)-(3).
+// Standalone C++17 host/device-model unit test for Weave Eq. (1)-(3).
 // Build with either:
 //   nvcc -std=c++17 -x cu tests/test_cost_model_eq123.cpp -o test_cost_model
 //   cl /std:c++17 /EHsc tests\test_cost_model_eq123.cpp
@@ -12,6 +12,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
 #include <vector>
 
 #include <deep_gemm/scheduler/weave_cost_model.cuh>
@@ -192,6 +193,72 @@ void test_arch(weave::HardwareArch arch, const char* name) {
               decision.predicted_total_us);
 }
 
+void test_precision_modes() {
+  using weave::PrecisionMode;
+  const auto base = weave::get_hardware_spec(weave::HardwareArch::B300_SM100);
+  const auto nv = weave::get_hardware_spec(
+      weave::HardwareArch::B300_SM100, PrecisionMode::NVFP4);
+  const auto fp8 = weave::get_hardware_spec(
+      weave::HardwareArch::B300_SM100, PrecisionMode::FP8xFP8);
+  const auto bf16 = weave::get_hardware_spec(
+      weave::HardwareArch::B300_SM100, PrecisionMode::BF16);
+
+  // Paper Table-I default must remain bit-identical.
+  check(base.weight_bytes == 0.5f && base.act_in_bytes == 0.5625f,
+        "FP8xFP4 Table-I byte widths");
+  check(nv.weight_bytes == 0.5625f && nv.act_in_bytes == 0.5625f,
+        "NVFP4 byte widths");
+  check(fp8.weight_bytes == 1.03125f && fp8.act_in_bytes == 1.03125f,
+        "FP8xFP8 byte widths");
+  check(bf16.weight_bytes == 2.0f && bf16.act_in_bytes == 2.03125f,
+        "BF16 byte widths");
+  check(nv.p_tc_full_tflops == 2.0f * base.p_tc_full_tflops,
+        "NVFP4 tensor-core rate");
+  check(bf16.p_tc_full_tflops == 0.5f * base.p_tc_full_tflops,
+        "BF16 tensor-core rate");
+
+  check(std::strcmp(weave::precision_mode_name(PrecisionMode::FP8xFP4),
+                    "fp8xfp4") == 0, "precision name fp8xfp4");
+  check(std::strcmp(weave::precision_mode_name(PrecisionMode::NVFP4),
+                    "fp4xfp4") == 0, "precision name fp4xfp4");
+  check(std::strcmp(weave::precision_mode_name(PrecisionMode::FP8xFP8),
+                    "fp8") == 0, "precision name fp8");
+  check(std::strcmp(weave::precision_mode_name(PrecisionMode::BF16),
+                    "bf16") == 0, "precision name bf16");
+
+  const weave::WorkloadSpec wl{4u, 128u, 64u};
+  const std::vector<uint32_t> m_e = {0u, 3u, 5u, 9u};
+  for (PrecisionMode mode : {PrecisionMode::FP8xFP4, PrecisionMode::NVFP4,
+                             PrecisionMode::FP8xFP8, PrecisionMode::BF16}) {
+    const auto hw = weave::get_hardware_spec(
+        weave::HardwareArch::B300_SM100, mode);
+    const auto candidates = weave::get_candidate_set(
+        weave::HardwareArch::B300_SM100, mode);
+    const auto knobs = weave::default_weave_knobs(
+        weave::HardwareArch::B300_SM100, 0u, mode);
+    check(knobs.precision_mode == static_cast<uint32_t>(mode),
+          "precision knob propagation");
+    const auto decision = weave::cta0_select_policy(
+        weave::HardwareArch::B300_SM100, wl, knobs, m_e.data(), 23u, 17u);
+    check(weave::policy_is_valid(decision), "precision decision valid");
+    check(decision.predicted_total_us > 0.0f, "precision prediction positive");
+    // Every candidate must use the precision-scaled tensor-core rate.
+    for (uint32_t c = 0u; c < candidates.count; ++c) {
+      check(candidates.items[c].p_tc_tflops ==
+                (mode == PrecisionMode::NVFP4 ? 2.0f :
+                 mode == PrecisionMode::BF16 ? 0.5f : 1.0f) *
+                    weave::get_candidate_set(
+                        weave::HardwareArch::B300_SM100).items[c].p_tc_tflops,
+            "candidate p_tc precision scaling");
+    }
+    const auto br = weave::evaluate_spatial_candidate(
+        weave::HardwareArch::B300_SM100, hw, wl, candidates.items[0], 0u,
+        m_e.data(), 23u, 17u);
+    check(br.t_total_us > 0.0f, "precision equation total positive");
+  }
+  std::printf("[PASS] B300 precision modes: fp8xfp4/nvfp4/fp8/bf16\n");
+}
+
 }  // namespace
 
 #if defined(__CUDACC__) || defined(__HIPCC__)
@@ -232,6 +299,7 @@ static int run_all_tests() {
   test_arch(weave::HardwareArch::B300_SM100, "B300_SM100");
   test_arch(weave::HardwareArch::H20_SM90, "H20_SM90");
   test_arch(weave::HardwareArch::MI308X_GFX942, "MI308X_GFX942");
+  test_precision_modes();
   if (failures != 0) {
     std::fprintf(stderr, "TOTAL FAILURES: %d\n", failures);
     return EXIT_FAILURE;

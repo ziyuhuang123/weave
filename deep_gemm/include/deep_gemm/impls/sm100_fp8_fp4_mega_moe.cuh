@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #include <cstdint>
 #include <cute/arch/cluster_sm90.hpp>
@@ -497,6 +497,11 @@ sm100_fp8_fp4_mega_moe_impl(void* y,
     constexpr uint32_t UMMA_N = BLOCK_M;  // Swap AB
     constexpr uint32_t UMMA_BLOCK_K = 128;
     constexpr uint32_t UMMA_K = 32;
+    // 2-CTA multicast schedule invariant.  The cluster shape pairs two CTAs
+    // along N (umma_arrive_multicast_2x1SM below), so multicast is a property
+    // of the compiled B300 kernel rather than a runtime switch.
+    constexpr bool kEnableMulticast = true;
+    DG_STATIC_ASSERT(kEnableMulticast, "B300 MegaMoE requires 2-CTA multicast");
     constexpr uint32_t LOAD_BLOCK_M = BLOCK_M / 2;  // Multicast on A
     constexpr uint32_t LOAD_BLOCK_N = BLOCK_N;
     constexpr uint32_t kNumKSubtilesPerBlock = BLOCK_K / UMMA_BLOCK_K;
@@ -4134,17 +4139,23 @@ sm100_fp8_fp4_mega_moe_impl(void* y,
                 (kNumChunkSlots * kNumEpilogueWarps * (kGroupBytes / kBaseSubChunks) <= kNumReusableSmemBytes)
                     ? kBaseSubChunks : (kBaseSubChunks * 2u);
             constexpr uint32_t kSubChunkBytes = kGroupBytes / kNumSubChunks;
-            // The spatial part of the CTA-0 decision changes the number of
-            // epilogue warps that join the tail reduction.  Never exceed the
-            // statically allocated barrier/workspace width.
+            // D6 static combine-warp cap.  The latest B300 kernel introduced a
+            // constexpr kD6ReduceWarps gate; keep that cap while still letting
+            // the CTA-0 spatial decision select *fewer* active combine warps.
+            // The result is min(policy N_e, D6 cap, kNumEpilogueWarps), so the
+            // cost-model wiring and the 2-CTA multicast schedule are preserved.
+            constexpr uint32_t kD6CombineCap =
+                (kD6ReduceWarps == 0u or kD6ReduceWarps >= kNumEpilogueWarps)
+                    ? kNumEpilogueWarps : kD6ReduceWarps;
             const uint32_t requested_combine_warps =
                 shared_storage.weave_policy_ready != 0u
                     ? weave::r_comp_units(shared_storage.weave_policy.selected_r_mask)
                     : kNumEpilogueWarps;
+            const uint32_t policy_combine_warps =
+                requested_combine_warps == 0u ? 1u : requested_combine_warps;
             const uint32_t active_combine_warps =
-                requested_combine_warps == 0u ? 1u :
-                (requested_combine_warps < kNumEpilogueWarps
-                     ? requested_combine_warps : kNumEpilogueWarps);
+                policy_combine_warps < kD6CombineCap
+                    ? policy_combine_warps : kD6CombineCap;
 
             using VecT = std::conditional_t<(kSubChunkBytes == 256u), uint2, uint4>;
             constexpr uint32_t kVecBytes = sizeof(VecT);

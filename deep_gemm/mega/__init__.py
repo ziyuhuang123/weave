@@ -1,4 +1,4 @@
-﻿import torch
+import torch
 import types
 import warnings
 from typing import Tuple, Optional, Union
@@ -513,6 +513,79 @@ def fp8_mega_moe(y: torch.Tensor,
         activation, activation_clamp,
         fast_math
     )
+WEAVE_PRECISION_MODES = ("fp8xfp4", "fp4xfp4", "nvfp4", "fp8", "fp8xfp8", "bf16")
+
+
+def _normalize_mma_type(mma_type: str) -> str:
+    key = str(mma_type).strip().lower()
+    if key == "nvfp4":
+        return "fp4xfp4"
+    if key == "fp8xfp8":
+        return "fp8"
+    if key not in ("fp8xfp4", "fp4xfp4", "fp8", "bf16"):
+        raise ValueError(
+            f"mma_type must be one of {WEAVE_PRECISION_MODES}, got {mma_type!r}")
+    return key
+
+
+def weave_mega_moe(y: torch.Tensor,
+                   l1_weights,
+                   l2_weights,
+                   sym_buffer,
+                   mma_type: Optional[str] = None,
+                   *,
+                   precision_mode: Optional[str] = None,
+                   **kwargs):
+    """Unified MegaMoE entry point for B300 / H20 / MI308X.
+
+    ``mma_type`` is the single first-class precision switch:
+
+    ============  =========================================================
+    mma_type      dispatched kernel
+    ============  =========================================================
+    ``fp8xfp4``   B300 SM100/SM103 ``sm100_fp8_fp4_mega_moe.cuh``
+    ``fp4xfp4``   B300 NVFP4 ``sm100_fp4_fp4_mega_moe.cuh``
+    ``nvfp4``     alias of ``fp4xfp4``
+    ``fp8``       H20 SM90 ``sm90_fp8_mega_moe.cuh``
+    ``bf16``      B300 BF16 ``sm100_bf16_mega_moe.cuh``
+    ============  =========================================================
+
+    ``precision_mode`` is accepted as an explicit alias so callers can wire a
+    CLI/config value without translating names.  All keyword arguments are
+    forwarded to the selected backend unchanged, so the existing DeepGEMM
+    functions remain 100% intact.
+    """
+    if mma_type is None:
+        if precision_mode is None:
+            mma_type = getattr(sym_buffer, "mma_type", None)
+        else:
+            mma_type = precision_mode
+    elif precision_mode is not None and (
+            _normalize_mma_type(mma_type) != _normalize_mma_type(precision_mode)):
+        raise ValueError(
+            f"mma_type={mma_type!r} conflicts with precision_mode={precision_mode!r}")
+    if mma_type is None:
+        raise ValueError(
+            "weave_mega_moe requires mma_type or a symmetric buffer with mma_type")
+
+    mode = _normalize_mma_type(mma_type)
+    if mode == "fp8xfp4":
+        if not isinstance(sym_buffer, SymmBuffer):
+            raise ValueError("fp8xfp4 requires a SymmBuffer")
+        return fp8_fp4_mega_moe(y, l1_weights, l2_weights, sym_buffer, **kwargs)
+    if mode == "fp4xfp4":
+        if not isinstance(sym_buffer, SymmBuffer) or sym_buffer.mma_type != "fp4xfp4":
+            raise ValueError("fp4xfp4/NVFP4 requires an fp4xfp4 SymmBuffer")
+        return fp4_fp4_mega_moe(y, l1_weights, l2_weights, sym_buffer, **kwargs)
+    if mode == "fp8":
+        if not isinstance(sym_buffer, SM90SymmBuffer):
+            raise ValueError("fp8 (SM90) requires an SM90SymmBuffer")
+        return fp8_mega_moe(y, l1_weights, l2_weights, sym_buffer, **kwargs)
+    if not isinstance(sym_buffer, SymmBuffer):
+        raise ValueError("bf16 requires a SymmBuffer")
+    return bf16_mega_moe(y, l1_weights, l2_weights, sym_buffer, **kwargs)
+
+
 # ---------------------------------------------------------------------------
 # Weave unified three-hardware policy API.
 #

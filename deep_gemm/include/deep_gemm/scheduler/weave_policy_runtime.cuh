@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 // =============================================================================
 // CTA-0 policy publication / all-CTA consumption rail.
 //

@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wunknown-attributes"
@@ -3728,12 +3728,23 @@ struct SM90MegaMoECoreRunner {
                             else                   run_swap_ab_l1.template operator()<32>();
 #if !(defined(AGY_FULL_NSWAP) && AGY_FULL_NSWAP)
                         } else if constexpr (kIntermediateHidden <= 2048) {
+                            // SWAPAB_FINE_LADDER: 8-token granularity, matching the
+                            // large-IH path and eliminating the 0.366 -> 5.94e-04
+                            // numerical drift source at BLOCK_N=256.
                             if (n_swap <= 8) {
                                 run_swap_ab_l1.template operator()<8>();
                             } else if (n_swap <= 16) {
                                 run_swap_ab_l1.template operator()<16>();
+                            } else if (n_swap <= 24) {
+                                run_swap_ab_l1.template operator()<24>();
                             } else if (n_swap <= 32) {
                                 run_swap_ab_l1.template operator()<32>();
+                            } else if (n_swap <= 40) {
+                                run_swap_ab_l1.template operator()<40>();
+                            } else if (n_swap <= 48) {
+                                run_swap_ab_l1.template operator()<48>();
+                            } else if (n_swap <= 56) {
+                                run_swap_ab_l1.template operator()<56>();
                             } else {
                                 run_swap_ab_l1.template operator()<64>();
                             }
@@ -3881,12 +3892,23 @@ struct SM90MegaMoECoreRunner {
                             else                   run_swap_ab_l2.template operator()<32>();
 #if !(defined(AGY_FULL_NSWAP) && AGY_FULL_NSWAP)
                         } else if constexpr (kIntermediateHidden <= 2048) {
+                            // SWAPAB_FINE_LADDER: 8-token granularity, matching the
+                            // large-IH path and eliminating the 0.366 -> 5.94e-04
+                            // numerical drift source at BLOCK_N=256.
                             if (n_swap <= 8) {
                                 run_swap_ab_l2.template operator()<8>();
                             } else if (n_swap <= 16) {
                                 run_swap_ab_l2.template operator()<16>();
+                            } else if (n_swap <= 24) {
+                                run_swap_ab_l2.template operator()<24>();
                             } else if (n_swap <= 32) {
                                 run_swap_ab_l2.template operator()<32>();
+                            } else if (n_swap <= 40) {
+                                run_swap_ab_l2.template operator()<40>();
+                            } else if (n_swap <= 48) {
+                                run_swap_ab_l2.template operator()<48>();
+                            } else if (n_swap <= 56) {
+                                run_swap_ab_l2.template operator()<56>();
                             } else {
                                 run_swap_ab_l2.template operator()<64>();
                             }
@@ -5172,7 +5194,9 @@ struct SM90MegaMoECoreRunner {
 
 #if defined(AGY_FAST_SWAP_EPI) && AGY_FAST_SWAP_EPI
                     {
-                        constexpr uint32_t kNumSwapSFGroups = L1_OUT_BLOCK_N / 64u;
+                        // kSwapSFSubBlocks: one activation scale per 64 output columns,
+                        // matching kL2ActsSFGranK. BLOCK_N=128 -> 1, BLOCK_N=256 -> 2.
+                        constexpr uint32_t kSwapSFSubBlocks = L1_OUT_BLOCK_N / kL2ActsSFGranK;
                         constexpr uint32_t kNumSubwarps = kNumEpilogueThreads / 16u;
                         DG_STATIC_ASSERT(L1_OUT_BLOCK_N % 64u == 0u,
                                          "swapAB L1_OUT_BLOCK_N must be a multiple of 64");
@@ -5184,12 +5208,12 @@ struct SM90MegaMoECoreRunner {
                         const uint32_t subwarp_id = epilogue_thread_idx / 16u;
                         const uint32_t lane16 = lane_idx & 15u;
                         const uint32_t half_mask = 0xffffu << (lane_idx & 16u);
-                        const uint32_t total_groups = valid_m * kNumSwapSFGroups;
+                        const uint32_t total_groups = valid_m * kSwapSFSubBlocks;
                         auto* sf_base_ptr = l2_sf_buffer.get_base_ptr<float>();
 
                         for (uint32_t work_idx = subwarp_id; work_idx < total_groups; work_idx += kNumSubwarps) {
-                            const uint32_t token = (kNumSwapSFGroups == 1u) ? work_idx : (work_idx / kNumSwapSFGroups);
-                            const uint32_t group = (kNumSwapSFGroups == 1u) ? 0u : (work_idx % kNumSwapSFGroups);
+                            const uint32_t token = (kSwapSFSubBlocks == 1u) ? work_idx : (work_idx / kSwapSFSubBlocks);
+                            const uint32_t group = (kSwapSFSubBlocks == 1u) ? 0u : (work_idx % kSwapSFSubBlocks);
                             const uint32_t col_base = group * 64u + lane16 * 4u;
                             const uint32_t swz_col = col_base ^ (((token >> 1) & 3u) << 3);
                             const float4 vals = *reinterpret_cast<const float4*>(
@@ -5212,7 +5236,7 @@ struct SM90MegaMoECoreRunner {
 
                             if (lane16 == 0u) {
                                 const uint32_t token_idx = pool_block_idx * BLOCK_M + token;
-                                const uint32_t sf_group = n_block_idx * kNumSwapSFGroups + group;
+                                const uint32_t sf_group = n_block_idx * kSwapSFSubBlocks + group;
                                 sf_base_ptr[sf_group * kSFPoolStrideTokens + token_idx] = sf;
                             }
 

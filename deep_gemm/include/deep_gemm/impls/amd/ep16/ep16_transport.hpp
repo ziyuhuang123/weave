@@ -148,7 +148,7 @@ __device__ __forceinline__ void ep16_gda_wave4(
   const unsigned njobs=x.tx_count[id];
   constexpr unsigned kScan=24u;   // descriptor look-ahead window (<=32, bitmap width)
   constexpr unsigned kBurst=8u;   // descriptors posted per burst
-  const bool small_t = (env.base.t_local <= 64u);
+  const bool small_t = (env.base.t_local <= 128u);
   unsigned idle_spins = 0u;
   bool seen_count_acq = false;
   for(;;) {
@@ -177,7 +177,8 @@ __device__ __forceinline__ void ep16_gda_wave4(
       if(bm&(1u<<scan)){++scan;continue;}
       const auto& t=jobs[j+scan];
       const uint32_t prior_mask=(1u<<scan)-1u;
-      if(t.remote_flag && (bm&prior_mask)!=prior_mask){++scan;continue;}
+      const unsigned phase_chk=t.phase&EP16_TXJ_PHASE_MASK;
+      if(t.remote_flag && phase_chk==0u && (bm&prior_mask)!=prior_mask){++scan;continue;}
       const bool chunked=(t.phase&EP16_TXJ_CHUNK_GATE)!=0u;
       const unsigned phase=t.phase&EP16_TXJ_PHASE_MASK;
       // ---- 1. sender-side count that defines this descriptor ----------------

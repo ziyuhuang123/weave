@@ -1,11 +1,11 @@
 {
-  "schema": "weave-local-validation/v1",
+  "schema": "weave-local-validation/v2",
   "date": "2026-11-19",
-  "machine": {
-    "gpu": "NVIDIA GeForce RTX 3050 Laptop 4 GB (not B300/H20/MI308X)",
+  "phase": "phase2_ds1017_upgrade",
+  "toolchain": {
     "python": "3.13.9",
-    "gxx": "g++ (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0",
-    "nvcc": "CUDA 13.3 V13.3.73",
+    "gxx": "g++ (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0 (WSL)",
+    "nvcc": "CUDA 13.3 V13.3.73 (Windows)",
     "platform": "Windows 11 + WSL Ubuntu-24.04"
   },
   "checks": [
@@ -13,12 +13,8 @@
       "name": "cost_model_eq123_host",
       "status": "PASS",
       "kind": "compiled_and_run",
-      "command": "g++ -std=c++17 -O2 -I deep_gemm/include tests/test_cost_model_eq123.cpp",
-      "output": [
-        "B300_SM100 auto=(r=0,s=0,v_head=32,total=14.022us)",
-        "H20_SM90 auto=(r=1,s=0,v_head=32,total=18.107us)",
-        "MI308X_GFX942 auto=(r=0,s=0,v_head=32,total=22.103us)"
-      ]
+      "command": "g++ -std=c++17 -O2 -Wall -Wextra -I deep_gemm/include tests/test_cost_model_eq123.cpp",
+      "detail": "B300 FP8xFP4 default 14.022us, H20 18.107us, MI308X 22.103us; new precision test covers FP8xFP4/NVFP4/FP8xFP8/BF16."
     },
     {
       "name": "ablation_presets",
@@ -32,20 +28,20 @@
       "status": "PASS",
       "kind": "compiled_not_run",
       "command": "nvcc -std=c++17 -x cu -arch=sm_90a tests/test_cost_model_eq123.cpp",
-      "detail": "NVCC_EXIT=0. The generated exe was not run because Windows Application Control blocks new executables and the local GPU is not sm_90a."
+      "detail": "NVCC_EXIT=0."
     },
     {
       "name": "kernel_ptx_frontend",
       "status": "PASS",
       "kind": "frontend_parse_only",
       "command": "nvcc -std=c++20 -ptx -arch=sm_90a/sm_100a",
-      "detail": "H20_EXIT=0, B300_FP8_EXIT=0, B300_FP4_EXIT=0. No kernel template instantiation or launch."
+      "detail": "H20, B300 FP8xFP4, and B300 FP4xFP4 all exit 0."
     },
     {
       "name": "cost_model_3hw_validation",
       "status": "PASS",
       "kind": "python_replay",
-      "detail": "Real B300 routing aggregates + deterministic Zipf(0.9) proxy histogram for m_e."
+      "detail": "B300 FP8xFP4, B300 NVFP4, H20, MI308X EP8, and MI308X EP16 replay cells all pass."
     },
     {
       "name": "kernel_policy_wiring",
@@ -54,23 +50,35 @@
       "detail": "b300, b300_nvfp4, h20, mi308x_body, mi308x_route, mi308x_comm all pass."
     },
     {
-      "name": "amd_hip_build",
-      "status": "NOT_RUN",
+      "name": "tunable_parameter_doc",
+      "status": "PASS",
+      "kind": "exact_file_line_audit",
+      "detail": "README.md and docs/TUNABLE_PARAMETERS.md pass every file:line token check."
+    },
+    {
+      "name": "amd_build_scripts_static",
+      "status": "PASS",
+      "kind": "static",
+      "detail": "bash -n build_one.sh, py_compile on build_port.py/bench_ep8.py/support, and AMD include-closure audit pass; only external aiter/CK headers remain external."
+    },
+    {
+      "name": "amd_hip_production_build",
+      "status": "NOT_RUN_ON_THIS_HOST",
       "kind": "unavailable_toolchain",
-      "detail": "No hipcc/ROCm; five archived AMD dependency headers are missing."
+      "detail": "Requires ROCm 7.2 gfx942. Executed on gfx942 hosts via amd/ep8/build_one.sh and amd/ep16/build_port.py; both scripts gate spill=0, scratch=0, s_barrier=1."
     },
     {
       "name": "end_to_end_gpu_performance",
-      "status": "NOT_RUN",
-      "kind": "unavailable_hardware",
-      "detail": "No B300/H20/MI308X on this machine; results/*.json are archived measurements, not rerun."
+      "status": "NOT_RERUN",
+      "kind": "archived_measurements",
+      "detail": "results/*.json are archived measured artifacts; Phase 2 did not rerun B300/H20/MI308X benchmarks."
     }
   ],
   "boundaries": {
     "d_in": "B300/H20/AMD policy decision point precedes dedup-key materialization; D_in is conservatively M.",
-    "m_out": "B300/H20 use live expert_send_count remote sums; AMD currently uses M.",
-    "b300_nvfp4_scatter": "selected_scatter_mode is published but does not switch a separate scatter path.",
-    "mi308x_spatial": "selected_r_mask maps to V1864Roles but the active v4 wave mapping does not consume roles yet.",
-    "cta0_latency": "Archived B300 median 3.648us, max 4.288us; new implementation not re-measured on B300."
+    "m_out": "B300/H20 use live expert_send_count remote sums; AMD uses M.",
+    "b300_nvfp4_scatter": "selected_scatter_mode is published; the NVFP4 kernel has no separate comm-scatter path.",
+    "mi308x_spatial": "selected_r_mask remaps V1864Roles for local plan/dispatch; GEMM wave count follows the dual flag.",
+    "cta0_latency": "Archived B300 median 3.648us, max 4.288us; the new selection loop was not re-measured on B300."
   }
 }

@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #include <deep_gemm/layout/mega_moe.cuh>
 

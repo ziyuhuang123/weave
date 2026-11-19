@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 // =============================================================================
 // Weave CTA-0 on-device cost model.
 //
@@ -140,32 +140,73 @@ WEAVE_HOST_DEVICE constexpr uint32_t align_up_u32(uint32_t n, uint32_t a) {
   return a == 0u ? n : ceil_div_u32(n, a) * a;
 }
 
-WEAVE_HOST_DEVICE HardwareSpec get_hardware_spec(HardwareArch arch) {
+// Tensor-core throughput and byte-width scaling for the precision knob.  The
+// FP8xFP4 row is exactly Paper Table I; every other row leaves that default
+// untouched.  b_a/b_w include block-scale metadata:
+//   FP8xFP4: FP8 activation with UTCCP-packed SF, measured as 0.5625
+//            B/element in Paper Table I; weights are FP4 (0.5 B/element).
+//   NVFP4:   E2M1 4-bit data (0.5 B) + E4M3 SF 1/16*1 B = 0.5625 B/element.
+//   FP8xFP8: E4M3 data (1 B) + FP32 SF 1/128*4 B = 1.03125 B/element.
+//   BF16:    2 B data + FP32 SF 1/128*4 B = 2.03125 B/element.
+WEAVE_HOST_DEVICE constexpr float precision_byte_width(
+    HardwareArch arch, PrecisionMode precision, bool activation) {
+  (void)arch;  // reserved for future per-arch SF packing widths
+  if (precision == PrecisionMode::FP8xFP4) {
+    return activation ? 0.5625f : 0.5f;
+  }
+  if (precision == PrecisionMode::NVFP4) {
+    return 0.5625f;
+  }
+  if (precision == PrecisionMode::FP8xFP8) {
+    return 1.03125f;
+  }
+  return activation ? 2.03125f : 2.0f;
+}
+
+WEAVE_HOST_DEVICE constexpr float precision_tc_scale(
+    PrecisionMode precision) {
+  // B300 NVFP4 tensor cores expose 2x the FP8xFP4 rate; BF16 exposes 0.5x.
+  return precision == PrecisionMode::NVFP4 ? 2.0f :
+         precision == PrecisionMode::BF16 ? 0.5f : 1.0f;
+}
+
+WEAVE_HOST_DEVICE HardwareSpec get_hardware_spec(
+    HardwareArch arch, PrecisionMode precision = PrecisionMode::FP8xFP4) {
+  HardwareSpec hw{};
   if (arch == HardwareArch::B300_SM100) {
-    return HardwareSpec{
+    hw = HardwareSpec{
         HardwareArch::B300_SM100, 148u, 16u,
         4200.0f, 3100.0f, 7680.0f, 780.0f,
         1.35f, 1.20f, 0.35f, 8.0f,
         128.0f, 14.0f, 8.0f, 48.0f,
         0.5f, 0.5625f, 2.0f, 64u};
-  }
-  if (arch == HardwareArch::H20_SM90) {
-    return HardwareSpec{
+  } else if (arch == HardwareArch::H20_SM90) {
+    hw = HardwareSpec{
         HardwareArch::H20_SM90, 78u, 20u,
         255.0f, 210.0f, 3600.0f, 370.0f,
         0.58f, 0.48f, 0.14f, 4.0f,
         60.0f, 18.0f, 9.0f, 0.8f,
         1.0f, 1.03125f, 2.0f, 32u};
+  } else {
+    hw = HardwareSpec{
+        HardwareArch::MI308X_GFX942, 80u, 8u,
+        360.0f, 205.0f, 3684.0f, 287.2f,
+        0.92f, 0.82f, 0.28f, 8.0f,
+        256.0f, 22.0f, 14.0f, 1.5f,
+        1.0f, 1.03125f, 2.0f, 16u};
   }
-  return HardwareSpec{
-      HardwareArch::MI308X_GFX942, 80u, 8u,
-      360.0f, 205.0f, 3684.0f, 287.2f,
-      0.92f, 0.82f, 0.28f, 8.0f,
-      256.0f, 22.0f, 14.0f, 1.5f,
-      1.0f, 1.03125f, 2.0f, 16u};
+  if (precision != PrecisionMode::FP8xFP4) {
+    hw.act_in_bytes = precision_byte_width(arch, precision, true);
+    hw.weight_bytes = precision_byte_width(arch, precision, false);
+    const float scale = precision_tc_scale(precision);
+    hw.p_tc_full_tflops *= scale;
+    hw.p_tc_half_tflops *= scale;
+  }
+  return hw;
 }
 
-WEAVE_HOST_DEVICE CandidateSet get_candidate_set(HardwareArch arch) {
+WEAVE_HOST_DEVICE CandidateSet get_candidate_set(
+    HardwareArch arch, PrecisionMode precision = PrecisionMode::FP8xFP4) {
   CandidateSet out{};
   if (arch == HardwareArch::B300_SM100) {
     // Paper Table I: (4 comm, 8 epi) and (8 comm, 4 epi) per SM.
@@ -188,6 +229,12 @@ WEAVE_HOST_DEVICE CandidateSet get_candidate_set(HardwareArch arch) {
     out.items[1] = SpatialCandidate{
         encode_r_mask(4u, 4u, 8u, false), 4u, 4u, 64u, 8u, 205.0f, false};
     out.count = 2u;
+  }
+  if (precision != PrecisionMode::FP8xFP4) {
+    const float scale = precision_tc_scale(precision);
+    for (uint32_t c = 0u; c < out.count; ++c) {
+      out.items[c].p_tc_tflops *= scale;
+    }
   }
   return out;
 }
@@ -317,7 +364,8 @@ WEAVE_HOST_DEVICE PolicyDecision make_override_decision(
     HardwareArch arch, const HardwareSpec& hw, const WorkloadSpec& wl,
     const WeaveKnobs& knobs, const uint32_t* m_e,
     uint32_t dedup_pulls, uint32_t scatter_count) {
-  const CandidateSet candidates = get_candidate_set(arch);
+  const CandidateSet candidates = get_candidate_set(
+      arch, static_cast<PrecisionMode>(knobs.precision_mode));
   const uint32_t requested_r = has_override(knobs, kOverrideSpatial)
       ? knobs.override_r_mask
       : default_r_mask_for_arch(arch);
@@ -392,7 +440,8 @@ WEAVE_HOST_DEVICE PolicyDecision cta0_select_policy(
         arch, hw, wl, knobs, m_e, dedup_pulls, scatter_count);
   }
 
-  const CandidateSet candidates = get_candidate_set(arch);
+  const CandidateSet candidates = get_candidate_set(
+      arch, static_cast<PrecisionMode>(knobs.precision_mode));
   PolicyDecision best{};
   best.magic = kPolicyMagic;
   best.version = kPolicyVersion;
@@ -457,8 +506,9 @@ WEAVE_HOST_DEVICE PolicyDecision cta0_select_policy(
     HardwareArch arch, const WorkloadSpec& wl, const WeaveKnobs& knobs,
     const uint32_t* m_e, uint32_t dedup_pulls, uint32_t scatter_count) {
   return cta0_select_policy(
-      arch, get_hardware_spec(arch), wl, knobs,
-      m_e, dedup_pulls, scatter_count);
+      arch, get_hardware_spec(
+                arch, static_cast<PrecisionMode>(knobs.precision_mode)),
+      wl, knobs, m_e, dedup_pulls, scatter_count);
 }
 
 }  // namespace weave

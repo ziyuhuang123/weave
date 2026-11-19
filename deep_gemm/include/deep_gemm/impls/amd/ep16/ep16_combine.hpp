@@ -24,6 +24,15 @@ __device__ __forceinline__ uint4 ep16_ld_agent_u4(const void* ptr){
                : "=&v"(r) : "v"(ptr) : "memory");
   return make_uint4(r[0], r[1], r[2], r[3]);
 }
+__device__ __forceinline__ void ep16_ld2_agent_u4(const void* p0, const void* p1, uint4& o0, uint4& o1){
+  ep16_u32x4 r0, r1;
+  asm volatile("global_load_dwordx4 %0, %2, off sc1\n"
+               "global_load_dwordx4 %1, %3, off sc1\n"
+               "s_waitcnt vmcnt(0)\n"
+               : "=&v"(r0), "=&v"(r1) : "v"(p0), "v"(p1) : "memory");
+  o0 = make_uint4(r0[0], r0[1], r0[2], r0[3]);
+  o1 = make_uint4(r1[0], r1[1], r1[2], r1[3]);
+}
 __device__ __forceinline__ void ep16_st_agent_relaxed(unsigned* p, unsigned v){
   __hip_atomic_store(p, v, __ATOMIC_RELAXED, __HIP_MEMORY_SCOPE_AGENT);
 }
@@ -39,26 +48,51 @@ __device__ __forceinline__ void ep16_bucket(const V968DispatchExt& env,const V98
  auto* rows=(const unsigned*)o.bucket_route_rows+(uint64_t)key*e.topk;
  bool cross=(src>>3u)!=(e.rank>>3u);
  if(cross && WEAVE_SCATTER_MODE==2 && home>=x.node_tokens){if(lane==0u)v983_error((unsigned*)e.error,905u);return;}
- for(unsigned col=lane*8u;col<o.hidden;col+=512u){
-  float sum[8]={};
-  for(unsigned k=0u;k<nexp;++k){
-   const uint4 v=ep16_ld_agent_u4((const uint16_t*)o.gemm2_output+(uint64_t)rows[k]*o.hidden+col);
-   const unsigned w[4]={v.x,v.y,v.z,v.w};
-   #pragma unroll
-   for(unsigned j=0u;j<4u;++j){sum[2*j]+=weave_comm_bf16_val(w[j]&65535u);sum[2*j+1]+=weave_comm_bf16_val(w[j]>>16u);}
-  }
-  uint4 v;unsigned* w=&v.x;
-  #pragma unroll
-  for(unsigned j=0u;j<4u;++j)w[j]=weave_comm_bf16(sum[j*2])|((unsigned)weave_comm_bf16(sum[j*2+1])<<16u);
+ uint16_t* dst_base =
 #if WEAVE_SCATTER_MODE == 2
-  if(cross){
-   auto* dst=(uint16_t*)((const uint64_t*)x.node_partial_table)[src&7u]+((uint64_t)(e.rank&7u)*x.node_tokens+home)*o.hidden+col;
-   *(uint4*)dst=v;
-  }else
+   cross ? ((uint16_t*)((const uint64_t*)x.node_partial_table)[src&7u]+((uint64_t)(e.rank&7u)*x.node_tokens+home)*o.hidden) :
 #endif
-  {
-   auto* dst=(uint16_t*)((uint64_t*)o.peer_return_payload_table)[src]+(uint64_t)slot*o.hidden+col;
-   *(uint4*)dst=v;
+   ((uint16_t*)((uint64_t*)o.peer_return_payload_table)[src]+(uint64_t)slot*o.hidden);
+ if(nexp==1u){
+  const uint16_t* src_row = (const uint16_t*)o.gemm2_output + (uint64_t)rows[0]*o.hidden;
+  #pragma clang loop unroll(disable)
+  for(unsigned col=lane*8u;col<o.hidden;col+=1024u){
+   if(col + 512u < o.hidden){
+    uint4 v0, v1;
+    ep16_ld2_agent_u4(src_row + col, src_row + col + 512u, v0, v1);
+    *(uint4*)(dst_base + col) = v0;
+    *(uint4*)(dst_base + col + 512u) = v1;
+   } else {
+    *(uint4*)(dst_base + col) = ep16_ld_agent_u4(src_row + col);
+   }
+  }
+ } else {
+  #pragma clang loop unroll(disable)
+  for(unsigned col=lane*8u;col<o.hidden;col+=512u){
+   float sum[8]={};
+   unsigned k=0u;
+   for(;k+1u<nexp;k+=2u){
+    uint4 v0, v1;
+    ep16_ld2_agent_u4((const uint16_t*)o.gemm2_output + (uint64_t)rows[k]*o.hidden + col,
+                      (const uint16_t*)o.gemm2_output + (uint64_t)rows[k+1u]*o.hidden + col, v0, v1);
+    const unsigned w0[4]={v0.x,v0.y,v0.z,v0.w};
+    const unsigned w1[4]={v1.x,v1.y,v1.z,v1.w};
+    #pragma unroll
+    for(unsigned j=0u;j<4u;++j){
+     sum[2*j]  +=weave_comm_bf16_val(w0[j]&65535u)+weave_comm_bf16_val(w1[j]&65535u);
+     sum[2*j+1]+=weave_comm_bf16_val(w0[j]>>16u)  +weave_comm_bf16_val(w1[j]>>16u);
+    }
+   }
+   if(k<nexp){
+    const uint4 v0=ep16_ld_agent_u4((const uint16_t*)o.gemm2_output + (uint64_t)rows[k]*o.hidden + col);
+    const unsigned w0[4]={v0.x,v0.y,v0.z,v0.w};
+    #pragma unroll
+    for(unsigned j=0u;j<4u;++j){sum[2*j]+=weave_comm_bf16_val(w0[j]&65535u);sum[2*j+1]+=weave_comm_bf16_val(w0[j]>>16u);}
+   }
+   uint4 o0; unsigned* p0=&o0.x;
+   #pragma unroll
+   for(unsigned j=0u;j<4u;++j)p0[j]=weave_comm_bf16(sum[j*2])|((unsigned)weave_comm_bf16(sum[j*2+1])<<16u);
+   *(uint4*)(dst_base + col) = o0;
   }
  }
  // Destination buffers live in uncached self.arena -> vmcnt(0) guarantees HBM/xGMI completion!
@@ -166,7 +200,7 @@ __device__ __forceinline__ void ep16_combine(const V968DispatchExt& env,const V9
  constexpr unsigned kCombineWorkers=96u;
 #endif
  auto start=__builtin_amdgcn_s_memrealtime(); unsigned idle_sleep=1u;
- const bool tight_idle=(e.t_local<=64u); unsigned idle_spins=0u;
+ const bool tight_idle=(e.t_local<=128u); unsigned idle_spins=0u;
  bool seen_plan=false, seen_local=false, seen_rx_acq=false;
  auto* ready_base=(unsigned*)o.recv_payload_ready;
  auto* bmp=(unsigned long long*)(ready_base+(uint64_t)e.world*(uint64_t)e.capacity);

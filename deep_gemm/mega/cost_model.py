@@ -1,4 +1,4 @@
-﻿"""Pure-Python mirror of the C++ Weave Eq.(1)-(3) cost model.
+"""Pure-Python mirror of the C++ Weave Eq.(1)-(3) cost model.
 
 This module intentionally has no torch / CUDA dependency.  It is used by the
 repository validator to cross-check the C++ header against golden outputs and
@@ -53,6 +53,60 @@ HARDWARE: Dict[str, HardwareSpec] = {
 def encode_r_mask(comm: int, comp: int, groups: int, heterogeneous: bool = False) -> int:
     return ((comm & 0xFF) | ((comp & 0xFF) << 8) |
             ((groups & 0xFF) << 16) | (0x80000000 if heterogeneous else 0))
+
+
+PRECISION_ALIASES = {
+    "fp8xfp4": "fp8xfp4",
+    "fp4xfp4": "fp4xfp4",
+    "nvfp4": "fp4xfp4",
+    "fp8": "fp8",
+    "fp8xfp8": "fp8",
+    "bf16": "bf16",
+}
+
+
+def normalize_precision_mode(precision_mode: str) -> str:
+    """Map mma_type / CLI spellings onto the four canonical cost-model modes."""
+    key = str(precision_mode).strip().lower()
+    if key not in PRECISION_ALIASES:
+        raise ValueError(f"unknown precision_mode {precision_mode!r}")
+    return PRECISION_ALIASES[key]
+
+
+def precision_byte_width(precision_mode: str, activation: bool) -> float:
+    mode = normalize_precision_mode(precision_mode)
+    if mode == "fp8xfp4":
+        return 0.5625 if activation else 0.5
+    if mode == "fp4xfp4":
+        return 0.5625
+    if mode == "fp8":
+        return 1.03125
+    return 2.03125 if activation else 2.0
+
+
+def precision_tc_scale(precision_mode: str) -> float:
+    mode = normalize_precision_mode(precision_mode)
+    return 2.0 if mode == "fp4xfp4" else (0.5 if mode == "bf16" else 1.0)
+
+
+def hardware_for(arch: str, precision_mode: str = "fp8xfp4") -> HardwareSpec:
+    """Return the Table-I hardware spec adjusted by the precision knob.
+
+    The default FP8xFP4 row is returned unchanged, so every existing prediction
+    remains bit-identical.
+    """
+    hw = HARDWARE[arch]
+    mode = normalize_precision_mode(precision_mode)
+    if mode == "fp8xfp4":
+        return hw
+    scale = precision_tc_scale(mode)
+    return dataclasses.replace(
+        hw,
+        p_tc_full_tflops=hw.p_tc_full_tflops * scale,
+        p_tc_half_tflops=hw.p_tc_half_tflops * scale,
+        weight_bytes=precision_byte_width(mode, False),
+        act_in_bytes=precision_byte_width(mode, True),
+    )
 
 
 @dataclasses.dataclass(frozen=True)
@@ -126,8 +180,10 @@ def choose_v_head(hw: HardwareSpec, c: SpatialCandidate, dedup_pulls: int) -> in
 
 def evaluate(arch: str, wl: WorkloadSpec, c: SpatialCandidate,
              scatter_mode: int, m_e: Sequence[int],
-             dedup_pulls: int, scatter_count: int) -> Breakdown:
-    hw = HARDWARE[arch]
+             dedup_pulls: int, scatter_count: int,
+             precision_mode: str = "fp8xfp4") -> Breakdown:
+    hw = hardware_for(arch, precision_mode)
+    p_tc_tflops = c.p_tc_tflops * precision_tc_scale(precision_mode)
     total = int(sum(m_e))
     h = float(wl.hidden)
     i = float(wl.intermediate)
@@ -140,7 +196,7 @@ def evaluate(arch: str, wl: WorkloadSpec, c: SpatialCandidate,
         weight_bytes += float(k) * 3.0 * h * i * hw.weight_bytes
     v_mem = weight_bytes + float(total) * hw.act_in_bytes * (h + i)
     t_mma = max(v_mem / (hw.b_hbm_gbps * 1000.0),
-                f_gemm / (c.p_tc_tflops * 1_000_000.0))
+                f_gemm / (p_tc_tflops * 1_000_000.0))
     v_epi = float(total) * (hw.act_in_bytes * i + hw.out_bytes * h)
     total_epi_units = float(hw.num_sms_or_cus) * float(c.comp_units)
     b_epi = min(hw.b_hbm_gbps,
@@ -179,11 +235,13 @@ def evaluate(arch: str, wl: WorkloadSpec, c: SpatialCandidate,
 
 
 def select_policy(arch: str, wl: WorkloadSpec, m_e: Sequence[int],
-                  dedup_pulls: int, scatter_count: int) -> Breakdown:
+                  dedup_pulls: int, scatter_count: int,
+                  precision_mode: str = "fp8xfp4") -> Breakdown:
     best: Breakdown | None = None
     for c in CANDIDATES[arch]:
         for s in (0, 1):
-            br = evaluate(arch, wl, c, s, m_e, dedup_pulls, scatter_count)
+            br = evaluate(arch, wl, c, s, m_e, dedup_pulls, scatter_count,
+                          precision_mode)
             if best is None or br.t_total_us < best.t_total_us:
                 best = br
     assert best is not None

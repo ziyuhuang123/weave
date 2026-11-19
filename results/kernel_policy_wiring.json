@@ -5,7 +5,7 @@
     "b300": {
       "exists": true,
       "path": "deep_gemm\\include\\deep_gemm\\impls\\sm100_fp8_fp4_mega_moe.cuh",
-      "bytes": 250854,
+      "bytes": 251616,
       "checks": {
         "include": {
           "needle": "weave_policy_runtime.cuh",
@@ -60,7 +60,7 @@
     "b300_nvfp4": {
       "exists": true,
       "path": "deep_gemm\\include\\deep_gemm\\impls\\sm100_fp4_fp4_mega_moe.cuh",
-      "bytes": 105907,
+      "bytes": 105986,
       "checks": {
         "include": {
           "needle": "weave_policy_runtime.cuh",
@@ -103,7 +103,7 @@
     "h20": {
       "exists": true,
       "path": "deep_gemm\\include\\deep_gemm\\impls\\sm90_fp8_mega_moe.cuh",
-      "bytes": 386655,
+      "bytes": 381966,
       "checks": {
         "include": {
           "needle": "weave_policy_runtime.cuh",
@@ -158,18 +158,18 @@
     "mi308x_body": {
       "exists": true,
       "path": "deep_gemm\\include\\deep_gemm\\impls\\amd\\megamoe_amd.hip",
-      "bytes": 59711,
+      "bytes": 61571,
       "checks": {
         "consume_r": {
           "needle": "selected_r_mask",
           "expected_count": 1,
-          "observed_count": 1,
+          "observed_count": 2,
           "ok": true
         },
         "consume_scatter": {
           "needle": "selected_scatter_mode",
           "expected_count": 1,
-          "observed_count": 1,
+          "observed_count": 2,
           "ok": true
         },
         "all_cta_read": {
@@ -183,7 +183,7 @@
     "mi308x_route": {
       "exists": true,
       "path": "deep_gemm\\include\\deep_gemm\\impls\\amd\\include\\direct_gather_and_greedy_tiles.hpp",
-      "bytes": 28982,
+      "bytes": 28979,
       "checks": {
         "cta0": {
           "needle": "cta0_select_and_publish",
@@ -220,7 +220,7 @@
     "mi308x_comm": {
       "exists": true,
       "path": "deep_gemm\\include\\deep_gemm\\impls\\amd\\include\\weave_comm_4wave_turbo.hpp",
-      "bytes": 37472,
+      "bytes": 37469,
       "checks": {
         "consume_v_head": {
           "needle": "selected_v_head",

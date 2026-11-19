@@ -1,4 +1,4 @@
-﻿#ifndef WEAVE_COMM_4WAVE_TURBO_HPP
+#ifndef WEAVE_COMM_4WAVE_TURBO_HPP
 #define WEAVE_COMM_4WAVE_TURBO_HPP
 
 #include <hip/hip_runtime.h>
