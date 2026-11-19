@@ -363,6 +363,8 @@ The tables below are generated from the working tree and verified by `tests/veri
 
 ### H20 SM90
 
+Production delivery configuration (DELIVERY_20261116): `DG_MOE_SWAPAB_AUTO=1`, `DG_MOE_SWAPAB_EPI_WG=4`, `DG_MOE_SWAPAB_MAX_LOAD=100000`, `DG_MOE_SWAPAB_PAD_PCT=25`, `DG_MOE_SWAPAB_MIN_LOAD=8`; source defaults below stay backward-compatible with the official rule.
+
 | Knob | Valid values | Default | Mechanism | Host parse | Kernel consumption |
 |---|---|---|---|---|---|
 | `DG_MOE_SWAPAB_AUTO` / `kSwapABActive` | 0/1 | 0 | Two-layer AUTO gate. 1 makes the swapAB decision a superset of the official n<=24 decision and lets pad_frac widen the tile. | `csrc/jit_kernels/heuristics/sm90_mega_moe.hpp:616` | `deep_gemm/include/deep_gemm/impls/sm90_fp8_mega_moe.cuh:367` |
