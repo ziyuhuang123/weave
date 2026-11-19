@@ -20,7 +20,7 @@ The repository keeps one scheduling contract across three production backends:
 
 ## CTA-0 runtime selection
 
-All backends use the same publication rail:
+H20 and MI308X use the same publication rail:
 
 ```text
 dispatch completes
@@ -34,7 +34,10 @@ dispatch completes
 
 The control object lives in device global workspace; there is no host round trip and
 no dynamic parallel launch. H20 keeps the decision out of the pre-barrier SMEM region
-that scatter/combine recycles, and all readers use acquire semantics.
+that scatter/combine recycles, and all readers use acquire semantics. The B300
+SM100 kernels dispatch through the precision-selectable MegaMoE scheduler; they do
+not embed this publication rail. That architectural split is audited explicitly by
+`tests/check_kernel_policy_wiring.py`.
 
 ### Paper equations (ASCII)
 
@@ -267,20 +270,44 @@ Phase-2 actual results on the build host:
 
 ## Results and provenance
 
-`results/` contains measured artifacts copied byte-for-byte from the original
-rebuttal runs; `results/provenance.json` records the source path and SHA-256 for
-each file. Phase 2 did not rerun those GPU benchmarks. In particular:
+`results/e2e_3hw_verified.json` is the machine-readable source of truth for the
+Phase 4 real-hardware verification. All latency values are measured on the named
+devices; every TFLOPS value is a single-GPU value, never a cluster aggregate.
 
-- `results/h20_table4_48cells_ablation_and_costmodel.json` is the archived H20
-  48-cell ablation.
-- `results/ep8_all16_synced_summary.json` is the archived B300 EP8 trace summary.
-- `results/ep16_baselines_and_roofline.json` is the archived MI308X EP16
-  baseline/roofline table.
-- `results/cta0_costmodel_latency_summary.json` is the archived CTA-0 latency
-  measurement.
+The Architecture table has exactly three hardware rows and presents B300
+`mma_type in {fp8xfp4, fp4xfp4 (NVFP4)}` as a tunable parameter, with H20 and
+MI308X fixed to `fp8`.
 
-The `docs/TUNABLE_PARAMETERS.md` file is the authoritative knob map; the next
-section reproduces the four engineering axes from that file.
+### Measured end-to-end results
+
+| Hardware / scale | Precision (`mma_type`) | Full-output correctness | Measured latency (us) | Compile / ISA audit | Verdict |
+|---|---|---|---|---|---|
+| 8x NVIDIA L20D (B300/SM103 class); max admissible window 4 GPUs | `fp4xfp4 (NVFP4)` | EP4, S=16, H=6144, I=2048, E=128, K=8; per-rank `calc_diff` 4.672e-7..6.645e-7, `rel_l2` 9.666e-4..1.153e-3, `max_abs_err` 2..4; all 4 ranks PASS | median-of-rank-medians 143.552; worst rank 143.584; 65.757 TFLOPS/GPU nominal (range 62.571..72.148) | ptxas: 0 spill stores, 0 spill loads, 128 registers, 80 B stack | PASS |
+| same 8x B300 installation; EP8 not admissible | `fp8xfp4` | EP1 and EP2 reached the full reference successfully, then `run_direct` did not return; no output or latency is claimed | not measured | ptxas: 0 spill stores, 0 spill loads, 128 registers, 56 B stack; `compute-sanitizer memcheck` found no invalid access before the hang | BLOCKED_RUNTIME_HANG |
+| 8x NVIDIA H20 (SM90) | `fp8` | EP8, Qwen3.8-Max, E=512, K=10, H=8192, I=2048; worst-rank `calc_diff` 5.924e-4..5.948e-4, worst `rel_l2` 0.034483, `cos_sim` 0.999405; all ranks PASS | S=128 AUTO=1 1452.512 (AUTO=0 1942.784; 25.24% gain); S=1024 AUTO=1 4977.584 (AUTO=0 4981.344) | `nvcc -ptx -arch=sm_90a` PASS; Phase-3 run did not emit ptxas spill verbose | PASS |
+| 8x AMD Instinct MI308X (gfx942) | `fp8` | EP8: 4/4 full-output cells PASS across all 8 ranks; max `rel_l2` 0.001545..0.001908, max row `rel_l2` 0.001952..0.005731, `device_error=0` | qwen38max S=16 687.422 / 713.942; S=128 1539.625 / 1554.185; DeepSeek-V4-Flash S=16 378.761 / 395.421; S=128 699.642 / 709.743; single-GPU TFLOPS 1.595..9.219 | EP8 P.co `d5f977...`; EP16 P.co `2d2bbd...`; both: `spill=0`, `scratch_load=0`, `scratch_store=0`, `s_barrier=1`, `co_passed=true` | EP8 PASS; EP16 compile + ISA PASS |
+
+For the AMD latency cells, the two numbers are cross-rank median and slowest-rank
+median, respectively. The exact per-rank measurements, TFLOPS, hashes, and gates
+are in `results/e2e_3hw_verified.json`.
+
+**B300 boundary.** GPU0/1 on the B300 host were held by a long-running sglang
+service, and the remaining GPUs were intermittently occupied by other sessions;
+there was never an admissible 8-GPU window. The delivery therefore reports the
+real EP4 NVFP4 result above and explicitly records EP8 as not admitted. The
+installed `sgl_deep_gemm 0.2.3.post2` reference control (238.14 us median of rank
+medians, 596.42 us copy+kernel) is preserved only under `reference_control` in the
+JSON; it is not attributed to this repository.
+
+**AMD EP16 boundary.** EP16 was compiled and ISA-audited with zero spills and
+zero scratch, but the two-node 16-GPU runtime was not executed in this phase;
+the artifact hash and gate values are recorded separately from the EP8 results.
+
+The previously archived rebuttal artifacts remain byte-for-byte under `results/`:
+`results/h20_table4_48cells_ablation_and_costmodel.json`,
+`results/ep8_all16_synced_summary.json`,
+`results/ep16_baselines_and_roofline.json`, and
+`results/cta0_costmodel_latency_summary.json`.
 
 ## Tunable Parameters & Code Locations
 
@@ -290,38 +317,38 @@ The tables below are generated from the working tree and verified by `tests/veri
 
 | Knob | Valid values | Default | Mechanism | Host parse | Kernel consumption |
 |---|---|---|---|---|---|
-| `WEAVE_ABLATION_PRESET` | 0/1/2/3 | 0 | Preset 0 = full Weave; 1 = -S; 2 = -S-T; 3 = -S-T-C. Presets 1..3 disable the runtime search and force a fixed spatial/scatter candidate. | `deep_gemm/include/deep_gemm/scheduler/weave_knobs.cuh:30` | `deep_gemm/include/deep_gemm/scheduler/weave_knobs.cuh:37` |
-| `WEAVE_KNOB_ENABLE_RUNTIME_COST_MODEL` / `enable_runtime_cost_model` | 0/1 | 1 when preset=0, else 0 | Master switch for the CTA-0 Eq.(1)-(3) search. An explicit -D...=1 overrides the preset default. | `deep_gemm/include/deep_gemm/scheduler/weave_knobs.cuh:37` | `deep_gemm/include/deep_gemm/scheduler/weave_cost_model.cuh:436` |
-| `WEAVE_KNOB_COMM_UNITS` | uint32 | 4 | Spatial default N_c per SM/CU when the policy search is disabled. | `deep_gemm/include/deep_gemm/scheduler/weave_knobs.cuh:41` | `deep_gemm/include/deep_gemm/scheduler/weave_knobs.cuh:247` |
-| `WEAVE_KNOB_COMP_UNITS` | uint32 | 4 | Spatial default N_e per SM/CU when the policy search is disabled. | `deep_gemm/include/deep_gemm/scheduler/weave_knobs.cuh:44` | `deep_gemm/include/deep_gemm/scheduler/weave_knobs.cuh:248` |
-| `WEAVE_KNOB_DUALGROUP_MIN_TOKENS` | uint32 | 64 | AMD dual-group threshold: t_local at or above this value rebinds communication waves into a second compute group. | `deep_gemm/include/deep_gemm/scheduler/weave_knobs.cuh:47` | `deep_gemm/include/deep_gemm/impls/amd/megamoe_amd.hip:1211` |
-| `WEAVE_KNOB_BM_TIER_MODE` | 0/1/2 | 2 | AMD BM tier selector. Mode 2 enables the five-tier {16,32,64,128,256} planner. | `deep_gemm/include/deep_gemm/scheduler/weave_knobs.cuh:50` | `deep_gemm/include/deep_gemm/impls/amd/include/direct_gather_and_greedy_tiles.hpp:439` |
-| `WEAVE_KNOB_BN1` | 64/128/256 | 128 | First-layer N tile width default. | `deep_gemm/include/deep_gemm/scheduler/weave_knobs.cuh:53` | `deep_gemm/include/deep_gemm/scheduler/weave_knobs.cuh:252` |
-| `WEAVE_KNOB_BN2_MODE` | 0/64/128 | 0 | Second-layer N tile mode; 64 enables the BN64 small-M path. | `deep_gemm/include/deep_gemm/scheduler/weave_knobs.cuh:56` | `deep_gemm/include/deep_gemm/impls/amd/megamoe_amd.hip:953` |
-| `WEAVE_KNOB_BK` | 64/128/256 | 128 | K tile width default. | `deep_gemm/include/deep_gemm/scheduler/weave_knobs.cuh:59` | `deep_gemm/include/deep_gemm/scheduler/weave_knobs.cuh:254` |
-| `WEAVE_KNOB_S2_NGROUP_MODE` | 0/1/2/4 | 0 | AMD stage-2 N grouping width; 0 = auto. | `deep_gemm/include/deep_gemm/scheduler/weave_knobs.cuh:62` | `deep_gemm/include/deep_gemm/impls/amd/megamoe_amd.hip:961` |
-| `WEAVE_KNOB_HETERO_SM_MASK` | bitmask | 0 | Per-SM heterogeneous role mask seed. | `deep_gemm/include/deep_gemm/scheduler/weave_knobs.cuh:65` | `deep_gemm/include/deep_gemm/scheduler/weave_knobs.cuh:256` |
-| `WEAVE_KNOB_OVERLAP_PIPELINE` | 0/1 | 1 (0 at preset >= 2) | Temporal overlap switch. 0 falls back to bulk-synchronous stage serialization. | `deep_gemm/include/deep_gemm/scheduler/weave_knobs.cuh:68` | `deep_gemm/include/deep_gemm/impls/amd/megamoe_amd.hip:706` |
-| `WEAVE_KNOB_SCATTER_MODE` / `WEAVE_SCATTER_MODE` | 0/1/2 | 1 | Scatter path selector: 0 = inline epilogue, 1 = comm-queue async, 2 = local dedup first. The AMD EP16 header consumes the WEAVE_SCATTER_MODE alias. | `deep_gemm/include/deep_gemm/scheduler/weave_knobs.cuh:71` | `deep_gemm/include/deep_gemm/impls/amd/ep16/ep16_combine.hpp:52` |
-| `WEAVE_KNOB_GEMM_STAGES` | 1..4 | 2 | Mainloop software pipeline depth. | `deep_gemm/include/deep_gemm/scheduler/weave_knobs.cuh:74` | `deep_gemm/include/deep_gemm/scheduler/weave_knobs.cuh:259` |
-| `WEAVE_KNOB_ALL_WAVE_COMBINE` | 0/1 | 1 (0 at preset >= 2) | Use all waves for the cooperative tail combine; 0 restricts to four waves. | `deep_gemm/include/deep_gemm/scheduler/weave_knobs.cuh:77` | `deep_gemm/include/deep_gemm/impls/amd/ep16/ep16_combine.hpp:194` |
-| `WEAVE_KNOB_SPIN_BEFORE_SLEEP` | uint32 | 256 | Polling spin count before issuing the first sleep/backoff. | `deep_gemm/include/deep_gemm/scheduler/weave_knobs.cuh:80` | `deep_gemm/include/deep_gemm/scheduler/weave_knobs.cuh:261` |
-| `WEAVE_KNOB_SELECTIVE_DEDUP` | 0/1 | 1 (0 at preset >= 3) | Cross-rank selective token dedup. EP16 requires 1. | `deep_gemm/include/deep_gemm/scheduler/weave_knobs.cuh:83` | `deep_gemm/include/deep_gemm/impls/amd/include/weave_comm_4wave_turbo.hpp:506` |
-| `WEAVE_KNOB_REGISTER_DIRECT_COMM` | 0/1 | 1 | Register-direct zero-copy gather (no dense communication staging). | `deep_gemm/include/deep_gemm/scheduler/weave_knobs.cuh:86` | `deep_gemm/include/deep_gemm/scheduler/weave_knobs.cuh:265` |
-| `WEAVE_KNOB_PARALLEL_ROUTE_PLAN` / `WEAVE_PARALLEL_ROUTE_PLAN` | 0/1 | 1 | All-CTA parallel route histogram/prefix/scatter. | `deep_gemm/include/deep_gemm/scheduler/weave_knobs.cuh:89` | `deep_gemm/include/deep_gemm/impls/amd/megamoe_amd.hip:26` |
-| `WEAVE_KNOB_LOCAL_FIRST_ORDER` | 0/1 | 1 | LOCAL_READY -> REMOTE_PRIMARY -> LOCAL_COPY worklist priority. | `deep_gemm/include/deep_gemm/scheduler/weave_knobs.cuh:92` | `deep_gemm/include/deep_gemm/scheduler/weave_knobs.cuh:267` |
-| `WEAVE_KNOB_FUSED_SWIGLU_REQUANT` | 0/1 | 1 | Fuse SwiGLU with per-128 blockscale requantization. | `deep_gemm/include/deep_gemm/scheduler/weave_knobs.cuh:95` | `deep_gemm/include/deep_gemm/scheduler/weave_knobs.cuh:269` |
-| `WEAVE_KNOB_TAIL_FINE_GRAINED` | 0/1 | 1 (0 at preset >= 2) | Fine-grained tail reduce; 0 uses the constant t_tail_us. | `deep_gemm/include/deep_gemm/scheduler/weave_knobs.cuh:98` | `deep_gemm/include/deep_gemm/scheduler/weave_cost_model.cuh:359` |
-| `WEAVE_KNOB_V_HEAD` | uint32 | 0xffffffff (auto) | Manual V_head override; effective_v_head applies it after Eq.(3). | `deep_gemm/include/deep_gemm/scheduler/weave_knobs.cuh:101` | `deep_gemm/include/deep_gemm/scheduler/weave_knobs.cuh:263` |
-| `WEAVE_KNOB_PRECISION_MODE` / `precision_mode` | 0/1/2/3 | 0 (FP8xFP4) | First-class B300 precision selector: 0=FP8xFP4, 1=NVFP4, 2=FP8xFP8, 3=BF16. Mirrored by Python mma_type. | `deep_gemm/include/deep_gemm/scheduler/weave_knobs.cuh:107` | `deep_gemm/include/deep_gemm/scheduler/weave_cost_model.cuh:368` |
-| `precision_mode` struct field | uint32 | 0 | Runtime field in WeaveKnobs; the CTA-0 selector reads it to pick byte widths and P_tc(r). | `deep_gemm/include/deep_gemm/scheduler/weave_knobs.cuh:218` | `deep_gemm/include/deep_gemm/scheduler/weave_cost_model.cuh:368` |
+| `WEAVE_ABLATION_PRESET` | 0/1/2/3 | 0 | Preset 0 = full Weave; 1 = -S; 2 = -S-T; 3 = -S-T-C. Presets 1..3 disable the runtime search and force a fixed spatial/scatter candidate. | `deep_gemm/include/deep_gemm/scheduler/weave_knobs.cuh:40` | `deep_gemm/include/deep_gemm/scheduler/weave_knobs.cuh:40` |
+| `WEAVE_KNOB_ENABLE_RUNTIME_COST_MODEL` / `enable_runtime_cost_model` | 0/1 | 1 when preset=0, else 0 | Master switch for the CTA-0 Eq.(1)-(3) search. An explicit -D...=1 overrides the preset default. | `deep_gemm/include/deep_gemm/scheduler/weave_knobs.cuh:47` | `deep_gemm/include/deep_gemm/scheduler/weave_cost_model.cuh:436` |
+| `WEAVE_KNOB_COMM_UNITS` | uint32 | 4 | Spatial default N_c per SM/CU when the policy search is disabled. | `deep_gemm/include/deep_gemm/scheduler/weave_knobs.cuh:51` | `deep_gemm/include/deep_gemm/scheduler/weave_knobs.cuh:258` |
+| `WEAVE_KNOB_COMP_UNITS` | uint32 | 4 | Spatial default N_e per SM/CU when the policy search is disabled. | `deep_gemm/include/deep_gemm/scheduler/weave_knobs.cuh:54` | `deep_gemm/include/deep_gemm/scheduler/weave_knobs.cuh:259` |
+| `WEAVE_KNOB_DUALGROUP_MIN_TOKENS` | uint32 | 64 | AMD dual-group threshold: t_local at or above this value rebinds communication waves into a second compute group. | `deep_gemm/include/deep_gemm/scheduler/weave_knobs.cuh:57` | `deep_gemm/include/deep_gemm/impls/amd/megamoe_amd.hip:1211` |
+| `WEAVE_KNOB_BM_TIER_MODE` | 0/1/2 | 2 | AMD BM tier selector. Mode 2 enables the five-tier {16,32,64,128,256} planner. | `deep_gemm/include/deep_gemm/scheduler/weave_knobs.cuh:60` | `deep_gemm/include/deep_gemm/impls/amd/include/direct_gather_and_greedy_tiles.hpp:439` |
+| `WEAVE_KNOB_BN1` | 64/128/256 | 128 | First-layer N tile width default. | `deep_gemm/include/deep_gemm/scheduler/weave_knobs.cuh:63` | `deep_gemm/include/deep_gemm/scheduler/weave_knobs.cuh:263` |
+| `WEAVE_KNOB_BN2_MODE` | 0/64/128 | 0 | Second-layer N tile mode; 64 enables the BN64 small-M path. | `deep_gemm/include/deep_gemm/scheduler/weave_knobs.cuh:66` | `deep_gemm/include/deep_gemm/impls/amd/megamoe_amd.hip:953` |
+| `WEAVE_KNOB_BK` | 64/128/256 | 128 | K tile width default. | `deep_gemm/include/deep_gemm/scheduler/weave_knobs.cuh:69` | `deep_gemm/include/deep_gemm/scheduler/weave_knobs.cuh:265` |
+| `WEAVE_KNOB_S2_NGROUP_MODE` | 0/1/2/4 | 0 | AMD stage-2 N grouping width; 0 = auto. | `deep_gemm/include/deep_gemm/scheduler/weave_knobs.cuh:72` | `deep_gemm/include/deep_gemm/impls/amd/megamoe_amd.hip:961` |
+| `WEAVE_KNOB_HETERO_SM_MASK` | bitmask | 0 | Per-SM heterogeneous role mask seed. | `deep_gemm/include/deep_gemm/scheduler/weave_knobs.cuh:75` | `deep_gemm/include/deep_gemm/scheduler/weave_knobs.cuh:267` |
+| `WEAVE_KNOB_OVERLAP_PIPELINE` | 0/1 | 1 (0 at preset >= 2) | Temporal overlap switch. 0 falls back to bulk-synchronous stage serialization. | `deep_gemm/include/deep_gemm/scheduler/weave_knobs.cuh:78` | `deep_gemm/include/deep_gemm/impls/amd/megamoe_amd.hip:706` |
+| `WEAVE_KNOB_SCATTER_MODE` / `WEAVE_SCATTER_MODE` | 0/1/2 | 1 | Scatter path selector: 0 = inline epilogue, 1 = comm-queue async, 2 = local dedup first. The AMD EP16 header consumes the WEAVE_SCATTER_MODE alias. | `deep_gemm/include/deep_gemm/scheduler/weave_knobs.cuh:126` | `deep_gemm/include/deep_gemm/impls/amd/ep16/ep16_combine.hpp:52` |
+| `WEAVE_KNOB_GEMM_STAGES` | 1..4 | 2 | Mainloop software pipeline depth. | `deep_gemm/include/deep_gemm/scheduler/weave_knobs.cuh:84` | `deep_gemm/include/deep_gemm/scheduler/weave_knobs.cuh:270` |
+| `WEAVE_KNOB_ALL_WAVE_COMBINE` | 0/1 | 1 (0 at preset >= 2) | Use all waves for the cooperative tail combine; 0 restricts to four waves. | `deep_gemm/include/deep_gemm/scheduler/weave_knobs.cuh:87` | `deep_gemm/include/deep_gemm/impls/amd/ep16/ep16_combine.hpp:194` |
+| `WEAVE_KNOB_SPIN_BEFORE_SLEEP` | uint32 | 256 | Polling spin count before issuing the first sleep/backoff. | `deep_gemm/include/deep_gemm/scheduler/weave_knobs.cuh:90` | `deep_gemm/include/deep_gemm/scheduler/weave_knobs.cuh:272` |
+| `WEAVE_KNOB_SELECTIVE_DEDUP` | 0/1 | 1 (0 at preset >= 3) | Cross-rank selective token dedup. EP16 requires 1. | `deep_gemm/include/deep_gemm/scheduler/weave_knobs.cuh:93` | `deep_gemm/include/deep_gemm/impls/amd/include/weave_comm_4wave_turbo.hpp:506` |
+| `WEAVE_KNOB_REGISTER_DIRECT_COMM` | 0/1 | 1 | Register-direct zero-copy gather (no dense communication staging). | `deep_gemm/include/deep_gemm/scheduler/weave_knobs.cuh:96` | `deep_gemm/include/deep_gemm/scheduler/weave_knobs.cuh:276` |
+| `WEAVE_KNOB_PARALLEL_ROUTE_PLAN` / `WEAVE_PARALLEL_ROUTE_PLAN` | 0/1 | 1 | All-CTA parallel route histogram/prefix/scatter. | `deep_gemm/include/deep_gemm/scheduler/weave_knobs.cuh:99` | `deep_gemm/include/deep_gemm/impls/amd/megamoe_amd.hip:26` |
+| `WEAVE_KNOB_LOCAL_FIRST_ORDER` | 0/1 | 1 | LOCAL_READY -> REMOTE_PRIMARY -> LOCAL_COPY worklist priority. | `deep_gemm/include/deep_gemm/scheduler/weave_knobs.cuh:102` | `deep_gemm/include/deep_gemm/scheduler/weave_knobs.cuh:278` |
+| `WEAVE_KNOB_FUSED_SWIGLU_REQUANT` | 0/1 | 1 | Fuse SwiGLU with per-128 blockscale requantization. | `deep_gemm/include/deep_gemm/scheduler/weave_knobs.cuh:105` | `deep_gemm/include/deep_gemm/scheduler/weave_knobs.cuh:280` |
+| `WEAVE_KNOB_TAIL_FINE_GRAINED` | 0/1 | 1 (0 at preset >= 2) | Fine-grained tail reduce; 0 uses the constant t_tail_us. | `deep_gemm/include/deep_gemm/scheduler/weave_knobs.cuh:108` | `deep_gemm/include/deep_gemm/scheduler/weave_cost_model.cuh:359` |
+| `WEAVE_KNOB_V_HEAD` | uint32 | 0xffffffff (auto) | Manual V_head override; effective_v_head applies it after Eq.(3). | `deep_gemm/include/deep_gemm/scheduler/weave_knobs.cuh:111` | `deep_gemm/include/deep_gemm/scheduler/weave_knobs.cuh:274` |
+| `WEAVE_KNOB_PRECISION_MODE` / `precision_mode` | 0/1/2/3 | 0 (FP8xFP4) | First-class B300 precision selector: 0=FP8xFP4, 1=NVFP4, 2=FP8xFP8, 3=BF16. Mirrored by Python mma_type. | `deep_gemm/include/deep_gemm/scheduler/weave_knobs.cuh:117` | `deep_gemm/include/deep_gemm/scheduler/weave_cost_model.cuh:368` |
+| `precision_mode` struct field | uint32 | 0 | Runtime field in WeaveKnobs; the CTA-0 selector reads it to pick byte widths and P_tc(r). | `deep_gemm/include/deep_gemm/scheduler/weave_knobs.cuh:229` | `deep_gemm/include/deep_gemm/scheduler/weave_cost_model.cuh:368` |
 | `weave_mega_moe(..., mma_type=...)` (Python) | fp8xfp4/fp4xfp4/nvfp4/fp8/bf16 | sym_buffer.mma_type | Unified `weave_mega_moe` entry point; dispatches to the four existing DeepGEMM wrappers without altering them. | `deep_gemm/mega/__init__.py:535` | `deep_gemm/mega/__init__.py:571` |
 | `mma_type` (C++) | fp8xfp4/fp4xfp4/nvfp4/fp8/bf16 | fp8xfp4 | Host dispatch table mapping precision to backend, PrecisionMode, and kernel header. | `csrc/apis/mega.hpp:68` | `csrc/apis/mega.hpp:73` |
-| `override_mask` | bit0..bit3 | 0 | Explicit override bits for spatial / scatter / V_head / temporal. | `deep_gemm/include/deep_gemm/scheduler/weave_knobs.cuh:184` | `deep_gemm/include/deep_gemm/scheduler/weave_knobs.cuh:276` |
-| `override_r_mask` | packed uint32 | auto | Packed r=(N_c,N_e,groups,hetero); applied when bit0 is set. | `deep_gemm/include/deep_gemm/scheduler/weave_knobs.cuh:185` | `deep_gemm/include/deep_gemm/scheduler/weave_knobs.cuh:289` |
-| `override_scatter_mode` | 0/1/2 | auto | Forced scatter path; applied when bit1 is set. | `deep_gemm/include/deep_gemm/scheduler/weave_knobs.cuh:186` | `deep_gemm/include/deep_gemm/scheduler/weave_knobs.cuh:282` |
-| `override_v_head` | uint32 | auto | Forced V_head; applied when bit2 is set. | `deep_gemm/include/deep_gemm/scheduler/weave_knobs.cuh:187` | `deep_gemm/include/deep_gemm/scheduler/weave_knobs.cuh:296` |
-| `selected_r_mask` | packed uint32 | argmin | Published spatial decision consumed by every CTA. | `deep_gemm/include/deep_gemm/scheduler/weave_cost_model.cuh:98` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:1648` |
+| `override_mask` | bit0..bit3 | 0 | Explicit override bits for spatial / scatter / V_head / temporal. | `deep_gemm/include/deep_gemm/scheduler/weave_knobs.cuh:195` | `deep_gemm/include/deep_gemm/scheduler/weave_knobs.cuh:287` |
+| `override_r_mask` | packed uint32 | auto | Packed r=(N_c,N_e,groups,hetero); applied when bit0 is set. | `deep_gemm/include/deep_gemm/scheduler/weave_knobs.cuh:196` | `deep_gemm/include/deep_gemm/scheduler/weave_knobs.cuh:300` |
+| `override_scatter_mode` | 0/1/2 | auto | Forced scatter path; applied when bit1 is set. | `deep_gemm/include/deep_gemm/scheduler/weave_knobs.cuh:197` | `deep_gemm/include/deep_gemm/scheduler/weave_knobs.cuh:293` |
+| `override_v_head` | uint32 | auto | Forced V_head; applied when bit2 is set. | `deep_gemm/include/deep_gemm/scheduler/weave_knobs.cuh:198` | `deep_gemm/include/deep_gemm/scheduler/weave_knobs.cuh:307` |
+| `selected_r_mask` | packed uint32 | argmin | Published spatial decision consumed by every CTA. | `deep_gemm/include/deep_gemm/scheduler/weave_cost_model.cuh:98` | `deep_gemm/include/deep_gemm/scheduler/weave_cost_model.cuh:457` |
 | `selected_scatter_mode` | 0/1/2 | argmin | Published temporal decision consumed by the scatter path. | `deep_gemm/include/deep_gemm/scheduler/weave_cost_model.cuh:99` | `deep_gemm/include/deep_gemm/scheduler/weave_cost_model.cuh:458` |
 | `selected_v_head` | uint32 | argmin | Published head-pull budget consumed by the pull loops. | `deep_gemm/include/deep_gemm/scheduler/weave_cost_model.cuh:100` | `deep_gemm/include/deep_gemm/scheduler/weave_cost_model.cuh:459` |
 
@@ -330,36 +357,36 @@ The tables below are generated from the working tree and verified by `tests/veri
 | Knob | Valid values | Default | Mechanism | Host parse | Kernel consumption |
 |---|---|---|---|---|---|
 | `DG_TUNE_D1_G` / `DG_ISOLATED_D1_G` | 0/1/2/4/8/16 | 0 | D1 ready-group granularity G; 0 disables grouped publication. | `csrc/jit_kernels/impls/sm100_fp8_fp4_mega_moe.hpp:129` | `deep_gemm/include/deep_gemm/scheduler/mega_moe.cuh:520` |
-| `DG_TUNE_D2_MODE` / `DG_ISOLATED_D2_MODE` | 0..15 | 0 | D2 dispatch/register-pull mode; >=1 enables warp reconfiguration. | `csrc/jit_kernels/impls/sm100_fp8_fp4_mega_moe.hpp:131` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:539` |
-| `DG_TUNE_D2_REG_PULL_BYTES` / `DG_ISOLATED_D2_REG_PULL_BYTES` | 0/1024/2048/4096 | 0 | D2 register-direct pull width in bytes; 0 uses SMEM staging. | `csrc/jit_kernels/impls/sm100_fp8_fp4_mega_moe.hpp:132` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:407` |
-| `DG_ISOLATED_D2_D8_SM_LIMIT` | 0..148 | 74 | Maximum SM id participating in the D8 role split. | `csrc/jit_kernels/impls/sm100_fp8_fp4_mega_moe.hpp:133` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:662` |
-| `DG_ISOLATED_D2_DISP_REGS` | register count | 0 | Explicit register budget for dispatch warps under D2. | `csrc/jit_kernels/impls/sm100_fp8_fp4_mega_moe.hpp:134` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:868` |
-| `DG_ISOLATED_D2_EPI_REGS` | register count | 0 | Explicit register budget for epilogue warps under D2. | `csrc/jit_kernels/impls/sm100_fp8_fp4_mega_moe.hpp:135` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:868` |
-| `DG_TUNE_D3_BM` / `DG_D3_BM` | 32/64/96/128/192 | 0 (heuristic) | D3 block-M override. | `csrc/jit_kernels/impls/sm100_fp8_fp4_mega_moe.hpp:137` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:327` |
-| `DG_TUNE_D3_BN` / `DG_D3_BN` | 128/256 | 0 (heuristic) | D3 block-N override. | `csrc/jit_kernels/impls/sm100_fp8_fp4_mega_moe.hpp:138` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:328` |
-| `DG_TUNE_D3_BK` / `DG_D3_BK` | 64/128/256 | 0 (heuristic) | D3 block-K override. | `csrc/jit_kernels/impls/sm100_fp8_fp4_mega_moe.hpp:139` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:329` |
-| `DG_TUNE_D3_STORE_M` / `DG_D3_STORE_M` | 4/8/16/32 | 0 (heuristic) | TMA-store M granularity. | `csrc/jit_kernels/impls/sm100_fp8_fp4_mega_moe.hpp:140` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:399` |
-| `DG_TUNE_D3_DYN_EPI` / `DG_D3_DYN_EPI` | 0/1/2 | 0 | Dynamic epilogue pass count; 2 expects STORE_BLOCK_M=16. | `csrc/jit_kernels/impls/sm100_fp8_fp4_mega_moe.hpp:141` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:2993` |
-| `DG_TUNE_D3_DYN_TMA_A` / `DG_D3_DYN_TMA_A` | 0/1/2 | 0 | Dynamic TMA-A descriptor mode for small M. | `csrc/jit_kernels/impls/sm100_fp8_fp4_mega_moe.hpp:142` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:2666` |
-| `DG_TUNE_D3_OVERLAP_SMEM` / `DG_D3_OVERLAP_EXPERT_SMEM` | 0/1 | 0 | Overlap expert metadata SMEM with the next expert tile. | `csrc/jit_kernels/impls/sm100_fp8_fp4_mega_moe.hpp:143` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:132` |
-| `DG_TUNE_D3_EXPERT_STEP_MODE` / `DG_D3_EXPERT_STEP_MODE` | 0/1/2 | 0 | Expert-step scheduling mode; non-zero raises scheduler register demand. | `csrc/jit_kernels/impls/sm100_fp8_fp4_mega_moe.hpp:144` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:832` |
-| `DG_D3_ACCUM_STAGES` | 2/3/4 | 2 | TMEM accumulator stage count. | `csrc/jit_kernels/impls/sm100_fp8_fp4_mega_moe.hpp:145` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:525` |
-| `DG_D3_TMA_STORE_STAGES` | 2/3/4/5/6 | 2 | TMA-store ring depth. | `csrc/jit_kernels/impls/sm100_fp8_fp4_mega_moe.hpp:146` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:527` |
+| `DG_TUNE_D2_MODE` / `DG_ISOLATED_D2_MODE` | 0..15 | 0 | D2 dispatch/register-pull mode; >=1 enables warp reconfiguration. | `csrc/jit_kernels/impls/sm100_fp8_fp4_mega_moe.hpp:131` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:52` |
+| `DG_TUNE_D2_REG_PULL_BYTES` / `DG_ISOLATED_D2_REG_PULL_BYTES` | 0/1024/2048/4096 | 0 | D2 register-direct pull width in bytes; 0 uses SMEM staging. | `csrc/jit_kernels/impls/sm100_fp8_fp4_mega_moe.hpp:132` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:62` |
+| `DG_ISOLATED_D2_D8_SM_LIMIT` | 0..148 | 74 | Maximum SM id participating in the D8 role split. | `csrc/jit_kernels/impls/sm100_fp8_fp4_mega_moe.hpp:133` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:645` |
+| `DG_ISOLATED_D2_DISP_REGS` | register count | 0 | Explicit register budget for dispatch warps under D2. | `csrc/jit_kernels/impls/sm100_fp8_fp4_mega_moe.hpp:134` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:851` |
+| `DG_ISOLATED_D2_EPI_REGS` | register count | 0 | Explicit register budget for epilogue warps under D2. | `csrc/jit_kernels/impls/sm100_fp8_fp4_mega_moe.hpp:135` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:860` |
+| `DG_TUNE_D3_BM` / `DG_D3_BM` | 32/64/96/128/192 | 0 (heuristic) | D3 block-M override. | `csrc/jit_kernels/impls/sm100_fp8_fp4_mega_moe.hpp:137` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:80` |
+| `DG_TUNE_D3_BN` / `DG_D3_BN` | 128/256 | 0 (heuristic) | D3 block-N override. | `csrc/jit_kernels/impls/sm100_fp8_fp4_mega_moe.hpp:138` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:87` |
+| `DG_TUNE_D3_BK` / `DG_D3_BK` | 64/128/256 | 0 (heuristic) | D3 block-K override. | `csrc/jit_kernels/impls/sm100_fp8_fp4_mega_moe.hpp:139` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:94` |
+| `DG_TUNE_D3_STORE_M` / `DG_D3_STORE_M` | 4/8/16/32 | 0 (heuristic) | TMA-store M granularity. | `csrc/jit_kernels/impls/sm100_fp8_fp4_mega_moe.hpp:140` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:102` |
+| `DG_TUNE_D3_DYN_EPI` / `DG_D3_DYN_EPI` | 0/1/2 | 0 | Dynamic epilogue pass count; 2 expects STORE_BLOCK_M=16. | `csrc/jit_kernels/impls/sm100_fp8_fp4_mega_moe.hpp:141` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:111` |
+| `DG_TUNE_D3_DYN_TMA_A` / `DG_D3_DYN_TMA_A` | 0/1/2 | 0 | Dynamic TMA-A descriptor mode for small M. | `csrc/jit_kernels/impls/sm100_fp8_fp4_mega_moe.hpp:142` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:121` |
+| `DG_TUNE_D3_OVERLAP_SMEM` / `DG_D3_OVERLAP_EXPERT_SMEM` | 0/1 | 0 | Overlap expert metadata SMEM with the next expert tile. | `csrc/jit_kernels/impls/sm100_fp8_fp4_mega_moe.hpp:143` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:131` |
+| `DG_TUNE_D3_EXPERT_STEP_MODE` / `DG_D3_EXPERT_STEP_MODE` | 0/1/2 | 0 | Expert-step scheduling mode; non-zero raises scheduler register demand. | `csrc/jit_kernels/impls/sm100_fp8_fp4_mega_moe.hpp:144` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:852` |
+| `DG_D3_ACCUM_STAGES` | 2/3/4 | 2 | TMEM accumulator stage count. | `csrc/jit_kernels/impls/sm100_fp8_fp4_mega_moe.hpp:145` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:519` |
+| `DG_D3_TMA_STORE_STAGES` | 2/3/4/5/6 | 2 | TMA-store ring depth. | `csrc/jit_kernels/impls/sm100_fp8_fp4_mega_moe.hpp:146` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:521` |
 | `DG_TUNE_D3_SCHED_STAGES` / `DG_D3_SCHED_STAGES` | 2/3 | 2 | Scheduler look-ahead depth. | `csrc/jit_kernels/impls/sm100_fp8_fp4_mega_moe.hpp:147` | `deep_gemm/include/deep_gemm/scheduler/mega_moe.cuh:25` |
 | `DG_TUNE_D4_EPW` / `DG_ISOLATED_D4_EPW` | 1/2/4/8/16/32/64 | 0 (heuristic) | Experts-per-wave override for the D4 dynamic queue. | `csrc/jit_kernels/impls/sm100_fp8_fp4_mega_moe.hpp:149` | `deep_gemm/include/deep_gemm/scheduler/mega_moe.cuh:73` |
 | `DG_TUNE_D4_STATIC` / `DG_ISOLATED_D4_STATIC` | 0/1 | 0 | Use a static expert-order table instead of the ready queue. | `csrc/jit_kernels/impls/sm100_fp8_fp4_mega_moe.hpp:150` | `deep_gemm/include/deep_gemm/scheduler/mega_moe.cuh:73` |
-| `DG_TUNE_D4_READYQ` / `DG_ISOLATED_D4_READYQ` | 0/1 | 0 | D4 ready-queue scheduling path. | `csrc/jit_kernels/impls/sm100_fp8_fp4_mega_moe.hpp:151` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:2495` |
+| `DG_TUNE_D4_READYQ` / `DG_ISOLATED_D4_READYQ` | 0/1 | 0 | D4 ready-queue scheduling path. | `csrc/jit_kernels/impls/sm100_fp8_fp4_mega_moe.hpp:151` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:2473` |
 | `DG_TUNE_D4_MODE` / `DG_ISOLATED_D4_MODE` | 0..3 | 0 | D4 scheduling mode selector. | `csrc/jit_kernels/impls/sm100_fp8_fp4_mega_moe.hpp:152` | `deep_gemm/include/deep_gemm/scheduler/mega_moe.cuh:664` |
-| `DG_TUNE_D5_DEDUP` / `DG_ISOLATED_D5_DEDUP` | 0/1/2 | 0 | D5 dedup mode: 0 off, 1 dedup, 2 local-dedup pre-reduce. | `csrc/jit_kernels/impls/sm100_fp8_fp4_mega_moe.hpp:155` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:410` |
+| `DG_TUNE_D5_DEDUP` / `DG_ISOLATED_D5_DEDUP` | 0/1/2 | 0 | D5 dedup mode: 0 off, 1 dedup, 2 local-dedup pre-reduce. | `csrc/jit_kernels/impls/sm100_fp8_fp4_mega_moe.hpp:155` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:413` |
 | `DG_TUNE_D5_SCHED` / `DG_ISOLATED_D5_SCHED` | 0/1 | 1 when dedup=2 | D5 dedup scheduler toggle. | `csrc/jit_kernels/impls/sm100_fp8_fp4_mega_moe.hpp:156` | `deep_gemm/include/deep_gemm/scheduler/mega_moe.cuh:88` |
-| `DG_TUNE_D6_G` / `DG_ISOLATED_D6_G` | 1/2/4/8/16 | 0 | D6 combine group tile count. | `csrc/jit_kernels/impls/sm100_fp8_fp4_mega_moe.hpp:158` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:809` |
-| `DG_TUNE_D6_REDUCE_WARPS` / `DG_ISOLATED_D6_REDUCE_WARPS` | 0/1/2/4/8/16 | 0 (all epilogue warps) | Static cap on combine warps; the kernel takes min(policy N_e, this cap). | `csrc/jit_kernels/impls/sm100_fp8_fp4_mega_moe.hpp:159` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:813` |
-| `DG_TUNE_D7_SCATTER_MODE` / `DG_ISOLATED_D7_SCATTER` | 0/1/2 | 0 | D7 scatter mode: 0 inline epilogue, 1 handoff, 2 local dedup. | `csrc/jit_kernels/impls/sm100_fp8_fp4_mega_moe.hpp:161` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:229` |
-| `DG_TUNE_D7_SMEM_ALIAS` | 0/1 | 1 | Alias the D7 staging SMEM with reusable epilogue storage. | `csrc/jit_kernels/impls/sm100_fp8_fp4_mega_moe.hpp:163` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:569` |
-| `DG_TUNE_D7_WARPS` / `DG_TUNE_D7_SCATTER_WARPS` | 0/2/4/8 | 0 (auto) | D7 scatter executor warp count. | `csrc/jit_kernels/impls/sm100_fp8_fp4_mega_moe.hpp:164` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:334` |
-| `DG_TUNE_D7_HANDOFF_WAIT` | 0/1 | 1 | Wait for the D6 ready epoch before the D7 handoff. | `csrc/jit_kernels/impls/sm100_fp8_fp4_mega_moe.hpp:165` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:234` |
-| `DG_SHARED_L2_EARLY_BLOCKS` | 0..148 | 10 | Number of early blocks that seed the shared-L2 cache. | `csrc/jit_kernels/impls/sm100_fp8_fp4_mega_moe.hpp:264` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:167` |
-| `kEnableMulticast` / `cluster_size` | true / 2 | true | 2-CTA multicast invariant: cluster_size=2 on the host; kEnableMulticast is the compiled kernel-side assertion. | `csrc/jit_kernels/heuristics/mega_moe.hpp:108` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:503` |
+| `DG_TUNE_D6_G` / `DG_ISOLATED_D6_G` | 1/2/4/8/16 | 0 | D6 combine group tile count. | `csrc/jit_kernels/impls/sm100_fp8_fp4_mega_moe.hpp:158` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:155` |
+| `DG_TUNE_D6_REDUCE_WARPS` / `DG_ISOLATED_D6_REDUCE_WARPS` | 0/1/2/4/8/16 | 0 (all epilogue warps) | Static cap on combine warps; the kernel takes min(policy N_e, this cap). | `csrc/jit_kernels/impls/sm100_fp8_fp4_mega_moe.hpp:159` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:162` |
+| `DG_TUNE_D7_SCATTER_MODE` / `DG_ISOLATED_D7_SCATTER` | 0/1/2 | 0 | D7 scatter mode: 0 inline epilogue, 1 handoff, 2 local dedup. | `csrc/jit_kernels/impls/sm100_fp8_fp4_mega_moe.hpp:161` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:253` |
+| `DG_TUNE_D7_SMEM_ALIAS` | 0/1 | 1 | Alias the D7 staging SMEM with reusable epilogue storage. | `csrc/jit_kernels/impls/sm100_fp8_fp4_mega_moe.hpp:163` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:574` |
+| `DG_TUNE_D7_WARPS` / `DG_TUNE_D7_SCATTER_WARPS` | 0/2/4/8 | 0 (auto) | D7 scatter executor warp count. | `csrc/jit_kernels/impls/sm100_fp8_fp4_mega_moe.hpp:164` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:217` |
+| `DG_TUNE_D7_HANDOFF_WAIT` | 0/1 | 1 | Wait for the D6 ready epoch before the D7 handoff. | `csrc/jit_kernels/impls/sm100_fp8_fp4_mega_moe.hpp:165` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:229` |
+| `DG_SHARED_L2_EARLY_BLOCKS` | 0..148 | 10 | Number of early blocks that seed the shared-L2 cache. | `csrc/jit_kernels/impls/sm100_fp8_fp4_mega_moe.hpp:264` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:170` |
+| `kEnableMulticast` / `cluster_size` | true / 2 | true | 2-CTA multicast invariant: cluster_size=2 on the host; kEnableMulticast is the compiled kernel-side assertion. | `csrc/jit_kernels/heuristics/mega_moe.hpp:109` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:66` |
 
 ### H20 SM90
 
@@ -394,24 +421,24 @@ Production delivery configuration (DELIVERY_20261116): `DG_MOE_SWAPAB_AUTO=1`, `
 
 | Knob | Valid values | Default | Mechanism | Host parse | Kernel consumption |
 |---|---|---|---|---|---|
-| `WEAVE_ABLATION_PRESET` | 0/1/2/3 | 0 | EP16 build-time ablation selector; preset 3 also switches WEAVE_SCATTER_MODE to 0. | `deep_gemm/include/deep_gemm/impls/amd/ep16/build_port.py:78` | `deep_gemm/include/deep_gemm/impls/amd/megamoe_amd.hip:1206` |
-| `WEAVE_SCATTER_MODE` | 0/1/2 | 2 (0 at preset 3) | EP16 scatter and return mode; 2 enables the node-partial path. | `deep_gemm/include/deep_gemm/impls/amd/ep16/build_port.py:102` | `deep_gemm/include/deep_gemm/impls/amd/ep16/ep16_combine.hpp:52` |
-| `WEAVE_KNOB_BM_TIER_MODE` | 0/2 | 2 | Five-tier BM planner ({16,32,64,128,256}) when non-zero. | `deep_gemm/include/deep_gemm/impls/amd/ep16/build_port.py:105` | `deep_gemm/include/deep_gemm/impls/amd/include/direct_gather_and_greedy_tiles.hpp:439` |
-| `WEAVE_KNOB_SELECTIVE_DEDUP` | 1 | 1 | EP16 requires selective input dedup in every ablation arm. | `deep_gemm/include/deep_gemm/impls/amd/ep16/build_port.py:105` | `deep_gemm/include/deep_gemm/impls/amd/include/weave_comm_4wave_turbo.hpp:506` |
-| `WEAVE_KNOB_DUALGROUP_MIN_TOKENS` | uint32 | 64 | Local-token threshold for rebinding comm waves into a second compute group. | `deep_gemm/include/deep_gemm/scheduler/weave_knobs.cuh:47` | `deep_gemm/include/deep_gemm/impls/amd/megamoe_amd.hip:1211` |
-| `WEAVE_KNOB_OVERLAP_PIPELINE` | 0/1 | 1 | 0 disables the EP16 overlap pipeline and runs the bulk-synchronous path. | `deep_gemm/include/deep_gemm/scheduler/weave_knobs.cuh:68` | `deep_gemm/include/deep_gemm/impls/amd/megamoe_amd.hip:1264` |
-| `WEAVE_KNOB_ALL_WAVE_COMBINE` | 0/1 | 1 | 0 limits combine to 64 workers instead of 96. | `deep_gemm/include/deep_gemm/scheduler/weave_knobs.cuh:77` | `deep_gemm/include/deep_gemm/impls/amd/ep16/ep16_combine.hpp:194` |
-| `WEAVE_KNOB_BN2_MODE` | 0/64/128 | 0 | Stage-2 BN mode; 64 selects the small-M 1x4 BN64 kernel. | `deep_gemm/include/deep_gemm/scheduler/weave_knobs.cuh:56` | `deep_gemm/include/deep_gemm/impls/amd/megamoe_amd.hip:953` |
-| `WEAVE_KNOB_S2_NGROUP_MODE` | 0/1/2/4 | 0 | Stage-2 N-group width. | `deep_gemm/include/deep_gemm/scheduler/weave_knobs.cuh:62` | `deep_gemm/include/deep_gemm/impls/amd/megamoe_amd.hip:961` |
-| `WEAVE_TH_BM64` | uint32 | 16 | Small-M threshold for BM64 tiles. | `deep_gemm/include/deep_gemm/impls/amd/ep16/build_port.py:103` | `deep_gemm/include/deep_gemm/impls/amd/megamoe_amd.hip:542` |
-| `WEAVE_TH_BM128` | uint32 | 96 | Small-M threshold for BM128 tiles. | `deep_gemm/include/deep_gemm/impls/amd/ep16/build_port.py:103` | `deep_gemm/include/deep_gemm/impls/amd/megamoe_amd.hip:545` |
-| `WEAVE_PARALLEL_ROUTE_PLAN` | 0/1 | 1 | All-CTA parallel route histogram/prefix/scatter. | `deep_gemm/include/deep_gemm/impls/amd/ep16/build_port.py:97` | `deep_gemm/include/deep_gemm/impls/amd/megamoe_amd.hip:26` |
-| `V1864Roles` / `WEAVE_PARALLEL_ROUTE_PLAN` | struct | roles={80,0,80} | Wave-role descriptor: {non_epilogue_waves, comm_waves, mma_waves}. CTA-0 remaps it from selected_r_mask. | `deep_gemm/include/deep_gemm/impls/amd/ep16/build_port.py:97` | `deep_gemm/include/deep_gemm/impls/amd/megamoe_amd.hip:1200` |
+| `WEAVE_ABLATION_PRESET` | 0/1/2/3 | 0 | EP16 build-time ablation selector; preset 3 also switches WEAVE_SCATTER_MODE to 0. | `deep_gemm/include/deep_gemm/impls/amd/ep16/build_port.py:82` | `deep_gemm/include/deep_gemm/impls/amd/megamoe_amd.hip:1206` |
+| `WEAVE_SCATTER_MODE` | 0/1/2 | 2 (0 at preset 3) | EP16 scatter and return mode; 2 enables the node-partial path. | `deep_gemm/include/deep_gemm/impls/amd/ep16/build_port.py:106` | `deep_gemm/include/deep_gemm/impls/amd/ep16/ep16_combine.hpp:52` |
+| `WEAVE_KNOB_BM_TIER_MODE` | 0/2 | 2 | Five-tier BM planner ({16,32,64,128,256}) when non-zero. | `deep_gemm/include/deep_gemm/impls/amd/ep16/build_port.py:109` | `deep_gemm/include/deep_gemm/impls/amd/include/direct_gather_and_greedy_tiles.hpp:439` |
+| `WEAVE_KNOB_SELECTIVE_DEDUP` | 1 | 1 | EP16 requires selective input dedup in every ablation arm. | `deep_gemm/include/deep_gemm/impls/amd/ep16/build_port.py:109` | `deep_gemm/include/deep_gemm/impls/amd/include/weave_comm_4wave_turbo.hpp:506` |
+| `WEAVE_KNOB_DUALGROUP_MIN_TOKENS` | uint32 | 64 | Local-token threshold for rebinding comm waves into a second compute group. | `deep_gemm/include/deep_gemm/scheduler/weave_knobs.cuh:57` | `deep_gemm/include/deep_gemm/impls/amd/megamoe_amd.hip:1211` |
+| `WEAVE_KNOB_OVERLAP_PIPELINE` | 0/1 | 1 | 0 disables the EP16 overlap pipeline and runs the bulk-synchronous path. | `deep_gemm/include/deep_gemm/scheduler/weave_knobs.cuh:78` | `deep_gemm/include/deep_gemm/impls/amd/megamoe_amd.hip:1264` |
+| `WEAVE_KNOB_ALL_WAVE_COMBINE` | 0/1 | 1 | 0 limits combine to 64 workers instead of 96. | `deep_gemm/include/deep_gemm/scheduler/weave_knobs.cuh:87` | `deep_gemm/include/deep_gemm/impls/amd/ep16/ep16_combine.hpp:194` |
+| `WEAVE_KNOB_BN2_MODE` | 0/64/128 | 0 | Stage-2 BN mode; 64 selects the small-M 1x4 BN64 kernel. | `deep_gemm/include/deep_gemm/scheduler/weave_knobs.cuh:66` | `deep_gemm/include/deep_gemm/impls/amd/megamoe_amd.hip:953` |
+| `WEAVE_KNOB_S2_NGROUP_MODE` | 0/1/2/4 | 0 | Stage-2 N-group width. | `deep_gemm/include/deep_gemm/scheduler/weave_knobs.cuh:72` | `deep_gemm/include/deep_gemm/impls/amd/megamoe_amd.hip:961` |
+| `WEAVE_TH_BM64` | uint32 | 16 | Small-M threshold for BM64 tiles. | `deep_gemm/include/deep_gemm/impls/amd/ep16/build_port.py:107` | `deep_gemm/include/deep_gemm/impls/amd/megamoe_amd.hip:542` |
+| `WEAVE_TH_BM128` | uint32 | 96 | Small-M threshold for BM128 tiles. | `deep_gemm/include/deep_gemm/impls/amd/ep16/build_port.py:107` | `deep_gemm/include/deep_gemm/impls/amd/megamoe_amd.hip:545` |
+| `WEAVE_PARALLEL_ROUTE_PLAN` | 0/1 | 1 | All-CTA parallel route histogram/prefix/scatter. | `deep_gemm/include/deep_gemm/impls/amd/ep16/build_port.py:101` | `deep_gemm/include/deep_gemm/impls/amd/megamoe_amd.hip:26` |
+| `V1864Roles` / `WEAVE_PARALLEL_ROUTE_PLAN` | struct | roles={80,0,80} | Wave-role descriptor: {non_epilogue_waves, comm_waves, mma_waves}. CTA-0 remaps it from selected_r_mask. | `deep_gemm/include/deep_gemm/impls/amd/ep16/build_port.py:101` | `deep_gemm/include/deep_gemm/impls/amd/megamoe_amd.hip:1200` |
 | `EP16_SLOT_CHUNK` / `ep16t_slot_chunk` | 1/2/4/8/16/32/64 | adaptive | Bulk DISPATCH descriptor granularity; host clamps to 1..64 and the plan validates power-of-two. | `deep_gemm/include/deep_gemm/impls/amd/ep16/host/run_turbo512_vs_rccl.py:159` | `deep_gemm/include/deep_gemm/impls/amd/ep16/host/ep16_turbo_layout.hpp:289` |
 | `ep16t_ret_chunk` | derived 1/2/4 | derived | RETURN descriptor granularity, derived from slot_chunk and capped at 4. | `deep_gemm/include/deep_gemm/impls/amd/ep16/host/ep16_turbo_layout.hpp:303` | `deep_gemm/include/deep_gemm/impls/amd/ep16/host/ep16_turbo_layout.hpp:308` |
 | `meta_chunk_slots` | >=1 | max(256, t_local) | Metadata slots per RDMA WR descriptor. | `deep_gemm/include/deep_gemm/impls/amd/ep16/host/ep16_turbo_layout.hpp:55` | `deep_gemm/include/deep_gemm/impls/amd/ep16/host/ep16_turbo_layout.hpp:338` |
 | `ep16_ld2_agent_u4` | single-block asm volatile | enabled | Single-block 2x-MLP global_load_dwordx4 sc1 helper used by the EP16 bucket reduce (v28). | `deep_gemm/include/deep_gemm/impls/amd/ep16/ep16_combine.hpp:27` | `deep_gemm/include/deep_gemm/impls/amd/ep16/ep16_combine.hpp:62` |
-| `FI_LEVEL` | 0/1/2 | 0 | WeaveProfiler instrumentation level: 0 production, 1 open/close, 2 full events. | `deep_gemm/include/deep_gemm/impls/amd/ep16/build_port.py:96` | `deep_gemm/include/deep_gemm/impls/amd/third_party_overlay/fi_lite_hip.h:32` |
+| `FI_LEVEL` | 0/1/2 | 0 | WeaveProfiler instrumentation level: 0 production, 1 open/close, 2 full events. | `deep_gemm/include/deep_gemm/impls/amd/ep16/build_port.py:100` | `deep_gemm/include/deep_gemm/impls/amd/third_party_overlay/fi_lite_hip.h:32` |
 
 ﻿
 ## Citation

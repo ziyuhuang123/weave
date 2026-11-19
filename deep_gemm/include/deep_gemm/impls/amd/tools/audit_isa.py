@@ -46,7 +46,8 @@ def audit_asm_text(text: str) -> dict:
     }
 
 
-def audit_co_elf(co_path: str, llvm_bin: str = "/opt/rocm-7.2.0/lib/llvm/bin") -> dict:
+def audit_co_elf(co_path: str, llvm_bin: str = "/opt/rocm-7.2.0/lib/llvm/bin",
+                 symbol: str = "v1864_ov1_runtime_roles") -> dict:
     readobj = subprocess.run(
         [f"{llvm_bin}/llvm-readobj", "--notes", co_path],
         capture_output=True, text=True, check=True,
@@ -62,7 +63,10 @@ def audit_co_elf(co_path: str, llvm_bin: str = "/opt/rocm-7.2.0/lib/llvm/bin") -
     co_priv = [int(v) for v in re.findall(r"\.private_segment_fixed_size:\s*(\d+)", readobj)]
     co_vgpr_spill = [int(v) for v in re.findall(r"\.vgpr_spill_count:\s*(\d+)", readobj)]
     co_lds = [int(v) for v in re.findall(r"\.group_segment_fixed_size:\s*(\d+)", readobj)]
-    has_sym = "v1864_ov1_runtime_roles" in objdump
+    # The Weave entry symbol differs per backend: EP8 uses
+    # v1864_ov1_runtime_roles, EP16 uses stage_ep16_turbo_overlap.  The caller
+    # selects the expected symbol via --symbol (default keeps EP8 behavior).
+    has_sym = symbol in objdump
     return {
         "co_path": co_path,
         "entry_symbol_present": has_sym,
@@ -89,6 +93,9 @@ def main() -> None:
     ap.add_argument("asm_path")
     ap.add_argument("--co", default="", help="Optional post-link P.co to verify")
     ap.add_argument("--max-barriers", type=int, default=1)
+    ap.add_argument("--symbol", default="v1864_ov1_runtime_roles",
+                    help="Expected kernel entry symbol (EP8=v1864_ov1_runtime_roles, "
+                         "EP16=stage_ep16_turbo_overlap)")
     ap.add_argument("--advisory", action="store_true")
     args = ap.parse_args()
 
@@ -104,7 +111,7 @@ def main() -> None:
         and rep["s_barrier"] <= args.max_barriers
     )
     if args.co:
-        co_rep = audit_co_elf(args.co)
+        co_rep = audit_co_elf(args.co, symbol=args.symbol)
         rep["post_link_elf"] = co_rep
         asm_ok = asm_ok and co_rep["co_passed"] and (co_rep["co_s_barrier"] <= args.max_barriers)
     rep["passed"] = bool(asm_ok)

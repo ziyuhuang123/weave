@@ -45,7 +45,11 @@ $CLANG -x hip --offload-arch=gfx942 --cuda-device-only -O3 -S \
   $EXTRA -DWEAVE_CO_PROFILE=$PROF -DWEAVE_TH_BM64=${TH64}u -DWEAVE_TH_BM128=${TH128}u \
   -w -fno-offload-uniform-block -fgpu-flush-denormals-to-zero \
   -mllvm -amdgpu-early-inline-all=true -mllvm -amdgpu-function-calls=false \
-  -I"$AMD/include" -I"$REPO/deep_gemm/include" -I"$SNAP/overlay_gemm2" -I"$SNAP" -I"$V3225" \
+  # EP8 uses the validated v20 comm/compute headers (v20_include/ takes -I
+  # priority over the shared include/).  The Phase 2 CTA-0 policy wiring in the
+  # shared include/ headers causes device_error=210 on real 8xMI308X EP8; EP16
+  # still uses the shared policy-wired headers (required for its zero-spill gate).
+  -I"$WORK/v20_include" -I"$AMD/include" -I"$REPO/deep_gemm/include" -I"$SNAP/overlay_gemm2" -I"$SNAP" -I"$V3225" \
   -I"$SITE/3rdparty/ck_helper" -I"$SITE/3rdparty/composable_kernel/include" \
   -I"$SITE/3rdparty/composable_kernel/library/include" \
   -I"$SITE/csrc/include" -I"$SITE/csrc/ck_gemm_moe_2stages_codegen" \

@@ -1,13 +1,24 @@
 #pragma once
 
+#include "../jit/compiler.hpp"
+#include "../jit/include_parser.hpp"
+#include "../jit/kernel_runtime.hpp"
 #include "../jit_kernels/heuristics/runtime.hpp"
 #include "../runtime/runtime.hpp"
 
 namespace deep_gemm::config {
 
 static void register_apis(pybind11::module_& m) {
-    m.def("init", [&](const std::string& library_root_path) {
+    m.def("init", [&](const std::string& library_root_path,
+                      const std::string& cuda_home_path_by_python) {
         init_jit(library_root_path);
+        // Legacy JIT kernels (notably FP8xFP4 MegaMoE) still use Compiler and
+        // KernelRuntime directly.  Initialize their static paths here as well.
+        if (not cuda_home_path_by_python.empty()) {
+            Compiler::prepare_init(library_root_path, cuda_home_path_by_python);
+            KernelRuntime::prepare_init(cuda_home_path_by_python);
+            IncludeParser::prepare_init(library_root_path);
+        }
     });
     m.def("set_num_sms", [&](const int& new_num_sms) {
         runtime->set_num_sms(new_num_sms);

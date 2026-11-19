@@ -358,6 +358,13 @@ static void sm100_fp8_fp4_mega_moe(
     const int& hidden, const int& intermediate_hidden,
     const float& activation_clamp,
     const bool& fast_math,
+    // NOTE(h20_fix): align with apis/mega_moe.hpp call site which forwards the
+    // situ activation knobs. The SM100 FP8xFP4 kernel does not yet consume situ
+    // (pre-existing gap); these parameters preserve the call signature while the
+    // profiler parameters below keep their defaults. swiglu behavior is unchanged.
+    const bool& use_situ,
+    const float& situ_beta,
+    const float& situ_linear_beta,
     const std::optional<torch::Tensor>& profiler_buf = std::nullopt,
     const std::optional<torch::Tensor>& profiler_sm_map = std::nullopt,
     const int64_t& profiler_capture_slots = 0,

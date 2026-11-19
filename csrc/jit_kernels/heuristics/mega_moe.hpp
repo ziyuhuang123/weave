@@ -8,6 +8,7 @@
 #include <deep_gemm/layout/mega_moe.cuh>
 #include <deep_gemm/common/types.cuh>
 #include <deep_gemm/scheduler/weave_knobs.cuh>
+#include <deep_gemm/scheduler/weave_cost_model.cuh>
 
 #include "../../utils/exception.hpp"
 #include "../../utils/math.hpp"
@@ -237,6 +238,9 @@ static std::pair<int, int> get_pipeline_config_for_mega_moe(
 
     const int smem_d2_meta = (is_mma_with_sf(mma_kind) and d2_mode >= 1) ? 8 : 0;
     const int smem_d7_meta = d7_handoff_active ? 96 : 0;
+    const int smem_weave_policy = align(
+        static_cast<int>(sizeof(weave::PolicyDecision)) + 2 * static_cast<int>(sizeof(uint32_t)),
+        16);
     const int smem_tmem_ptr = 4 + smem_d2_meta + smem_d7_meta;
 
     const int smem_sfa_per_stage = is_mma_with_sf(mma_kind) ? sf_block_m * (block_k / gran_k) : 0;
@@ -249,7 +253,7 @@ static std::pair<int, int> get_pipeline_config_for_mega_moe(
     const int smem_size_per_stage = smem_a_size_per_stage + smem_b_size_per_stage + smem_sfa_per_stage + smem_sfb_per_stage + smem_stage_barriers;
 
     const int smem_fixed = smem_dispatch_size + smem_d7_dedicated + smem_cd + smem_amax_reduction + smem_barriers +
-        smem_task_info + smem_tmem_ptr;
+        smem_task_info + smem_weave_policy + smem_tmem_ptr;
 
     const int max_num_stages = (smem_capacity - smem_fixed) / smem_size_per_stage;
     DG_HOST_ASSERT(max_num_stages >= 2);

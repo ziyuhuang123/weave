@@ -25,8 +25,12 @@ REPO = AMD.parents[4]                                # weave repository root
 CLANG = os.environ.get("WEAVE_CLANG", "/opt/rocm-7.2.0/lib/llvm/bin/clang")
 LLD = os.environ.get("WEAVE_LLD", "/opt/rocm-7.2.0/lib/llvm/bin/ld.lld")
 PY = os.environ.get("WEAVE_PY", "/opt/conda/envs/python3.10.13/bin/python")
-SNAP = os.environ.get("WEAVE_SNAP_DIR", str(AMD / "third_party_overlay"))
-V3225 = os.environ.get("WEAVE_V3225_DIR", str(AMD / "third_party_overlay"))
+# SNAP / V3225 are consumed with the pathlib "/" operator below (e.g.
+# SNAP / "overlay_gemm2"), so they must be Path objects, not str.  The previous
+# str(...) default caused "TypeError: unsupported operand type(s) for /:
+# 'str' and 'str'" on the gfx942 EP16 build when WEAVE_SNAP_DIR was unset.
+SNAP = pathlib.Path(os.environ.get("WEAVE_SNAP_DIR", str(AMD / "third_party_overlay")))
+V3225 = pathlib.Path(os.environ.get("WEAVE_V3225_DIR", str(AMD / "third_party_overlay")))
 SITE = os.environ.get(
     "WEAVE_AITER_SITE",
     "/opt/conda/envs/python3.10.13/lib/python3.10/site-packages/aiter_meta",
@@ -127,7 +131,8 @@ for name, fi in fi_variants:
          str(out / "P.co"), str(out / "stage.o")], out / "logs/link.log")
     audit = json.loads(run(
         [PY, str(AMD / "tools/audit_isa.py"), str(out / "stage.s"),
-         "--co", str(out / "P.co"), "--advisory"],
+         "--co", str(out / "P.co"), "--advisory",
+         "--symbol", "stage_ep16_turbo_overlap"],
         out / "logs/isa_audit.json"))
     if fi == 0:
         if int(audit.get("vgpr_spill_count_max", -1)) != 0:

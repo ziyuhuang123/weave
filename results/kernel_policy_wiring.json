@@ -1,58 +1,34 @@
 {
-  "schema": "weave-kernel-policy-wiring/v2",
+  "schema": "weave-kernel-policy-wiring/v3",
   "pass": true,
   "files": {
     "b300": {
       "exists": true,
       "path": "deep_gemm\\include\\deep_gemm\\impls\\sm100_fp8_fp4_mega_moe.cuh",
-      "bytes": 251616,
+      "bytes": 244534,
       "checks": {
-        "include": {
+        "scheduler_include": {
+          "needle": "scheduler/mega_moe.cuh",
+          "expected_count": 1,
+          "observed_count": 1,
+          "ok": true
+        },
+        "entry": {
+          "needle": "sm100_fp8_fp4_mega_moe_impl",
+          "expected_count": 1,
+          "observed_count": 1,
+          "ok": true
+        },
+        "scheduler": {
+          "needle": "sched::MegaMoEScheduler",
+          "expected_count": 1,
+          "observed_count": 1,
+          "ok": true
+        },
+        "no_policy_rail": {
           "needle": "weave_policy_runtime.cuh",
-          "expected_count": 1,
-          "observed_count": 1,
-          "ok": true
-        },
-        "cta0_d1": {
-          "needle": "Weave CTA-0 runtime selection.",
-          "expected_count": 1,
-          "observed_count": 1,
-          "ok": true
-        },
-        "cta0_standard": {
-          "needle": "Weave CTA-0 runtime selection (standard path)",
-          "expected_count": 1,
-          "observed_count": 1,
-          "ok": true
-        },
-        "live_m_out": {
-          "needle": "count_remote_expert_sends",
-          "expected_count": 2,
-          "observed_count": 2,
-          "ok": true
-        },
-        "consume_r": {
-          "needle": "selected_r_mask",
-          "expected_count": 1,
-          "observed_count": 2,
-          "ok": true
-        },
-        "consume_scatter": {
-          "needle": "selected_scatter_mode",
-          "expected_count": 1,
-          "observed_count": 1,
-          "ok": true
-        },
-        "consume_v_head": {
-          "needle": "selected_v_head",
-          "expected_count": 1,
-          "observed_count": 5,
-          "ok": true
-        },
-        "all_cta_read": {
-          "needle": "weave_policy",
-          "expected_count": 1,
-          "observed_count": 19,
+          "expected_count": 0,
+          "observed_count": 0,
           "ok": true
         }
       }
@@ -60,42 +36,30 @@
     "b300_nvfp4": {
       "exists": true,
       "path": "deep_gemm\\include\\deep_gemm\\impls\\sm100_fp4_fp4_mega_moe.cuh",
-      "bytes": 105986,
+      "bytes": 104502,
       "checks": {
-        "include": {
+        "scheduler_include": {
+          "needle": "scheduler/nvfp4_mega_moe.cuh",
+          "expected_count": 1,
+          "observed_count": 1,
+          "ok": true
+        },
+        "entry": {
+          "needle": "sm100_fp4_fp4_mega_moe_impl",
+          "expected_count": 1,
+          "observed_count": 1,
+          "ok": true
+        },
+        "scheduler": {
+          "needle": "sched::nvfp4::MegaMoEScheduler",
+          "expected_count": 1,
+          "observed_count": 1,
+          "ok": true
+        },
+        "no_policy_rail": {
           "needle": "weave_policy_runtime.cuh",
-          "expected_count": 1,
-          "observed_count": 1,
-          "ok": true
-        },
-        "cta0": {
-          "needle": "cta0_select_from_packed_hist",
-          "expected_count": 1,
-          "observed_count": 1,
-          "ok": true
-        },
-        "live_m_out": {
-          "needle": "count_remote_expert_sends",
-          "expected_count": 1,
-          "observed_count": 1,
-          "ok": true
-        },
-        "consume_r": {
-          "needle": "selected_r_mask",
-          "expected_count": 1,
-          "observed_count": 1,
-          "ok": true
-        },
-        "consume_v_head": {
-          "needle": "selected_v_head",
-          "expected_count": 1,
-          "observed_count": 5,
-          "ok": true
-        },
-        "all_cta_read": {
-          "needle": "weave_policy",
-          "expected_count": 1,
-          "observed_count": 13,
+          "expected_count": 0,
+          "observed_count": 0,
           "ok": true
         }
       }

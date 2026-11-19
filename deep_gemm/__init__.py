@@ -1,4 +1,5 @@
 import os
+import shutil
 import torch
 
 # Set some default environment provided at setup
@@ -113,6 +114,22 @@ except Exception as e:
     print(f'Failed to load legacy DeepGEMM A100 Triton kernels: {e}')
 
 # Initialize CPP modules
-_C.init(os.path.dirname(os.path.abspath(__file__)))
+def _find_cuda_home() -> str:
+    # Avoid torch's CUDA initialization here: this module may be imported
+    # before torch.multiprocessing forks its workers.
+    cuda_home = os.environ.get('CUDA_HOME') or os.environ.get('CUDA_PATH')
+    if cuda_home is None:
+        nvcc = shutil.which('nvcc')
+        if nvcc is not None:
+            cuda_home = os.path.dirname(os.path.dirname(nvcc))
+    if cuda_home is None and os.path.exists('/usr/local/cuda'):
+        cuda_home = '/usr/local/cuda'
+    return cuda_home or ''
+
+
+_C.init(
+    os.path.dirname(os.path.abspath(__file__)),
+    _find_cuda_home(),
+)
 
 __version__ = '2.8.0'

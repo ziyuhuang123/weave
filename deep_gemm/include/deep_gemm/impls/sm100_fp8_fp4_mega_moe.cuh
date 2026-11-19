@@ -15,7 +15,6 @@
 #include <deep_gemm/layout/mega_moe.cuh>
 #include <deep_gemm/layout/sym_buffer.cuh>
 #include <deep_gemm/scheduler/mega_moe.cuh>
-#include <deep_gemm/scheduler/weave_policy_runtime.cuh>
 #include <deep_gemm/ptx/tcgen05.cuh>
 #include <deep_gemm/ptx/tma.cuh>
 #include <deep_gemm/ptx/utils.cuh>
@@ -62,6 +61,10 @@
 #ifndef DG_TUNE_D2_REG_PULL_BYTES
 #define DG_TUNE_D2_REG_PULL_BYTES DG_ISOLATED_D2_REG_PULL_BYTES
 #endif
+
+// Host launches this kernel with cluster_size=2 for the 2-CTA multicast path.
+constexpr bool kEnableMulticast = true;
+DG_STATIC_ASSERT(kEnableMulticast, "B300 FP8xFP4 requires 2-CTA multicast");
 
 #ifndef DG_ISOLATED_D2_D8_SM_LIMIT
 #define DG_ISOLATED_D2_D8_SM_LIMIT 74u
@@ -470,10 +473,6 @@ sm100_fp8_fp4_mega_moe_impl(void* y,
     );
     const auto workspace = buffer.workspace;
 
-    // Weave policy header lives after the existing workspace layout.  Record
-    // the pre-publication epoch before any CTA can reach the histogram barrier.
-    auto* const weave_control = workspace.get_weave_policy_control_ptr();
-
     // SF and its buffer configs
     constexpr uint32_t kGranK = 32;
     constexpr uint32_t kNumUTCCPAlignedElems = 128;
@@ -497,11 +496,6 @@ sm100_fp8_fp4_mega_moe_impl(void* y,
     constexpr uint32_t UMMA_N = BLOCK_M;  // Swap AB
     constexpr uint32_t UMMA_BLOCK_K = 128;
     constexpr uint32_t UMMA_K = 32;
-    // 2-CTA multicast schedule invariant.  The cluster shape pairs two CTAs
-    // along N (umma_arrive_multicast_2x1SM below), so multicast is a property
-    // of the compiled B300 kernel rather than a runtime switch.
-    constexpr bool kEnableMulticast = true;
-    DG_STATIC_ASSERT(kEnableMulticast, "B300 MegaMoE requires 2-CTA multicast");
     constexpr uint32_t LOAD_BLOCK_M = BLOCK_M / 2;  // Multicast on A
     constexpr uint32_t LOAD_BLOCK_N = BLOCK_N;
     constexpr uint32_t kNumKSubtilesPerBlock = BLOCK_K / UMMA_BLOCK_K;
@@ -613,21 +607,10 @@ sm100_fp8_fp4_mega_moe_impl(void* y,
         uint32_t d2_warp_base;
         uint32_t d2_total_warps;
 #endif
-        // Weave CTA-0 decision, copied once per CTA after the live histogram
-        // publication barrier.  It is intentionally outside every DeepGEMM
-        // task-info slot so later stages cannot recycle it.
-        weave::PolicyDecision weave_policy;
-        uint32_t weave_policy_ready;
-        uint32_t weave_epoch_base;
         uint32_t tmem_ptr_in_smem;
     };
     constexpr uint32_t kNumReusableSmemBytes = offsetof(SharedStorage, dispatch_barriers);
     SharedStorage &shared_storage = *reinterpret_cast<SharedStorage*>(smem_buffer);
-    if (thread_idx == 0u) {
-        shared_storage.weave_epoch_base =
-            *reinterpret_cast<volatile uint32_t*>(&weave_control->published_epoch);
-        shared_storage.weave_policy_ready = 0u;
-    }
 
 #if !(DG_ISOLATED_D2_REG_PULL_BYTES > 0)
     constexpr auto pull_layout = layout::Data(kNumBytesPerPull);
@@ -1570,44 +1553,6 @@ sm100_fp8_fp4_mega_moe_impl(void* y,
             [=]() { ptx::sync_aligned(kNumDispatchThreads, kDispatchBarrierIdx); }
         );
 
-        // -----------------------------------------------------------------
-        // Weave CTA-0 runtime selection.
-        //
-        // The D1 publication above made expert_recv_count_sum the live
-        // post-dispatch histogram m_e.  CTA 0 snapshots m_e, evaluates the
-        // cost model, and publishes one decision for every CTA.  The existing
-        // dispatch/epilogue rendezvous below is the broadcast point.
-        // -----------------------------------------------------------------
-        if (thread_idx == 0u) {
-            const uint32_t weave_epoch = shared_storage.weave_epoch_base + 1u;
-            weave::PolicyDecision decision{};
-            bool policy_ok = false;
-            if (sm_idx == 0u) {
-                const weave::WorkloadSpec wl{
-                    kNumExpertsPerRank,
-                    static_cast<uint32_t>(kHidden),
-                    static_cast<uint32_t>(kIntermediateHidden)};
-                const weave::WeaveKnobs knobs =
-                    weave::default_weave_knobs(weave::HardwareArch::B300_SM100);
-                const uint32_t m_out = weave::count_remote_expert_sends(
-                    workspace, kNumExperts, kNumExpertsPerRank,
-                    static_cast<uint32_t>(sym_buffer.rank_idx));
-                decision = weave::cta0_select_from_packed_hist(
-                    weave_control, weave::HardwareArch::B300_SM100, wl, knobs,
-                    workspace.get_expert_recv_count_sum_ptr(),
-                    0u, m_out, weave_epoch);
-                policy_ok = weave::policy_is_valid(decision);
-            } else {
-                policy_ok = weave::wait_and_copy_policy(
-                    weave_control, weave_epoch, &decision);
-            }
-            if (policy_ok) {
-                shared_storage.weave_policy = decision;
-                shared_storage.weave_policy_ready = 1u;
-            }
-        }
-        ptx::sync_aligned(kNumDispatchThreads, kDispatchBarrierIdx);
-
         ptx::sync_unaligned(kNumDispatchThreads + kNumEpilogueThreads, kDispatchWithEpilogueBarrierIdx);
 #if DG_MEGA_TILE_PROF
         tile_prof::record(cumulative_local_expert_recv_stats, sm_idx, warp_idx, lane_idx,
@@ -1640,30 +1585,10 @@ sm100_fp8_fp4_mega_moe_impl(void* y,
         }
         const uint32_t total_recv_tokens = running_tok;
 
-        // Head/middle temporal split.  All dispatch warps pull the first
-        // V_head tasks; after that only N_c communication warps per SM remain
-        // active in the pull queue.  Both values come from CTA 0 above.
-        const bool weave_policy_ok = shared_storage.weave_policy_ready != 0u;
-        const uint32_t weave_comm_warps_per_sm = weave_policy_ok
-            ? weave::r_comm_units(shared_storage.weave_policy.selected_r_mask)
-            : kNumDispatchWarps;
-        const uint32_t active_pull_warps =
-            weave_comm_warps_per_sm == 0u ? 1u :
-            (weave_comm_warps_per_sm < kNumDispatchWarps
-                 ? weave_comm_warps_per_sm : kNumDispatchWarps);
-        const uint32_t selected_v_head = weave_policy_ok
-            ? shared_storage.weave_policy.selected_v_head : 0u;
-        const uint32_t head_pull_end = selected_v_head == 0u
-            ? total_recv_tokens
-            : (selected_v_head < total_recv_tokens ? selected_v_head : total_recv_tokens);
-
         constexpr uint32_t kNumGlobalWarps = kNumSMs * kNumDispatchWarps;
         for (uint32_t token_idx = sm_idx * kNumDispatchWarps + warp_idx;
              token_idx < total_recv_tokens;
              token_idx += kNumGlobalWarps) {
-            if (token_idx >= head_pull_end and warp_idx >= active_pull_warps) {
-                continue;
-            }
             uint32_t current_expert_idx = 0;
             uint32_t expert_start_idx = 0;
             uint32_t expert_end_idx = 0;
@@ -1794,40 +1719,6 @@ sm100_fp8_fp4_mega_moe_impl(void* y,
             false,
             true
         );
-
-        // Weave CTA-0 runtime selection (standard path).  The dispatch above
-        // has published expert_send_count and expert_recv_count_sum, so M and
-        // M_out are live; D_in is conservatively M when no dedup key counter
-        // exists at this point in the kernel.
-        if (thread_idx == 0u) {
-            const uint32_t weave_epoch = shared_storage.weave_epoch_base + 1u;
-            weave::PolicyDecision decision{};
-            bool policy_ok = false;
-            if (sm_idx == 0u) {
-                const weave::WorkloadSpec wl{
-                    kNumExpertsPerRank,
-                    static_cast<uint32_t>(kHidden),
-                    static_cast<uint32_t>(kIntermediateHidden)};
-                const weave::WeaveKnobs knobs =
-                    weave::default_weave_knobs(weave::HardwareArch::B300_SM100);
-                const uint32_t m_out = weave::count_remote_expert_sends(
-                    workspace, kNumExperts, kNumExpertsPerRank,
-                    static_cast<uint32_t>(sym_buffer.rank_idx));
-                decision = weave::cta0_select_from_packed_hist(
-                    weave_control, weave::HardwareArch::B300_SM100, wl, knobs,
-                    workspace.get_expert_recv_count_sum_ptr(),
-                    0u, m_out, weave_epoch);
-                policy_ok = weave::policy_is_valid(decision);
-            } else {
-                policy_ok = weave::wait_and_copy_policy(
-                    weave_control, weave_epoch, &decision);
-            }
-            if (policy_ok) {
-                shared_storage.weave_policy = decision;
-                shared_storage.weave_policy_ready = 1u;
-            }
-        }
-        ptx::sync_aligned(get_active_dispatch_threads(), kDispatchBarrierIdx);
 
 #if DG_P1_HEAD_HELPER_K > 0
         if (sm_idx == 0u and warp_idx == 0u) {
@@ -3014,11 +2905,7 @@ sm100_fp8_fp4_mega_moe_impl(void* y,
         uint32_t epi_scatter_slot = 0u;
         uint32_t epi_scatter_phase = 0u;
         uint32_t epi_scatter_step = 0u;
-        // Temporal policy consumed by the epilogue: s=comm enables the
-        // dispatch-warp handoff; s=epi keeps the inline write path.
-        bool scatter_handoff_enabled = shared_storage.weave_policy_ready != 0u and
-            shared_storage.weave_policy.selected_scatter_mode ==
-                static_cast<uint32_t>(weave::ScatterPath::CommQueueAsync);
+        bool scatter_handoff_enabled = false;
 #endif
         const auto d7_scatter_or_prereduce_row = [&](const bool& is_shared,
                                                      const uint32_t& dst_rank_idx,
@@ -4139,23 +4026,8 @@ sm100_fp8_fp4_mega_moe_impl(void* y,
                 (kNumChunkSlots * kNumEpilogueWarps * (kGroupBytes / kBaseSubChunks) <= kNumReusableSmemBytes)
                     ? kBaseSubChunks : (kBaseSubChunks * 2u);
             constexpr uint32_t kSubChunkBytes = kGroupBytes / kNumSubChunks;
-            // D6 static combine-warp cap.  The latest B300 kernel introduced a
-            // constexpr kD6ReduceWarps gate; keep that cap while still letting
-            // the CTA-0 spatial decision select *fewer* active combine warps.
-            // The result is min(policy N_e, D6 cap, kNumEpilogueWarps), so the
-            // cost-model wiring and the 2-CTA multicast schedule are preserved.
-            constexpr uint32_t kD6CombineCap =
-                (kD6ReduceWarps == 0u or kD6ReduceWarps >= kNumEpilogueWarps)
-                    ? kNumEpilogueWarps : kD6ReduceWarps;
-            const uint32_t requested_combine_warps =
-                shared_storage.weave_policy_ready != 0u
-                    ? weave::r_comp_units(shared_storage.weave_policy.selected_r_mask)
-                    : kNumEpilogueWarps;
-            const uint32_t policy_combine_warps =
-                requested_combine_warps == 0u ? 1u : requested_combine_warps;
-            const uint32_t active_combine_warps =
-                policy_combine_warps < kD6CombineCap
-                    ? policy_combine_warps : kD6CombineCap;
+            constexpr uint32_t kActiveCombineWarps =
+                (kD6ReduceWarps == 0u or kD6ReduceWarps >= kNumEpilogueWarps) ? kNumEpilogueWarps : kD6ReduceWarps;
 
             using VecT = std::conditional_t<(kSubChunkBytes == 256u), uint2, uint4>;
             constexpr uint32_t kVecBytes = sizeof(VecT);
@@ -4170,7 +4042,7 @@ sm100_fp8_fp4_mega_moe_impl(void* y,
             DG_STATIC_ASSERT(kNumTopk + (kNumSharedExperts > 0 ? 1u : 0u) <= 32u,
                              "Top-k + shared must fit in a single warp");
 
-            if (epilogue_warp_idx < active_combine_warps) {
+            if (epilogue_warp_idx < kActiveCombineWarps) {
                 const auto combine_load_buffer = utils::PatternVisitor([&](const uint32_t& i) {
                     return math::advance_ptr<VecT>(
                         smem_buffer, (epilogue_warp_idx + i * kNumEpilogueWarps) * kSubChunkBytes);
@@ -4183,9 +4055,9 @@ sm100_fp8_fp4_mega_moe_impl(void* y,
 
                 uint32_t combine_phase = 0;
                 uint32_t load_stage_idx = 0;
-                for (uint32_t token_idx = sm_idx * active_combine_warps + epilogue_warp_idx;
+                for (uint32_t token_idx = sm_idx * kActiveCombineWarps + epilogue_warp_idx;
                      token_idx < num_tokens;
-                     token_idx += kNumSMs * active_combine_warps) {
+                     token_idx += kNumSMs * kActiveCombineWarps) {
                     const int stored_topk_slot_idx = lane_idx < kNumTopk ?
                         static_cast<int>(__ldg(buffer.input_topk_idx_buffer.get_base_ptr<int64_t>() + token_idx * kNumTopk + lane_idx)) :
                         (kNumSharedExperts > 0 and lane_idx == kNumTopk ? static_cast<int>(kNumTopk) : -1);
@@ -4451,9 +4323,3 @@ sm100_fp8_fp4_mega_moe_impl(void* y,
 }
 
 } // namespace deep_gemm
-
-
-
-
-
-

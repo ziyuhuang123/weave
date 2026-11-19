@@ -13,6 +13,17 @@
 
 #include <deep_gemm/scheduler/weave_cost_model.cuh>
 
+// Under HIP, __threadfence() used below is an inline function declared in
+// hip/hip_runtime.h (amd_detail/amd_device_functions.h wraps
+// __builtin_amdgcn_fence(__ATOMIC_SEQ_CST, "agent")), NOT a compiler keyword.
+// megamoe_amd.hip includes this header BEFORE its own hip/hip_runtime.h include,
+// so the declaration is missing (gfx942 EP16 build: "use of undeclared
+// identifier '__threadfence'").  Pull the HIP runtime declaration here, guarded
+// HIP-only so the pure-C++ host tests (g++, no __HIPCC__) are unaffected.
+#if defined(__HIPCC__) && !defined(__CUDACC__)
+#include <hip/hip_runtime.h>
+#endif
+
 namespace weave {
 
 static constexpr uint32_t kPolicyStatusOk = 1u;

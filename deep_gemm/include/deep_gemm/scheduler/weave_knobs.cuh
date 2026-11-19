@@ -19,8 +19,19 @@
 #include <stdint.h>
 
 #if defined(__CUDACC__) || defined(__HIPCC__)
-#define WEAVE_HOST_DEVICE __host__ __device__ __forceinline__
-#define WEAVE_DEVICE __device__ __forceinline__
+// __forceinline__ is a built-in keyword under nvcc / clang-CUDA, but under HIP
+// it is only a macro supplied by hip/hip_runtime.h.  megamoe_amd*.hip includes
+// this scheduler header BEFORE any HIP runtime header, so the macro is not yet
+// defined when clang -x hip parses it (gfx942 build failed with "unknown type
+// name '__forceinline__'").  Provide a portable always-inline fallback that is
+// semantically identical on both toolchains and leaves the CUDA path unchanged.
+#if defined(__forceinline__)
+#define WEAVE_FORCEINLINE __forceinline__
+#else
+#define WEAVE_FORCEINLINE __attribute__((always_inline)) inline
+#endif
+#define WEAVE_HOST_DEVICE __host__ __device__ WEAVE_FORCEINLINE
+#define WEAVE_DEVICE __device__ WEAVE_FORCEINLINE
 #else
 #define WEAVE_HOST_DEVICE inline
 #define WEAVE_DEVICE inline

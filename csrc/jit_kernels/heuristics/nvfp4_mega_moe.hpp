@@ -10,6 +10,7 @@
 
 #include <deep_gemm/layout/nvfp4_mega_moe.cuh>
 #include <deep_gemm/scheduler/nvfp4_mega_moe.cuh>
+#include <deep_gemm/scheduler/weave_cost_model.cuh>
 #include <deep_jit/utils/env.hpp>
 
 #include "../../utils/exception.hpp"
@@ -123,6 +124,9 @@ static std::pair<int, int> get_pipeline_config_for_mega_moe(
     constexpr int kNumScheduleStages = 2;
     const int smem_task_info = kNumScheduleStages * static_cast<int>(sizeof(sched::nvfp4::TaskInfo<true>));
     const int smem_barriers = (num_dispatch_warps + kNumEpilogueStages * 2 + num_epilogue_warps * 2 + kNumScheduleStages * 2) * 8;
+    const int smem_weave_policy = align(
+        static_cast<int>(sizeof(weave::PolicyDecision)) + 2 * static_cast<int>(sizeof(uint32_t)),
+        16);
     const int smem_tmem_ptr = 4;
     const int smem_sfa_per_stage = sf_block_m * (block_k / gran_k);
     const int smem_sfb_per_stage = sf_block_n * (block_k / gran_k);
@@ -132,7 +136,8 @@ static std::pair<int, int> get_pipeline_config_for_mega_moe(
     DG_HOST_ASSERT(smem_b_size_per_stage % kSmemAlignment == 0);
     const int smem_stage_barriers = 2 * 8;
     const int smem_size_per_stage = smem_a_size_per_stage + smem_b_size_per_stage + smem_sfa_per_stage + smem_sfb_per_stage + smem_stage_barriers;
-    const int smem_fixed = smem_dispatch_size + smem_cd + smem_barriers + smem_task_info + smem_tmem_ptr;
+    const int smem_fixed = smem_dispatch_size + smem_cd + smem_barriers + smem_task_info +
+        smem_weave_policy + smem_tmem_ptr;
     const int num_stages = (smem_capacity - smem_fixed) / smem_size_per_stage;
     DG_HOST_ASSERT(num_stages >= 2);
     return {num_stages, smem_fixed + num_stages * smem_size_per_stage};

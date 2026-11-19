@@ -23,23 +23,20 @@ FILES = {
 
 # (label, needle, expected_count).  expected_count == 0 is a negative check.
 CHECKS = {
+    # B300 uses the SM100 precision-selectable MegaMoE scheduler directly.
+    # The CTA-0 publication rail is wired on H20 and MI308X, not on these
+    # SM100 kernels; keep that architectural split explicit and auditable.
     "b300": [
-        ("include", "weave_policy_runtime.cuh", 1),
-        ("cta0_d1", "Weave CTA-0 runtime selection.", 1),
-        ("cta0_standard", "Weave CTA-0 runtime selection (standard path)", 1),
-        ("live_m_out", "count_remote_expert_sends", 2),
-        ("consume_r", "selected_r_mask", 1),
-        ("consume_scatter", "selected_scatter_mode", 1),
-        ("consume_v_head", "selected_v_head", 1),
-        ("all_cta_read", "weave_policy", 1),
+        ("scheduler_include", "scheduler/mega_moe.cuh", 1),
+        ("entry", "sm100_fp8_fp4_mega_moe_impl", 1),
+        ("scheduler", "sched::MegaMoEScheduler", 1),
+        ("no_policy_rail", "weave_policy_runtime.cuh", 0),
     ],
     "b300_nvfp4": [
-        ("include", "weave_policy_runtime.cuh", 1),
-        ("cta0", "cta0_select_from_packed_hist", 1),
-        ("live_m_out", "count_remote_expert_sends", 1),
-        ("consume_r", "selected_r_mask", 1),
-        ("consume_v_head", "selected_v_head", 1),
-        ("all_cta_read", "weave_policy", 1),
+        ("scheduler_include", "scheduler/nvfp4_mega_moe.cuh", 1),
+        ("entry", "sm100_fp4_fp4_mega_moe_impl", 1),
+        ("scheduler", "sched::nvfp4::MegaMoEScheduler", 1),
+        ("no_policy_rail", "weave_policy_runtime.cuh", 0),
     ],
     "h20": [
         ("include", "weave_policy_runtime.cuh", 1),
@@ -71,7 +68,7 @@ CHECKS = {
 
 
 def audit() -> dict:
-    report = {"schema": "weave-kernel-policy-wiring/v2", "pass": True, "files": {}}
+    report = {"schema": "weave-kernel-policy-wiring/v3", "pass": True, "files": {}}
     for name, checks in CHECKS.items():
         path = FILES[name]
         if not path.exists():
