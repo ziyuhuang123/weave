@@ -1,0 +1,3 @@
+# Preserve archived measurement JSON byte-for-byte on checkout.
+results/*.json -text
+data/*.json -text
