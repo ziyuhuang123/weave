@@ -1,0 +1,104 @@
+{
+  "B300": {
+    "median_ns": 3648.0,
+    "min_ns": 3584.0,
+    "max_ns": 4288.0,
+    "median_us": 3.648,
+    "max_us": 4.288,
+    "median_cycles": 7373.0,
+    "by_E_local": {
+      "16": {
+        "median_ns": 3648.0,
+        "min_ns": 3648.0,
+        "max_ns": 3648.0,
+        "p90_median_ns": 3664.0,
+        "median_us": 3.648,
+        "median_cycles": 7373.0
+      },
+      "32": {
+        "median_ns": 3584.0,
+        "min_ns": 3584.0,
+        "max_ns": 3648.0,
+        "p90_median_ns": 3616.0,
+        "median_us": 3.584,
+        "median_cycles": 7245.0
+      },
+      "64": {
+        "median_ns": 4128.0,
+        "min_ns": 4128.0,
+        "max_ns": 4288.0,
+        "p90_median_ns": 4160.0,
+        "median_us": 4.128,
+        "median_cycles": 8374.0
+      }
+    }
+  },
+  "H20": {
+    "median_ns": 1856.0,
+    "min_ns": 1856.0,
+    "max_ns": 1920.0,
+    "median_us": 1.856,
+    "max_us": 1.92,
+    "median_cycles": 3420.0,
+    "by_E_local": {
+      "16": {
+        "median_ns": 1920.0,
+        "min_ns": 1920.0,
+        "max_ns": 1920.0,
+        "p90_median_ns": 1920.0,
+        "median_us": 1.92,
+        "median_cycles": 3491.0
+      },
+      "32": {
+        "median_ns": 1856.0,
+        "min_ns": 1856.0,
+        "max_ns": 1920.0,
+        "p90_median_ns": 1888.0,
+        "median_us": 1.856,
+        "median_cycles": 3419.0
+      },
+      "64": {
+        "median_ns": 1856.0,
+        "min_ns": 1856.0,
+        "max_ns": 1920.0,
+        "p90_median_ns": 1888.0,
+        "median_us": 1.856,
+        "median_cycles": 3420.0
+      }
+    }
+  },
+  "MI308X": {
+    "median_ns": 3000.0,
+    "min_ns": 3000.0,
+    "max_ns": 3360.0,
+    "median_us": 3.0,
+    "max_us": 3.36,
+    "median_cycles": 5508.0,
+    "by_E_local": {
+      "16": {
+        "median_ns": 3000.0,
+        "min_ns": 3000.0,
+        "max_ns": 3080.0,
+        "p90_median_ns": 3040.0,
+        "median_us": 3.0,
+        "median_cycles": 5508.0
+      },
+      "32": {
+        "median_ns": 3000.0,
+        "min_ns": 3000.0,
+        "max_ns": 3080.0,
+        "p90_median_ns": 3040.0,
+        "median_us": 3.0,
+        "median_cycles": 5508.0
+      },
+      "64": {
+        "median_ns": 3280.0,
+        "min_ns": 3280.0,
+        "max_ns": 3360.0,
+        "p90_median_ns": 3320.0,
+        "median_us": 3.28,
+        "median_cycles": 6040.0
+      }
+    }
+  }
+}

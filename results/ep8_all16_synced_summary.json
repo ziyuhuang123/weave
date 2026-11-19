@@ -1,0 +1,298 @@
+{
+  "model": "qwen38max",
+  "sequence_length": 1024,
+  "ep": 8,
+  "base_info": {
+    "total_dur_us": 363.17,
+    "clean_med_us": 365.6,
+    "reduce_warps_seen": [
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15
+    ],
+    "reduce_unique_tile_ids": 512,
+    "reduce_tile_id_coverage": false,
+    "reduce_events_per_warp": {
+      "W8": 64,
+      "W9": 64,
+      "W10": 64,
+      "W11": 64,
+      "W12": 64,
+      "W13": 64,
+      "W14": 64,
+      "W15": 64
+    },
+    "scatter_disp_warps_seen": [],
+    "stage_counts": {
+      "1. Opening: Top-K Histogram & Route Publish": 592,
+      "2. Dispatch: Cross-Rank Sync & Rendezvous": 592,
+      "3. Dispatch Tile: Remote Token & SF Pull": 1098,
+      "8a. Pre-Combine: TMEM Release / Cleanup & Sync": 1776,
+      "5a. FC1 Tile: TMA-A & SFA Load [L1 GEMM]": 2016,
+      "6a. FC2 Tile: TMA-A & SFA Load [L2 GEMM]": 4032,
+      "5b. FC1 Tile: TMA-B & SFB Load [L1 GEMM]": 2016,
+      "6b. FC2 Tile: TMA-B & SFB Load [L2 GEMM]": 4032,
+      "5c. FC1 Tile: UMMA Issue & Commit [L1 GEMM]": 1008,
+      "6c. FC2 Tile: UMMA Issue & Commit [L2 GEMM]": 2016,
+      "4. CLC Scheduler: Dynamic Tile Dispatch": 74,
+      "5d. FC1 Epilogue Tile: SwiGLU Quant & TMA Store": 16128,
+      "7a. Scatter Tile [FC2 Epilogue]: BF16 Convert & NVLink Scatter": 32256,
+      "8b. Reduce Tile: Top-K FP32 Reduce & BF16 TMA Store": 512
+    },
+    "stage_bounds": {
+      "1. Opening: Top-K Histogram & Route Publish": [
+        0.0,
+        5.66
+      ],
+      "2. Dispatch: Cross-Rank Sync & Rendezvous": [
+        2.94,
+        29.63
+      ],
+      "3. Dispatch Tile: Remote Token & SF Pull": [
+        30.75,
+        69.34
+      ],
+      "8a. Pre-Combine: TMEM Release / Cleanup & Sync": [
+        40.45,
+        353.63
+      ],
+      "5a. FC1 Tile: TMA-A & SFA Load [L1 GEMM]": [
+        46.21,
+        284.54
+      ],
+      "6a. FC2 Tile: TMA-A & SFA Load [L2 GEMM]": [
+        79.62,
+        333.5
+      ],
+      "5b. FC1 Tile: TMA-B & SFB Load [L1 GEMM]": [
+        47.17,
+        284.54
+      ],
+      "6b. FC2 Tile: TMA-B & SFB Load [L2 GEMM]": [
+        81.34,
+        333.38
+      ],
+      "5c. FC1 Tile: UMMA Issue & Commit [L1 GEMM]": [
+        46.91,
+        285.82
+      ],
+      "6c. FC2 Tile: UMMA Issue & Commit [L2 GEMM]": [
+        81.12,
+        334.59
+      ],
+      "4. CLC Scheduler: Dynamic Tile Dispatch": [
+        0.16,
+        332.45
+      ],
+      "5d. FC1 Epilogue Tile: SwiGLU Quant & TMA Store": [
+        63.52,
+        290.08
+      ],
+      "7a. Scatter Tile [FC2 Epilogue]: BF16 Convert & NVLink Scatter": [
+        84.45,
+        335.65
+      ],
+      "8b. Reduce Tile: Top-K FP32 Reduce & BF16 TMA Store": [
+        345.34,
+        363.17
+      ]
+    }
+  },
+  "ours_info": {
+    "total_dur_us": 348.26,
+    "clean_med_us": 359.55,
+    "reduce_warps_seen": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15
+    ],
+    "reduce_unique_tile_ids": 2048,
+    "reduce_tile_id_coverage": true,
+    "reduce_events_per_warp": {
+      "W0": 128,
+      "W1": 128,
+      "W2": 128,
+      "W3": 128,
+      "W4": 128,
+      "W5": 128,
+      "W6": 128,
+      "W7": 128,
+      "W8": 128,
+      "W9": 128,
+      "W10": 128,
+      "W11": 128,
+      "W12": 128,
+      "W13": 128,
+      "W14": 128,
+      "W15": 128
+    },
+    "scatter_disp_warps_seen": [
+      0,
+      1,
+      2,
+      3
+    ],
+    "stage_counts": {
+      "1. Opening: Top-K Histogram & Route Publish": 592,
+      "2. Dispatch: Cross-Rank Sync & Rendezvous": 592,
+      "3. Dispatch Tile: Remote Token & SF Pull": 1098,
+      "7b. Scatter Tile [D7 Dispatch-Warp Executor]: NVLink Scatter": 28316,
+      "8a. Pre-Combine: TMEM Release / Cleanup & Sync": 1776,
+      "8b. Reduce Tile [All 16 Warps W0..W15]: 1024B Top-K Reduce & TMA Store": 2048,
+      "5a. FC1 Tile: TMA-A & SFA Load [L1 GEMM]": 2016,
+      "6a. FC2 Tile: TMA-A & SFA Load [L2 GEMM]": 4032,
+      "5b. FC1 Tile: TMA-B & SFB Load [L1 GEMM]": 2016,
+      "6b. FC2 Tile: TMA-B & SFB Load [L2 GEMM]": 4032,
+      "5c. FC1 Tile: UMMA Issue & Commit [L1 GEMM]": 1008,
+      "6c. FC2 Tile: UMMA Issue & Commit [L2 GEMM]": 2016,
+      "4. CLC Scheduler: Dynamic Tile Dispatch": 74,
+      "5d. FC1 Epilogue Tile: SwiGLU Quant & TMA Store": 16128,
+      "7a. Scatter Tile [FC2 Epilogue]: BF16 Convert & NVLink Scatter": 32256
+    },
+    "stage_bounds": {
+      "1. Opening: Top-K Histogram & Route Publish": [
+        0.0,
+        5.28
+      ],
+      "2. Dispatch: Cross-Rank Sync & Rendezvous": [
+        2.3,
+        15.52
+      ],
+      "3. Dispatch Tile: Remote Token & SF Pull": [
+        16.74,
+        65.38
+      ],
+      "7b. Scatter Tile [D7 Dispatch-Warp Executor]: NVLink Scatter": [
+        72.9,
+        324.03
+      ],
+      "8a. Pre-Combine: TMEM Release / Cleanup & Sync": [
+        322.53,
+        343.84
+      ],
+      "8b. Reduce Tile [All 16 Warps W0..W15]: 1024B Top-K Reduce & TMA Store": [
+        341.6,
+        348.26
+      ],
+      "5a. FC1 Tile: TMA-A & SFA Load [L1 GEMM]": [
+        35.46,
+        275.04
+      ],
+      "6a. FC2 Tile: TMA-A & SFA Load [L2 GEMM]": [
+        68.1,
+        323.74
+      ],
+      "5b. FC1 Tile: TMA-B & SFB Load [L1 GEMM]": [
+        36.86,
+        275.04
+      ],
+      "6b. FC2 Tile: TMA-B & SFB Load [L2 GEMM]": [
+        69.44,
+        323.71
+      ],
+      "5c. FC1 Tile: UMMA Issue & Commit [L1 GEMM]": [
+        36.42,
+        276.32
+      ],
+      "6c. FC2 Tile: UMMA Issue & Commit [L2 GEMM]": [
+        69.22,
+        324.93
+      ],
+      "4. CLC Scheduler: Dynamic Tile Dispatch": [
+        0.03,
+        322.66
+      ],
+      "5d. FC1 Epilogue Tile: SwiGLU Quant & TMA Store": [
+        52.74,
+        279.84
+      ],
+      "7a. Scatter Tile [FC2 Epilogue]: BF16 Convert & NVLink Scatter": [
+        72.16,
+        326.5
+      ]
+    }
+  },
+  "min_cos": 0.9999998807907104,
+  "speedup": 1.016826588791545,
+  "exact_sha_8of8": true,
+  "profile_exact_sha_8of8": true,
+  "chk_all": [
+    {
+      "cos": 1.0,
+      "max_abs": 0.0,
+      "finite": true,
+      "base_finite": true
+    },
+    {
+      "cos": 0.9999998807907104,
+      "max_abs": 0.0,
+      "finite": true,
+      "base_finite": true
+    },
+    {
+      "cos": 1.0000001192092896,
+      "max_abs": 0.0,
+      "finite": true,
+      "base_finite": true
+    },
+    {
+      "cos": 1.0,
+      "max_abs": 0.0,
+      "finite": true,
+      "base_finite": true
+    },
+    {
+      "cos": 1.0,
+      "max_abs": 0.0,
+      "finite": true,
+      "base_finite": true
+    },
+    {
+      "cos": 1.0000001192092896,
+      "max_abs": 0.0,
+      "finite": true,
+      "base_finite": true
+    },
+    {
+      "cos": 0.9999999403953552,
+      "max_abs": 0.0,
+      "finite": true,
+      "base_finite": true
+    },
+    {
+      "cos": 1.0,
+      "max_abs": 0.0,
+      "finite": true,
+      "base_finite": true
+    }
+  ],
+  "gates": {
+    "reduce_warps_w0_through_w15": true,
+    "reduce_exactly_128_events_per_warp": true,
+    "reduce_exact_tile_coverage_0_through_2047": true,
+    "scatter_dispatch_w0_through_w3": true,
+    "eight_rank_checks": true,
+    "base_and_ours_finite_8of8": true,
+    "min_cos_at_least_0_999": true,
+    "ours_faster_than_base": true
+  },
+  "passed": true
+}

@@ -1,0 +1,76 @@
+{
+  "schema": "weave-local-validation/v1",
+  "date": "2026-11-19",
+  "machine": {
+    "gpu": "NVIDIA GeForce RTX 3050 Laptop 4 GB (not B300/H20/MI308X)",
+    "python": "3.13.9",
+    "gxx": "g++ (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0",
+    "nvcc": "CUDA 13.3 V13.3.73",
+    "platform": "Windows 11 + WSL Ubuntu-24.04"
+  },
+  "checks": [
+    {
+      "name": "cost_model_eq123_host",
+      "status": "PASS",
+      "kind": "compiled_and_run",
+      "command": "g++ -std=c++17 -O2 -I deep_gemm/include tests/test_cost_model_eq123.cpp",
+      "output": [
+        "B300_SM100 auto=(r=0,s=0,v_head=32,total=14.022us)",
+        "H20_SM90 auto=(r=1,s=0,v_head=32,total=18.107us)",
+        "MI308X_GFX942 auto=(r=0,s=0,v_head=32,total=22.103us)"
+      ]
+    },
+    {
+      "name": "ablation_presets",
+      "status": "PASS",
+      "kind": "compiled_and_run",
+      "command": "g++ -DWEAVE_ABLATION_PRESET=0/1/2/3 tests/test_ablation_presets.cpp",
+      "detail": "Preset 0 enables auto selection; presets 1/2/3 disable it and force the fixed Table I candidate 0."
+    },
+    {
+      "name": "nvcc_device_cost_model_smoke",
+      "status": "PASS",
+      "kind": "compiled_not_run",
+      "command": "nvcc -std=c++17 -x cu -arch=sm_90a tests/test_cost_model_eq123.cpp",
+      "detail": "NVCC_EXIT=0. The generated exe was not run because Windows Application Control blocks new executables and the local GPU is not sm_90a."
+    },
+    {
+      "name": "kernel_ptx_frontend",
+      "status": "PASS",
+      "kind": "frontend_parse_only",
+      "command": "nvcc -std=c++20 -ptx -arch=sm_90a/sm_100a",
+      "detail": "H20_EXIT=0, B300_FP8_EXIT=0, B300_FP4_EXIT=0. No kernel template instantiation or launch."
+    },
+    {
+      "name": "cost_model_3hw_validation",
+      "status": "PASS",
+      "kind": "python_replay",
+      "detail": "Real B300 routing aggregates + deterministic Zipf(0.9) proxy histogram for m_e."
+    },
+    {
+      "name": "kernel_policy_wiring",
+      "status": "PASS",
+      "kind": "static_source_audit",
+      "detail": "b300, b300_nvfp4, h20, mi308x_body, mi308x_route, mi308x_comm all pass."
+    },
+    {
+      "name": "amd_hip_build",
+      "status": "NOT_RUN",
+      "kind": "unavailable_toolchain",
+      "detail": "No hipcc/ROCm; five archived AMD dependency headers are missing."
+    },
+    {
+      "name": "end_to_end_gpu_performance",
+      "status": "NOT_RUN",
+      "kind": "unavailable_hardware",
+      "detail": "No B300/H20/MI308X on this machine; results/*.json are archived measurements, not rerun."
+    }
+  ],
+  "boundaries": {
+    "d_in": "B300/H20/AMD policy decision point precedes dedup-key materialization; D_in is conservatively M.",
+    "m_out": "B300/H20 use live expert_send_count remote sums; AMD currently uses M.",
+    "b300_nvfp4_scatter": "selected_scatter_mode is published but does not switch a separate scatter path.",
+    "mi308x_spatial": "selected_r_mask maps to V1864Roles but the active v4 wave mapping does not consume roles yet.",
+    "cta0_latency": "Archived B300 median 3.648us, max 4.288us; new implementation not re-measured on B300."
+  }
+}

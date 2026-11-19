@@ -1,0 +1,240 @@
+{
+  "schema": "weave-kernel-policy-wiring/v2",
+  "pass": true,
+  "files": {
+    "b300": {
+      "exists": true,
+      "path": "deep_gemm\\include\\deep_gemm\\impls\\sm100_fp8_fp4_mega_moe.cuh",
+      "bytes": 250854,
+      "checks": {
+        "include": {
+          "needle": "weave_policy_runtime.cuh",
+          "expected_count": 1,
+          "observed_count": 1,
+          "ok": true
+        },
+        "cta0_d1": {
+          "needle": "Weave CTA-0 runtime selection.",
+          "expected_count": 1,
+          "observed_count": 1,
+          "ok": true
+        },
+        "cta0_standard": {
+          "needle": "Weave CTA-0 runtime selection (standard path)",
+          "expected_count": 1,
+          "observed_count": 1,
+          "ok": true
+        },
+        "live_m_out": {
+          "needle": "count_remote_expert_sends",
+          "expected_count": 2,
+          "observed_count": 2,
+          "ok": true
+        },
+        "consume_r": {
+          "needle": "selected_r_mask",
+          "expected_count": 1,
+          "observed_count": 2,
+          "ok": true
+        },
+        "consume_scatter": {
+          "needle": "selected_scatter_mode",
+          "expected_count": 1,
+          "observed_count": 1,
+          "ok": true
+        },
+        "consume_v_head": {
+          "needle": "selected_v_head",
+          "expected_count": 1,
+          "observed_count": 5,
+          "ok": true
+        },
+        "all_cta_read": {
+          "needle": "weave_policy",
+          "expected_count": 1,
+          "observed_count": 19,
+          "ok": true
+        }
+      }
+    },
+    "b300_nvfp4": {
+      "exists": true,
+      "path": "deep_gemm\\include\\deep_gemm\\impls\\sm100_fp4_fp4_mega_moe.cuh",
+      "bytes": 105907,
+      "checks": {
+        "include": {
+          "needle": "weave_policy_runtime.cuh",
+          "expected_count": 1,
+          "observed_count": 1,
+          "ok": true
+        },
+        "cta0": {
+          "needle": "cta0_select_from_packed_hist",
+          "expected_count": 1,
+          "observed_count": 1,
+          "ok": true
+        },
+        "live_m_out": {
+          "needle": "count_remote_expert_sends",
+          "expected_count": 1,
+          "observed_count": 1,
+          "ok": true
+        },
+        "consume_r": {
+          "needle": "selected_r_mask",
+          "expected_count": 1,
+          "observed_count": 1,
+          "ok": true
+        },
+        "consume_v_head": {
+          "needle": "selected_v_head",
+          "expected_count": 1,
+          "observed_count": 5,
+          "ok": true
+        },
+        "all_cta_read": {
+          "needle": "weave_policy",
+          "expected_count": 1,
+          "observed_count": 13,
+          "ok": true
+        }
+      }
+    },
+    "h20": {
+      "exists": true,
+      "path": "deep_gemm\\include\\deep_gemm\\impls\\sm90_fp8_mega_moe.cuh",
+      "bytes": 386655,
+      "checks": {
+        "include": {
+          "needle": "weave_policy_runtime.cuh",
+          "expected_count": 1,
+          "observed_count": 1,
+          "ok": true
+        },
+        "cta0": {
+          "needle": "cta0_select_from_packed_hist",
+          "expected_count": 1,
+          "observed_count": 1,
+          "ok": true
+        },
+        "live_m_out": {
+          "needle": "count_remote_expert_sends",
+          "expected_count": 1,
+          "observed_count": 1,
+          "ok": true
+        },
+        "consume_r": {
+          "needle": "selected_r_mask",
+          "expected_count": 1,
+          "observed_count": 1,
+          "ok": true
+        },
+        "consume_scatter": {
+          "needle": "selected_scatter_mode",
+          "expected_count": 1,
+          "observed_count": 1,
+          "ok": true
+        },
+        "consume_v_head": {
+          "needle": "selected_v_head",
+          "expected_count": 1,
+          "observed_count": 5,
+          "ok": true
+        },
+        "all_cta_read": {
+          "needle": "load_published_policy",
+          "expected_count": 2,
+          "observed_count": 2,
+          "ok": true
+        },
+        "no_literal_cr": {
+          "needle": "`r`n",
+          "expected_count": 0,
+          "observed_count": 0,
+          "ok": true
+        }
+      }
+    },
+    "mi308x_body": {
+      "exists": true,
+      "path": "deep_gemm\\include\\deep_gemm\\impls\\amd\\megamoe_amd.hip",
+      "bytes": 59711,
+      "checks": {
+        "consume_r": {
+          "needle": "selected_r_mask",
+          "expected_count": 1,
+          "observed_count": 1,
+          "ok": true
+        },
+        "consume_scatter": {
+          "needle": "selected_scatter_mode",
+          "expected_count": 1,
+          "observed_count": 1,
+          "ok": true
+        },
+        "all_cta_read": {
+          "needle": "g_weave_policy_control",
+          "expected_count": 1,
+          "observed_count": 1,
+          "ok": true
+        }
+      }
+    },
+    "mi308x_route": {
+      "exists": true,
+      "path": "deep_gemm\\include\\deep_gemm\\impls\\amd\\include\\direct_gather_and_greedy_tiles.hpp",
+      "bytes": 28982,
+      "checks": {
+        "cta0": {
+          "needle": "cta0_select_and_publish",
+          "expected_count": 1,
+          "observed_count": 1,
+          "ok": true
+        },
+        "cta0_guard": {
+          "needle": "if (cta == 0u)",
+          "expected_count": 1,
+          "observed_count": 2,
+          "ok": true
+        },
+        "histogram": {
+          "needle": "plan_counts",
+          "expected_count": 1,
+          "observed_count": 8,
+          "ok": true
+        },
+        "publish_before_release": {
+          "needle": "pf + 6u",
+          "expected_count": 1,
+          "observed_count": 2,
+          "ok": true
+        },
+        "no_trace_scratch": {
+          "needle": "trace[2048u]",
+          "expected_count": 0,
+          "observed_count": 0,
+          "ok": true
+        }
+      }
+    },
+    "mi308x_comm": {
+      "exists": true,
+      "path": "deep_gemm\\include\\deep_gemm\\impls\\amd\\include\\weave_comm_4wave_turbo.hpp",
+      "bytes": 37472,
+      "checks": {
+        "consume_v_head": {
+          "needle": "selected_v_head",
+          "expected_count": 1,
+          "observed_count": 3,
+          "ok": true
+        },
+        "policy_valid": {
+          "needle": "weave_policy_ok",
+          "expected_count": 1,
+          "observed_count": 2,
+          "ok": true
+        }
+      }
+    }
+  }
+}
