@@ -2540,13 +2540,20 @@ struct SM90MegaMoECoreRunner {
                 uint32_t queue_idx = 0xffffffffu;
                 while (true) {
                     const uint32_t head = ptx::ld_acq(hbm_queue_head);
-                    const uint32_t tail = ptx::ld_acq(hbm_queue_tail);
+                    uint32_t tail = ptx::ld_acq(hbm_queue_tail);
                     if (head >= tail) {
                         if (ptx::ld_acq(hbm_epilogue_done) >= kNumSMs) {
-                            break;
+                            // Acquire the producer epoch before re-reading the
+                            // tail; otherwise a stale tail read could make the
+                            // drainer exit with rows still queued.
+                            tail = ptx::ld_acq(hbm_queue_tail);
+                            if (head >= tail) {
+                                break;
+                            }
+                        } else {
+                            __nanosleep(500);
+                            continue;
                         }
-                        __nanosleep(500);
-                        continue;
                     }
                     if (atomicCAS(hbm_queue_head, head, head + 1u) == head) {
                         queue_idx = head;
@@ -6325,7 +6332,7 @@ struct SM90MegaMoECoreRunner {
                                 asm volatile("fence.acq_rel.gpu;" ::: "memory");
                                 const uint32_t prev_fin = ptx::atomic_add_rel(cnt_ptr, 0x00010000u);
                                 is_chunk_last =
-                                    ((((prev_fin >> 16) & 0xffffu) + 1u) == dup_count) ? 1u : 0u;
+                                    ((((prev_fin >> 16) & 0xffu) + 1u) == dup_count) ? 1u : 0u;
                             }
                             is_chunk_last = __shfl_sync(half_mask, is_chunk_last, half_base_lane);
                             if (is_chunk_last) {

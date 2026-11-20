@@ -39,6 +39,20 @@ struct SM90MegaMoESchedulerAdapter {
                      "Invalid wave config");
     DG_STATIC_ASSERT(kNumSMs > 0, "Invalid SM count");
 
+    // Optional static N-column domain split.  With WEAVE_N_DOMAINS=2 the
+    // (m-major) tile stream is permuted so that SMs with even block_idx only
+    // ever touch even N tiles and odd SMs only touch odd N tiles.  Each N tile
+    // is therefore touched by exactly one half of the SMs, which keeps the
+    // per-domain working set at half of the expert weight matrix and lets the
+    // matching L2 partition retain it across M blocks.  Tiles are still a
+    // permutation of the full set, so correctness is unchanged.
+#if defined(WEAVE_N_DOMAINS)
+    static constexpr uint32_t kNumNDomains = WEAVE_N_DOMAINS;
+#else
+    static constexpr uint32_t kNumNDomains = 1;
+#endif
+    DG_STATIC_ASSERT(kNumNDomains == 1 or kNumNDomains == 2, "Invalid N domain count");
+
     const WorkspaceT& workspace;
 
     uint32_t current_local_expert_idx = 0;
@@ -140,6 +154,12 @@ struct SM90MegaMoESchedulerAdapter {
                 } else {
                     m_block_idx = block_idx / kNumBlockNs;
                     n_block_idx = block_idx - m_block_idx * kNumBlockNs;
+                    if constexpr (kNumNDomains == 2) {
+                        DG_STATIC_ASSERT(kNumBlockNs % 2 == 0,
+                                         "N domain split needs an even N block count");
+                        constexpr uint32_t kHalfNs = kNumBlockNs / 2;
+                        n_block_idx = (n_block_idx % kHalfNs) * 2u + (block_idx & 1u);
+                    }
                 }
                 return true;
             }
