@@ -46,7 +46,10 @@
 
 // Reset both per-domain queues even when the build does not use them; the cost
 // is four stores once per launch and keeps the workspace byte layout stable.
-static constexpr unsigned int kNumTaskCountDomains = (WEAVE_LOCALITY_DOMAINS ? 2u : 1u);
+static constexpr unsigned int kNumTaskCountDomains =
+    (WEAVE_LOCALITY_DOMAINS > 1u ? static_cast<unsigned int>(WEAVE_LOCALITY_DOMAINS) : 1u);
+static_assert(kNumTaskCountDomains == 1u or kNumTaskCountDomains == 2u,
+              "SM103 supports one or two locality domains");
 
 // ============================================================================
 // Public B300 compile-time knobs. WEAVE_* is the primary spelling; archived
