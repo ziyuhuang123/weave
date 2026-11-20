@@ -19,7 +19,7 @@ number. Use --dry-run to inspect a plan on any CPU-only host.
 
 The clean source installation helper is:
 
-    bash baselines/install_baselines.sh nvidia   # SM103 or H20 host
+    bash baselines/install_baselines.sh nvidia   # 148-SM SM103 or H20 host
     bash baselines/install_baselines.sh amd      # MI308X host
 
 Run each stack in a dedicated Python environment: the upstream DeepGEMM
@@ -38,7 +38,7 @@ Verify the environment:
 
 ## 2. NVIDIA SM103 (148-SM): 8x EP8
 
-The Figure 7 SM103 sweep uses eight ranks, one GPU per rank. The two official
+The Figure 7 SM103 (148-SM) sweep uses eight ranks, one GPU per rank. The two official
 DeepGEMM precision arms are selected by mma_type:
 
 | Arm | Precision | Command |
@@ -64,7 +64,7 @@ the first timed iteration. Do not replace it with an all-to-all timing alone.
 | vLLM | python baselines/run_h20_baselines.py --baseline vllm --model-path /absolute/path/to/checkpoint |
 
 The official arm uses the SM90 FP8 MegaMoE implementation and its own symmetric
-buffer allocator. It is not the SM103 scheduler compiled for an older
+buffer allocator. It is not the 148-SM SM103 scheduler compiled for an older
 architecture. The bundled official wrapper runs the repository's fixed SM90
 shape-coverage suite; to reproduce the paper's six-model x S grid, pass the
 matching shapes to an external official DeepGEMM driver or to the split and

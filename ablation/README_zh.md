@@ -33,8 +33,8 @@ MI308X 实际执行需要指定独立 kernel driver：
 ### 已验证的 48 格汇总（论文 Table IV）
 
 下表是各平台相对官方基线的 measured 几何平均加速比，属于参考证据，不是
-dry-run 脚本重新生成的数字。SM103 数字来自论文的 fp8xfp4 实测 campaign；当前仓库
-中 SM103 fp8xfp4 仍为 BLOCKED_RUNTIME_HANG，因此新跑的消融应通过 --runner 指向
+dry-run 脚本重新生成的数字。NVIDIA SM103 (148-SM) 数字来自论文的 fp8xfp4 实测 campaign；当前仓库
+中 148-SM SM103 fp8xfp4 仍为 BLOCKED_RUNTIME_HANG，因此新跑的消融应通过 --runner 指向
 NVFP4 测试入口 tests/test_nvfp4_mega_moe.py。
 
 | 平台 | S 范围 | Weave | -S | -S-T | -S-T-C |
@@ -48,7 +48,7 @@ NVFP4 测试入口 tests/test_nvfp4_mega_moe.py。
 
 ## 2. 代价模型与 Oracle 对比
 
-紧凑回放直接读取 data/routing_stats_3hw.json，覆盖四种配置：SM103 EP8、
+紧凑回放直接读取 data/routing_stats_3hw.json，覆盖四种配置：148-SM SM103 EP8、
 H20 EP8、MI308X EP8 和 MI308X EP16。
 
     python ablation/eval_cost_model_vs_oracle.py
@@ -93,7 +93,7 @@ Zipf(0.9) 代理生成 m_e，并把预测候选中的最小值称为 model oracl
 
 ### 已验证的论文汇总
 
-- SM103 48 格：38/48 格与已记录最优候选完全一致；
+- SM103 (148-SM) 48 格：38/48 格与已记录最优候选完全一致；
 - 几何平均选择后悔：2.4%（算术平均 2.6%）；
 - 所选配置相对基线 1.301x，穷举 oracle 为 1.332x；
 - 平均绝对时延预测误差：34.0%。

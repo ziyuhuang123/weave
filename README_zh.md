@@ -120,7 +120,7 @@ Python 入口示意：
 | 8x AMD MI308X EP8 | fp8 | 4/4 全输出 cell 在 8 个 rank 上全部 PASS；最大 rel_l2 0.001545--0.001908，最大行 rel_l2 0.001952--0.005731，device_error=0 | qwen38max S=16 687.422/713.942 us；S=128 1539.625/1554.185 us；DeepSeek-V4-Flash S=16 378.761/395.421 us；S=128 699.642/709.743 us；单卡 TFLOPS 1.595--9.219 | PASS |
 | 16x AMD MI308X EP16（2 节点 x 8） | fp8 | 16/16 rank 全元素 FP64 对比 PASS；qwen38max S=128 与 DeepSeek-V4-Flash S=128；最大 rel_l2 0.012535/0.012292，最大行 rel_l2 0.019612/0.015528；96 条 launch-state 记录 device_error=0 | qwen38max metric1 1594.079 -> 1010.679 us（1.5772x），metric2 1591.939 -> 1006.619 us（1.5815x）；DeepSeek-V4-Flash metric1 1387.055 -> 735.300 us（1.8864x），metric2 1367.269 -> 732.679 us（1.8661x） | PASS |
 
-SM103 fp8xfp4 路径可以编译，两个 SM103 内核都带有 CTA-0 策略轨，但 FP8xFP4 的
+148-SM SM103 fp8xfp4 路径可以编译，两个 148-SM SM103 内核都带有 CTA-0 策略轨，但 FP8xFP4 的
 首次启动仍卡在 FP8 GEMM 事务屏障协议。移除策略轨、限制 rank 顺序、删除 pull
 等待、改变 block 形状都会复现同一等待。这是尚未解决的运行时调查，不是 PASS。
 相同源码线上的 NVFP4 sibling 已完成端到端验证并具备现场策略回读。
@@ -156,7 +156,7 @@ SM103 路径使用动态 TMA-A（`m8/m16/BM`）与动态 epilogue（`store_m8/m1
 dispatch 完成后，CTA 0 立即读取完整的实时 post-dispatch 直方图 `m_e[]`、
 `D_in` 与 `M_out`，然后选择空间切分 `r = (N_c, N_e)`、scatter 分区归属
 `s in {epi, comm}` 与开局头部拉取 token 配额 `V_head`。代价模型用于候选排序，
-而不是绝对时延预言。在 48 个实测 SM103 cell 上，其平均绝对时延预测误差为
+而不是绝对时延预言。在 48 个实测 SM103 (148-SM) cell 上，其平均绝对时延预测误差为
 34.0%，但共享开销在 argmin 中相互抵消：它与穷举 Oracle 在 38/48 个 cell 上
 完全一致，取得 1.301x 几何平均加速，而 Oracle 为 1.332x，几何平均选择后悔为
 2.4%。这一差异是有意披露的设计论点。
@@ -175,7 +175,7 @@ tests/verify_tunable_params_doc.py 机械校验。完整参数文档见
 | `WEAVE_COMM_UNITS` | 1 | `N = 运行时搜索关闭时使用的编译期默认 N_c 通信比例（每 SM/CU）`；`0 = 纯计算切分，不设专用通信单元` | 4 | 代价模型关闭时写入 r_mask 的默认 N_c。代价模型把候选 comm/comp 单元视为每 SM/CU 的比例，在施加链路带宽上限时再乘以 SM/CU 数量。 | `deep_gemm/include/deep_gemm/scheduler/weave_knobs.cuh:59` | `deep_gemm/include/deep_gemm/scheduler/weave_cost_model.cuh:28` |
 | `WEAVE_COMP_UNITS` | 1 | `N = 编译期默认 N_e 计算单元数`；`0 = 无计算单元（退化配置，不是可独立运行的调度）` | 4 | 代价模型关闭时写入 r_mask 的默认 N_e。 | `deep_gemm/include/deep_gemm/scheduler/weave_knobs.cuh:69` | `deep_gemm/include/deep_gemm/scheduler/weave_cost_model.cuh:29` |
 | `WEAVE_V_HEAD` | 3 | `0xffffffff = auto`：由 Eq. (3) 计算开局头部拉取配额；`0 = 关闭`：不做开局头部拉取；`V = 显式覆盖`：按峰值链路带宽只拉取前 V 个不同远端 token | auto（0xffffffff） | 开局头部拉取配额（论文中的 V_head）。层开始时 GEMM 尚无就绪 tile，所有可用通信 warp/wave 以峰值链路带宽拉取前 V_head 个 token，以消除启动气泡；随后切换到稳态 N_c 个通信 warp 与计算重叠。auto 值 = align_up(min(num_SM x N_c x head_tasks_per_comm_unit, D_in), 32)，其中 D_in 是实测去重后的远端拉取数。设置为整数即覆盖该值。 | `deep_gemm/include/deep_gemm/scheduler/weave_knobs.cuh:259` | `deep_gemm/include/deep_gemm/scheduler/weave_cost_model.cuh:30` |
-| `WEAVE_SCATTER_MODE` | 3 | `0 = epilogue 内联（s = epi）`：GEMM epilogue warp 直接在 Compute/GEMM 分区内发起 NVLink/xGMI scatter（零交接开销；小 batch 最优）；`1 = 通信卸载（s = comm）`：epilogue warp 通过 SMEM/异步交接把 FC2 tile 输出写入 Communication 分区 Ready Queue，通信 warp 在后续 GEMM tile 运行期间异步排空 NVLink/xGMI scatter；`2 = 本地去重 / 节点内部分归约`：当一个 token 路由到同一 GPU（EP16 中为同一 8 卡节点）的多个专家时，epilogue/local-combine warp 先把这些部分贡献归约去重到一份合并 HBM 缓冲，再向 Communication 分区 Ready Queue 入队一次去重传输，使通信 warp 对每个目的 token 只发送一次 | 1（SM103 数据流为 0；MI308X EP16 为 2） | 选择 scatter 步骤的归属者以及由哪个 ready queue 承载。它也是 CTA 0 依据路由选择的三个动态决策之一（s）。 | `deep_gemm/include/deep_gemm/scheduler/weave_knobs.cuh:159` | `deep_gemm/include/deep_gemm/scheduler/weave_cost_model.cuh:31` |
+| `WEAVE_SCATTER_MODE` | 3 | `0 = epilogue 内联（s = epi）`：GEMM epilogue warp 直接在 Compute/GEMM 分区内发起 NVLink/xGMI scatter（零交接开销；小 batch 最优）；`1 = 通信卸载（s = comm）`：epilogue warp 通过 SMEM/异步交接把 FC2 tile 输出写入 Communication 分区 Ready Queue，通信 warp 在后续 GEMM tile 运行期间异步排空 NVLink/xGMI scatter；`2 = 本地去重 / 节点内部分归约`：当一个 token 路由到同一 GPU（EP16 中为同一 8 卡节点）的多个专家时，epilogue/local-combine warp 先把这些部分贡献归约去重到一份合并 HBM 缓冲，再向 Communication 分区 Ready Queue 入队一次去重传输，使通信 warp 对每个目的 token 只发送一次 | 1（148-SM SM103 数据流为 0；MI308X EP16 为 2） | 选择 scatter 步骤的归属者以及由哪个 ready queue 承载。它也是 CTA 0 依据路由选择的三个动态决策之一（s）。 | `deep_gemm/include/deep_gemm/scheduler/weave_knobs.cuh:159` | `deep_gemm/include/deep_gemm/scheduler/weave_cost_model.cuh:31` |
 | `WEAVE_OVERLAP_PIPELINE` | 2 | `0 = 关闭`：消融开关，强制批量同步的逐阶段串行化（-S-T / -S-T-C 使用）；`1 = 开启`（默认）：计算-通信重叠打开 | 1 | dispatch、GEMM、scatter 与 combine 之间的时间重叠。默认 = 1：计算-通信重叠默认开启。设为 0 是消融开关，强制逐阶段批量同步执行。 | `deep_gemm/include/deep_gemm/scheduler/weave_knobs.cuh:149` | `deep_gemm/include/deep_gemm/scheduler/weave_cost_model.cuh:32` |
 | `WEAVE_SELECTIVE_DEDUP` | 2 | `0 = 关闭`：每条 (token, expert) 路由一个通信桶；`1 = 开启`：按唯一 (token, destination) 建桶，同一 token 路由到同一目的 rank 的多个专家时只传输一次 | 1（preset 3 时为 0） | 通信阶段的选择性输入去重。 | `deep_gemm/include/deep_gemm/scheduler/weave_knobs.cuh:199` | `deep_gemm/include/deep_gemm/scheduler/weave_cost_model.cuh:33` |
 | `WEAVE_ALL_WAVE_COMBINE` | 2 | `0 = 仅计算组 epilogue warp 执行尾部合并`；`1 = 所有空闲 wave（dispatch 与 epilogue）都加入协作式尾部合并` | 1（preset >= 2 时为 0） | 协作式尾部合并的参与宽度。 | `deep_gemm/include/deep_gemm/scheduler/weave_knobs.cuh:179` | `deep_gemm/include/deep_gemm/scheduler/weave_cost_model.cuh:34` |
@@ -214,8 +214,8 @@ tests/verify_tunable_params_doc.py 机械校验。完整参数文档见
 | `WEAVE_SCATTER_WARPS` | 2 | `0 = 自动`：使用已配置的 dispatch warp；`2, 4, 8 = N 个专用 scatter 执行 warp`（同时把 dispatch 线程数设为 32N） | 0（自动） | scatter 执行 warp 数。 | `csrc/jit_kernels/impls/sm100_fp8_fp4_mega_moe.hpp:164` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:404` |
 | `WEAVE_SCATTER_HANDOFF_WAIT` | 2 | `0 = epilogue 写完后立即交接`；`1 = 等到 combine-ready epoch / pull-done 标志后再交接` | 1 | 交接前等待 combine-ready epoch。 | `csrc/jit_kernels/impls/sm100_fp8_fp4_mega_moe.hpp:165` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:420` |
 | `WEAVE_SHARED_L2_EARLY_BLOCKS` | 1 | `0 = 不做提前播种`；`N 在 1..148 = 前 N 个 CTA 负责 shared-L2 复用播种` | 10 | 用于播种 shared-L2 复用的早期块数。 | `csrc/jit_kernels/impls/sm100_fp8_fp4_mega_moe.hpp:203` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:431` |
-| `WEAVE_ENABLE_MULTICAST` | 1 | `1 = 启用双 CTA TMA 多播`（SM103 FP8xFP4 内核必需）；`0 = 编译掉多播路径`（未验证的调度） | 1 | SM103 FP8xFP4 内核所需的双 CTA TMA 多播。 | `csrc/jit_kernels/impls/sm100_fp8_fp4_mega_moe.hpp:166` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:442` |
-| `WEAVE_SCATTER_MODE` | 3 | `0 = epilogue 内联（s = epi）`：在 Compute/GEMM 分区内 scatter；`1 = 通信卸载（s = comm）`：FC2 输出交接到 Communication 分区 Ready Queue；`2 = 本地去重`：先把同 rank 部分贡献归约到一份合并缓冲，再做一次去重传输 | SM103 数据流为 0 | SM103 数据流的 scatter 路径覆盖。三个取值的归属语义与统一表一致。 | `csrc/jit_kernels/impls/sm100_fp8_fp4_mega_moe.hpp:161` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:382` |
+| `WEAVE_ENABLE_MULTICAST` | 1 | `1 = 启用双 CTA TMA 多播`（148-SM SM103 FP8xFP4 内核必需）；`0 = 编译掉多播路径`（未验证的调度） | 1 | 148-SM SM103 FP8xFP4 内核所需的双 CTA TMA 多播。 | `csrc/jit_kernels/impls/sm100_fp8_fp4_mega_moe.hpp:166` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:442` |
+| `WEAVE_SCATTER_MODE` | 3 | `0 = epilogue 内联（s = epi）`：在 Compute/GEMM 分区内 scatter；`1 = 通信卸载（s = comm）`：FC2 输出交接到 Communication 分区 Ready Queue；`2 = 本地去重`：先把同 rank 部分贡献归约到一份合并缓冲，再做一次去重传输 | 148-SM SM103 数据流为 0 | 148-SM SM103 数据流的 scatter 路径覆盖。三个取值的归属语义与统一表一致。 | `csrc/jit_kernels/impls/sm100_fp8_fp4_mega_moe.hpp:161` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:382` |
 
 ## NVIDIA H20 WEAVE_* 参数
 

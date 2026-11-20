@@ -17,7 +17,7 @@ CPU 主机都可以用 --dry-run 查看完整命令。
 
 统一安装入口：
 
-    bash baselines/install_baselines.sh nvidia   # SM103 或 H20
+    bash baselines/install_baselines.sh nvidia   # 148-SM SM103 或 H20
     bash baselines/install_baselines.sh amd      # MI308X
 
 每个栈应使用独立的 Python 环境：上游 DeepGEMM 基线与本仓库都提供 `deep_gemm`
@@ -34,7 +34,7 @@ RCCL、HIP 和 ROCm PyTorch。安装脚本中的推理引擎 wheel 只是起点�
 
 ## 2. NVIDIA SM103 (148-SM)：8x EP8
 
-Figure 7 的 SM103 扫描使用 8 个 rank，每 rank 一张 GPU。官方 DeepGEMM 的两条
+Figure 7 的 SM103 (148-SM) 扫描使用 8 个 rank，每 rank 一张 GPU。官方 DeepGEMM 的两条
 精度臂由 mma_type 选择：
 
 | 基线 | 精度 | 命令 |
@@ -59,7 +59,7 @@ DeepEP 分离式基线必须与 Weave 使用同一份真实路由张量。第一
 | SGLang | python baselines/run_h20_baselines.py --baseline sglang --model-path /absolute/path/to/checkpoint |
 | vLLM | python baselines/run_h20_baselines.py --baseline vllm --model-path /absolute/path/to/checkpoint |
 
-官方臂使用 SM90 FP8 MegaMoE 及其对称缓冲区分配器，不是把 SM103 调度器改编译
+官方臂使用 SM90 FP8 MegaMoE 及其对称缓冲区分配器，不是把 148-SM SM103 调度器改编译
 到旧架构。仓库自带的官方 wrapper 运行固定的 SM90 形状覆盖套件；若要复现论文的
 六模型 x S 网格，请向外部官方 DeepGEMM 驱动，或向分离式与推理引擎 runner，
 传入对应的形状。
