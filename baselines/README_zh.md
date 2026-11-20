@@ -119,9 +119,11 @@ ABBA/ABCCBA，CUDA Graph，256 MiB L2 flush），SM90 原生 FP8 权重补丁位
 
 | 硬件与精度 | 负载（`num_shared_experts=0`） | GC-MoE | Weave（统一版） | 配对加速比 (Weave / GC-MoE) | 精度 |
 |---|---|---:|---:|---:|---|
-| NVIDIA H20, `FP8 x FP8` | `Qwen3.8-Max`, `S_rank=32` (`S=128`) | `1956.7 us` | **`1839.2 us`** | **`1.059x`** | `cos >= 0.999988`, `stats_exact` |
+| NVIDIA H20, `FP8 x FP8` | `Qwen3.8-Max`, `S_rank=32` (`S=128`) | `1956.7 us` | **`1839.2 us`** | **`1.059x`** | `cos >= 0.999987`, `stats_exact` |
 | NVIDIA H20, `FP8 x FP8` | `Qwen3.8-Max`, `S_rank=128` (`S=512`) | `2190.8 us` | **`1988.3 us`** | **`1.102x`** | `cos >= 0.999989`, `stats_exact` |
 | NVIDIA H20, `FP8 x FP8` | `Qwen3.8-Max`, `S_rank=256` (`S=1024`) | `3740.3 us` | **`2216.8 us`** | **`1.679x`** | `cos >= 0.999989`, `stats_exact` |
-| NVIDIA H20, `FP8 x FP8` | `Qwen3.8-Max`, `S_rank=1024` (`S=4096`) | `11794.3 us` | **`5272.7 us`** | **`2.276x`** | `cos >= 0.999989`, `stats_exact` |
-| NVIDIA SM103 (148-SM), `FP8 x MXFP4` | `Qwen3.8-Max`, `S_rank=1024` | `824.7 us` (`BM=96`) | **`779.0 us`** (auto `BM=96, st=16/8, epi2`) | **`1.0553x`**（5/5 轮全胜） | 逐 bit 一致 (`dL2=0.00`, `cos=1.000000`) |
-| NVIDIA SM103 (148-SM), `FP8 x MXFP4` | `416E`, `S_rank=1024` | `412.9 us` (`BM=96`) | **`393.8 us`** (auto `BM=80, st=8/8, epi2`) | **`1.0423x`**（5/5 轮全胜） | 逐 bit 一致 (`dL2=0.00`, `cos=1.000000`) |
+| NVIDIA H20, `FP8 x FP8` | `Qwen3.8-Max`, `S_rank=1024` (`S=4096`) | `11794.3 us` | **`5272.7 us`** | **`2.276x`** | `cos >= 0.999988`, `stats_exact` |
+| NVIDIA SM103 (148-SM), `FP8 x MXFP4` | `Qwen3.8-Max`, `S_rank=1024` (`S=4096`) | `824.7 us` (`BM=96`) | **`779.0 us`** (auto `BM=96, st=16/8, epi2`) | **`1.0553x`**（5/5 轮全胜） | 逐 bit 一致 (`dL2=0.00`, `cos=1.000000`) |
+| NVIDIA SM103 (148-SM), `FP8 x MXFP4` | `416E`, `S_rank=1024` (`S=4096`) | `412.9 us` (`BM=96`) | **`393.8 us`** (auto `BM=80, st=8/8, epi2`) | **`1.0423x`**（5/5 轮全胜） | 逐 bit 一致 (`dL2=0.00`, `cos=1.000000`) |
+
+本表胜出的 Weave 臂使用 `reg_2stage` / `smem` scatter staging，以 FP32 完成 combine。可选的 `hbm_dedup` staging 在发送前用本地 `bf16x2` 原子操作合并重复 top-k 行，因此比 FP32 combine 路径多一次舍入。

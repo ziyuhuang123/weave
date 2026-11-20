@@ -389,10 +389,6 @@
 #if WEAVE_REG_BALANCE > 1
 #error "WEAVE_REG_BALANCE must be 0 or 1"
 #endif
-// Zero-overhead per-warp %globaltimer WeaveProfiler recorder (0 = off, 1 = on).
-#ifndef WEAVE_PROFILE
-#define WEAVE_PROFILE 0u
-#endif
 
 // --- Implementation --------------------------------------------------------
 // 0 = fixed per-expert BM; 1 = per-expert dynamic BM ladder.

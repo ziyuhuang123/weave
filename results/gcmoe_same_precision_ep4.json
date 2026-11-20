@@ -7,14 +7,14 @@
     "timing_protocol": "5-round palindromic interleaved ABBA/ABCCBA (10 windows/arm), CUDA Graph replay, 256 MiB L2 flush, slowest-rank per-window aggregation median_w(max_rank(t[rank, w]))",
     "hosts": {
       "h20": {
-        "device": "mail-12",
+        "device": "private-host",
         "platform": "NVIDIA H20",
         "sm_count": 78,
         "ep": 4,
         "precision": "FP8 x FP8 (1.0 B/weight)"
       },
       "sm103": {
-        "device": "mail-17",
+        "device": "private-host",
         "platform": "NVIDIA SM103 (148-SM)",
         "sm_count": 148,
         "ep": 4,
@@ -22,16 +22,16 @@
       }
     },
     "patches": {
-      "gc_moe_sm90_native_fp8": "C:\\Users\\HP\\.gemini\\antigravity-cli\\brain\\fa3f4769-5d6e-41bc-92df-1d7164fd088a\\scratch\\weave_v2_upgrade\\same_prec_and_bf16atomic\\sp1_gcmoe_strict_same_precision\\gc_moe_sm90_native_fp8.patch"
+      "gc_moe_sm90_native_fp8": "gc_moe_sm90_native_fp8.patch"
     },
     "raw_sources": {
-      "h20_weave_v2": "C:\\Users\\HP\\.gemini\\antigravity-cli\\brain\\fa3f4769-5d6e-41bc-92df-1d7164fd088a\\scratch\\weave_v2_upgrade\\same_prec_and_bf16atomic\\sp1_gcmoe_strict_same_precision\\abba_h20_ep4_qwen_weave_v2.json",
-      "h20_weave_v1_qwen": "C:\\Users\\HP\\.gemini\\antigravity-cli\\brain\\fa3f4769-5d6e-41bc-92df-1d7164fd088a\\scratch\\weave_v2_upgrade\\same_prec_and_bf16atomic\\sp1_gcmoe_strict_same_precision\\abba_h20_ep4_qwen_zero_cont.json",
-      "h20_weave_v1_dsk": "C:\\Users\\HP\\.gemini\\antigravity-cli\\brain\\fa3f4769-5d6e-41bc-92df-1d7164fd088a\\scratch\\weave_v2_upgrade\\same_prec_and_bf16atomic\\sp1_gcmoe_strict_same_precision\\abba_h20_ep4_final.json",
-      "h20_weave_v1_minimax": "C:\\Users\\HP\\.gemini\\antigravity-cli\\brain\\fa3f4769-5d6e-41bc-92df-1d7164fd088a\\scratch\\weave_v2_upgrade\\same_prec_and_bf16atomic\\sp1_gcmoe_strict_same_precision\\abba_h20_ep4_minimax.json",
-      "h20_weave_v1_s16": "C:\\Users\\HP\\.gemini\\antigravity-cli\\brain\\fa3f4769-5d6e-41bc-92df-1d7164fd088a\\scratch\\weave_v2_upgrade\\same_prec_and_bf16atomic\\sp1_gcmoe_strict_same_precision\\abba_h20_ep4_s16.json",
-      "sm103_weave_v2_abba": "C:\\Users\\HP\\.gemini\\antigravity-cli\\brain\\fa3f4769-5d6e-41bc-92df-1d7164fd088a\\scratch\\weave_v2_upgrade\\same_prec_and_bf16atomic\\sp1_gcmoe_strict_same_precision\\abba_sm103_ep4_weave_v2.json",
-      "sm103_baseline_abba": "C:\\Users\\HP\\.gemini\\antigravity-cli\\brain\\fa3f4769-5d6e-41bc-92df-1d7164fd088a\\scratch\\weave_v2_upgrade\\same_prec_and_bf16atomic\\sp1_gcmoe_strict_same_precision\\abba_sm103_ep4_final.json"
+      "h20_weave_v2": "abba_h20_ep4_qwen_weave_v2.json",
+      "h20_weave_v1_qwen": "abba_h20_ep4_qwen_zero_cont.json",
+      "h20_weave_v1_dsk": "abba_h20_ep4_final.json",
+      "h20_weave_v1_minimax": "abba_h20_ep4_minimax.json",
+      "h20_weave_v1_s16": "abba_h20_ep4_s16.json",
+      "sm103_weave_v2_abba": "abba_sm103_ep4_weave_v2.json",
+      "sm103_baseline_abba": "abba_sm103_ep4_final.json"
     }
   },
   "h20_ep4_weave_v2_vs_gcmoe_fp8": [

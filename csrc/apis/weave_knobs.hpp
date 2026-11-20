@@ -154,9 +154,6 @@ static const std::vector<KnobSchemaEntry>& knob_schema_entries() {
         {"WEAVE_REG_BALANCE", "Implementation",
          "0 = default (96/72/168); 1 = rebalanced (64/56/192) at E/rank > 64",
          "SM103 epilogue register rebalance."},
-        {"WEAVE_PROFILE", "Implementation",
-         "0 = production; 1 = per-warp %globaltimer WeaveProfiler recorder",
-         "Zero-overhead SM103 WeaveProfiler recorder."},
         {"WEAVE_PROFILER_LEVEL", "Implementation",
          "0 = production; 1 = phase events; 2 = full events",
          "Instrumentation level."},
@@ -212,7 +209,6 @@ static py::dict weave_knob_defaults(const std::string& mma_type) {
     out["WEAVE_COMBINE_SYNC_CHUNK"] = knobs.combine_sync_chunk;
     out["WEAVE_SCHED_L2_RATIO"] = knobs.sched_l2_ratio;
     out["WEAVE_REG_BALANCE"] = knobs.reg_balance;
-    out["WEAVE_PROFILE"] = static_cast<uint32_t>(WEAVE_PROFILE);
     out["WEAVE_ABLATION_PRESET"] = static_cast<uint32_t>(WEAVE_ABLATION_PRESET);
     out["WEAVE_ENABLE_COST_MODEL"] = knobs.enable_runtime_cost_model;
     out["WEAVE_V_HEAD"] = static_cast<uint32_t>(WEAVE_V_HEAD);

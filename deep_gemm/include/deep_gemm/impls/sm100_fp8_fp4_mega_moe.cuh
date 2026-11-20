@@ -64,9 +64,6 @@
 #ifndef WEAVE_REG_BALANCE
 #define WEAVE_REG_BALANCE 0
 #endif
-#ifndef WEAVE_PROFILE
-#define WEAVE_PROFILE 0
-#endif
 static_assert(WEAVE_SCATTER_OWNER <= 1, "WEAVE_SCATTER_OWNER: 0 = epilogue_only, 1 = comm_only");
 static_assert(WEAVE_SCATTER_STAGING <= 2, "WEAVE_SCATTER_STAGING: 0 = reg_2stage, 1 = smem, 2 = hbm_dedup");
 static_assert(WEAVE_SCATTER_STAGING == 0 or WEAVE_SCATTER_OWNER == 1,
@@ -570,7 +567,6 @@ static_assert(kNumTaskCountDomains == 1u or kNumTaskCountDomains == 2u,
 #include <deep_gemm/common/tma_copy.cuh>
 #include <deep_gemm/common/types.cuh>
 #include <deep_gemm/common/utils.cuh>
-#include <deep_gemm/common/weave_profiler.cuh>
 #include <deep_gemm/comm/barrier.cuh>
 #include <deep_gemm/mma/sm100.cuh>
 #include <deep_gemm/layout/mega_moe.cuh>
@@ -1303,7 +1299,9 @@ sm100_fp8_fp4_mega_moe_impl(void* y,
             }
             #pragma unroll
             for (uint32_t i = 0; i < 2; ++ i) {
-                shared_storage.overlap_empty_barriers[i].init(kNumEpilogueThreads);
+                // One overlap-owning warpgroup (128 threads) per CTA arrives at the
+                // leader CTA's barrier, for both CTAs of the 2-CTA cluster.
+                shared_storage.overlap_empty_barriers[i].init(2u * 128u);
             }
             #pragma unroll
             for (uint32_t i = 0; i < kNumEpilogueWarps * 2; ++ i)
@@ -1515,11 +1513,6 @@ sm100_fp8_fp4_mega_moe_impl(void* y,
                      kNumNonEpilogueRegisters * kNumNonEpilogueThreads +
                      kNumEpilogueRegisters * kNumEpilogueThreads <= 64512,
                      "Too many registers");
-
-    static constexpr bool kEnableWeaveProfile = (WEAVE_PROFILE != 0);
-    prof::WeaveProfRecorder<kEnableWeaveProfile> weave_prof_rec(
-        nullptr, nullptr, nullptr, 0u, sm_idx, warp_idx, lane_idx);
-    (void)weave_prof_rec;
 
 #if DG_MEGA_TILE_PROF
     constexpr uint32_t prof_t0_ns = 0u;
@@ -2257,7 +2250,12 @@ sm100_fp8_fp4_mega_moe_impl(void* y,
         constexpr uint32_t kPullNumSms =
             WEAVE_SM0_STREAM_SCHED ? (kNumSMs - 1u) : kNumSMs;
         constexpr uint32_t kNumGlobalWarps = kPullNumSms * kNumDispatchWarps;
-        for (uint32_t token_idx = sm_idx * kNumDispatchWarps + warp_idx;
+        // With the SM 0 streaming scheduler, SM 0 leaves the pull queue and SMs
+        // 1..N-1 own the dense range [0, (N-1) * W) of warp starts.
+        const uint32_t d1_pull_start = WEAVE_SM0_STREAM_SCHED
+            ? (sm_idx == 0u ? 0xffffffffu : (sm_idx - 1u) * kNumDispatchWarps + warp_idx)
+            : sm_idx * kNumDispatchWarps + warp_idx;
+        for (uint32_t token_idx = d1_pull_start;
              token_idx < total_recv_tokens;
              token_idx += kNumGlobalWarps) {
             uint32_t current_expert_idx = 0;
@@ -3116,7 +3114,18 @@ sm100_fp8_fp4_mega_moe_impl(void* y,
                     claim_old = __shfl_sync(0xffffffffu, claim_old, 0);
                     claim_n = __shfl_sync(0xffffffffu, claim_n, 0);
                     if (claim_n == 0u) {
-                        if (ptx::ld_acq(buffer.get_d7_queue_producer_done_ptr()) >= kNumSMs)
+                        // All producers done is necessary but not sufficient: a producer
+                        // may have reserved and published slots after our tail read, so
+                        // re-read head/tail after observing producer_done and exit only
+                        // when the queue is truly drained.
+                        uint32_t drained = 0u;
+                        if (lane_idx == 0u and
+                            ptx::ld_acq(buffer.get_d7_queue_producer_done_ptr()) >= kNumSMs) {
+                            const uint32_t t2 = ptx::ld_acq(buffer.get_d7_queue_tail_ptr());
+                            const uint32_t h2 = ptx::ld_acq(buffer.get_d7_queue_head_ptr());
+                            drained = (h2 >= t2) ? 1u : 0u;
+                        }
+                        if (__shfl_sync(0xffffffffu, drained, 0) != 0u)
                             break;
                         __nanosleep(64);
                         continue;
@@ -3886,15 +3895,23 @@ sm100_fp8_fp4_mega_moe_impl(void* y,
                         buffer.get_d7_subtile_state_ptr(dst_rank_idx, dst_token_idx, sub_n_idx);
                     uint32_t old_state = 0u;
                     if (lane_in_half == 0u) {
+                        // Acquire the per-subtile lock: succeed only when the CAS
+                        // swapped the exact unlocked count we expected; otherwise
+                        // retry with the observed count (spinning while locked).
+                        uint32_t expected = 0u;
                         while (true) {
+                            uint32_t prev;
                             asm volatile("atom.acquire.gpu.global.cas.b32 %0, [%1], %2, %3;"
-                                         : "=r"(old_state)
+                                         : "=r"(prev)
                                          : "l"(state_ptr),
-                                           "r"(old_state & 0x7fffffffu),
-                                           "r"((old_state & 0x7fffffffu) | 0x80000000u)
+                                           "r"(expected),
+                                           "r"(expected | 0x80000000u)
                                          : "memory");
-                            if ((old_state & 0x80000000u) == 0u)
+                            if (prev == expected) {
+                                old_state = expected;
                                 break;
+                            }
+                            expected = prev & 0x7fffffffu;
                         }
                     }
                     const uint32_t done_cnt = __shfl_sync(half_mask, old_state, half_base);
@@ -3968,15 +3985,23 @@ sm100_fp8_fp4_mega_moe_impl(void* y,
 
                     uint32_t old_state = 0u;
                     if (lane_in_half == 0u) {
+                        // Acquire the per-subtile lock: succeed only when the CAS
+                        // swapped the exact unlocked count we expected; otherwise
+                        // retry with the observed count (spinning while locked).
+                        uint32_t expected = 0u;
                         while (true) {
+                            uint32_t prev;
                             asm volatile("atom.acquire.gpu.global.cas.b32 %0, [%1], %2, %3;"
-                                         : "=r"(old_state)
+                                         : "=r"(prev)
                                          : "l"(state_ptr),
-                                           "r"(old_state & 0x7fffffffu),
-                                           "r"((old_state & 0x7fffffffu) | 0x80000000u)
+                                           "r"(expected),
+                                           "r"(expected | 0x80000000u)
                                          : "memory");
-                            if ((old_state & 0x80000000u) == 0u)
+                            if (prev == expected) {
+                                old_state = expected;
                                 break;
+                            }
+                            expected = prev & 0x7fffffffu;
                         }
                     }
                     const uint32_t done_cnt = __shfl_sync(half_mask, old_state, half_base);
@@ -4286,8 +4311,19 @@ if constexpr (kAccumOverlapCols > 0u) { if (accum_stage_idx == 0u ? (epilogue_wg
 
                     #pragma unroll
                     for (uint32_t s = 0; s < WG_BLOCK_M / STORE_BLOCK_M; ++ s) {
-                        if (s >= num_valid_store_blocks_l1)
+                        if (s >= num_valid_store_blocks_l1) {
+                            // Partial warpgroup slice: the non-prefetch path releases the
+                            // TMEM stage at its last atom, which a partial slice never
+                            // reaches, so release it here (prefetch path already did).
+                            if constexpr (kNumEpiPrefetchStages == 0) {
+                                if (n_sub == kNumNSubtiles - 1) {
+                                    ptx::tcgen05_before_thread_sync();
+                                    shared_storage.tmem_empty_barriers[accum_stage_idx].arrive(0u);
+                                    if constexpr (kAccumOverlapCols > 0u) { if (accum_stage_idx == 0u ? (epilogue_wg_idx == kNumEpilogueWarpgroups - 1u) : (epilogue_wg_idx == 0u)) shared_storage.overlap_empty_barriers[accum_stage_idx].arrive(0u); }
+                                }
+                            }
                             break;
+                        }
                         if constexpr (kNumEpiPrefetchStages > 0) {
                             cutlass::arch::fence_view_async_tmem_load();
                             issue_l1_epi_block(s + 1u);
@@ -4817,8 +4853,18 @@ if constexpr (kAccumOverlapCols > 0u) { if (accum_stage_idx == 0u ? (epilogue_wg
 
                     #pragma unroll
                     for (uint32_t s = 0; s < WG_BLOCK_M / STORE_BLOCK_M_L2; ++ s) {
-                        if (s >= num_valid_store_blocks_l2)
+                        if (s >= num_valid_store_blocks_l2) {
+                            // Partial warpgroup slice: release the TMEM stage on the
+                            // non-prefetch path (its last-atom release is never reached).
+                            if constexpr (kNumEpiPrefetchStages == 0) {
+                                if (n_sub == kNumNSubtiles - 1) {
+                                    ptx::tcgen05_before_thread_sync();
+                                    shared_storage.tmem_empty_barriers[accum_stage_idx].arrive(0u);
+                                    if constexpr (kAccumOverlapCols > 0u) { if (accum_stage_idx == 0u ? (epilogue_wg_idx == kNumEpilogueWarpgroups - 1u) : (epilogue_wg_idx == 0u)) shared_storage.overlap_empty_barriers[accum_stage_idx].arrive(0u); }
+                                }
+                            }
                             break;
+                        }
                         if constexpr (kNumEpiPrefetchStages > 0) {
                             cutlass::arch::fence_view_async_tmem_load();
                             issue_l2_epi_block(s + 1u);

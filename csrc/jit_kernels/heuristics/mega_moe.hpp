@@ -341,6 +341,23 @@ static MegaMoEConfig get_mega_moe_config(
     int block_m_resolved = static_cast<int>(weave::resolve_block_m(
         knobs, knobs.block_m_l1, knobs.block_m_l2, static_cast<uint32_t>(block_m)));
     block_m = block_m_resolved;
+    // A WEAVE_BLOCK_M_L1/L2 envelope that changes BM must also re-derive the
+    // auto store heights for the new BM before explicit store overrides apply,
+    // otherwise e.g. BM=80 would inherit an illegal 32-row store from BM=128.
+    if (block_m != block_m_auto) {
+        const int num_epi_wgs = std::max(1, num_epilogue_threads / 128);
+        const bool fp8fp4 = mma_kind == MmaKind::MXFP8FP4;
+        store_block_m_l1 = block_m <= 16 ? 8 : block_m <= 64 ? 16 :
+                           (block_m == 80 and fp8fp4) ? 8 :
+                           (block_m == 96 and fp8fp4) ? 16 :
+                           block_m <= 192 ? 32 :
+                           block_m == 256 ? 32 : fp8fp4 ? 24 : 40;
+        store_block_m_l2 = ((block_m == 80 or block_m == 96 or block_m == 240) and fp8fp4) ? 8 : store_block_m_l1;
+        if (store_block_m_l1 * num_epi_wgs > block_m)
+            store_block_m_l1 = std::max(8, block_m / num_epi_wgs);
+        if (store_block_m_l2 * num_epi_wgs > block_m)
+            store_block_m_l2 = std::max(8, block_m / num_epi_wgs);
+    }
     if (knobs.store_block_m_l1 != 0u)
         store_block_m_l1 = static_cast<int>(knobs.store_block_m_l1);
     if (knobs.store_block_m_l2 != 0u)

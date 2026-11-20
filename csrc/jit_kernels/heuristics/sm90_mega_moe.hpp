@@ -205,6 +205,13 @@ struct AgySm90KnobSpec {
             ? 2 : (legacy_disp ? 1 : 0);
         const int staging = get_int("scatter_staging", def_staging);
         DG_HOST_ASSERT(staging >= 0 and staging <= 2);
+        // The HBM queue / local dedup switches select hbm_dedup; an explicit
+        // conflicting staging would make host SMEM sizing disagree with the
+        // device layout, so reject it here.
+        DG_HOST_ASSERT(staging == 2 or not (local_dedup or hbm_scat));
+        // A throttled scatter SM subset without the legacy dispatch role uses
+        // the HBM queue on the device unless smem staging is explicit.
+        DG_HOST_ASSERT(not (scatter_sms > 0 and not legacy_disp and staging == 0));
         return staging;
     }
 
@@ -217,6 +224,7 @@ struct AgySm90KnobSpec {
         const int owner = get_int("scatter_owner", def_owner);
         DG_HOST_ASSERT(owner == 0 or owner == 1);
         DG_HOST_ASSERT(staging == 0 or owner == 1);
+        DG_HOST_ASSERT(owner == 0 or staging != 0);
         DG_HOST_ASSERT(scatter_sms == 0 or owner == 1);
         return owner;
     }
@@ -518,8 +526,9 @@ static std::string get_agy_sm90_jit_defines(const AgySm90KnobSpec& spec) {
     const bool use_hbm_dedup = local_dedup or staging == 2;
     if (use_hbm_dedup)
         defs += "#define WEAVE_LOCAL_SCATTER_DEDUP 1\n";
-    if (hbm_scat or use_hbm_dedup)
+    if (staging == 2)
         defs += "#define WEAVE_HBM_SCATTER_QUEUE 1\n";
+    (void)hbm_scat;
     defs += std::format("#define WEAVE_SCATTER_OWNER {}\n", owner);
     defs += std::format("#define WEAVE_SCATTER_STAGING {}\n", staging);
     const int comb_sync_chunk = spec.get_int("comb_sync_chunk", 0);

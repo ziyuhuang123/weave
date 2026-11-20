@@ -104,6 +104,37 @@
       "total_events": 134698,
       "max_warp_events": 88,
       "num_sms": 148
+    },
+    "hw_curves_same_run_nsys": {
+      "source": "opus_sm103_optimal.sw_hw.perfetto.json.gz (same-run nsys, 200 kHz)",
+      "workload": "Qwen3.8-Max, EP4, S_rank=1024 (S_global=4096), num_shared_experts=0",
+      "config": "BM=80, STORE_BLOCK_M_L1/L2=8/8, 8 stages, WEAVE_EPI_REG_STAGES=2, epilogue_only",
+      "counters": {
+        "Active SMs (%)::value": {
+          "samples": 141,
+          "median": 100.0,
+          "max": 100.0,
+          "mean": 98.6
+        },
+        "HBM / TMA Bandwidth (%)::value": {
+          "samples": 141,
+          "median": 81.0,
+          "max": 94.0,
+          "mean": 76.0
+        },
+        "NVLink RX/TX User Data (%)::value": {
+          "samples": 141,
+          "median": 43.0,
+          "max": 100.0,
+          "mean": 47.9
+        },
+        "Tensor Active / MMA Pipe (%)::value": {
+          "samples": 141,
+          "median": 38.0,
+          "max": 42.0,
+          "mean": 33.3
+        }
+      }
     }
   },
   "abba_runs": {
@@ -3507,10 +3538,27 @@
     }
   },
   "deliverables": {
-    "patch": "C:\\Users\\HP\\.gemini\\antigravity-cli\\brain\\fa3f4769-5d6e-41bc-92df-1d7164fd088a\\scratch\\weave_v2_upgrade\\opus_sm103\\opus_sm103.patch",
-    "result_json": "C:\\Users\\HP\\.gemini\\antigravity-cli\\brain\\fa3f4769-5d6e-41bc-92df-1d7164fd088a\\scratch\\weave_v2_upgrade\\opus_sm103\\OPUS_SM103_RESULT.json",
-    "report_md": "C:\\Users\\HP\\.gemini\\antigravity-cli\\brain\\fa3f4769-5d6e-41bc-92df-1d7164fd088a\\scratch\\weave_v2_upgrade\\opus_sm103\\OPUS_SM103_REPORT.md",
-    "trace_gz": "C:\\Users\\HP\\.gemini\\antigravity-cli\\brain\\fa3f4769-5d6e-41bc-92df-1d7164fd088a\\scratch\\weave_v2_upgrade\\opus_sm103\\opus_sm103_optimal.sw_hw.perfetto.json.gz",
-    "timeline_png": "C:\\Users\\HP\\.gemini\\antigravity-cli\\brain\\fa3f4769-5d6e-41bc-92df-1d7164fd088a\\scratch\\weave_v2_upgrade\\opus_sm103\\opus_sm103_optimal_timeline.png"
+    "patch": "opus_sm103.patch",
+    "result_json": "OPUS_SM103_RESULT.json",
+    "report_md": "OPUS_SM103_REPORT.md",
+    "trace_gz": "opus_sm103_optimal.sw_hw.perfetto.json.gz",
+    "timeline_png": "opus_sm103_optimal_timeline.png"
+  },
+  "s8192_tmem_pipeline_study": {
+    "workload": "Qwen3.8-Max, EP4, S_rank=8192, num_shared_experts=0",
+    "A_baseline_bm240": {
+      "tmem_pipeline": "2.0-stage",
+      "store_block_m_l1_l2": "24/8",
+      "num_stages": 6,
+      "median_us": 3779.42
+    },
+    "L0_bm256_tmem175_epi": {
+      "tmem_pipeline": "1.75-stage (overlapping accumulators)",
+      "store_block_m_l1_l2": "32/32",
+      "num_stages": 4,
+      "median_us": 4276.5,
+      "speedup_vs_base": 0.8838
+    },
+    "note": "BM=240 with the 2.0-stage TMEM pipeline remains the default prefill choice"
   }
 }

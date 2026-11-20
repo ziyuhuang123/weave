@@ -97,14 +97,16 @@ def parameter_section(schema, lang: str) -> str:
         parts.append("")
     if lang == "zh":
         parts.append(
-            "`num_shared_experts` 是 Python/C++ API 参数而非环境变量 knob。所有入口默认取 "
-            "`0`，只有显式传入非零值时才分配 shared-expert 缓冲区。\n"
+            "`num_shared_experts` 是 Python/C++ API 参数而非环境变量 knob。所有 MegaMoE 入口默认取 "
+            "`0`，只有显式传入非零值时才分配 shared-expert 缓冲区；gate API "
+            "（`bf16_mega_gate`）与 `use_shared_as_routed` 一起显式接收该参数。\n"
         )
     else:
         parts.append(
             "`num_shared_experts` is a Python/C++ API argument rather than an "
-            "environment knob. Its default is `0` on every entry point; shared-expert "
-            "buffers are allocated only when it is explicitly non-zero.\n"
+            "environment knob. Its default is `0` on every MegaMoE entry point; shared-expert "
+            "buffers are allocated only when it is explicitly non-zero. The gate API "
+            "(`bf16_mega_gate`) takes it explicitly together with `use_shared_as_routed`.\n"
         )
     return "\n".join(parts)
 
@@ -134,8 +136,9 @@ def write_docs(schema) -> None:
     parts.append("## 4. API argument: shared experts\n")
     parts.append(
         "`num_shared_experts` is a Python/C++ API argument, not an environment "
-        "knob. Every entry point defaults it to `0`; the shared-expert buffers are "
-        "allocated only when it is explicitly non-zero. The unified surface keeps "
+        "knob. Every MegaMoE entry point defaults it to `0`; the shared-expert buffers are "
+        "allocated only when it is explicitly non-zero (the gate API `bf16_mega_gate` "
+        "takes it explicitly together with `use_shared_as_routed`). The unified surface keeps "
         "`0` as the default so routed-only workloads do not pay the shared-expert "
         "workspace or scheduling cost.\n"
     )

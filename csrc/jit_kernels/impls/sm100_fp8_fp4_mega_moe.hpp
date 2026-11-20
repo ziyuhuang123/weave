@@ -17,33 +17,6 @@
 
 namespace deep_gemm {
 
-// Optional WeaveProfiler host-side buffer registry (allocated ONLY when WEAVE_PROFILE=1)
-struct WeaveProfState {
-    torch::Tensor events;    // [num_sms * 16, cap, 2] int64 (16 bytes/event)
-    torch::Tensor counts;    // [num_sms * 16] int32
-    torch::Tensor overflow;  // [1] int32
-    uint32_t cap = 4096;
-};
-
-static WeaveProfState& get_weave_prof_state() {
-    static WeaveProfState state;
-    return state;
-}
-
-static void ensure_weave_prof_buffers(const int num_sms, const torch::Device& device) {
-    auto& s = get_weave_prof_state();
-    const uint32_t cap = static_cast<uint32_t>(get_env<int>("WEAVE_PROFILE_CAP", 4096));
-    if (not s.events.defined() or s.events.device() != device or s.events.size(0) != num_sms * 16 or s.cap != cap) {
-        s.cap = cap;
-        s.events = torch::zeros({num_sms * 16, static_cast<int64_t>(cap), 2},
-                                torch::TensorOptions().dtype(torch::kInt64).device(device));
-        s.counts = torch::zeros({num_sms * 16},
-                                torch::TensorOptions().dtype(torch::kInt32).device(device));
-        s.overflow = torch::zeros({1},
-                                  torch::TensorOptions().dtype(torch::kInt32).device(device));
-    }
-}
-
 class SM100FP8FP4MegaMoERuntime final : public LaunchRuntime<SM100FP8FP4MegaMoERuntime> {
 public:
     struct Args {
@@ -256,18 +229,21 @@ public:
         knob_macros << "#define WEAVE_BLOCK_M_L1 " << knobs.block_m_l1 << "\n";
         knob_macros << "#define WEAVE_BLOCK_M_L2 " << knobs.block_m_l2 << "\n";
         knob_macros << "#define WEAVE_STORE_BLOCK_M_L1 " << args.config.store_block_m_l1 << "\n";
-        knob_macros << "#define WEAVE_STORE_BLOCK_M_L2 " << args.config.store_block_m_l2 << "\n";
         knob_macros << "#define WEAVE_DISPATCH_ACTIVE_SMS " << knobs.dispatch_active_sms << "\n";
         knob_macros << "#define WEAVE_SCATTER_OWNER " << emitted_scatter_owner << "\n";
         knob_macros << "#define WEAVE_SCATTER_STAGING " << emitted_scatter_staging << "\n";
         knob_macros << "#define WEAVE_COMBINE_SYNC_CHUNK " << knobs.combine_sync_chunk << "\n";
-        const uint32_t eff_epi_reg_stages = weave::resolve_epi_reg_stages(
+        uint32_t eff_epi_reg_stages = weave::resolve_epi_reg_stages(
             knobs, static_cast<uint32_t>(d3_bm > 0 ? d3_bm : args.config.block_m),
             static_cast<uint32_t>(args.config.tmem_pipeline_mode));
+        // The two-stage register prefetch needs one 128-column N subtile and a
+        // static epilogue; never auto-select it outside that envelope.
+        const int eff_block_n = d3_bn > 0 ? d3_bn : args.config.block_n;
+        if (knobs.epi_reg_stages == 0u and (eff_block_n > 128 or d3_dyn_epi != 0))
+            eff_epi_reg_stages = 1u;
         knob_macros << "#define WEAVE_EPI_REG_STAGES " << eff_epi_reg_stages << "\n";
         knob_macros << "#define WEAVE_SCHED_L2_RATIO " << knobs.sched_l2_ratio << "\n";
         knob_macros << "#define WEAVE_REG_BALANCE " << knobs.reg_balance << "\n";
-        knob_macros << "#define WEAVE_PROFILE " << (get_env<int>("WEAVE_PROFILE", 0) != 0 ? 1 : 0) << "\n";
 
         return fmt::format(R"(
 {}

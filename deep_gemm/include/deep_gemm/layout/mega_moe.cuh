@@ -14,7 +14,7 @@ static constexpr int kNumCandidateBlockMs = 10;
 static constexpr int kCandidateBlockM[kNumCandidateBlockMs] = {8, 16, 32, 64, 80, 96, 128, 192, 240, 256};
 static constexpr int kMaxCandidateBlockM = 256;
 static constexpr int kMinCandidateBlockM = 8;
-static constexpr int kLCMCandidateBlockM = 7680;  // lcm(8,16,32,64,80,96,128,192,240,256)
+static constexpr int kLCMCandidateBlockM = 7680;  // 2 * lcm(8,16,32,64,80,96,128,192,240,256) = 2 * 3840
 static constexpr int kWeaveMinCombineSyncChunk = 16;
 
 // Pool capacity for shared expert token pool: worst-case total tokens + per-expert BLOCK_M alignment padding, among all possible BLOCK_M

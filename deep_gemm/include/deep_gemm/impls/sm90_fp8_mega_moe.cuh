@@ -324,6 +324,11 @@ struct Sm90ScatterPolicy {
 
     static_assert(not (kOwnerKnob == 0u and kStagingKnob != 0u),
                   "WEAVE_SCATTER_OWNER=epilogue_only requires WEAVE_SCATTER_STAGING=reg_2stage");
+    // Host and device must agree on the staging mode (the host sizes the L2
+    // SMEM tile from it): an explicit smem staging may not be combined with
+    // the HBM queue / local dedup switches that force hbm_dedup here.
+    static_assert(not (kStagingKnob == 1u and (kHbmQueueKnob or kLocalDedupKnob)),
+                  "WEAVE_SCATTER_STAGING=smem conflicts with WEAVE_HBM_SCATTER_QUEUE / WEAVE_LOCAL_SCATTER_DEDUP");
     static_assert(not (kOwnerKnob == 1u and kStagingMode == 0u),
                   "WEAVE_SCATTER_OWNER=comm_only requires smem or hbm_dedup staging");
     static_assert(not (kCommOwned and kEpilogueRemoteScatterAllowed),
@@ -3084,6 +3089,16 @@ struct SM90MegaMoECoreRunner {
                     }
                 }
                 const uint32_t m_out = __reduce_add_sync(0xffffffffu, m_out_lane);
+                // Histogram total: the CTA-0 selector falls back to it when the
+                // dedup pull count / remote scatter count is unknown (zero),
+                // exactly like cta0_select_from_packed_hist does.
+                uint32_t recv_total = 0u;
+                if constexpr (kAgyUseExpertCache) {
+                    uint32_t recv_lane = 0u;
+                    for (uint32_t e = lane_idx; e < kNumExpertsPerRank; e += 32u)
+                        recv_lane += smem_expert_cache->recv_tokens[e];
+                    recv_total = __reduce_add_sync(0xffffffffu, recv_lane);
+                }
                 if (lane_idx == 0u) {
                     const weave::WorkloadSpec wl{
                         kNumExpertsPerRank,
@@ -3094,7 +3109,8 @@ struct SM90MegaMoECoreRunner {
                     if constexpr (kAgyUseExpertCache) {
                         (void)weave::cta0_select_and_publish(
                             weave_control, weave::HardwareArch::H20_SM90, wl, knobs,
-                            smem_expert_cache->recv_tokens, 0u, m_out, weave_epoch);
+                            smem_expert_cache->recv_tokens,
+                            recv_total, m_out == 0u ? recv_total : m_out, weave_epoch);
                     } else {
                         (void)weave::cta0_select_from_packed_hist(
                             weave_control, weave::HardwareArch::H20_SM90, wl, knobs,
