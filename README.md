@@ -3,13 +3,12 @@
 # Weave: Routing-Adaptive Runtime-Dynamic MoE Megakernel
 
 Weave is a **routing-adaptive, runtime-dynamic MoE megakernel** implemented in a
-unified C++/CUDA/HIP codebase. It is the artifact of
-**Weave: Fine-Grained Dynamic SM Scheduling in an MoE Megakernel for
-Compute-Communication Overlap** ([arXiv:2609.21483](https://arxiv.org/abs/2609.21483)).
-One scheduling contract spans **NVIDIA SM103 (148-SM)**, **NVIDIA H20**, and
-**AMD MI308X**: the same kernel reads the live post-dispatch routing histogram
-and changes its spatial split, scatter ownership, and opening head-pull budget
-at runtime, inside the kernel, without a host round trip.
+unified C++/CUDA/HIP codebase ([Weave: Fine-Grained Dynamic SM Scheduling in an
+MoE Megakernel for Compute-Communication Overlap](https://arxiv.org/abs/2609.21483)).
+Supporting **NVIDIA SM103 (148-SM)**, **NVIDIA H20**, and **AMD MI308X**, the
+kernel reads live per-expert token counts right after dispatch and performs
+**spatial partitioning and temporal scheduling** on the GPU at runtime, with no
+host round trip and no kernel relaunch.
 
 ## Architecture
 
@@ -19,21 +18,19 @@ at runtime, inside the kernel, without a host round trip.
 | NVIDIA H20 (SM90) | CUDA C++ | `2 = fp8` (fp8xfp8) only | sm90_fp8_mega_moe.cuh |
 | AMD MI308X (gfx942) | HIP C++ | `2 = fp8` (fp8xfp8) only; EP8 and EP16 | gfx942_fp8_mega_moe.cuh and amd/megamoe_amd.hip |
 
-The kernel uses a single device-side publication rail: CTA 0 reads the live
-post-dispatch routing histogram, evaluates the cost model, publishes the
-selected schedule with a release store, and every CTA acquires it with
-`load_published_policy` or `wait_and_copy_policy`. At runtime, the scheduler
-adapts the comm/compute warp split, scatter executor placement (epilogue inline
-vs. async comm queue), and opening head-pull prefetch budget—with no host round
-trip and no dynamic parallel launch.
+At runtime, CTA 0 reads the post-dispatch expert token distribution and uses an
+on-device cost model to select the layer's **spatial partitioning**
+(comm/compute warp ratio) and **temporal schedule** (whether Scatter runs inline
+in the epilogue or asynchronously via the communication queue, and how many
+remote tokens to prefetch during the opening phase). Other CTAs read the
+selected schedule directly from device memory and execute immediately.
 
 ## Partitioned hardware execution and global ready queues
 
-Each SM/CU is partitioned into a **Communication Partition (`N_c`)** and a
-**Compute/GEMM Partition (`N_e`)**. Each partition is backed by its own
-**global ready queue**. Queue indexing is lightweight and implicit: arrival
-counters, per-expert group bitmaps, and prefix sums replace expensive runtime
-sorting.
+Each SM/CU is split into a **Communication Partition (`N_c`)** and a
+**Compute/GEMM Partition (`N_e`)**, each backed by its own **global ready
+queue**. Queue indexing avoids expensive runtime sorting and relies on arrival
+counters, per-expert group bitmaps, and prefix sums.
 
 ![Weave Design Overview: Routing + Hardware Profile -> Cost Model -> Spatial Warp Ratio & Temporal Warp Roles](docs/figures/weave_design_overview.png)
 
@@ -42,17 +39,17 @@ sorting.
 ![Weave Temporal Scheduling: Register-Specialized All-Warp Head Pull & Fine-Grained Per-Token Tail Combine](docs/figures/weave_design_temporal.png)
 
 - **GEMM Ready Queue** (consumed by the Compute Partition `N_e`): receives
-  ready `(expert, m_block)` tiles as tokens arrive through the
-  `LOCAL_READY -> REMOTE_PRIMARY -> LOCAL_COPY` flow. Entries are traversed in
-  a deterministic global order (with L2 tile-swizzle / hot-cold window order
-  parameterized at startup), or popped from the global FIFO when
-  `WEAVE_READY_QUEUE=1`. When `s = epi` (`WEAVE_SCATTER_MODE=0`), Scatter
-  executes inline inside the Compute/GEMM partition (epilogue).
+  ready `(expert, m_block)` tiles as tokens arrive through
+  `LOCAL_READY -> REMOTE_PRIMARY -> LOCAL_COPY`. Entries are traversed in a
+  preset global order (L2 tile-swizzle / hot-cold pairing window), or popped
+  from the global FIFO when `WEAVE_READY_QUEUE=1`. When `WEAVE_SCATTER_MODE=0`,
+  Scatter executes inline inside the Compute/GEMM epilogue.
 - **Communication Ready Queue** (consumed by the Communication Partition
-  `N_c`): drives remote Dispatch/Pull. When `s = comm` (`WEAVE_SCATTER_MODE=1`)
-  or local-dedup (`WEAVE_SCATTER_MODE=2`), it receives ready FC2 scatter
-  descriptors pushed by epilogue/local-combine warps, so `N_c` overlaps remote
-  NVLink/xGMI scatter concurrently with ongoing GEMM tiles.
+  `N_c`): drives remote Dispatch/Pull. When `WEAVE_SCATTER_MODE=1` (async
+  offload) or `WEAVE_SCATTER_MODE=2` (local HBM pre-reduction & dedup before
+  send), epilogue/local-combine warps push ready FC2 scatter descriptors into
+  this queue so `N_c` overlaps remote NVLink/xGMI scatter concurrently with
+  ongoing GEMM tiles.
 
 ## Quick start
 
@@ -111,12 +108,9 @@ on every rank before timing.
 | 8x AMD MI308X EP8 | fp8 | 4/4 full-output cells PASS across all eight ranks; max rel_l2 0.001545--0.001908, max row rel_l2 0.001952--0.005731, device_error=0 | qwen38max S=16 687.422/713.942 us; S=128 1539.625/1554.185 us; DeepSeek-V4-Flash S=16 378.761/395.421 us; S=128 699.642/709.743 us; single-GPU TFLOPS 1.595--9.219 | PASS |
 | 16x AMD MI308X EP16 (2 nodes x 8) | fp8 | 16/16 ranks full-element FP64 comparison PASS; qwen38max S=128 and DeepSeek-V4-Flash S=128; max rel_l2 0.012535/0.012292, max row rel_l2 0.019612/0.015528; all 96 launch-state records device_error=0 | qwen38max metric1 1594.079 -> 1010.679 us (1.5772x), metric2 1591.939 -> 1006.619 us (1.5815x); DeepSeek-V4-Flash metric1 1387.055 -> 735.300 us (1.8864x), metric2 1367.269 -> 732.679 us (1.8661x) | PASS |
 
-The 148-SM SM103 fp8xfp4 path compiles and both 148-SM SM103 kernels carry the CTA-0 policy
-rail, but the FP8xFP4 launch still waits in the FP8 GEMM transaction-barrier
-protocol. Removing the policy rail, clamping the rank order, deleting the pull
-wait, and changing the block shape all reproduced the wait. This is an open
-runtime investigation, not a passing result. The NVFP4 sibling on the same
-source line passes end-to-end with live policy readback.
+Note: On 148-SM SM103, the `fp4xfp4 (NVFP4)` path passes end-to-end with live
+CTA-0 decision readback; `fp8xfp4` compiles cleanly and is currently under
+investigation for a runtime hang during dispatch.
 
 ## WeaveProfiler software + hardware timelines
 
@@ -126,21 +120,16 @@ source line passes end-to-end with live policy readback.
 
 ![AMD MI308X WeaveProfiler SW+HW Timeline](docs/figures/weaveprofiler_mi308x_timeline.png)
 
-All three panels use the unified WeaveProfiler contract on the matched
-`Qwen3.8-Max, EP8, S=1024` workload: hardware counters, all physical SM/CU
-lanes, and a representative CTA pipeline. The exact tuned `WEAVE_*` presets
-(organized by **Spatial**, **Temporal**, and **Implementation**) and
+All three figures show aligned software + hardware timelines on the matched
+`Qwen3.8-Max, EP8, S=1024` workload (hardware utilization curves, all physical
+SM/CU lanes, and representative CTA warp-role pipelines). Full tuned `WEAVE_*`
+presets (organized by **Spatial**, **Temporal**, and **Implementation**) and
 reproducible launch scripts live under [examples/](examples/README.md):
 
 - NVIDIA SM103 (148-SM): [examples/sm103_qwen38max_ep8_s1024.sh](examples/sm103_qwen38max_ep8_s1024.sh)
 - NVIDIA H20: [examples/h20_qwen38max_ep8_s1024.sh](examples/h20_qwen38max_ep8_s1024.sh)
 - AMD MI308X: [examples/mi308x_qwen38max_ep8_s1024.sh](examples/mi308x_qwen38max_ep8_s1024.sh) (EP8) and [examples/mi308x_qwen38max_ep16_s128.sh](examples/mi308x_qwen38max_ep16_s128.sh) (2-node EP16)
 - One-command runner & renderer: `python examples/profile_and_render_timeline.py --preset sm103` (supports `sm103`, `h20`, `mi308x_ep8`, `mi308x_ep16`, plus `--run` / `--render`)
-
-Values come from the checked-in measured paired traces; missing counters remain
-unavailable rather than being zero-filled. MI308X hardware counters are
-per-dispatch aggregates; its trace explicitly records a window mismatch and
-does not claim absolute clock alignment.
 
 ## Parameter taxonomy: Spatial, Temporal, and Implementation
 

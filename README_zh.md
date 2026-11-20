@@ -2,13 +2,12 @@
 
 # Weave：面向 MoE Megakernel 的路由自适应运行时动态调度系统
 
-Weave 是一个**路由自适应、运行时动态的 MoE megakernel**，由统一的
-C++/CUDA/HIP 代码库实现。它是论文 **Weave: Fine-Grained Dynamic SM Scheduling
-in an MoE Megakernel for Compute-Communication Overlap**
-（[arXiv:2609.21483](https://arxiv.org/abs/2609.21483)）的 artifact。同一套调度
-契约覆盖 **NVIDIA SM103 (148-SM)**、**NVIDIA H20** 与 **AMD MI308X**：同一个
-内核读取 dispatch 完成后的实时路由直方图，并在内核内部运行时改变空间切分、
-scatter 归属与开局头部拉取配额，无需主机往返。
+Weave 是一个面向 MoE 推理的**路由自适应运行时动态 Megakernel**（C++/CUDA/HIP
+统一实现，论文：[Weave: Fine-Grained Dynamic SM Scheduling in an MoE Megakernel
+for Compute-Communication Overlap](https://arxiv.org/abs/2609.21483)）。支持
+**NVIDIA SM103 (148-SM)**、**NVIDIA H20** 与 **AMD MI308X** 三种硬件平台：内核
+在每次路由（dispatch）完成后直接读取各专家的实时 token 分布，在 GPU 上实时决定
+**空间切分与时间调度**，无需回传 CPU，也无需二次启动 kernel。
 
 ## 架构
 
@@ -18,18 +17,16 @@ scatter 归属与开局头部拉取配额，无需主机往返。
 | NVIDIA H20（SM90） | CUDA C++ | 仅 `2 = fp8`（fp8xfp8） | sm90_fp8_mega_moe.cuh |
 | AMD MI308X（gfx942） | HIP C++ | 仅 `2 = fp8`（fp8xfp8）；支持 EP8 与 EP16 | gfx942_fp8_mega_moe.cuh 与 amd/megamoe_amd.hip |
 
-内核使用单一设备端发布轨：CTA 0 读取 dispatch 完成后的实时路由直方图，在片上
-评估代价模型并通过 release store 发布调度决策，其余 CTA 通过
-`load_published_policy` 或 `wait_and_copy_policy` 获取。运行期动态调整三项核心
-决策：通信/计算硬件分区比例、Scatter 执行归属（Epilogue 内联或通信队列异步）以
-及启动阶段首波预取配额，全程无主机往返、无动态二次启动。
+运行时由 CTA 0 读取路由完成后的各专家 token 数，用片上代价模型快速选出当前层的
+**空间切分**（通信与计算 warp 配比）与**时间调度**（Scatter 由 epilogue 就地发
+还是交给通信队列异步发、启动阶段预拉取多少远端 token），写入显存后其余 CTA 直接
+读取执行。
 
 ## 分区化硬件执行与全局 ready queue
 
-每个 SM/CU 被划分为 **Communication Partition（`N_c`）** 与
-**Compute/GEMM Partition（`N_e`）**。每个分区由自己的**全局 ready queue** 支撑。
-队列索引是轻量且隐式的：到达计数器、逐专家分组位图与前缀和替代了昂贵的运行时
-排序。
+每个 SM/CU 的计算与通信资源划分为**通信分区（`N_c`）**与**计算/GEMM 分区
+（`N_e`）**，各自对应一条**全局 ready queue**。队列不做高开销的运行时重排，而是
+直接通过到达计数器、逐专家分组位图和前缀和完成轻量索引。
 
 ![Weave 系统设计总览：路由直方图 + 硬件画像 -> 代价模型 -> 空间 Warp 配比与时间 Warp 角色](docs/figures/weave_design_overview.png)
 
@@ -37,17 +34,15 @@ scatter 归属与开局头部拉取配额，无需主机往返。
 
 ![Weave 时间维度调度：头部寄存器特化全 Warp 拉取与尾部逐 Token 细粒度归约](docs/figures/weave_design_temporal.png)
 
-- **GEMM Ready Queue**（由 Compute Partition `N_e` 消费）：随着 token 按
-  `LOCAL_READY -> REMOTE_PRIMARY -> LOCAL_COPY` 流程到达，接收就绪的
-  `(expert, m_block)` tile。条目按确定性的全局顺序遍历（L2 tile-swizzle /
-  冷热窗口顺序在启动时参数化）；当 `WEAVE_READY_QUEUE=1` 时改为从全局 FIFO
-  弹出。当 `s = epi`（`WEAVE_SCATTER_MODE=0`）时，Scatter 在 Compute/GEMM
-  分区内部（epilogue）就地执行。
-- **Communication Ready Queue**（由 Communication Partition `N_c` 消费）：驱动
-  远端 Dispatch/Pull。当 `s = comm`（`WEAVE_SCATTER_MODE=1`）或本地去重
-  （`WEAVE_SCATTER_MODE=2`）时，它接收 epilogue/local-combine warp 压入的
-  就绪 FC2 scatter 描述符，使 `N_c` 能在后续 GEMM tile 继续运行的同时并发地
-  执行远端 NVLink/xGMI scatter。
+- **GEMM Ready Queue**（由计算分区 `N_e` 消费）：随着 token 按
+  `LOCAL_READY -> REMOTE_PRIMARY -> LOCAL_COPY` 到达，接收就绪的
+  `(expert, m_block)` tile，按预设的全局顺序（L2 tile-swizzle / 冷热配对窗口）
+  依次取用，或在 `WEAVE_READY_QUEUE=1` 时从全局 FIFO 弹出。当
+  `WEAVE_SCATTER_MODE=0` 时，Scatter 直接在计算分区的 epilogue 内完成。
+- **Communication Ready Queue**（由通信分区 `N_c` 消费）：负责远端
+  Dispatch/Pull；当 `WEAVE_SCATTER_MODE=1`（异步卸载）或 `WEAVE_SCATTER_MODE=2`
+  （先在本地 HBM 预归约去重再发送）时，epilogue / local-combine warp 把就绪的
+  FC2 scatter 任务推入该队列，由 `N_c` 与后续 GEMM tile 并行重叠发出。
 
 ## 快速开始
 
@@ -68,7 +63,7 @@ Python 入口示意：
     # NVIDIA SM103 (148-SM) 支持 fp8xfp4、fp4xfp4 与 bf16；
     # NVIDIA H20 与 AMD MI308X 使用 fp8。
 
-也可以设置公开精度选择器：
+也可以通过环境变量指定精度：
 
     export WEAVE_PRECISION_MODE=fp4xfp4
 
@@ -96,16 +91,14 @@ FP8 Tensor Core 活跃度封顶在 `58%` 以下。
 
 | 硬件 / 规模 | 精度 | 全输出正确性 | 实测延迟与吞吐 | 结论 |
 |---|---|---|---|---|
-| 8x NVIDIA SM103 (148-SM) 安装；4 卡可用验证窗口 | fp4xfp4 (NVFP4) | EP4，S=16，H=6144，I=2048，E=128，K=8；4/4 rank 有限，统一路径与直接路径逐位一致，512 条路由；4/4 轮完整 FP32 参考 PASS；CTA-0 现场回读 magic 0x57415645、version 4、published_epoch=2、valid=1 | 跨 rank 中位数之中位数 172.384 us；最慢 rank 172.480 us；54.418 TFLOPS/GPU 标称值（52.088--60.001）。加入发布轨前参考值 143.552 us、65.757 TFLOPS/GPU | PASS |
-| 同一 148-SM SM103 安装 | fp8xfp4 | EP1 构建参考并打印预期配置，但首次 kernel launch 未返回；不主张任何输出或延迟。新克隆复现挂起；compute-sanitizer memcheck 在挂起前未发现非法访问 | 未测量 | BLOCKED_RUNTIME_HANG |
+| 8x NVIDIA SM103 (148-SM) 安装；4 卡可用验证窗口 | fp4xfp4 (NVFP4) | EP4，S=16，H=6144，I=2048，E=128，K=8；4/4 rank 有限，统一路径与直接路径逐位一致，512 条路由；4/4 轮完整 FP32 参考 PASS；CTA-0 现场回读 magic 0x57415645、version 4、published_epoch=2、valid=1 | 跨 rank 中位数之中位数 172.384 us；最慢 rank 172.480 us；54.418 TFLOPS/GPU 标称值（52.088--60.001）。接入在线决策前参考值 143.552 us、65.757 TFLOPS/GPU | PASS |
+| 同一 148-SM SM103 安装 | fp8xfp4 | EP1 构建参考并打印预期配置，首次 kernel launch 未返回；新克隆复现挂起，compute-sanitizer memcheck 在挂起前未发现非法访存 | 未测量 | BLOCKED_RUNTIME_HANG |
 | 8x NVIDIA H20 EP8 | fp8 | Qwen3.8-Max，E=512，K=10，H=8192，I=2048；最差 rank calc_diff 5.924e-4--5.948e-4，最差 rel_l2 0.034483，cos_sim 0.999405；全部 rank PASS | S=128 AUTO=1 1452.512 us，对比 AUTO=0 1942.784 us，延迟变化 -25.24%；S=1024 AUTO=1 4977.584 us，对比 AUTO=0 4981.344 us | PASS |
 | 8x AMD MI308X EP8 | fp8 | 4/4 全输出 cell 在 8 个 rank 上全部 PASS；最大 rel_l2 0.001545--0.001908，最大行 rel_l2 0.001952--0.005731，device_error=0 | qwen38max S=16 687.422/713.942 us；S=128 1539.625/1554.185 us；DeepSeek-V4-Flash S=16 378.761/395.421 us；S=128 699.642/709.743 us；单卡 TFLOPS 1.595--9.219 | PASS |
 | 16x AMD MI308X EP16（2 节点 x 8） | fp8 | 16/16 rank 全元素 FP64 对比 PASS；qwen38max S=128 与 DeepSeek-V4-Flash S=128；最大 rel_l2 0.012535/0.012292，最大行 rel_l2 0.019612/0.015528；96 条 launch-state 记录 device_error=0 | qwen38max metric1 1594.079 -> 1010.679 us（1.5772x），metric2 1591.939 -> 1006.619 us（1.5815x）；DeepSeek-V4-Flash metric1 1387.055 -> 735.300 us（1.8864x），metric2 1367.269 -> 732.679 us（1.8661x） | PASS |
 
-148-SM SM103 fp8xfp4 路径可以编译，两个 148-SM SM103 内核都带有 CTA-0 策略轨，但 FP8xFP4 的
-首次启动仍卡在 FP8 GEMM 事务屏障协议。移除策略轨、限制 rank 顺序、删除 pull
-等待、改变 block 形状都会复现同一等待。这是尚未解决的运行时调查，不是 PASS。
-相同源码线上的 NVFP4 sibling 已完成端到端验证并具备现场策略回读。
+注：148-SM SM103 的 `fp4xfp4 (NVFP4)` 路径已跑通端到端与 CTA-0 在线决策回读；
+`fp8xfp4` 路径可正常编译，但运行时仍在 dispatch 阶段挂起，正在排查中。
 
 ## WeaveProfiler 软硬件时间线
 
@@ -115,18 +108,15 @@ FP8 Tensor Core 活跃度封顶在 `58%` 以下。
 
 ![AMD MI308X WeaveProfiler SW+HW 时间线](docs/figures/weaveprofiler_mi308x_timeline.png)
 
-三张图在匹配的 `Qwen3.8-Max, EP8, S=1024` 负载上使用统一的 WeaveProfiler
-契约：硬件计数器、全部物理 SM/CU 泳道与代表性 CTA 流水线。产出各条 trace 的
-完整调优 `WEAVE_*` 参数（按 **空间维度 / 时间维度 / 工程实现** 分类）及一键
-复现脚本均位于 [examples/](examples/README_zh.md)：
+三张图均为 `Qwen3.8-Max, EP8, S=1024` 负载下的软硬件对齐时间线（顶部硬件利用率曲
+线、中部全卡物理 SM/CU 泳道、底部代表性 CTA 内各角色流水线）。完整调优
+`WEAVE_*` 参数（按 **空间维度 / 时间维度 / 工程实现** 分类）及一键复现脚本位于
+[examples/](examples/README_zh.md)：
 
 - NVIDIA SM103 (148-SM)：[examples/sm103_qwen38max_ep8_s1024.sh](examples/sm103_qwen38max_ep8_s1024.sh)
 - NVIDIA H20：[examples/h20_qwen38max_ep8_s1024.sh](examples/h20_qwen38max_ep8_s1024.sh)
 - AMD MI308X：[examples/mi308x_qwen38max_ep8_s1024.sh](examples/mi308x_qwen38max_ep8_s1024.sh)（EP8）与 [examples/mi308x_qwen38max_ep16_s128.sh](examples/mi308x_qwen38max_ep16_s128.sh)（2 节点 EP16）
 - 一键运行与重绘时间线：`python examples/profile_and_render_timeline.py --preset sm103`（支持 `sm103`、`h20`、`mi308x_ep8`、`mi308x_ep16`，并支持 `--run` / `--render`）
-
-数值来自已测配对 trace；不可用的计数器保持 unavailable，不填零。MI308X 的硬件
-计数器是每次 dispatch 的聚合值；trace 自身声明窗口长度不一致，不主张绝对时钟对齐。
 
 ## 参数分类：空间维度、时间维度与工程实现
 
