@@ -608,19 +608,21 @@ __device__ __forceinline__ void agy_prof_emit_now(
         } \
     } while (0)
 
-#define AGY_PROF_TILE_STORE_BEGIN(MegaMoEPhaseT, sm_idx_, wg_idx_, warp_in_wg_, lane_idx_, is_l1_, exp_, mb_, nb_) \
+#define AGY_PROF_TILE_STORE_BEGIN(MegaMoEPhaseT, sm_idx_, wg_idx_, warp_in_wg_, lane_idx_, is_l1_, exp_, mb_, nb_, comm_owned_) \
     do { \
         if ((warp_in_wg_) == 0u && (lane_idx_) == 0u && agy_prof_raw_ptr != nullptr && (sm_idx_) < kAgyProfMaxSMs) { \
+            const uint32_t _ev = ((not (is_l1_)) && (comm_owned_)) ? kAgyEvEpilogue : kAgyEvStore; \
             agy_prof_emit_now(AGY_PROF_RESOLVE_SLOT_PTR(MegaMoEPhaseT), (sm_idx_), kAgyProfTrackMathWG0 + (wg_idx_), \
-                kAgyEvStore, agy_prof_pack_tile_aux((is_l1_), (exp_), (mb_), (nb_))); \
+                _ev, agy_prof_pack_tile_aux((is_l1_), (exp_), (mb_), (nb_))); \
         } \
     } while (0)
 
-#define AGY_PROF_TILE_STORE_END(MegaMoEPhaseT, sm_idx_, wg_idx_, warp_in_wg_, lane_idx_, is_l1_, exp_, mb_, nb_) \
+#define AGY_PROF_TILE_STORE_END(MegaMoEPhaseT, sm_idx_, wg_idx_, warp_in_wg_, lane_idx_, is_l1_, exp_, mb_, nb_, comm_owned_) \
     do { \
         if ((warp_in_wg_) == 0u && (lane_idx_) == 0u && agy_prof_raw_ptr != nullptr && (sm_idx_) < kAgyProfMaxSMs) { \
+            const uint32_t _ev = ((not (is_l1_)) && (comm_owned_)) ? kAgyEvEpilogue : kAgyEvStore; \
             agy_prof_emit_now(AGY_PROF_RESOLVE_SLOT_PTR(MegaMoEPhaseT), (sm_idx_), kAgyProfTrackMathWG0 + (wg_idx_), \
-                kAgyEvStore | kAgyFiTagEnd, agy_prof_pack_tile_aux((is_l1_), (exp_), (mb_), (nb_))); \
+                _ev | kAgyFiTagEnd, agy_prof_pack_tile_aux((is_l1_), (exp_), (mb_), (nb_))); \
         } \
     } while (0)
 #else
@@ -628,8 +630,8 @@ __device__ __forceinline__ void agy_prof_emit_now(
 #define AGY_PROF_TMA_TILE_LOAD_END(MegaMoEPhaseT, sm_idx_, lane_idx_, track_const_, is_l1_, exp_, mb_, nb_) ((void)0)
 #define AGY_PROF_TILE_MMA_BEGIN(MegaMoEPhaseT, sm_idx_, wg_idx_, warp_in_wg_, lane_idx_, is_l1_, exp_, mb_, nb_) ((void)0)
 #define AGY_PROF_TILE_MMA_END(MegaMoEPhaseT, sm_idx_, wg_idx_, warp_in_wg_, lane_idx_, is_l1_, exp_, mb_, nb_) ((void)0)
-#define AGY_PROF_TILE_STORE_BEGIN(MegaMoEPhaseT, sm_idx_, wg_idx_, warp_in_wg_, lane_idx_, is_l1_, exp_, mb_, nb_) ((void)0)
-#define AGY_PROF_TILE_STORE_END(MegaMoEPhaseT, sm_idx_, wg_idx_, warp_in_wg_, lane_idx_, is_l1_, exp_, mb_, nb_) ((void)0)
+#define AGY_PROF_TILE_STORE_BEGIN(MegaMoEPhaseT, sm_idx_, wg_idx_, warp_in_wg_, lane_idx_, is_l1_, exp_, mb_, nb_, comm_owned_) ((void)0)
+#define AGY_PROF_TILE_STORE_END(MegaMoEPhaseT, sm_idx_, wg_idx_, warp_in_wg_, lane_idx_, is_l1_, exp_, mb_, nb_, comm_owned_) ((void)0)
 #endif
 
 // Role 3: Math WG open/close & Bar2 / Combine hooks
@@ -677,6 +679,21 @@ __device__ __forceinline__ void agy_prof_emit_now(
             if ((wg_idx_) == 0u) _sl->sm[(sm_idx_)].t_combine_start = _ts; \
             agy_prof_emit_rec(_sl, (sm_idx_), kAgyProfTrackMathWG0 + (wg_idx_), _ts, \
                 kAgyEvCommunication | kAgyFiTagEnd, 4u); \
+            agy_prof_emit_rec(_sl, (sm_idx_), kAgyProfTrackMathWG0 + (wg_idx_), _ts, \
+                kAgyEvReduction, (wg_idx_)); \
+        } \
+    } while (0)
+
+#define AGY_PROF_CHUNKED_COMBINE_BEGIN(MegaMoEPhaseT, sm_idx_, wg_idx_, warp_in_wg_, lane_idx_) \
+    do { \
+        if ((warp_in_wg_) == 0u && (lane_idx_) == 0u && agy_prof_raw_ptr != nullptr && (sm_idx_) < kAgyProfMaxSMs) { \
+            const uint64_t _ts = agy_prof_globaltimer_ns(); \
+            auto* _sl = AGY_PROF_RESOLVE_SLOT_PTR(MegaMoEPhaseT); \
+            if ((wg_idx_) == 0u) { \
+                _sl->sm[(sm_idx_)].t_before_nvlink_bar2 = _ts; \
+                _sl->sm[(sm_idx_)].t_after_nvlink_bar2 = _ts; \
+                _sl->sm[(sm_idx_)].t_combine_start = _ts; \
+            } \
             agy_prof_emit_rec(_sl, (sm_idx_), kAgyProfTrackMathWG0 + (wg_idx_), _ts, \
                 kAgyEvReduction, (wg_idx_)); \
         } \
@@ -743,6 +760,7 @@ __device__ __forceinline__ void agy_prof_emit_now(
 #define AGY_PROF_BEFORE_BAR2(...)                ((void)0)
 #define AGY_PROF_AFTER_BAR2(...)                 ((void)0)
 #define AGY_PROF_COMBINE_BEGIN(...)              ((void)0)
+#define AGY_PROF_CHUNKED_COMBINE_BEGIN(...)      ((void)0)
 #define AGY_PROF_COMBINE_END_AND_CLOSE(...)      ((void)0)
 
 #endif  // AGY_PROF

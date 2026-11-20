@@ -255,6 +255,43 @@ static void fp8_mega_moe(
     // Already registered tensors
     const auto [x, x_sf, topk_idx, topk_weights, l1_acts, l1_acts_sf, l2_acts, l2_acts_sf] = slice(sym_buffer);
 
+    const int agy_prof_mode = agy_prof::get_mode();
+    uint64_t* const agy_prof_dev_ptr = (agy_prof_mode > 0 and y.is_cuda())
+        ? agy_prof::begin_invocation(y.get_device(), agy_prof_mode)
+        : nullptr;
+
+    const auto fast_num_max_pool_tokens = layout::nv_moe::get_num_max_pool_tokens(
+        num_ranks, num_max_tokens_per_rank, num_topk, num_experts_per_rank);
+    const auto fast_padded_sf_tokens =
+        layout::nv_moe::get_num_sf_ring_tokens(fast_num_max_pool_tokens, 64);
+    const Sm90MoeHeuristicInput fast_heur_input {
+        runtime->get_num_sms(),
+        num_ranks, num_experts, num_experts_per_rank,
+        num_max_tokens_per_rank, num_tokens, num_topk,
+        hidden, intermediate_hidden,
+        fast_padded_sf_tokens
+    };
+    const auto agy_spec = get_agy_sm90_spec(fast_heur_input);
+    if (agy_spec.enabled and agy_spec.get_int("fast_host", 0) > 0) {
+        if (try_launch_agy_sm90_fast_plan(
+                agy_spec, y, l1_weights, l2_weights,
+                l1_weights_sf, l2_weights_sf,
+                cumulative_local_expert_recv_stats,
+                sym_buffer, sym_buffer_ptrs,
+                rank_idx, num_max_tokens_per_rank,
+                num_experts_per_rank, num_tokens, num_topk,
+                hidden, intermediate_hidden,
+                activation_clamp, fast_math,
+                agy_prof_mode, agy_prof_dev_ptr)) {
+            static const bool kCommDebug = deep_jit::get_env<int>("DG_COMM_KERNEL_DEBUG", 0) != 0;
+            if (kCommDebug)
+                sym_buffer.zero_();
+            if (agy_prof_mode > 0)
+                agy_prof::maybe_auto_dump(y.get_device(), agy_prof_mode);
+            return;
+        }
+    }
+
     sm90_fp8_mega_moe(y,
                      l1_acts, l1_acts_sf,
                      l2_acts, l2_acts_sf,
@@ -266,16 +303,82 @@ static void fp8_mega_moe(
                      num_experts_per_rank,
                      num_tokens, num_topk,
                      hidden, intermediate_hidden,
-                     activation_clamp, fast_math);
+                     activation_clamp, fast_math,
+                     &sym_buffer,
+                     agy_prof_mode,
+                     agy_prof_dev_ptr);
 
     if (deep_jit::get_env<int>("DG_COMM_KERNEL_DEBUG", 0))
         sym_buffer.zero_();
+    if (agy_prof_mode > 0)
+        agy_prof::maybe_auto_dump(y.get_device(), agy_prof_mode);
+}
+
+
+static void fp8_mega_moe_compile_only(
+    const int& num_ranks, const int& num_experts,
+    const int& num_max_tokens_per_rank, const int& num_topk,
+    const int& hidden, const int& intermediate_hidden,
+    const int& num_tokens, const float& activation_clamp, const bool& fast_math
+) {
+    DG_HOST_ASSERT(num_ranks > 0 and num_experts % num_ranks == 0);
+    DG_HOST_ASSERT(num_max_tokens_per_rank > 0 and
+                   num_max_tokens_per_rank % kSM90MegaMoETokenAlignment == 0);
+    DG_HOST_ASSERT(hidden > 0 and hidden % 256 == 0);
+    DG_HOST_ASSERT(intermediate_hidden > 0 and intermediate_hidden % 128 == 0);
+    const auto num_experts_per_rank = num_experts / num_ranks;
+    const auto num_max_pool_tokens = layout::nv_moe::get_num_max_pool_tokens(
+        num_ranks, num_max_tokens_per_rank, num_topk, num_experts_per_rank);
+    const auto num_padded_sf_pool_tokens =
+        layout::nv_moe::get_num_sf_ring_tokens(num_max_pool_tokens, 64);
+    const Sm90MoeHeuristicInput heuristic_input {
+        runtime->get_num_sms(),
+        num_ranks, num_experts, num_experts_per_rank,
+        num_max_tokens_per_rank, num_tokens, num_topk,
+        hidden, intermediate_hidden,
+        num_padded_sf_pool_tokens
+    };
+    const auto launch_config = select_mega_moe_sm90(heuristic_input);
+    const auto make_args = [&](const SM90FP8MegaMoERuntime::KernelPhase phase) {
+        SM90FP8MegaMoERuntime::Args args{};
+        args.num_max_tokens_per_rank = num_max_tokens_per_rank;
+        args.hidden = hidden;
+        args.intermediate_hidden = intermediate_hidden;
+        args.num_experts = num_experts;
+        args.num_topk = num_topk;
+        args.num_ranks = num_ranks;
+        args.activation_clamp = activation_clamp;
+        args.fast_math = fast_math;
+        args.bf16_scaled_accum = launch_config.numerical.bf16_scaled_accum;
+        args.l1_nmajor_for_fused = launch_config.l1.nmajor_schedule;
+        args.kernel_phase = phase;
+        args.config = phase == SM90FP8MegaMoERuntime::KernelPhase::Linear1 ? launch_config.l1 : launch_config.l2;
+        args.num_tokens = num_tokens;
+        args.agy_prof_mode = deep_jit::get_env<int>("AGY_PROF", 0);
+        return args;
+    };
+    if (launch_config.fused_single_kernel) {
+        SM90FP8MegaMoERuntime::compile_only(
+            "sm90_fp8_mega_moe_fused_impl", make_args(SM90FP8MegaMoERuntime::KernelPhase::Fused));
+    } else {
+        SM90FP8MegaMoERuntime::compile_only(
+            "sm90_fp8_mega_moe_l1_impl", make_args(SM90FP8MegaMoERuntime::KernelPhase::Linear1));
+        SM90FP8MegaMoERuntime::compile_only(
+            "sm90_fp8_mega_moe_l2_impl", make_args(SM90FP8MegaMoERuntime::KernelPhase::Linear2));
+    }
 }
 
 static void register_sm90_apis(pybind11::module_& m) {
     m.def("get_token_alignment_for_sm90_mega_moe", &get_token_alignment_for_sm90_mega_moe);
     m.def("get_symm_buffer_size_for_sm90_mega_moe", &get_symm_buffer_size_for_sm90_mega_moe);
     m.def("fp8_mega_moe", &fp8_mega_moe);
+    m.def("fp8_mega_moe_compile_only", &fp8_mega_moe_compile_only);
+    m.def("agy_prof_set_mode", &agy_prof::set_mode_override);
+    m.def("agy_prof_get_mode", &agy_prof::get_mode);
+    m.def("agy_prof_reset", &agy_prof::reset_current_device);
+    m.def("agy_prof_snapshot_bytes", &agy_prof::snapshot_bytes);
+    m.def("agy_prof_last_host_meta_json", &agy_prof::last_host_meta_json);
 }
+
 
 } // namespace deep_gemm::mega

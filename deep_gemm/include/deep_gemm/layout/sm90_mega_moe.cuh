@@ -57,7 +57,8 @@ CUTLASS_HOST_DEVICE constexpr Sm90MoeWarpgroupLayout get_sm90_moe_warpgroup_layo
     const uint32_t cta_block_n,
     const uint32_t num_epilogue_warpgroups) {
     const bool split_n =
-        cta_block_m == 64 and num_epilogue_warpgroups > 1 and
+        (cta_block_m == 64 or cta_block_m == 32 or cta_block_m == 16) and
+        num_epilogue_warpgroups > 1 and
         cta_block_n % num_epilogue_warpgroups == 0 and
         (cta_block_n / num_epilogue_warpgroups == 64 or
          cta_block_n / num_epilogue_warpgroups == 128);

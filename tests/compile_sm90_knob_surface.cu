@@ -16,6 +16,8 @@
 #define WEAVE_STORE_BLOCK_M_L1 64
 #define WEAVE_SCATTER_OWNER 1
 #define WEAVE_SCATTER_STAGING 2
+#define WEAVE_DISPATCH_ACTIVE_SMS 0
+#define WEAVE_COMBINE_SYNC_CHUNK 32
 #define WEAVE_SCATTER_MODE 2
 #define WEAVE_INTERLEAVE_L1_L2 5
 #include <deep_gemm/impls/sm90_fp8_mega_moe.cuh>

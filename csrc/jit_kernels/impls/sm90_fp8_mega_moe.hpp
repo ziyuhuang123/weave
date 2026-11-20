@@ -419,7 +419,16 @@ static void sm90_fp8_mega_moe(
     const int wg_block_m = static_cast<int>(wg_layout.block_m);
     const int wg_block_n = static_cast<int>(wg_layout.block_n);
     const int wg_l1_out_block_n = wg_block_n / 2;
-    const bool use_adapt_bm = agy_spec.enabled and agy_spec.get_int("adapt_bm", 0) > 0 and l1_config.swap_ab and l1_config.block_m == 64 and wg_layout.split_n;
+    const bool use_adapt_bm_l1 = agy_spec.enabled and agy_spec.get_int("adapt_bm", 0) > 0 and
+                                 l1_config.swap_ab and l1_config.block_m == 64 and
+                                 layout::get_sm90_moe_warpgroup_layout(
+                                     l1_config.block_m, l1_config.block_n,
+                                     l1_config.num_epilogue_threads / 128).split_n;
+    const bool use_adapt_bm_l2 = agy_spec.enabled and agy_spec.get_int("adapt_bm", 0) > 0 and
+                                 l2_config.swap_ab and l2_config.block_m == 64 and
+                                 layout::get_sm90_moe_warpgroup_layout(
+                                     l2_config.block_m, l2_config.block_n,
+                                     l2_config.num_epilogue_threads / 128).split_n;
     // A BK256 pipeline stage is represented in shared memory as two adjacent
     // independently-swizzled BK128 TMA tiles. Keep the tensor-map box at 128
     // and issue two copies; the kernel config/scheduler still advances by 256.
@@ -435,7 +444,7 @@ static void sm90_fp8_mega_moe(
                    l2_config.block_n % l2_tma_block_n == 0);
     const auto tensor_map_l1_acts = make_tma_2d_desc(l1_acts,
                                                      hidden, l1_config.num_max_pool_tokens,
-                                                     l1_tma_block_k, use_adapt_bm ? 16 : l1_config.block_m,
+                                                     l1_tma_block_k, use_adapt_bm_l1 ? 16 : l1_config.block_m,
                                                      static_cast<int>(l1_acts.stride(-2)),
                                                      128);
     const auto tensor_map_l1_acts_sf = make_tma_sf_desc(cute::UMMA::Major::MN, l1_acts_sf,
@@ -458,12 +467,12 @@ static void sm90_fp8_mega_moe(
     const int l1_output_box_m = wg_layout.split_n ? l1_config.block_m : wg_block_m;
     const auto tensor_map_l1_output = make_tma_2d_desc(l2_acts,
                                                        intermediate_hidden, l1_config.num_max_pool_tokens,
-                                                       l1_output_box_n, use_adapt_bm ? 16 : l1_output_box_m,
+                                                       l1_output_box_n, use_adapt_bm_l1 ? 16 : l1_output_box_m,
                                                        static_cast<int>(l2_acts.stride(-2)),
                                                        0);
     const auto tensor_map_l2_acts = make_tma_2d_desc(l2_acts,
                                                      intermediate_hidden, l2_config.num_max_pool_tokens,
-                                                     l2_tma_block_k, use_adapt_bm ? 16 : l2_config.block_m,
+                                                     l2_tma_block_k, use_adapt_bm_l2 ? 16 : l2_config.block_m,
                                                      static_cast<int>(l2_acts.stride(-2)),
                                                      128);
     const auto tensor_map_l2_acts_sf = make_tma_sf_desc(cute::UMMA::Major::MN, l2_acts_sf,

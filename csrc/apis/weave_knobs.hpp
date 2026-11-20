@@ -38,6 +38,9 @@ static const std::vector<KnobSchemaEntry>& knob_schema_entries() {
         {"WEAVE_DISPATCH_WARPS", "Spatial",
          "0 = auto; 4 or 8 = dispatch warps per CTA",
          "Per-CTA communication warp budget."},
+        {"WEAVE_DISPATCH_ACTIVE_SMS", "Spatial",
+         "0 = auto/all SMs; D = only D SMs run dispatch pull",
+         "Independent partial-SM dispatch throttle."},
         {"WEAVE_SCATTER_ACTIVE_SMS", "Spatial",
          "0 = auto/all SMs; K = only K SMs drain the scatter queue",
          "Decoupled throttled active scatter SMs."},
@@ -69,6 +72,9 @@ static const std::vector<KnobSchemaEntry>& knob_schema_entries() {
         {"WEAVE_EARLY_STREAM_REDUCE", "Temporal",
          "0 = barrier before combine; 1 = per-token cnt==topk early reduce",
          "Barrier-free tail-interleaved reduce."},
+        {"WEAVE_COMBINE_SYNC_CHUNK", "Temporal",
+         "0 = global barrier; 16, 32, 64, 128 = chunked dedup combine sync",
+         "Chunked cross-GPU combine release paired with local dedup."},
         {"WEAVE_TMEM_PIPELINE_MODE", "Temporal",
          "0 = auto; 100 = 1.0; 175 = 1.75; 200 = 2.0",
          "TMEM epilogue pipeline depth."},
@@ -193,6 +199,8 @@ static py::dict weave_knob_defaults(const std::string& mma_type) {
     out["WEAVE_SCATTER_OWNER"] = knobs.scatter_owner;
     out["WEAVE_SCATTER_STAGING"] = knobs.scatter_staging;
     out["WEAVE_EPI_REG_STAGES"] = knobs.epi_reg_stages;
+    out["WEAVE_DISPATCH_ACTIVE_SMS"] = knobs.dispatch_active_sms;
+    out["WEAVE_COMBINE_SYNC_CHUNK"] = knobs.combine_sync_chunk;
     out["WEAVE_ABLATION_PRESET"] = static_cast<uint32_t>(WEAVE_ABLATION_PRESET);
     out["WEAVE_ENABLE_COST_MODEL"] = knobs.enable_runtime_cost_model;
     out["WEAVE_V_HEAD"] = static_cast<uint32_t>(WEAVE_V_HEAD);

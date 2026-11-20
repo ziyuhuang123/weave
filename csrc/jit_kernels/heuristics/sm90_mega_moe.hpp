@@ -282,6 +282,13 @@ static AgySm90KnobSpec parse_agy_sm90_spec_string(const char* raw_str) {
     append_weave_env("dispatch_sms", "WEAVE_DISPATCH_ACTIVE_SMS");
     append_weave_env("comb_sync_chunk", "WEAVE_COMBINE_SYNC_CHUNK");
     append_weave_env("epi_reg_stages", "WEAVE_EPI_REG_STAGES");
+    append_weave_env("l1_bm", "WEAVE_BLOCK_M_L1");
+    append_weave_env("l2_bm", "WEAVE_BLOCK_M_L2");
+    append_weave_env("l1_bn", "WEAVE_BLOCK_N_L1");
+    append_weave_env("l2_bn", "WEAVE_BLOCK_N_L2");
+    append_weave_env("l1_wgs", "WEAVE_WAGS_L1");
+    append_weave_env("l2_wgs", "WEAVE_WAGS_L2");
+    append_weave_env("inline_roles", "WEAVE_INLINE_ROLES");
     // Named enum knobs: the spec carries the integer code.
     auto append_named_env = [&](const char* key, const char* primary,
                                 std::initializer_list<const char*> names) {
@@ -529,6 +536,8 @@ static std::string get_agy_sm90_jit_defines(const AgySm90KnobSpec& spec) {
     DG_HOST_ASSERT(epi_reg_stages >= 0 and epi_reg_stages <= 2);
     if (epi_reg_stages > 0)
         defs += std::format("#define WEAVE_EPI_REG_STAGES {}\n", epi_reg_stages);
+    if (spec.has("inline_roles"))
+        defs += std::format("#define WEAVE_INLINE_ROLES {}\n", spec.get_int("inline_roles", 1));
     if (spec.get_int("adapt_bm", 0) > 0) {
         defs += "#define WEAVE_ADAPT_BM 1\n";
         if (spec.get_int("full_nswap", 0) == 0)
@@ -915,6 +924,7 @@ static std::pair<int, int> get_pipeline_config_for_mega_moe_sm90(
     const int interleave_pipe = (agy.enabled and is_fused) ? agy.get_int("interleave", agy.get_int("interleave_l1_l2", 0)) : 0;
     const int hc_pipe = agy.enabled ? agy.get_int("l1_hot_cold", agy.get_int("hot_cold", 0)) : 0;
     const bool use_scat_disp = agy.enabled and agy.is_scatter_role_disp();
+    const bool use_hbm_scat = agy.enabled and agy.resolved_scatter_staging() == 2;
     const bool direct_l2_scatter =
         direct_l2_scatter_enabled and not use_scat_disp and not swap_ab and wg_block_n == 128;
     const bool use_fast_swap_l2 = agy.enabled and agy.get_int("fast_swap_l2", 0) > 0;
@@ -923,9 +933,10 @@ static std::pair<int, int> get_pipeline_config_for_mega_moe_sm90(
     const int raw_cd_l2 = direct_l2_scatter ? 0 :
         num_epilogue_warpgroups * wg_block_m * l2_smem_stride_n *
             static_cast<int>(sizeof(nv_bfloat16));
-    const int smem_cd_l2 = use_scat_disp
-        ? std::max(0, raw_cd_l2 - smem_dispatch_size)
-        : raw_cd_l2;
+    const bool full_l2_smem_staging = (not use_scat_disp) or (use_hbm_scat and is_fused);
+    const int smem_cd_l2 = full_l2_smem_staging
+        ? raw_cd_l2
+        : std::max(0, raw_cd_l2 - smem_dispatch_size);
     const int smem_cd_swap_l1 = swap_ab
         ? block_m * (block_n / 2) *
               (static_cast<int>(sizeof(float)) + static_cast<int>(sizeof(uint8_t)))
@@ -1025,6 +1036,7 @@ static uint32_t get_sm90_moe_pre_barrier_smem_size_for_combine(
     const auto agy = get_agy_sm90_spec(input);
     const bool is_fused = agy.enabled and agy.get_int("fused", 0) > 0;
     const bool use_scat_disp = agy.enabled and agy.is_scatter_role_disp();
+    const bool use_hbm_scat = agy.enabled and agy.resolved_scatter_staging() == 2;
     const bool use_fast_swap_l2 = agy.enabled and agy.get_int("fast_swap_l2", 0) > 0;
     int smem_disp = smem_expert_count + smem_send_buffers;
     if (agy.enabled) {
@@ -1041,7 +1053,8 @@ static uint32_t get_sm90_moe_pre_barrier_smem_size_for_combine(
     const int raw_cd_l2 = (config.direct_l2_scatter and not use_scat_disp) ? 0 :
         num_epilogue_warpgroups * wg_bm_c *
         l2_smem_stride_n * static_cast<int>(sizeof(nv_bfloat16));
-    const int smem_cd_l2 = use_scat_disp ? std::max(0, raw_cd_l2 - smem_disp) : raw_cd_l2;
+    const bool full_l2_smem_staging = (not use_scat_disp) or (use_hbm_scat and is_fused);
+    const int smem_cd_l2 = full_l2_smem_staging ? raw_cd_l2 : std::max(0, raw_cd_l2 - smem_disp);
     const int smem_cd_swap_l1 = config.swap_ab ?
         config.block_m * (config.block_n / 2) *
             (static_cast<int>(sizeof(float)) + static_cast<int>(sizeof(uint8_t))) : 0;
@@ -1138,7 +1151,7 @@ static bool is_sm90_moe_phase_config_legal(
     if (wg_block_n == 64 and not config.swap_ab)
         return false;
     const int epi_wg_knob = get_sm90_moe_weave_int_env("WEAVE_SWAPAB_EPI_WG", "DG_MOE_SWAPAB_EPI_WG", 2);
-    const bool swap_ab_wide = config.swap_ab and epi_wg_knob == 4 and
+    const bool swap_ab_wide = config.swap_ab and (agy_enabled or epi_wg_knob == 4) and
                               config.block_n == 256 and
                               num_epilogue_warpgroups == 4;
     if (config.block_m == 64 and config.block_n == 256 and

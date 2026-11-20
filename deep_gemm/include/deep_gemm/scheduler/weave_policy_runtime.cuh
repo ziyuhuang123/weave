@@ -13,13 +13,6 @@
 
 #include <deep_gemm/scheduler/weave_cost_model.cuh>
 
-// Under HIP, __threadfence() used below is an inline function declared in
-// hip/hip_runtime.h (amd_detail/amd_device_functions.h wraps
-// __builtin_amdgcn_fence(__ATOMIC_SEQ_CST, "agent")), NOT a compiler keyword.
-// megamoe_amd.hip includes this header BEFORE its own hip/hip_runtime.h include,
-// so the declaration is missing (gfx942 EP16 build: "use of undeclared
-// identifier '__threadfence'").  Pull the HIP runtime declaration here, guarded
-// HIP-only so the pure-C++ host tests (g++, no __HIPCC__) are unaffected.
 #if defined(__HIPCC__) && !defined(__CUDACC__)
 #include <hip/hip_runtime.h>
 #endif
@@ -46,6 +39,10 @@ WEAVE_DEVICE uint32_t policy_load_acquire(const uint32_t* ptr) {
 #if defined(__HIPCC__) && !defined(__CUDACC__)
   return __hip_atomic_load(const_cast<uint32_t*>(ptr), __ATOMIC_ACQUIRE,
                            __HIP_MEMORY_SCOPE_AGENT);
+#elif defined(__CUDA_ARCH__) && (__CUDA_ARCH__ >= 700)
+  uint32_t val;
+  asm volatile("ld.acquire.gpu.global.u32 %0, [%1];" : "=r"(val) : "l"(ptr) : "memory");
+  return val;
 #else
   return atomicAdd(const_cast<uint32_t*>(ptr), 0u);
 #endif
@@ -54,6 +51,8 @@ WEAVE_DEVICE uint32_t policy_load_acquire(const uint32_t* ptr) {
 WEAVE_DEVICE void policy_store_release(uint32_t* ptr, uint32_t value) {
 #if defined(__HIPCC__) && !defined(__CUDACC__)
   __hip_atomic_store(ptr, value, __ATOMIC_RELEASE, __HIP_MEMORY_SCOPE_AGENT);
+#elif defined(__CUDA_ARCH__) && (__CUDA_ARCH__ >= 700)
+  asm volatile("st.release.gpu.global.u32 [%0], %1;" :: "l"(ptr), "r"(value) : "memory");
 #else
   atomicExch(ptr, value);
 #endif
@@ -86,11 +85,9 @@ WEAVE_DEVICE PolicyDecision cta0_select_and_publish(
   control->decision_epoch = epoch;
   control->decision = decision;
   control->decision.selection_cycles = static_cast<uint32_t>(t1 - t0);
-  __threadfence();
-  policy_store_release(&control->published_epoch, epoch);
   control->epoch = epoch;
-  __threadfence();
-  return control->decision;
+  policy_store_release(&control->published_epoch, epoch);
+  return decision;
 }
 
 // B300/H20 publish 64-bit receive counters whose low 32 bits are the token
@@ -101,6 +98,7 @@ WEAVE_DEVICE PolicyDecision cta0_select_from_packed_hist(
     const WeaveKnobs& knobs, const uint64_t* packed_counts,
     uint32_t dedup_pulls, uint32_t scatter_count, uint32_t epoch,
     uint32_t publication_retries = 8u) {
+  (void)publication_retries;
   if (control == nullptr || packed_counts == nullptr ||
       wl.local_experts > kMaxRuntimeExperts) {
     PolicyDecision invalid{};
@@ -115,7 +113,6 @@ WEAVE_DEVICE PolicyDecision cta0_select_from_packed_hist(
     total += count;
   }
   control->stats_ready_epoch = epoch;
-  __threadfence();
   return cta0_select_and_publish(
       control, arch, wl, knobs, control->histogram,
       dedup_pulls == 0u ? total : dedup_pulls,
@@ -143,7 +140,6 @@ WEAVE_DEVICE bool wait_and_copy_policy(
     __nanosleep(32u);
 #endif
   }
-  __threadfence();
   *out_decision = control->decision;
   return out_decision->magic == kPolicyMagic &&
          out_decision->version == kPolicyVersion &&
@@ -151,9 +147,6 @@ WEAVE_DEVICE bool wait_and_copy_policy(
 }
 #endif  // CUDA / HIP device
 
-// Count local tokens routed to a remote rank.  DeepGEMM's dispatch counters
-// pack (number-of-SMs, local_count) into a uint64_t; the low word is the live
-// post-dispatch remote scatter row count M_out used by Eq. (3).
 template <typename WorkspaceT>
 WEAVE_DEVICE uint32_t count_remote_expert_sends(
     const WorkspaceT& workspace, uint32_t num_experts,
@@ -172,9 +165,6 @@ WEAVE_DEVICE uint32_t count_remote_expert_sends(
   return total;
 }
 
-// Acquire-load the published epoch, then copy the decision.  Used by kernels
-// that keep the policy in global workspace instead of CTA-local shared memory
-// (the H20 pre-barrier SMEM region is recycled by scatter/combine).
 #if defined(__CUDACC__) || defined(__HIPCC__)
 WEAVE_DEVICE PolicyDecision load_published_policy(
     const PolicyControl* control) {
@@ -183,17 +173,13 @@ WEAVE_DEVICE PolicyDecision load_published_policy(
     return d;
   }
   (void)policy_load_acquire(&control->published_epoch);
-  __threadfence();
   d = control->decision;
   return d;
 }
 #endif
 
-// Host helpers for tests and launch wrappers.
 WEAVE_HOST_DEVICE bool policy_is_valid(const PolicyDecision& d) {
   return d.magic == kPolicyMagic && d.version == kPolicyVersion && d.valid != 0u;
 }
 
 }  // namespace weave
-
-

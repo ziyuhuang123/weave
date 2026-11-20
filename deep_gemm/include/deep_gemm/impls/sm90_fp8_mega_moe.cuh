@@ -260,13 +260,86 @@
 #include <deep_gemm/layout/sm90_mega_moe.cuh>
 #include <deep_gemm/mma/sm90.cuh>
 #include <deep_gemm/scheduler/sm90_mega_moe.cuh>
+#include <deep_gemm/scheduler/weave_knobs.cuh>
 #include <deep_gemm/scheduler/weave_policy_runtime.cuh>
 #include <deep_gemm/ptx/ld_st.cuh>
 #include <deep_gemm/ptx/tma.cuh>
 #include <deep_gemm/ptx/utils.cuh>
 #include <deep_gemm/ptx/wgmma.cuh>
 #include <deep_gemm/impls/sm90_agy_profiler.cuh>
+
+#ifndef WEAVE_INLINE_ROLES
+#define WEAVE_INLINE_ROLES 0
+#endif
+
 namespace deep_gemm {
+
+// Scoped compile-time policy structs keep SM90 scheduling, strict binary
+// scatter ownership, partial-SM dispatch/scatter, and chunked dedup combine
+// sync cleanly factored so ptxas dead-eliminates inactive branches.
+template <uint32_t kActiveSmsReq, uint32_t kNumSMs>
+struct Sm90PartialSmPolicy {
+    static constexpr uint32_t kActiveSms =
+        (kActiveSmsReq > 0u and kActiveSmsReq < kNumSMs) ? kActiveSmsReq : kNumSMs;
+    static constexpr bool kThrottled = kActiveSms < kNumSMs;
+
+    // SM0-inclusive evenly-spaced subset of exactly kActiveSms SMs.
+    CUTLASS_DEVICE static bool is_active(const uint32_t sm_idx) {
+        if constexpr (not kThrottled) {
+            return true;
+        } else {
+            return sm_idx == 0u or
+                   ((sm_idx * kActiveSms) / kNumSMs != ((sm_idx - 1u) * kActiveSms) / kNumSMs);
+        }
+    }
+
+    // Dense rank in [0, kActiveSms) for any active SM.
+    CUTLASS_DEVICE static uint32_t active_rank(const uint32_t sm_idx) {
+        if constexpr (not kThrottled) {
+            return sm_idx;
+        } else {
+            return (sm_idx * kActiveSms) / kNumSMs;
+        }
+    }
+};
+
+template <uint32_t kOwnerKnob, uint32_t kStagingKnob, bool kLegacyDispRole,
+          bool kHbmQueueKnob, bool kLocalDedupKnob, uint32_t kScatterSmsKnob,
+          bool kRunsLinear2, bool kIsFused>
+struct Sm90ScatterPolicy {
+    static constexpr bool kHbmRequested =
+        kHbmQueueKnob or kLocalDedupKnob or (kStagingKnob == 2u) or
+        (kScatterSmsKnob > 0u and kStagingKnob != 1u and not kLegacyDispRole);
+    static constexpr bool kSmemRequested =
+        (kStagingKnob == 1u) or (kLegacyDispRole and not kHbmRequested);
+    static constexpr bool kCommOwned =
+        (kOwnerKnob == 1u) or kHbmRequested or kSmemRequested;
+    static constexpr uint32_t kStagingMode =
+        kHbmRequested ? 2u : (kSmemRequested ? 1u : 0u);
+    static constexpr bool kScatDispActive = kCommOwned and kRunsLinear2;
+    static constexpr bool kHbmQueueActive = kHbmRequested and kScatDispActive and kIsFused;
+    static constexpr bool kSmemHandoffActive = kScatDispActive and not kHbmQueueActive;
+    // Strict binary guarantee: under comm_only, Epilogue never issues remote NVLink stores.
+    static constexpr bool kEpilogueRemoteScatterAllowed = (not kCommOwned) and kRunsLinear2;
+
+    static_assert(not (kOwnerKnob == 0u and kStagingKnob != 0u),
+                  "WEAVE_SCATTER_OWNER=epilogue_only requires WEAVE_SCATTER_STAGING=reg_2stage");
+    static_assert(not (kOwnerKnob == 1u and kStagingMode == 0u),
+                  "WEAVE_SCATTER_OWNER=comm_only requires smem or hbm_dedup staging");
+    static_assert(not (kCommOwned and kEpilogueRemoteScatterAllowed),
+                  "Mixed Epilogue+Comm scatter is strictly forbidden");
+};
+
+template <uint32_t kChunkG, bool kHbmQueueActive, bool kIsFused>
+struct Sm90CombineSyncPolicy {
+    static constexpr uint32_t kChunkTokens = kChunkG;
+    static constexpr bool kActive = (kChunkG > 0u) and kHbmQueueActive and kIsFused;
+    static_assert(kChunkG == 0u or kChunkG == 16u or kChunkG == 32u or
+                  kChunkG == 64u or kChunkG == 128u,
+                  "WEAVE_COMBINE_SYNC_CHUNK must be 0, 16, 32, 64, or 128");
+    static_assert(kChunkG == 0u or kHbmQueueActive,
+                  "WEAVE_COMBINE_SYNC_CHUNK>0 requires hbm_dedup local scatter dedup");
+};
 
 // Pipeline (cluster=1, no TMA multicast):
 //   * Dispatch warps: pull tokens (FP8) and SF (per-128 channel float) from
@@ -504,14 +577,14 @@ struct SM90MegaMoECoreRunner {
     // Template checks
     DG_STATIC_ASSERT(kNumDispatchThreads == 64 or kNumDispatchThreads == 192 or kNumDispatchThreads % 128 == 0,
                      "Invalid number of dispatch threads");
-    DG_STATIC_ASSERT(WEAVE_BLOCK_M_L1 == 0 or WEAVE_BLOCK_M_L1 == BLOCK_M,
-                     "H20 has one static BLOCK_M; L1/L2 envelopes must match");
-    DG_STATIC_ASSERT(WEAVE_BLOCK_M_L2 == 0 or WEAVE_BLOCK_M_L2 == BLOCK_M,
-                     "H20 has one static BLOCK_M; L1/L2 envelopes must match");
+    DG_STATIC_ASSERT((not MegaMoEPhase::runs_linear1) or WEAVE_BLOCK_M_L1 == 0 or WEAVE_BLOCK_M_L1 == BLOCK_M,
+                     "L1 BLOCK_M disagrees with WEAVE_BLOCK_M_L1");
+    DG_STATIC_ASSERT((not MegaMoEPhase::runs_linear2) or WEAVE_BLOCK_M_L2 == 0 or WEAVE_BLOCK_M_L2 == BLOCK_M,
+                     "L2 BLOCK_M disagrees with WEAVE_BLOCK_M_L2");
     DG_STATIC_ASSERT(WEAVE_STORE_BLOCK_M_L1 == 0 or WEAVE_STORE_BLOCK_M_L1 == BLOCK_M,
                      "H20 stores the full block M in one pass");
     DG_STATIC_ASSERT(WEAVE_ADAPT_BM <= 1, "WEAVE_ADAPT_BM must be 0 or 1");
-    DG_STATIC_ASSERT(WEAVE_LOCAL_SCATTER_DEDUP == 0 or WEAVE_HBM_SCATTER_QUEUE != 0,
+    DG_STATIC_ASSERT(WEAVE_LOCAL_SCATTER_DEDUP == 0 or WEAVE_HBM_SCATTER_QUEUE != 0 or WEAVE_SCATTER_STAGING == 2,
                      "WEAVE_LOCAL_SCATTER_DEDUP requires the HBM scatter queue");
     DG_STATIC_ASSERT(WEAVE_DISPATCH_WARPS == 0 or WEAVE_DISPATCH_WARPS == kNumDispatchWarps,
                      "WEAVE_DISPATCH_WARPS disagrees with the launch thread layout");
@@ -635,16 +708,34 @@ struct SM90MegaMoECoreRunner {
 #else
     constexpr bool kAgyScatterRoleDispReq = false;
 #endif
-    constexpr bool kHbmScatQueueReq =
-        (WEAVE_HBM_SCATTER_QUEUE != 0) or (WEAVE_SCATTER_ACTIVE_SMS > 0);
-    constexpr uint32_t kScatterActiveSmsReq =
-        WEAVE_SCATTER_ACTIVE_SMS > 0 ? static_cast<uint32_t>(WEAVE_SCATTER_ACTIVE_SMS)
-                                     : static_cast<uint32_t>(kNumSMs);
-    constexpr bool kAgyScatterRoleDisp =
-        kAgyScatterRoleDispReq or kHbmScatQueueReq;
-    constexpr bool kScatDispActive = kAgyScatterRoleDisp and MegaMoEPhase::runs_linear2;
+    using ScatterPol = Sm90ScatterPolicy<
+        static_cast<uint32_t>(WEAVE_SCATTER_OWNER),
+        static_cast<uint32_t>(WEAVE_SCATTER_STAGING),
+        kAgyScatterRoleDispReq,
+        (WEAVE_HBM_SCATTER_QUEUE != 0),
+        (WEAVE_LOCAL_SCATTER_DEDUP != 0),
+        static_cast<uint32_t>(WEAVE_SCATTER_ACTIVE_SMS),
+        MegaMoEPhase::runs_linear2,
+        MegaMoEPhase::is_fused>;
+    using DispatchSmPol = Sm90PartialSmPolicy<
+        static_cast<uint32_t>(WEAVE_DISPATCH_ACTIVE_SMS), kNumSMs>;
+    using ScatterSmPol = Sm90PartialSmPolicy<
+        static_cast<uint32_t>(WEAVE_SCATTER_ACTIVE_SMS), kNumSMs>;
+    using CombineSyncPol = Sm90CombineSyncPolicy<
+        static_cast<uint32_t>(WEAVE_COMBINE_SYNC_CHUNK),
+        ScatterPol::kHbmQueueActive,
+        MegaMoEPhase::is_fused>;
+    constexpr bool kHbmScatQueueReq = ScatterPol::kHbmRequested;
+    constexpr bool kScatterOwnerComm = ScatterPol::kCommOwned;
+    constexpr bool kAgyScatterRoleDisp = ScatterPol::kCommOwned;
+    constexpr bool kScatDispActive = ScatterPol::kScatDispActive;
+    constexpr bool kHbmScatQueueActive = ScatterPol::kHbmQueueActive;
+    constexpr bool kCombineSyncChunkActive = CombineSyncPol::kActive;
+    constexpr uint32_t kCombineSyncChunk = CombineSyncPol::kChunkTokens > 0u ? CombineSyncPol::kChunkTokens : 32u;
+    constexpr uint32_t kScatterActiveSms = ScatterSmPol::kActiveSms;
+    constexpr uint32_t kDispatchActiveSms = DispatchSmPol::kActiveSms;
     constexpr bool kDirectL2Scatter =
-        (!kSwapABActive) && (!kAgyScatterRoleDisp) && MegaMoEPhase::direct_l2_scatter && WG_BLOCK_N == 128;
+        (!kSwapABActive) && (!kScatterOwnerComm) && MegaMoEPhase::direct_l2_scatter && WG_BLOCK_N == 128;
     constexpr bool kBF16ScaledAccum = kBF16ScaledAccumRequested;
     using L1WGMMA = typename mma::sm90::FP8MMASelector<WG_BLOCK_N>::type;
     static_assert(L1WGMMA::M == 64 and L1WGMMA::N == WG_BLOCK_N and L1WGMMA::K == 32,
@@ -815,21 +906,15 @@ struct SM90MegaMoECoreRunner {
     constexpr bool kAgyDedupDisp =
         kAgyDedupDispReq and ((3u * (kNumMaxPoolTokens / 8u)) >= kNumRanks * kNumMaxTokensPerRank);
 #if (defined(AGY_FAST_PULL) && AGY_FAST_PULL) || (defined(AGY_DEDUP_DISP) && AGY_DEDUP_DISP)
-    constexpr bool kAgyFastPull = true;
+    constexpr bool kAgyFastPull = (kNumRanks >= 2u);
 #else
     constexpr bool kAgyFastPull = false;
 #endif
 #if defined(AGY_DEDUP_SCAT) && AGY_DEDUP_SCAT
     constexpr bool kAgyDedupScatReq = true;
 #else
-    constexpr bool kAgyDedupScatReq = false;
+    constexpr bool kAgyDedupScatReq = kHbmScatQueueReq;
 #endif
-    constexpr bool kHbmScatQueueActive =
-        kHbmScatQueueReq and kScatDispActive and kAgyDedupScatReq and
-        MegaMoEPhase::is_fused;
-    constexpr uint32_t kScatterActiveSms =
-        cute::min(static_cast<uint32_t>(kNumSMs),
-                  cute::max(1u, kScatterActiveSmsReq));
     constexpr bool kDedupScatActive =
         kHbmScatQueueActive or
         ((not kAgyInterleaveActive) and (not kAgyScatterRoleDisp) and
@@ -886,6 +971,7 @@ struct SM90MegaMoECoreRunner {
 
     constexpr bool kAgyAllIdleCombActive =
         kAgyAllIdleCombReq and MegaMoEPhase::is_fused and kAgyFastComb and kAgyRegComb and
+        (not kCombineSyncChunkActive) and (not kHbmScatQueueActive) and
         ((kHidden % 512u) == 0u);
     constexpr uint32_t kExpertCacheBaseBytes =
         (7u * kNumExpertsPerRank + 19u) * static_cast<uint32_t>(sizeof(uint32_t));
@@ -2268,16 +2354,17 @@ struct SM90MegaMoECoreRunner {
         }
     };
 
-    constexpr bool kSwizzleScatL2 = (not kSwapABActive) and ((WG_BLOCK_N % 64u) == 0u);
+    constexpr bool kSwizzleScatL2 = ((WG_BLOCK_N % 64u) == 0u);
     const auto get_scat_l2_elem_idx = [](const uint32_t& wg_idx,
                                          const uint32_t& row_in_wg,
                                          const uint32_t& col_in_wg) -> uint32_t {
         if constexpr (kSwizzleScatL2) {
             const uint32_t chunk = col_in_wg >> 3;
             const uint32_t rem   = col_in_wg & 7u;
+            const uint32_t row_swz = kSwapABActive ? ((row_in_wg >> 1) & 7u) : (row_in_wg & 7u);
             return wg_idx * WG_BLOCK_M * WG_BLOCK_N +
                    row_in_wg * WG_BLOCK_N +
-                   ((chunk ^ (row_in_wg & 7u)) << 3) + rem;
+                   ((chunk ^ row_swz) << 3) + rem;
         } else {
             return wg_idx * WG_BLOCK_M * WG_BLOCK_N +
                    row_in_wg * WG_BLOCK_N + col_in_wg;
@@ -2521,14 +2608,13 @@ struct SM90MegaMoECoreRunner {
 
     const auto run_hbm_scatter_queue_drain = [&]() {
         if constexpr (kHbmScatQueueActive) {
-            const bool is_scatter_sm =
-                (sm_idx * kScatterActiveSms) / kNumSMs !=
-                ((sm_idx + 1u) * kScatterActiveSms) / kNumSMs;
+            const bool is_scatter_sm = ScatterSmPol::is_active(sm_idx);
             if (not is_scatter_sm) {
-                // Quiet dispatch warps: the Pull phase is complete; do not touch
-                // L2/NVLink until the local epilogue has published every row.
-                while (ptx::ld_acq(hbm_epilogue_done) < kNumSMs) {
-                    __nanosleep(2000);
+                // Quiet dispatch warps: Pull is complete; do not touch L2/NVLink.
+                if constexpr (not kCombineSyncChunkActive) {
+                    while (ptx::ld_acq(hbm_epilogue_done) < kNumSMs) {
+                        __nanosleep(2000);
+                    }
                 }
                 return;
             }
@@ -2538,35 +2624,40 @@ struct SM90MegaMoECoreRunner {
 
             while (true) {
                 uint32_t queue_idx = 0xffffffffu;
-                while (true) {
-                    const uint32_t head = ptx::ld_acq(hbm_queue_head);
-                    uint32_t tail = ptx::ld_acq(hbm_queue_tail);
-                    if (head >= tail) {
-                        if (ptx::ld_acq(hbm_epilogue_done) >= kNumSMs) {
-                            // Acquire the producer epoch before re-reading the
-                            // tail; otherwise a stale tail read could make the
-                            // drainer exit with rows still queued.
-                            tail = ptx::ld_acq(hbm_queue_tail);
-                            if (head >= tail) {
-                                break;
+                if (lane_idx == 0u) {
+                    while (true) {
+                        const uint32_t head = ptx::ld_acq(hbm_queue_head);
+                        uint32_t tail = ptx::ld_acq(hbm_queue_tail);
+                        if (head >= tail) {
+                            if (ptx::ld_acq(hbm_epilogue_done) >= kNumSMs) {
+                                // Acquire the producer epoch before re-reading the
+                                // tail; otherwise a stale tail read could make the
+                                // drainer exit with rows still queued.
+                                tail = ptx::ld_acq(hbm_queue_tail);
+                                if (head >= tail) {
+                                    break;
+                                }
+                            } else {
+                                __nanosleep(200);
+                                continue;
                             }
-                        } else {
-                            __nanosleep(500);
-                            continue;
+                        }
+                        if (atomicCAS(hbm_queue_head, head, head + 1u) == head) {
+                            queue_idx = head;
+                            break;
                         }
                     }
-                    if (atomicCAS(hbm_queue_head, head, head + 1u) == head) {
-                        queue_idx = head;
-                        break;
+                    if (queue_idx != 0xffffffffu) {
+                        while (ptx::ld_acq(hbm_queue_ready + queue_idx) == 0u) {
+                            __nanosleep(50);
+                        }
                     }
                 }
+                queue_idx = __shfl_sync(0xffffffffu, queue_idx, 0);
                 if (queue_idx == 0xffffffffu) {
                     break;
                 }
 
-                while (ptx::ld_acq(hbm_queue_ready + queue_idx) == 0u) {
-                    __nanosleep(200);
-                }
                 const layout::nv_moe::ScatterQueueDesc desc = hbm_queue_desc[queue_idx];
                 AGY_PROF_DISP_SCAT_BEGIN(MegaMoEPhase, sm_idx, warp_idx, lane_idx,
                                          kNumDispatchWarps, desc.token / BLOCK_M,
@@ -2584,15 +2675,36 @@ struct SM90MegaMoECoreRunner {
                     dst_vec[v] = src_vec[v];
                 }
                 __syncwarp();
-                hbm_queue_ready[queue_idx] = 0u;
-                ptx::red_add_rel(hbm_queue_completed, 1u);
+                if (lane_idx == 0u) {
+                    hbm_queue_ready[queue_idx] = 0u;
+                    if constexpr (kCombineSyncChunkActive) {
+                        const uint32_t chunk_id = desc.token / kCombineSyncChunk;
+                        // Flush this warp's NVLink stores to system visibility before
+                        // incrementing the cheap local L2 chunk counter.
+                        ptx::fence_acq_rel_sys();
+                        auto* sent_ptr = workspace.get_combine_chunk_sent_ptr(desc.dst_rank, chunk_id);
+                        const uint32_t prev_sent = ptx::atomic_add_acq_rel_gpu(sent_ptr, 1u);
+                        auto* exp_ptr = workspace.get_combine_chunk_expected_ptr(desc.dst_rank, chunk_id);
+                        const uint32_t expected = *exp_ptr;
+                        if (prev_sent + 1u == expected) {
+                            *sent_ptr = 0u;
+                            *exp_ptr = 0u;
+                            auto* remote_ready = sym_buffer.map(
+                                workspace.get_combine_chunk_ready_ptr(chunk_id), desc.dst_rank);
+                            asm volatile("red.release.sys.global.add.u32 [%0], 1;"
+                                         :: "l"(remote_ready) : "memory");
+                        }
+                    }
+                    ptx::red_add_rel(hbm_queue_completed, 1u);
+                }
                 AGY_PROF_DISP_SCAT_END(MegaMoEPhase, sm_idx, warp_idx, lane_idx,
                                        kNumDispatchWarps, desc.token / BLOCK_M,
                                        desc.topk);
             }
-            // Order every peer-memory store before the CTA/NVLink barriers that
-            // release the combine phase.
-            ptx::fence_acq_rel_sys();
+            // Order every peer-memory store before CTA/NVLink barriers that release combine.
+            if constexpr (not kCombineSyncChunkActive) {
+                ptx::fence_acq_rel_sys();
+            }
         }
     };
 
@@ -2818,6 +2930,14 @@ struct SM90MegaMoECoreRunner {
                         const uint32_t dup_count = static_cast<uint32_t>(__popc(peer_mask));
                         const uint32_t leader_topk = static_cast<uint32_t>(__ffs(peer_mask) - 1) - group_id * kNumTopk;
                         packed_send = (dup_count << 26) | (leader_topk << 21) | token_topk_idx;
+                        if constexpr (kCombineSyncChunkActive) {
+                            const uint32_t my_topk_in_group = lane_idx - group_id * kNumTopk;
+                            if (my_topk_in_group == leader_topk) {
+                                const uint32_t chunk_id = (i + group_id) / kCombineSyncChunk;
+                                ptx::atomic_add(
+                                    workspace.get_combine_chunk_send_cnt_ptr(dst_rank_idx, chunk_id), 1u);
+                            }
+                        }
                     }
                     *sym_buffer.map(dst_ptr, dst_rank_idx) = packed_send;
                     if constexpr (kAgyFastPull) {
@@ -2911,6 +3031,24 @@ struct SM90MegaMoECoreRunner {
                         expert_status);
                 }
             }
+            if constexpr (kCombineSyncChunkActive) {
+                const uint32_t num_chunks = math::ceil_div(num_tokens, kCombineSyncChunk);
+                for (uint32_t c = thread_idx; c < num_chunks; c += kNumDispatchThreads) {
+                    uint32_t target_ranks = 0u;
+                    for (uint32_t sr = 0u; sr < kNumRanks; ++sr) {
+                        auto* send_ptr = workspace.get_combine_chunk_send_cnt_ptr(sr, c);
+                        const uint32_t cnt = *send_ptr;
+                        *send_ptr = 0u;
+                        if (cnt > 0u) {
+                            *sym_buffer.map(
+                                workspace.get_combine_chunk_expected_ptr(sym_buffer.rank_idx, c),
+                                sr) = cnt;
+                            ++target_ranks;
+                        }
+                    }
+                    *workspace.get_combine_chunk_target_ptr(c) = target_ranks;
+                }
+            }
         }
         ptx::sync_aligned(kNumDispatchThreads, kDispatchBarrierIdx);
         if constexpr (kAgyHeteroD8D4) {
@@ -2929,26 +3067,42 @@ struct SM90MegaMoECoreRunner {
         AGY_PROF_AFTER_BAR1(MegaMoEPhase, sm_idx, warp_idx, lane_idx);
 
         // CTA 0 evaluates Eq.(1)-(3) on the live post-dispatch histogram and
-        // publishes one decision.  The decision lives in global workspace:
-        // the pre-barrier SMEM region below is recycled by scatter/combine, so
-        // aliasing smem_expert_count would silently destroy the policy.
-        if (thread_idx == 0u) {
+        // publishes one decision.  Populate SMEM expert cache first so all 78 SMs
+        // overlap their cache loads, compute m_out in parallel across warp 0, and
+        // avoid single-thread serial scans over 512 global counters.
+        if constexpr (kAgyUseExpertCache) {
+            populate_smem_expert_cache();
+        }
+        if (warp_idx == 0u) {
             const uint32_t weave_epoch = weave_epoch_base + 1u;
             if (sm_idx == 0u) {
-                const weave::WorkloadSpec wl{
-                    kNumExpertsPerRank,
-                    static_cast<uint32_t>(kHidden),
-                    static_cast<uint32_t>(kIntermediateHidden)};
-                const weave::WeaveKnobs knobs =
-                    weave::default_weave_knobs(weave::HardwareArch::H20_SM90);
-                const uint32_t m_out = weave::count_remote_expert_sends(
-                    workspace, kNumExperts, kNumExpertsPerRank,
-                    static_cast<uint32_t>(sym_buffer.rank_idx));
-                (void)weave::cta0_select_from_packed_hist(
-                    weave_control, weave::HardwareArch::H20_SM90, wl, knobs,
-                    workspace.get_expert_recv_count_sum_ptr(),
-                    0u, m_out, weave_epoch);
-            } else {
+                uint32_t m_out_lane = 0u;
+                for (uint32_t e = lane_idx; e < kNumExperts; e += 32u) {
+                    if (e / kNumExpertsPerRank != static_cast<uint32_t>(sym_buffer.rank_idx)) {
+                        m_out_lane += static_cast<uint32_t>(
+                            *workspace.get_expert_send_count_ptr(e));
+                    }
+                }
+                const uint32_t m_out = __reduce_add_sync(0xffffffffu, m_out_lane);
+                if (lane_idx == 0u) {
+                    const weave::WorkloadSpec wl{
+                        kNumExpertsPerRank,
+                        static_cast<uint32_t>(kHidden),
+                        static_cast<uint32_t>(kIntermediateHidden)};
+                    const weave::WeaveKnobs knobs =
+                        weave::default_weave_knobs(weave::HardwareArch::H20_SM90);
+                    if constexpr (kAgyUseExpertCache) {
+                        (void)weave::cta0_select_and_publish(
+                            weave_control, weave::HardwareArch::H20_SM90, wl, knobs,
+                            smem_expert_cache->recv_tokens, 0u, m_out, weave_epoch);
+                    } else {
+                        (void)weave::cta0_select_from_packed_hist(
+                            weave_control, weave::HardwareArch::H20_SM90, wl, knobs,
+                            workspace.get_expert_recv_count_sum_ptr(),
+                            0u, m_out, weave_epoch);
+                    }
+                }
+            } else if (lane_idx == 0u) {
                 weave::PolicyDecision discarded{};
                 (void)weave::wait_and_copy_policy(
                     weave_control, weave_epoch, &discarded);
@@ -2963,7 +3117,6 @@ struct SM90MegaMoECoreRunner {
         }
 
         if constexpr (kAgyUseExpertCache) {
-            populate_smem_expert_cache();
 #if defined(AGY_DEDUP_STATS) && AGY_DEDUP_STATS
             if (sm_idx == 0 and warp_idx == 0) {
                 uint32_t m_sum = 0u, active_e = 0u;
@@ -3143,23 +3296,30 @@ struct SM90MegaMoECoreRunner {
             : (selected_v_head < total_recv_tokens ? selected_v_head : total_recv_tokens);
 
         constexpr bool kSm0StreamSchedActive = WEAVE_SM0_STREAM_SCHED != 0;
+        const bool is_dispatch_pull_sm =
+            kSm0StreamSchedActive ? (sm_idx != 0u) : DispatchSmPol::is_active(sm_idx);
         const uint32_t pull_sm_idx = kSm0StreamSchedActive
-            ? (sm_idx == 0u ? kNumSMs : sm_idx - 1u) : sm_idx;
-        const uint32_t pull_num_sms = kSm0StreamSchedActive ? (kNumSMs - 1u) : kNumSMs;
+            ? (sm_idx == 0u ? kNumSMs : sm_idx - 1u)
+            : DispatchSmPol::active_rank(sm_idx);
+        const uint32_t pull_num_sms = kSm0StreamSchedActive
+            ? (kNumSMs - 1u) : kDispatchActiveSms;
         uint32_t pull_token_start = kAgyHeteroD8D4
             ? hetero_pull_start
             : (pull_sm_idx * kNumDispatchWarps + warp_idx);
-        if constexpr (kSm0StreamSchedActive) {
-            if (sm_idx == 0u)
-                pull_token_start = 0xffffffffu;
+        if (not kAgyHeteroD8D4 and not is_dispatch_pull_sm) {
+            pull_token_start = 0xffffffffu;
         }
         const uint32_t pull_token_stride = kAgyHeteroD8D4
             ? hetero_pull_stride
             : (pull_num_sms * kNumDispatchWarps);
-        if (warp_idx == 0u or ((not (kAgyHeteroD8D4 and MegaMoEPhase::is_fused) or warp_idx < active_d_warps) and pull_token_stride > 0u)) {
+        const bool warp_runs_pull =
+            (not (kAgyHeteroD8D4 and MegaMoEPhase::is_fused) or warp_idx < active_d_warps) and
+            (kAgyHeteroD8D4 or is_dispatch_pull_sm) and
+            (pull_token_stride > 0u);
+        if (warp_idx == 0u or warp_runs_pull) {
             AGY_PROF_BEFORE_PULL(MegaMoEPhase, sm_idx, warp_idx, lane_idx, kNumDispatchWarps);
         }
-        if ((not (kAgyHeteroD8D4 and MegaMoEPhase::is_fused) or warp_idx < active_d_warps) and pull_token_stride > 0u) {
+        if (warp_runs_pull) {
         for (uint32_t token_idx = pull_token_start; ; token_idx += pull_token_stride) {
             constexpr uint32_t kHeadPullChunk = WEAVE_HEAD_PULL_CHUNK;
             const uint32_t effective_head_pull_end = kHeadPullChunk == 0u
@@ -3463,29 +3623,46 @@ struct SM90MegaMoECoreRunner {
             if constexpr (kScatDispActive) {
                 if constexpr (kHbmScatQueueActive) {
                     // Throttled global HBM queue drainer.  Non-active SMs stay
-                    // in __nanosleep and never issue NVLink stores.
+                    // quiet and never issue NVLink stores.
                     run_hbm_scatter_queue_drain();
                 } else {
-                    // Temporal policy: s=comm uses the dispatch-warp handoff;
-                    // s=epi leaves the write to the inline epilogue path.
-                    const weave::PolicyDecision scatter_policy =
-                        weave::load_published_policy(weave_control);
-                    const bool policy_valid = weave::policy_is_valid(scatter_policy);
-                    if (!policy_valid ||
-                        scatter_policy.selected_scatter_mode ==
-                            static_cast<uint32_t>(weave::ScatterPath::CommQueueAsync)) {
-                        run_dispatch_l2_scatter_loop();
-                    }
+                    // Strict comm_only SMEM handoff: Dispatch owns every remote store.
+                    run_dispatch_l2_scatter_loop();
                 }
                 if constexpr (kAgyUseExpertCache) {
                     load_scheduler_from_expert_cache();
                 } else {
                     scheduler.fetch_expert_recv_count();
                 }
-                ptx::sync_unaligned(kNumDispatchThreads + kNumEpilogueThreads, kDispatchWithEpilogueBarrierIdx);
+                if constexpr (not kCombineSyncChunkActive) {
+                    ptx::sync_unaligned(kNumDispatchThreads + kNumEpilogueThreads, kDispatchWithEpilogueBarrierIdx);
+                }
             }
             ptx::sync_unaligned(kNumDispatchThreads + kNumEpilogueThreads, kDispatchWithEpilogueBarrierIdx);
-            if constexpr (kAgyAllIdleCombActive) {
+            if constexpr (kCombineSyncChunkActive) {
+                // Ensure every SM has finished both tail scatter drain and chunked
+                // combine reduce before resetting chunk counters and workspace.
+                comm::grid_sync<
+                    kNumSMs, kDispatchGridSyncIndex,
+                    comm::BarrierTimeoutPolicy::TrapOnly>(
+                    workspace, sm_idx, thread_idx,
+                    [=]() { ptx::sync_aligned(kNumDispatchThreads, kDispatchBarrierIdx); }
+                );
+                if (sm_idx == 0u) {
+                    const uint32_t num_chunks = math::ceil_div(num_tokens, kCombineSyncChunk);
+                    for (uint32_t c = thread_idx; c < num_chunks; c += kNumDispatchThreads) {
+                        *workspace.get_combine_chunk_ready_ptr(c) = 0u;
+                        *workspace.get_combine_chunk_target_ptr(c) = 0u;
+                    }
+                    if (thread_idx == 0u) {
+                        *hbm_queue_tail = 0u;
+                        *hbm_queue_head = 0u;
+                        *hbm_queue_completed = 0u;
+                        *hbm_epilogue_done = 0u;
+                    }
+                }
+            }
+        if constexpr (kAgyAllIdleCombActive) {
                 AGY_PROF_DISP_COMB_BEGIN(MegaMoEPhase, sm_idx, warp_idx, lane_idx, kNumDispatchWarps);
                 constexpr uint32_t kTotalCombWarpsPerSM = kNumDispatchWarps + kNumEpilogueWarps;
                 run_all_idle_reg_combine(sm_idx * kTotalCombWarpsPerSM + warp_idx,
@@ -3495,6 +3672,14 @@ struct SM90MegaMoECoreRunner {
             AGY_PROF_DISP_CLEANUP_BEGIN(MegaMoEPhase, sm_idx, warp_idx, lane_idx,
                                         (not kScatDispActive and not kAgyAllIdleCombActive));
             cleanup_workspace();
+            if constexpr (kHbmScatQueueActive and not kCombineSyncChunkActive) {
+                if (sm_idx == 0u and thread_idx == 0u) {
+                    *hbm_queue_tail = 0u;
+                    *hbm_queue_head = 0u;
+                    *hbm_queue_completed = 0u;
+                    *hbm_epilogue_done = 0u;
+                }
+            }
             AGY_PROF_DISP_CLEANUP_END(MegaMoEPhase, sm_idx, warp_idx, lane_idx);
             comm::nvlink_barrier<
                 kNumRanks, kNumSMs, kNumDispatchThreads,
@@ -3504,17 +3689,6 @@ struct SM90MegaMoECoreRunner {
                 [=]() { ptx::sync_aligned(kNumDispatchThreads, kDispatchBarrierIdx); },
                 true, false);
             AGY_PROF_DISP_BAR3_END(MegaMoEPhase, sm_idx, warp_idx, lane_idx);
-            if constexpr (kHbmScatQueueActive) {
-                if (sm_idx == 0 and thread_idx == 0) {
-                    // The cross-rank barrier above proves every rank consumed its
-                    // queue.  Reset only the four control words; ready flags and
-                    // per-slot counters are cleared on the fly by their consumers.
-                    *hbm_queue_tail = 0u;
-                    *hbm_queue_head = 0u;
-                    *hbm_queue_completed = 0u;
-                    *hbm_epilogue_done = 0u;
-                }
-            }
         }
         AGY_PROF_DISP_CLOSE(MegaMoEPhase, sm_idx, warp_idx, lane_idx, kNumDispatchWarps);
         return;
@@ -5534,7 +5708,8 @@ struct SM90MegaMoECoreRunner {
             }
 
             AGY_PROF_TILE_STORE_BEGIN(MegaMoEPhase, sm_idx, epilogue_wg_idx, warp_idx_in_wg, lane_idx,
-                                      is_linear1_phase, local_expert_idx, m_block_idx, n_block_idx);
+                                      is_linear1_phase, local_expert_idx, m_block_idx, n_block_idx,
+                                      kScatterOwnerComm);
             if (is_linear1_phase) {
                 if constexpr (kScatDispActive and not kHbmScatQueueActive and
                               (kScatL2RawBytes > SMEM_DISPATCH_TOTAL_SIZE)) {
@@ -6274,22 +6449,13 @@ struct SM90MegaMoECoreRunner {
                             const uint32_t dup_count = dup_count_raw == 0u ? 1u : dup_count_raw;
                             const uint32_t leader_topk_idx = (raw_topk_meta >> 8) & 0xffu;
                             const uint32_t slot = hbm_scatter_slot_idx(dst_rank_idx, dst_token_idx);
-                            const uint32_t chunk_idx = n_idx / WG_BLOCK_N;
-                            uint32_t* const cnt_ptr =
-                                hbm_chunk_count_base + slot * hbm_max_chunks + chunk_idx;
                             auto* const stage_ptr =
                                 hbm_stage_base +
                                 static_cast<uint64_t>(slot) * kHidden * sizeof(nv_bfloat16) +
                                 n_idx * sizeof(nv_bfloat16) +
                                 lane_in_row * kScatterBytesPerLane;
 
-                            uint32_t ticket = 0u;
-                            if (lane_in_row == 0u) {
-                                ticket = ptx::atomic_add(cnt_ptr, 1u) & 0xffffu;
-                            }
-                            ticket = __shfl_sync(half_mask, ticket, half_base_lane);
-
-                            if (ticket == 0u) {
+                            auto write_stage_vec = [&]() {
                                 if constexpr (kScatterBytesPerLane == 32u) {
                                     reinterpret_cast<uint4*>(stage_ptr)[0] =
                                         reinterpret_cast<const uint4*>(smem_ptr)[0];
@@ -6304,12 +6470,48 @@ struct SM90MegaMoECoreRunner {
                                     *reinterpret_cast<uint2*>(stage_ptr) =
                                         *reinterpret_cast<const uint2*>(smem_ptr);
                                 }
+                            };
+
+                            if (dup_count == 1u) {
+                                // Fast path: unique (dst_rank, dst_token) on this rank ->
+                                // zero cnt_ptr atomics, zero spin-waits, single GPU release.
+                                write_stage_vec();
+                                asm volatile("fence.release.gpu;" ::: "memory");
                                 __syncwarp(half_mask);
                                 if (lane_in_row == 0u) {
-                                    asm volatile("fence.acq_rel.gpu;" ::: "memory");
-                                    ptx::atomic_add_rel(cnt_ptr, 0x40000000u);
+                                    const uint32_t prev_done = ptx::atomic_add_acq_rel_gpu(
+                                        hbm_chunks_done_base + slot, 1u);
+                                    if (prev_done + 1u == kHbmScatterChunks) {
+                                        hbm_chunks_done_base[slot] = 0u;
+                                        hbm_enqueue_descriptor(slot, dst_rank_idx,
+                                                               dst_token_idx, leader_topk_idx);
+                                    }
                                 }
                                 __syncwarp(half_mask);
+                                continue;
+                            }
+
+                            const uint32_t chunk_idx = n_idx / WG_BLOCK_N;
+                            uint32_t* const cnt_ptr =
+                                hbm_chunk_count_base + slot * hbm_max_chunks + chunk_idx;
+                            uint32_t ticket = 0u;
+                            if (lane_in_row == 0u) {
+                                ticket = ptx::atomic_add(cnt_ptr, 1u) & 0xffffu;
+                            }
+                            ticket = __shfl_sync(half_mask, ticket, half_base_lane);
+
+                            uint32_t is_chunk_last = 0u;
+                            if (ticket == 0u) {
+                                write_stage_vec();
+                                asm volatile("fence.release.gpu;" ::: "memory");
+                                __syncwarp(half_mask);
+                                if (lane_in_row == 0u) {
+                                    // Merge init-done (0x40000000) and contributor-done (0x00010000)
+                                    // into ONE release atomic instead of two separate fence+atomic pairs!
+                                    const uint32_t prev_fin = ptx::atomic_add_rel(cnt_ptr, 0x40010000u);
+                                    is_chunk_last =
+                                        ((((prev_fin >> 16) & 0xffu) + 1u) == dup_count) ? 1u : 0u;
+                                }
                             } else {
                                 if (lane_in_row == 0u) {
                                     while ((ptx::ld_acq(cnt_ptr) & 0x40000000u) == 0u) {
@@ -6324,37 +6526,31 @@ struct SM90MegaMoECoreRunner {
                                 for (uint32_t p = 0; p < kScatterBytesPerLane / 4u; ++p) {
                                     atomicAdd(stage_bf162 + p, smem_bf162[p]);
                                 }
+                                asm volatile("fence.release.gpu;" ::: "memory");
                                 __syncwarp(half_mask);
-                            }
-
-                            uint32_t is_chunk_last = 0u;
-                            if (lane_in_row == 0u) {
-                                asm volatile("fence.acq_rel.gpu;" ::: "memory");
-                                const uint32_t prev_fin = ptx::atomic_add_rel(cnt_ptr, 0x00010000u);
-                                is_chunk_last =
-                                    ((((prev_fin >> 16) & 0xffu) + 1u) == dup_count) ? 1u : 0u;
+                                if (lane_in_row == 0u) {
+                                    const uint32_t prev_fin = ptx::atomic_add_rel(cnt_ptr, 0x00010000u);
+                                    is_chunk_last =
+                                        ((((prev_fin >> 16) & 0xffu) + 1u) == dup_count) ? 1u : 0u;
+                                }
                             }
                             is_chunk_last = __shfl_sync(half_mask, is_chunk_last, half_base_lane);
                             if (is_chunk_last) {
-                                uint32_t is_row_last = 0u;
                                 if (lane_in_row == 0u) {
-                                    asm volatile("fence.acq_rel.gpu;" ::: "memory");
                                     const uint32_t prev_done = ptx::atomic_add_acq_rel_gpu(
                                         hbm_chunks_done_base + slot, 1u);
-                                    is_row_last =
-                                        (prev_done + 1u == kHbmScatterChunks) ? 1u : 0u;
-                                    if (is_row_last) {
+                                    if (prev_done + 1u == kHbmScatterChunks) {
                                         hbm_chunks_done_base[slot] = 0u;
                                         hbm_enqueue_descriptor(slot, dst_rank_idx,
                                                                dst_token_idx, leader_topk_idx);
                                     }
                                     *cnt_ptr = 0u;
                                 }
-                                (void)is_row_last;
                             }
                             __syncwarp(half_mask);
                             continue;
                         }
+                        if constexpr (not kScatterOwnerComm) {
                         if constexpr (kDedupScatActive) {
                             const uint32_t dup_count = (raw_topk_meta >> 16) & 0xffu;
                             const uint32_t leader_topk_idx = (raw_topk_meta >> 8) & 0xffu;
@@ -6467,6 +6663,7 @@ struct SM90MegaMoECoreRunner {
                             *reinterpret_cast<uint32_t*>(mapped_dst_ptr) =
                                 *reinterpret_cast<uint32_t*>(smem_ptr);
                         }
+                        } // end if constexpr (not kScatterOwnerComm)
                     }
 
                     if constexpr (kAgyFastSwapL2 and not kAgyInterleaveActive) {
@@ -6483,7 +6680,8 @@ struct SM90MegaMoECoreRunner {
                 }
             }
             AGY_PROF_TILE_STORE_END(MegaMoEPhase, sm_idx, epilogue_wg_idx, warp_idx_in_wg, lane_idx,
-                                    is_linear1_phase, local_expert_idx, m_block_idx, n_block_idx);
+                                    is_linear1_phase, local_expert_idx, m_block_idx, n_block_idx,
+                                    kScatterOwnerComm);
         });
 
         if constexpr (!MegaMoEPhase::runs_linear2) {
@@ -6492,15 +6690,18 @@ struct SM90MegaMoECoreRunner {
         }
 
         if constexpr (kHbmScatQueueActive) {
-            // Every epilogue warpgroup has published its staging chunks.  Signal
-            // the throttled drainer, then rendezvous so no epilogue thread enters
-            // the cross-rank combine barrier before local NVLink stores complete.
+            // Every epilogue warpgroup has published its staging chunks. Signal
+            // the throttled drainer; under chunked combine sync we skip the
+            // rendezvous and stream Combine concurrently with tail Scatter.
             ptx::sync_aligned(kNumEpilogueThreads, kEpilogueFullBarrierIdx);
             if (epilogue_thread_idx == 0u) {
+                asm volatile("fence.acq_rel.gpu;" ::: "memory");
                 ptx::red_add_rel(hbm_epilogue_done, 1u);
             }
-            ptx::sync_unaligned(kNumDispatchThreads + kNumEpilogueThreads,
-                                kDispatchWithEpilogueBarrierIdx);
+            if constexpr (not kCombineSyncChunkActive) {
+                ptx::sync_unaligned(kNumDispatchThreads + kNumEpilogueThreads,
+                                    kDispatchWithEpilogueBarrierIdx);
+            }
         } else if constexpr (kScatDispActive) {
             if (not scat_slot_free) {
                 sm90_fp8_mega_moe_scat_bar_wait(scat_free_bar, math_scat_phase);
@@ -6521,21 +6722,23 @@ struct SM90MegaMoECoreRunner {
         }
 
         // Combine
-        // NVLink barrier first: signals remote ranks that this rank's GEMM
-        // outputs (NVLink scatter targets) are fully written.
-        AGY_PROF_BEFORE_BAR2(MegaMoEPhase, sm_idx, epilogue_wg_idx, warp_idx_in_wg, lane_idx);
-        comm::nvlink_barrier<
-            kNumRanks, kNumSMs, kNumEpilogueThreads,
-            kEpilogueGridSyncIndex, kBeforeCombineReduceBarrierTag,
-            comm::BarrierTimeoutPolicy::TrapOnly>(
-            workspace, sym_buffer, sm_idx, epilogue_thread_idx,
-            [&]() { ptx::sync_aligned(kNumEpilogueThreads, kEpilogueFullBarrierIdx); }
-        );
-        AGY_PROF_AFTER_BAR2(MegaMoEPhase, sm_idx, epilogue_thread_idx);
-        // Sync with dispatch (paired with dispatch's pre-cleanup sync) so that
-        // dispatch may now safely clean workspace state.
-        ptx::sync_unaligned(kNumDispatchThreads + kNumEpilogueThreads, kDispatchWithEpilogueBarrierIdx);
-        AGY_PROF_COMBINE_BEGIN(MegaMoEPhase, sm_idx, epilogue_wg_idx, warp_idx_in_wg, lane_idx);
+        if constexpr (not kCombineSyncChunkActive) {
+            // NVLink barrier first: signals remote ranks that this rank's GEMM
+            // outputs (NVLink scatter targets) are fully written.
+            AGY_PROF_BEFORE_BAR2(MegaMoEPhase, sm_idx, epilogue_wg_idx, warp_idx_in_wg, lane_idx);
+            comm::nvlink_barrier<
+                kNumRanks, kNumSMs, kNumEpilogueThreads,
+                kEpilogueGridSyncIndex, kBeforeCombineReduceBarrierTag,
+                comm::BarrierTimeoutPolicy::TrapOnly>(
+                workspace, sym_buffer, sm_idx, epilogue_thread_idx,
+                [&]() { ptx::sync_aligned(kNumEpilogueThreads, kEpilogueFullBarrierIdx); }
+            );
+            AGY_PROF_AFTER_BAR2(MegaMoEPhase, sm_idx, epilogue_thread_idx);
+            // Sync with dispatch (paired with dispatch's pre-cleanup sync) so that
+            // dispatch may now safely clean workspace state.
+            ptx::sync_unaligned(kNumDispatchThreads + kNumEpilogueThreads, kDispatchWithEpilogueBarrierIdx);
+            AGY_PROF_COMBINE_BEGIN(MegaMoEPhase, sm_idx, epilogue_wg_idx, warp_idx_in_wg, lane_idx);
+        }
 
         constexpr uint32_t kNumChunks = kCombineNumChunks;
         constexpr uint32_t kInputChunkBytes = kCombineInputChunkBytes;
@@ -6579,7 +6782,9 @@ struct SM90MegaMoECoreRunner {
                     const uint32_t slot_dst_rank = static_cast<uint32_t>(stored_topk_slot_idx) / kNumExpertsPerRank;
                     const uint32_t peer_mask = __match_any_sync(total_mask, slot_dst_rank);
                     const uint32_t leader_lane = static_cast<uint32_t>(__ffs(peer_mask) - 1);
-                    keep_slot = (slot_dst_rank == sym_buffer.rank_idx) or (lane_idx == leader_lane);
+                    keep_slot = kHbmScatQueueActive
+                        ? (lane_idx == leader_lane)
+                        : ((slot_dst_rank == sym_buffer.rank_idx) or (lane_idx == leader_lane));
                 }
                 total_mask = __ballot_sync(0xffffffff, keep_slot);
             }
@@ -6788,7 +6993,157 @@ struct SM90MegaMoECoreRunner {
             }
         };
 
-        if constexpr (kAgyAllIdleCombActive) {
+        if constexpr (kCombineSyncChunkActive) {
+            // Chunked Dedup Combine Sync: stream Combine Reduce per G-token chunk
+            // as soon as all contributing ranks have sent their deduplicated rows,
+            // overlapping directly with tail Scatter with zero global barrier!
+            constexpr uint32_t kTotalEpiWarps = kNumSMs * kNumEpilogueWarps;
+            constexpr uint32_t kFineChunks = kHidden / 256u;
+            constexpr uint32_t kDualChunks = ((kHidden % 512u) == 0u) ? (kHidden / 512u) : kFineChunks;
+            constexpr uint32_t kStreamChunks =
+                ((kCombineSyncChunk * kFineChunks) <= kTotalEpiWarps) ? kFineChunks : kDualChunks;
+            constexpr uint32_t kStreamInputBytes = kCombineInputHiddenBytes / kStreamChunks;
+            constexpr uint32_t kStreamOutputBytes = kCombineOutputHiddenBytes / kStreamChunks;
+            constexpr uint32_t kStreamVecsPerLane = (kHidden / kStreamChunks) / (32u * kElemsPerVector);
+            static_assert(kStreamVecsPerLane <= 2u, "Chunked stream combine expects <= 2 uint4 per lane");
+            const bool y_aligned_16 = (reinterpret_cast<uintptr_t>(y) & 15u) == 0u;
+            const uint32_t my_warp_gid = sm_idx * kNumEpilogueWarps + epilogue_warp_idx;
+            const uint32_t num_chunks = math::ceil_div(num_tokens, kCombineSyncChunk);
+            bool prof_started = false;
+
+            auto reduce_token_range = [&](const uint32_t tok_lo, const uint32_t tok_hi) {
+                const uint32_t range_tokens = tok_hi - tok_lo;
+                const uint32_t total_items = range_tokens * kStreamChunks;
+                uint32_t cached_token = 0xffffffffu;
+                uint32_t cached_mask = 0u;
+                for (uint32_t work_id = my_warp_gid; work_id < total_items; work_id += kTotalEpiWarps) {
+                    const uint32_t token_idx = tok_lo + (work_id / kStreamChunks);
+                    const uint32_t chunk = work_id % kStreamChunks;
+                    if (token_idx != cached_token) {
+                        cached_token = token_idx;
+                        cached_mask = compute_token_combine_mask(token_idx);
+                    }
+                    const uint32_t input_off = chunk * kStreamInputBytes;
+                    const uint32_t output_off = chunk * kStreamOutputBytes;
+                    uint32_t mask = cached_mask;
+                    float2 reduced[kStreamVecsPerLane * kNumBF16PairsPerVector] = {};
+                    while (mask & (mask - 1u)) {
+                        const uint32_t slot0 = static_cast<uint32_t>(__ffs(mask) - 1);
+                        mask &= (mask - 1u);
+                        const uint32_t slot1 = static_cast<uint32_t>(__ffs(mask) - 1);
+                        mask &= (mask - 1u);
+                        const auto* src0 = reinterpret_cast<const uint4*>(
+                            math::advance_ptr<uint8_t>(
+                                combine_token_buffer.get_rank_buffer(slot0).get_data_buffer(token_idx).get_base_ptr(),
+                                input_off));
+                        const auto* src1 = reinterpret_cast<const uint4*>(
+                            math::advance_ptr<uint8_t>(
+                                combine_token_buffer.get_rank_buffer(slot1).get_data_buffer(token_idx).get_base_ptr(),
+                                input_off));
+                        uint4 v0[kStreamVecsPerLane], v1[kStreamVecsPerLane];
+                        #pragma unroll
+                        for (uint32_t j = 0; j < kStreamVecsPerLane; ++j)
+                            v0[j] = ptx::ld_evict_first(src0 + j * 32u + lane_idx);
+                        #pragma unroll
+                        for (uint32_t j = 0; j < kStreamVecsPerLane; ++j)
+                            v1[j] = ptx::ld_evict_first(src1 + j * 32u + lane_idx);
+                        #pragma unroll
+                        for (uint32_t j = 0; j < kStreamVecsPerLane; ++j) {
+                            const auto* bf0 = reinterpret_cast<const nv_bfloat162*>(&v0[j]);
+                            const auto* bf1 = reinterpret_cast<const nv_bfloat162*>(&v1[j]);
+                            #pragma unroll
+                            for (uint32_t l = 0; l < kNumBF16PairsPerVector; ++l) {
+                                ptx::accumulate(reduced[j * kNumBF16PairsPerVector + l], bf0[l]);
+                                ptx::accumulate(reduced[j * kNumBF16PairsPerVector + l], bf1[l]);
+                            }
+                        }
+                    }
+                    if (mask) {
+                        const uint32_t slot0 = static_cast<uint32_t>(__ffs(mask) - 1);
+                        const auto* src0 = reinterpret_cast<const uint4*>(
+                            math::advance_ptr<uint8_t>(
+                                combine_token_buffer.get_rank_buffer(slot0).get_data_buffer(token_idx).get_base_ptr(),
+                                input_off));
+                        #pragma unroll
+                        for (uint32_t j = 0; j < kStreamVecsPerLane; ++j) {
+                            const uint4 v0 = ptx::ld_evict_first(src0 + j * 32u + lane_idx);
+                            const auto* bf0 = reinterpret_cast<const nv_bfloat162*>(&v0);
+                            #pragma unroll
+                            for (uint32_t l = 0; l < kNumBF16PairsPerVector; ++l)
+                                ptx::accumulate(reduced[j * kNumBF16PairsPerVector + l], bf0[l]);
+                        }
+                    }
+                    auto* dst_y_ptr = math::advance_ptr<uint8_t>(
+                        y, static_cast<uint64_t>(token_idx) * kCombineOutputHiddenBytes + output_off);
+                    if (y_aligned_16) {
+                        #pragma unroll
+                        for (uint32_t j = 0; j < kStreamVecsPerLane; ++j) {
+                            uint4 casted;
+                            auto* casted_bf16 = reinterpret_cast<nv_bfloat162*>(&casted);
+                            #pragma unroll
+                            for (uint32_t l = 0; l < kNumBF16PairsPerVector; ++l)
+                                casted_bf16[l] = __float22bfloat162_rn(reduced[j * kNumBF16PairsPerVector + l]);
+                            *reinterpret_cast<uint4*>(dst_y_ptr + (j * 32u + lane_idx) * 16u) = casted;
+                        }
+                    } else {
+                        #pragma unroll
+                        for (uint32_t j = 0; j < kStreamVecsPerLane; ++j) {
+                            auto* dst_bf16 = reinterpret_cast<nv_bfloat16*>(dst_y_ptr + (j * 32u + lane_idx) * 16u);
+                            #pragma unroll
+                            for (uint32_t l = 0; l < kNumBF16PairsPerVector; ++l) {
+                                const float2 r_pair = reduced[j * kNumBF16PairsPerVector + l];
+                                dst_bf16[2u * l + 0u] = __float2bfloat16_rn(r_pair.x);
+                                dst_bf16[2u * l + 1u] = __float2bfloat16_rn(r_pair.y);
+                            }
+                        }
+                    }
+                }
+            };
+
+            for (uint32_t c_base = 0u; c_base < num_chunks; c_base += 64u) {
+                const uint32_t n_batch = cute::min(64u, num_chunks - c_base);
+                uint64_t pending = (n_batch == 64u) ? ~0ull : ((1ull << n_batch) - 1ull);
+                while (pending != 0ull) {
+                    bool progressed = false;
+                    uint64_t scan = pending;
+                    while (scan != 0ull) {
+                        const uint32_t bit = static_cast<uint32_t>(__ffsll(static_cast<long long>(scan)) - 1);
+                        scan &= (scan - 1ull);
+                        const uint32_t c = c_base + bit;
+                        uint32_t is_ready = 0u;
+                        if (lane_idx == 0u) {
+                            uint32_t cur = 0u;
+                            asm volatile("ld.acquire.sys.global.u32 %0, [%1];"
+                                         : "=r"(cur)
+                                         : "l"(workspace.get_combine_chunk_ready_ptr(c))
+                                         : "memory");
+                            const uint32_t tgt = *workspace.get_combine_chunk_target_ptr(c);
+                            is_ready = (cur >= tgt) ? 1u : 0u;
+                        }
+                        is_ready = __shfl_sync(0xffffffffu, is_ready, 0);
+                        if (is_ready) {
+                            if (not prof_started) {
+                                prof_started = true;
+                                AGY_PROF_CHUNKED_COMBINE_BEGIN(
+                                    MegaMoEPhase, sm_idx, epilogue_wg_idx, warp_idx_in_wg, lane_idx);
+                            }
+                            pending &= ~(1ull << bit);
+                            progressed = true;
+                            const uint32_t tok_lo = c * kCombineSyncChunk;
+                            const uint32_t tok_hi = cute::min(tok_lo + kCombineSyncChunk, num_tokens);
+                            reduce_token_range(tok_lo, tok_hi);
+                        }
+                    }
+                    if (not progressed) {
+                        __nanosleep(200);
+                    }
+                }
+            }
+            if (not prof_started) {
+                AGY_PROF_CHUNKED_COMBINE_BEGIN(
+                    MegaMoEPhase, sm_idx, epilogue_wg_idx, warp_idx_in_wg, lane_idx);
+            }
+        } else if constexpr (kAgyAllIdleCombActive) {
             constexpr uint32_t kTotalCombWarpsPerSM = kNumDispatchWarps + kNumEpilogueWarps;
             run_all_idle_reg_combine(
                 sm_idx * kTotalCombWarpsPerSM + kNumDispatchWarps + epilogue_warp_idx,
@@ -6911,6 +7266,9 @@ struct SM90MegaMoECoreRunner {
             }
         }
         AGY_PROF_COMBINE_END_AND_CLOSE(MegaMoEPhase, sm_idx, epilogue_wg_idx, warp_idx_in_wg, lane_idx);
+        if constexpr (kCombineSyncChunkActive) {
+            ptx::sync_unaligned(kNumDispatchThreads + kNumEpilogueThreads, kDispatchWithEpilogueBarrierIdx);
+        }
     }
     } // end kRoleMode == 0/2/3
 #else
@@ -6925,7 +7283,8 @@ CUTLASS_DEVICE void
 sm90_fp8_mega_moe_core(DG_SM90_FP8_MOE_CORE_ARGS_DECL) {
     constexpr uint32_t kTotalThreads =
         kNumDispatchThreads + kNumNonEpilogueThreads + kNumEpilogueThreads;
-    constexpr int kDispatchMode = (kTotalThreads >= 512u) ? 1 : 0;
+    constexpr int kDispatchMode =
+        (WEAVE_INLINE_ROLES != 0) ? 0 : ((kTotalThreads >= 512u) ? 1 : 0);
     SM90MegaMoECoreRunner<MegaMoEPhase, DG_SM90_FP8_MOE_CORE_TEMPLATE_ARGS>::template run<kDispatchMode>(
         DG_SM90_FP8_MOE_KERNEL_ARGS);
 }

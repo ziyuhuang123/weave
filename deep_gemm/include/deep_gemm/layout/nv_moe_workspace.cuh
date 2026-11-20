@@ -150,6 +150,10 @@ struct Workspace {
         static_assert((kScatterCtrlWords & 3u) == 0u, "Scatter control must stay 16B aligned");
         num_bytes += kScatterCtrlWords * sizeof(uint32_t);
 
+        // Chunked dedup combine sync region (3 * num_ranks * max_chunks + 2 * max_chunks u32s).
+        num_bytes = math::align<uint64_t>(num_bytes, 128);
+        num_bytes += get_combine_chunk_sync_bytes();
+
         // Append the Weave CTA-0 policy header after all existing offsets.
         num_bytes = math::align<uint64_t>(num_bytes, 128);
         num_bytes += kWeaveControlBytes;
@@ -246,6 +250,70 @@ struct Workspace {
     CUTLASS_DEVICE
     uint32_t* get_scatter_epilogue_done_ptr() const {
         return get_scatter_ctrl_ptr() + 3;
+    }
+
+    // ---- Chunked dedup combine sync region ---------------------------------
+    // Supports WEAVE_COMBINE_SYNC_CHUNK = G in {16, 32, 64, 128}.
+    // All arrays are sized for G_min = 16 so every build shares one workspace.
+    static constexpr uint32_t kMinCombineSyncChunk = 16u;
+
+    CUTLASS_HOST_DEVICE
+    uint32_t get_max_combine_chunks() const {
+        return math::ceil_div<uint32_t>(num_max_tokens_per_rank, kMinCombineSyncChunk);
+    }
+
+    CUTLASS_HOST_DEVICE
+    uint64_t get_combine_chunk_sync_offset() const {
+        uint64_t num_bytes = get_scatter_region_offset();
+        num_bytes += get_scatter_stage_bytes();
+        num_bytes += get_num_scatter_slots() * sizeof(ScatterQueueDesc);
+        num_bytes += get_num_scatter_slots() * sizeof(uint32_t);
+        num_bytes += get_num_scatter_slots() * get_max_scatter_chunks() * sizeof(uint32_t);
+        num_bytes += get_num_scatter_slots() * sizeof(uint32_t);
+        num_bytes = math::align<uint64_t>(num_bytes, 128);
+        num_bytes += kScatterCtrlWords * sizeof(uint32_t);
+        return math::align<uint64_t>(num_bytes, 128);
+    }
+
+    CUTLASS_HOST_DEVICE
+    uint64_t get_combine_chunk_sync_bytes() const {
+        const uint64_t max_chunks = get_max_combine_chunks();
+        return (3ull * num_ranks * max_chunks + 2ull * max_chunks) * sizeof(uint32_t);
+    }
+
+    CUTLASS_DEVICE
+    uint32_t* get_combine_chunk_sync_base_ptr() const {
+        return reinterpret_cast<uint32_t*>(
+            math::advance_ptr<uint8_t>(base, get_combine_chunk_sync_offset()));
+    }
+
+    CUTLASS_DEVICE
+    uint32_t* get_combine_chunk_send_cnt_ptr(const uint32_t& rank_idx, const uint32_t& chunk_idx) const {
+        return get_combine_chunk_sync_base_ptr() + rank_idx * get_max_combine_chunks() + chunk_idx;
+    }
+
+    CUTLASS_DEVICE
+    uint32_t* get_combine_chunk_expected_ptr(const uint32_t& rank_idx, const uint32_t& chunk_idx) const {
+        const uint32_t stride = num_ranks * get_max_combine_chunks();
+        return get_combine_chunk_sync_base_ptr() + stride + rank_idx * get_max_combine_chunks() + chunk_idx;
+    }
+
+    CUTLASS_DEVICE
+    uint32_t* get_combine_chunk_sent_ptr(const uint32_t& rank_idx, const uint32_t& chunk_idx) const {
+        const uint32_t stride = 2u * num_ranks * get_max_combine_chunks();
+        return get_combine_chunk_sync_base_ptr() + stride + rank_idx * get_max_combine_chunks() + chunk_idx;
+    }
+
+    CUTLASS_DEVICE
+    uint32_t* get_combine_chunk_ready_ptr(const uint32_t& chunk_idx) const {
+        const uint32_t stride = 3u * num_ranks * get_max_combine_chunks();
+        return get_combine_chunk_sync_base_ptr() + stride + chunk_idx;
+    }
+
+    CUTLASS_DEVICE
+    uint32_t* get_combine_chunk_target_ptr(const uint32_t& chunk_idx) const {
+        const uint32_t stride = (3u * num_ranks + 1u) * get_max_combine_chunks();
+        return get_combine_chunk_sync_base_ptr() + stride + chunk_idx;
     }
 
     // Grid sync counters: `kNumBarrierSignalBytes` layout
