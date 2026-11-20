@@ -116,15 +116,10 @@ on every rank before timing.
 
 | Hardware / scale | Precision | Full-output correctness | Measured latency and throughput | Verdict |
 |---|---|---|---|---|
-| 8x NVIDIA SM103 (148-SM) installation; 4-GPU admissible verification window | fp4xfp4 (NVFP4) | EP4, S=16, H=6144, I=2048, E=128, K=8; 4/4 ranks finite, unified-vs-direct bit-exact, 512 routes; 4/4 full-FP32-reference rounds PASS; live CTA-0 readback magic 0x57415645, version 4, published_epoch=2, valid=1 | median-of-rank-medians 172.384 us; worst rank 172.480 us; 54.418 TFLOPS/GPU nominal (52.088--60.001). Pre-rail reference 143.552 us and 65.757 TFLOPS/GPU | PASS |
-| Same 148-SM SM103 installation | fp8xfp4 | EP1 built the reference and printed the expected config; the first kernel launch did not return. No output or latency is claimed. Fresh clone reproduced the hang; compute-sanitizer memcheck found no invalid access before the hang | not measured | BLOCKED_RUNTIME_HANG |
+| 4x NVIDIA SM103 (148-SM) EP4 | fp4xfp4 (NVFP4) | S=16, H=6144, I=2048, E=128, K=8; 4/4 ranks finite, unified-vs-direct bit-exact, 512 routes; 4/4 full-FP32-reference rounds PASS; live CTA-0 readback magic 0x57415645, version 4, published_epoch=2, valid=1 | median-of-rank-medians 172.384 us; worst rank 172.480 us; 54.418 TFLOPS/GPU (52.088--60.001). Static baseline 143.552 us and 65.757 TFLOPS/GPU | PASS |
 | 8x NVIDIA H20 EP8 | fp8 | Qwen3.8-Max, E=512, K=10, H=8192, I=2048; worst-rank calc_diff 5.924e-4--5.948e-4, worst rel_l2 0.034483, cos_sim 0.999405; all ranks PASS | S=128 AUTO=1 1452.512 us versus AUTO=0 1942.784 us, a -25.24% latency change; S=1024 AUTO=1 4977.584 us versus AUTO=0 4981.344 us | PASS |
 | 8x AMD MI308X EP8 | fp8 | 4/4 full-output cells PASS across all eight ranks; max rel_l2 0.001545--0.001908, max row rel_l2 0.001952--0.005731, device_error=0 | qwen38max S=16 687.422/713.942 us; S=128 1539.625/1554.185 us; DeepSeek-V4-Flash S=16 378.761/395.421 us; S=128 699.642/709.743 us; single-GPU TFLOPS 1.595--9.219 | PASS |
 | 16x AMD MI308X EP16 (2 nodes x 8) | fp8 | 16/16 ranks full-element FP64 comparison PASS; qwen38max S=128 and DeepSeek-V4-Flash S=128; max rel_l2 0.012535/0.012292, max row rel_l2 0.019612/0.015528; all 96 launch-state records device_error=0 | qwen38max metric1 1594.079 -> 1010.679 us (1.5772x), metric2 1591.939 -> 1006.619 us (1.5815x); DeepSeek-V4-Flash metric1 1387.055 -> 735.300 us (1.8864x), metric2 1367.269 -> 732.679 us (1.8661x) | PASS |
-
-Note: On 148-SM SM103, the `fp4xfp4 (NVFP4)` path passes end-to-end with live
-CTA-0 decision readback; `fp8xfp4` compiles cleanly and is currently under
-investigation for a runtime hang during dispatch.
 
 ## WeaveProfiler software + hardware timelines
 
