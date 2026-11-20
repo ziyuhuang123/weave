@@ -95,16 +95,6 @@ Python 入口示意：
 （`T_hbm=755 us` 对比 `T_comp=437 us`），物理上将 FP8 Tensor Core 活跃度封顶在
 `58%` 以下。
 
-下表全部为真实硬件实测值；所有 TFLOPS 均为单卡吞吐，计时前已在每个 rank 上完成全
-量输出正确性校验。
-
-| 硬件 / 规模 | 精度 | 全输出正确性 | 实测延迟与吞吐 | 结论 |
-|---|---|---|---|---|
-| 4x NVIDIA SM103 (148-SM) EP4 | fp4xfp4 (NVFP4) | S=16，H=6144，I=2048，E=128，K=8；4/4 卡输出无 NaN/Inf，统一入口与直调入口逐位一致（512 条路由）；4/4 轮完整 FP32 参考校验 PASS；CTA-0 现场回读 magic 0x57415645、version 4、published_epoch=2、valid=1 | 各卡中位延迟 172.384 us；最慢 rank 172.480 us；单卡 54.418 TFLOPS（52.088--60.001）。未启用在线决策基线 143.552 us、65.757 TFLOPS/GPU | PASS |
-| 8x NVIDIA H20 EP8 | fp8 | Qwen3.8-Max，E=512，K=10，H=8192，I=2048；最差 rank calc_diff 5.924e-4--5.948e-4，最差 rel_l2 0.034483，cos_sim 0.999405；全部 rank PASS | S=128 AUTO=1 1452.512 us，对比 AUTO=0 1942.784 us，延迟变化 -25.24%；S=1024 AUTO=1 4977.584 us，对比 AUTO=0 4981.344 us | PASS |
-| 8x AMD MI308X EP8 | fp8 | 4/4 全输出 cell 在 8 个 rank 上全部 PASS；最大 rel_l2 0.001545--0.001908，最大行 rel_l2 0.001952--0.005731，device_error=0 | qwen38max S=16 687.422/713.942 us；S=128 1539.625/1554.185 us；DeepSeek-V4-Flash S=16 378.761/395.421 us；S=128 699.642/709.743 us；单卡 TFLOPS 1.595--9.219 | PASS |
-| 16x AMD MI308X EP16（2 节点 x 8） | fp8 | 16/16 rank 全元素 FP64 对比 PASS；qwen38max S=128 与 DeepSeek-V4-Flash S=128；最大 rel_l2 0.012535/0.012292，最大行 rel_l2 0.019612/0.015528；96 条 launch-state 记录 device_error=0 | qwen38max metric1 1594.079 -> 1010.679 us（1.5772x），metric2 1591.939 -> 1006.619 us（1.5815x）；DeepSeek-V4-Flash metric1 1387.055 -> 735.300 us（1.8864x），metric2 1367.269 -> 732.679 us（1.8661x） | PASS |
-
 ## WeaveProfiler 软硬件时间线
 
 ![NVIDIA SM103 (148-SM) WeaveProfiler SW+HW 时间线](docs/figures/weaveprofiler_sm103_timeline.png)
