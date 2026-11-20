@@ -14,6 +14,7 @@ except ImportError:
 
 # Configs
 from . import _C
+from ._C import locality_domain
 from ._C import (
     set_num_sms,
     get_num_sms,

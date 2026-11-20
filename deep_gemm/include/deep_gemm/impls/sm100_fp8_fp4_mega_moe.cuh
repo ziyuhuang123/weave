@@ -1,5 +1,13 @@
 #pragma once
 
+#ifndef WEAVE_LOCALITY_DOMAINS
+#define WEAVE_LOCALITY_DOMAINS 0
+#endif
+
+// Reset both per-domain queues even when the build does not use them; the cost
+// is four stores once per launch and keeps the workspace byte layout stable.
+static constexpr unsigned int kNumTaskCountDomains = (WEAVE_LOCALITY_DOMAINS ? 2u : 1u);
+
 // ============================================================================
 // Public B300 compile-time knobs. WEAVE_* is the primary spelling; archived
 // DG_* names are accepted only as source-level compatibility aliases.
@@ -858,7 +866,8 @@ sm100_fp8_fp4_mega_moe_impl(void* y,
                             const __grid_constant__ cute::TmaDescriptor tensor_map_shared_l2_acts,
                             const __grid_constant__ cute::TmaDescriptor tensor_map_shared_l2_acts_sf,
                             const __grid_constant__ cute::TmaDescriptor tensor_map_shared_l2_weights,
-                            const __grid_constant__ cute::TmaDescriptor tensor_map_shared_l2_weights_sf) {
+                            const __grid_constant__ cute::TmaDescriptor tensor_map_shared_l2_weights_sf,
+                            const uint8_t* sm_locality_domains) {
 #if (defined(__CUDA_ARCH__) and (__CUDA_ARCH__ >= 1000)) or defined(__CLION_IDE__)
     using Barrier = cutlass::arch::ClusterTransactionBarrier;
     using Allocator = cute::TMEM::Allocator2Sm;
@@ -3021,10 +3030,13 @@ sm100_fp8_fp4_mega_moe_impl(void* y,
 #if (DG_ISOLATED_D1_G > 0) && (DG_ISOLATED_D5_DEDUP != 2)
         if (sm_idx == 0) {
             if (warp_idx == 0 and cute::elect_one_sync()) {
-                *workspace.get_l1_task_count_ptr() = 0;
-                *workspace.get_l2_task_count_ptr() = 0;
-                *workspace.get_shared_l1_task_count_ptr() = 0;
-                *workspace.get_shared_l2_task_count_ptr() = 0;
+                #pragma unroll
+                for (uint32_t d = 0; d < kNumTaskCountDomains; ++ d) {
+                    *workspace.get_l1_task_count_ptr(d) = 0;
+                    *workspace.get_l2_task_count_ptr(d) = 0;
+                    *workspace.get_shared_l1_task_count_ptr(d) = 0;
+                    *workspace.get_shared_l2_task_count_ptr(d) = 0;
+                }
                 #if DG_ISOLATED_D4_READYQ
                 *workspace.get_d4_ready_write_count_ptr() = 0;
                 #endif
@@ -3107,10 +3119,13 @@ sm100_fp8_fp4_mega_moe_impl(void* y,
             for (uint32_t i = thread_idx; i < kNumExperts; i += cleanup_dispatch_threads)
                 *workspace.get_expert_send_count_ptr(i) = 0;
             if (warp_idx == 0 and cute::elect_one_sync()) {
-                *workspace.get_l1_task_count_ptr() = 0;
-                *workspace.get_l2_task_count_ptr() = 0;
-                *workspace.get_shared_l1_task_count_ptr() = 0;
-                *workspace.get_shared_l2_task_count_ptr() = 0;
+                #pragma unroll
+                for (uint32_t d = 0; d < kNumTaskCountDomains; ++ d) {
+                    *workspace.get_l1_task_count_ptr(d) = 0;
+                    *workspace.get_l2_task_count_ptr(d) = 0;
+                    *workspace.get_shared_l1_task_count_ptr(d) = 0;
+                    *workspace.get_shared_l2_task_count_ptr(d) = 0;
+                }
                 if constexpr (kD2SmidMasked) {
                     *workspace.get_d2_pull_warp_count_ptr() = 0;
                 }
@@ -3529,9 +3544,9 @@ sm100_fp8_fp4_mega_moe_impl(void* y,
             const uint32_t prof_sched_s = tile_prof::read_gtimer();
 #endif
 #if DG_ISOLATED_D4_LUT_ACTIVE
-            scheduler.mainloop(num_tokens, sym_buffer.rank_idx);
+            scheduler.mainloop(num_tokens, sym_buffer.rank_idx, nullptr, nullptr, sm_locality_domains);
 #else
-            scheduler.mainloop(num_tokens);
+            scheduler.mainloop(num_tokens, 0, nullptr, nullptr, sm_locality_domains);
 #endif
 #if DG_MEGA_TILE_PROF
             tile_prof::record(cumulative_local_expert_recv_stats, sm_idx, warp_idx, lane_idx,

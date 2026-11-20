@@ -192,24 +192,28 @@ struct Workspace {
         return math::advance_ptr<int>(base, (kNumMaxGridSyncCounters + 1) * sizeof(uint32_t) + phase * sizeof(int));
     }
 
+    // Domain 0 keeps the historical offsets. Domain 1 lives in otherwise
+    // unused padding of the 128B barrier line, so the two per-die queues stay
+    // adjacent but never alias the D2/D4 control words at [44..51].
     CUTLASS_DEVICE
-    uint32_t* get_l1_task_count_ptr() const {
-        return math::advance_ptr<uint32_t>(base, 28u);
+    uint32_t* get_l1_task_count_ptr(const uint32_t& locality_domain_idx = 0) const {
+        DG_STATIC_ASSERT(sizeof(uint32_t) == 4, "Invalid word size");
+        return math::advance_ptr<uint32_t>(base, 28u + 24u * locality_domain_idx);
     }
 
     CUTLASS_DEVICE
-    uint32_t* get_l2_task_count_ptr() const {
-        return math::advance_ptr<uint32_t>(base, 32u);
+    uint32_t* get_l2_task_count_ptr(const uint32_t& locality_domain_idx = 0) const {
+        return math::advance_ptr<uint32_t>(base, 32u + 24u * locality_domain_idx);
     }
 
     CUTLASS_DEVICE
-    uint32_t* get_shared_l1_task_count_ptr() const {
-        return math::advance_ptr<uint32_t>(base, 36u);
+    uint32_t* get_shared_l1_task_count_ptr(const uint32_t& locality_domain_idx = 0) const {
+        return math::advance_ptr<uint32_t>(base, 36u + 24u * locality_domain_idx);
     }
 
     CUTLASS_DEVICE
-    uint32_t* get_shared_l2_task_count_ptr() const {
-        return math::advance_ptr<uint32_t>(base, 40u);
+    uint32_t* get_shared_l2_task_count_ptr(const uint32_t& locality_domain_idx = 0) const {
+        return math::advance_ptr<uint32_t>(base, 40u + 24u * locality_domain_idx);
     }
 
     // Axis 2 (D2): active dispatch pull warp counter at [44..47]

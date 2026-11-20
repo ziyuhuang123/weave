@@ -1,5 +1,11 @@
 #pragma once
 
+// 1 = enable 2-die (locality-domain) task partitioning + cross-domain stealing.
+// Host-generated JIT sources define this explicitly; other users default to off.
+#ifndef WEAVE_LOCALITY_DOMAINS
+#define WEAVE_LOCALITY_DOMAINS 0
+#endif
+
 // ============================================================================
 // Public B300 compile-time knobs. WEAVE_* is the primary spelling; archived
 // DG_* names are accepted only as source-level compatibility aliases.
@@ -817,6 +823,7 @@ template <
     uint32_t kNumSMs, uint32_t kNumRanks,
     uint32_t kNumRingBlocks,
     uint32_t kNumSharedExperts = 0,
+    uint32_t kNumLocalityDomains = (WEAVE_LOCALITY_DOMAINS ? 2u : 1u),
     uint32_t kNumExpertsPerLane = math::constexpr_ceil_div(kNumExpertsPerRank, 32u),
     uint32_t kNumL1BlockNs = L1_SHAPE_N / BLOCK_N,
     uint32_t kNumL2BlockNs = L2_SHAPE_N / BLOCK_N,
@@ -842,6 +849,10 @@ struct MegaMoEScheduler {
     DG_STATIC_ASSERT(SHARED_L2_SHAPE_K % BLOCK_K == 0, "Invalid shared shape");
     DG_STATIC_ASSERT(kNumSMs % 2 == 0, "Number of SMs must be even for 2-CTA cluster");
     DG_STATIC_ASSERT(kNumRingBlocks > 0, "Invalid ring buffer config");
+    DG_STATIC_ASSERT(kNumLocalityDomains == 1 or kNumLocalityDomains == 2, "Invalid locality domain count");
+    DG_STATIC_ASSERT(kNumL1Clusters % kNumLocalityDomains == 0 and
+                     kNumL2Clusters % kNumLocalityDomains == 0,
+                     "Each locality domain must take whole task clusters");
 
     const layout::Workspace& workspace;
 
@@ -860,6 +871,14 @@ struct MegaMoEScheduler {
     #endif
     uint32_t num_total_m_blocks = 0;
     uint32_t num_sched_l1_waves = 0;
+
+    // Locality-domain affinity. Each die owns a contiguous half of the N-cluster
+    // range, so its L2 only sees half of the expert weight columns. When that half
+    // is drained we steal from the peer domain, but only if at least
+    // kNumMinStealWaves full CTA-pair waves of work exist (avoid cross-die latency
+    // on small problems).
+    static constexpr uint32_t kNumMinStealWaves = 2;
+    uint32_t sm_locality_domain_idx = 0;
 
     CUTLASS_DEVICE
     MegaMoEScheduler(const layout::Workspace& workspace,
@@ -1384,6 +1403,55 @@ struct MegaMoEScheduler {
         return ptx::exchange(result, 0);
     }
 
+    // Claim one task from the queue of `locality_domain_idx`. The counter is
+    // private to that domain, and the decoded N clusters stay in its half.
+    static CUTLASS_DEVICE uint32_t get_next_local_task_idx(
+            const uint32_t* task_count_ptr, const uint32_t& locality_domain_idx) {
+        uint32_t result = 0;
+        if (cute::elect_one_sync())
+            result = ptx::atomic_add(task_count_ptr + locality_domain_idx, 1u);
+        return ptx::exchange(result, 0);
+    }
+
+    template <uint32_t kNumClusters>
+    static CUTLASS_DEVICE bool get_next_task_idx_for_domain(
+            const uint32_t* task_count_ptr, const uint32_t& locality_domain_idx,
+            const uint32_t& num_m_blocks, uint32_t& m_block_idx, uint32_t& n_cluster_idx) {
+        constexpr uint32_t kNumLocalClusters = kNumClusters / kNumLocalityDomains;
+        const uint32_t task_idx = get_next_local_task_idx(task_count_ptr, locality_domain_idx);
+        if (task_idx >= num_m_blocks * kNumLocalClusters)
+            return false;
+        m_block_idx = task_idx / kNumLocalClusters;
+        n_cluster_idx = locality_domain_idx * kNumLocalClusters + task_idx % kNumLocalClusters;
+        return true;
+    }
+
+    // Domain-local claim first; steal from the peer only when the whole device
+    // has at least kNumMinStealWaves waves of work, so small problems stay
+    // die-local and do not pay cross-die latency.
+    template <uint32_t kNumClusters>
+    CUTLASS_DEVICE bool get_next_task_idx(
+            const uint32_t* task_count_ptr, const uint32_t& num_m_blocks,
+            uint32_t& m_block_idx, uint32_t& n_cluster_idx) const {
+        if (get_next_task_idx_for_domain<kNumClusters>(
+                task_count_ptr, sm_locality_domain_idx, num_m_blocks, m_block_idx, n_cluster_idx))
+            return true;
+        return kNumLocalityDomains > 1 and
+               num_m_blocks * kNumClusters >= kNumMinStealWaves * (kNumSMs / 2) and
+               get_next_task_idx_for_domain<kNumClusters>(
+                   task_count_ptr, sm_locality_domain_idx ^ 1, num_m_blocks, m_block_idx, n_cluster_idx);
+    }
+
+    // An L2 K block may only start after every domain has published the L1 N
+    // blocks of that M block. Counters are per domain, so wait on each half.
+    CUTLASS_DEVICE void wait_l1_tasks(const uint32_t& num_m_blocks_done) const {
+        constexpr uint32_t kNumLocalL1Clusters = kNumL1Clusters / kNumLocalityDomains;
+        const uint32_t num_required_l1_tasks = num_m_blocks_done * kNumLocalL1Clusters;
+        #pragma unroll
+        for (uint32_t d = 0; d < kNumLocalityDomains; ++ d)
+            while (ptx::ld_volatile(workspace.get_l1_task_count_ptr(d)) < num_required_l1_tasks) {}
+    }
+
 #if DG_ISOLATED_D5_DEDUP && DG_TUNE_D5_SCHED
     CUTLASS_DEVICE task_info_t get_next_task_d5(
             const uint32_t& d5_tier0_end,
@@ -1501,41 +1569,36 @@ struct MegaMoEScheduler {
 #endif
             ) {
         while (true) {
+            uint32_t sel_m_block = 0u, sel_n_cluster = 0u;
             if (num_sched_l1_waves != kNumSchedL1WavesDone and num_sched_l1_waves) {
                 -- num_sched_l1_waves;
 
-                const uint32_t l1_task_idx = get_next_task_idx(workspace.get_l1_task_count_ptr());
-                if (l1_task_idx >= num_total_m_blocks * kNumL1Clusters) {
+                if (not get_next_task_idx<kNumL1Clusters>(
+                        workspace.get_l1_task_count_ptr(), num_total_m_blocks, sel_m_block, sel_n_cluster)) {
                     num_sched_l1_waves = kNumSchedL1WavesDone;
                     continue;
                 }
 
-                return create_task(BlockPhase::Linear1, l1_task_idx, kNumL1Clusters, L1_SHAPE_N, L1_SHAPE_K
+                return create_task_for_block(BlockPhase::Linear1, sel_m_block, sel_n_cluster, L1_SHAPE_N, L1_SHAPE_K
 #if DG_ISOLATED_D4_LUT_ACTIVE
                     , d4_slot_sched, d4_slot_phys
 #endif
                 );
             } else {
-                const uint32_t l2_task_idx = get_next_task_idx(workspace.get_l2_task_count_ptr());
-                if (l2_task_idx >= num_total_m_blocks * kNumL2Clusters)
+                if (not get_next_task_idx<kNumL2Clusters>(
+                        workspace.get_l2_task_count_ptr(), num_total_m_blocks, sel_m_block, sel_n_cluster))
                     break;
 
                 if (num_sched_l1_waves != kNumSchedL1WavesDone)
                     num_sched_l1_waves = 1;
 
-                auto task_info = create_task(BlockPhase::Linear2, l2_task_idx, kNumL2Clusters, L2_SHAPE_N, L2_SHAPE_K
+                auto task_info = create_task_for_block(BlockPhase::Linear2, sel_m_block, sel_n_cluster, L2_SHAPE_N, L2_SHAPE_K
 #if DG_ISOLATED_D4_LUT_ACTIVE
                     , d4_slot_sched, d4_slot_phys
 #endif
                 );
 
-#if (DG_ISOLATED_D4_LUT_ACTIVE || DG_ISOLATED_D4_READYQ)
-                const uint32_t sched_m_block = l2_task_idx / kNumL2Clusters;
-                const auto num_required_l1_tasks = (sched_m_block + 1u) * kNumL1Clusters;
-#else
-                const auto num_required_l1_tasks = (task_info.pool_block_idx + 1) * kNumL1Clusters;
-#endif
-                while (ptx::ld_volatile(workspace.get_l1_task_count_ptr()) < num_required_l1_tasks) {}
+                wait_l1_tasks(sel_m_block + 1u);
                 return task_info;
             }
         }
@@ -1558,16 +1621,14 @@ struct MegaMoEScheduler {
     template <BlockPhase kBlockPhase, uint32_t kShapeN, uint32_t kShapeK>
     CUTLASS_DEVICE void shared_mainloop(const uint32_t& num_tokens, const uint32_t& lane_idx, const uint32_t* task_count_ptr) {
         constexpr uint32_t kNumClusters = (kShapeN / BLOCK_N) / 2;
+        DG_STATIC_ASSERT(kNumClusters % kNumLocalityDomains == 0, "Each domain must take whole shared clusters");
         const uint32_t num_m_blocks = math::ceil_div(num_tokens, BLOCK_M);
-        const uint32_t num_tasks = num_m_blocks * kNumClusters;
         while (true) {
             task_info_empty_barriers[sched_stage_idx].wait(sched_phase ^ 1);
-            const uint32_t task_idx = get_next_task_idx(task_count_ptr);
-            if (task_idx >= num_tasks)
+            uint32_t m_block_idx, n_cluster_idx;
+            if (not get_next_task_idx<kNumClusters>(task_count_ptr, num_m_blocks, m_block_idx, n_cluster_idx))
                 break;
 
-            const uint32_t m_block_idx = task_idx / kNumClusters;
-            const uint32_t n_cluster_idx = task_idx % kNumClusters;
             const uint32_t valid_m = cute::min(num_tokens - m_block_idx * BLOCK_M, BLOCK_M);
             publish_task(task_info_t(kBlockPhase, 0, m_block_idx, n_cluster_idx, m_block_idx, valid_m, kShapeN, kShapeK), lane_idx);
         }
@@ -1577,8 +1638,11 @@ struct MegaMoEScheduler {
             const uint32_t& num_tokens,
             const uint32_t& rank_idx = 0,
             uint16_t* sched_cum_blocks = nullptr,
-            uint8_t* sched_expert_order = nullptr) {
+            uint8_t* sched_expert_order = nullptr,
+            const uint8_t* sm_locality_domains = nullptr) {
         const auto lane_idx = ptx::get_lane_idx();
+        sm_locality_domain_idx = (kNumLocalityDomains == 1 or sm_locality_domains == nullptr) ?
+            0u : sm_locality_domains[ptx::get_sm_idx()];
 
         if constexpr (kHasShared) {
             shared_mainloop<BlockPhase::SharedLinear1, SHARED_L1_SHAPE_N, SHARED_L1_SHAPE_K>(
