@@ -1,0 +1,473 @@
+diff --git a/gc_moe/__init__.py b/gc_moe/__init__.py
+--- a/gc_moe/__init__.py
++++ b/gc_moe/__init__.py
+@@ -12,7 +12,9 @@
+     SM90GCSymmBuffer,
+     get_symm_buffer_for_gc_moe_sm90,
+     transform_weights_for_gc_moe_sm90,
++    transform_fp8_weights_for_gc_moe_sm90,
+     sm90_fp8_fp4_gc_moe,
++    sm90_fp8_fp8_gc_moe,
+ )
+ 
+ from .sm120_gc import (
+@@ -26,7 +28,9 @@
+     'SM90GCSymmBuffer',
+     'get_symm_buffer_for_gc_moe_sm90',
+     'transform_weights_for_gc_moe_sm90',
++    'transform_fp8_weights_for_gc_moe_sm90',
+     'sm90_fp8_fp4_gc_moe',
++    'sm90_fp8_fp8_gc_moe',
+     'SM120GCSymmBuffer',
+     'get_symm_buffer_for_gc_moe_sm120',
+     'transform_weights_for_gc_moe_sm120',
+diff --git a/gc_moe/apis/sm90_gc_moe.py b/gc_moe/apis/sm90_gc_moe.py
+--- a/gc_moe/apis/sm90_gc_moe.py
++++ b/gc_moe/apis/sm90_gc_moe.py
+@@ -18,11 +18,13 @@
+     clamp: float
+     fast_math: bool
+     shared_experts: int = 0
++    fp8_weights: bool = False
+ 
+ 
+ def validate_call(y, w1, w2, buffer, stats, recipe, activation, clamp,
+                         fast_math, num_tokens_bound, shared_l1_weights=None,
+-                        shared_l2_weights=None, shared_recipe=None):
++                        shared_l2_weights=None, shared_recipe=None,
++                        fp8_weights=False):
+     if not isinstance(buffer, SM90GCSymmBuffer) or buffer.buffer is None:
+         raise ValueError('expected live SM90GCSymmBuffer')
+     device = buffer.buffer.device
+@@ -31,8 +33,9 @@
+             or not 0 <= y.shape[0] <= buffer.num_max_tokens_per_rank
+             or torch.cuda.current_device() != device.index):
+         raise ValueError('invalid SM90 y device, shape or dtype')
+-    if tuple(recipe) != (1,1,32) or activation != 'swiglu':
+-        raise ValueError('SM90 GC requires recipe (1,1,32) and swiglu')
++    expected_recipe = (128, 128, 128) if fp8_weights else (1, 1, 32)
++    if tuple(recipe) != expected_recipe or activation != 'swiglu':
++        raise ValueError(f'SM90 GC requires recipe {expected_recipe} and swiglu')
+     clamp = math.inf if clamp is None else float(clamp)
+     if math.isnan(clamp) or clamp < 0:
+         raise ValueError('activation_clamp must be nonnegative')
+@@ -45,8 +48,12 @@
+         if not isinstance(weight, (tuple, list)) or len(weight) != 2:
+             raise ValueError(f'{name} needs the record/secondary pair from '
+                              'transform_weights_for_gc_moe_sm90')
+-        shapes = ((local, n // 256, k // 128, 16896), (local,))
+-        dtypes = (torch.int8, torch.float32)
++        if fp8_weights:
++            shapes = ((local, n // 256, k // 128, 33792), (local,))
++            dtypes = (torch.uint8, torch.float32)
++        else:
++            shapes = ((local, n // 256, k // 128, 16896), (local,))
++            dtypes = (torch.int8, torch.float32)
+         for tensor, shape, dtype in zip(weight, shapes, dtypes):
+             if (not isinstance(tensor, torch.Tensor) or tuple(tensor.shape) != shape
+                     or tensor.dtype != dtype or tensor.device != device
+@@ -89,7 +96,8 @@
+     return ValidatedCall(buffer.group.size(), buffer.num_experts,
+                           buffer.num_max_tokens_per_rank, buffer.num_topk,
+                           buffer.hidden, buffer.intermediate_hidden,
+-                          y.shape[0], bound, clamp, bool(fast_math), shared_experts)
++                          y.shape[0], bound, clamp, bool(fast_math), shared_experts,
++                          bool(fp8_weights))
+ 
+ 
+ def sm90_fp8_fp4_gc_moe(y, w1, w2, buffer, stats, recipe, activation, clamp,
+@@ -101,3 +109,14 @@
+     from ..jit_kernels.impls.sm90_fp8_fp4_gc_moe import launch_sm90_gc_moe
+     launch_sm90_gc_moe(config, y, w1, w2, buffer, stats,
+                        shared_l1_weights, shared_l2_weights)
++
++
++def sm90_fp8_fp8_gc_moe(y, w1, w2, buffer, stats, recipe, activation, clamp,
++                        fast_math, num_tokens_bound, shared_l1_weights=None,
++                        shared_l2_weights=None, shared_recipe=None):
++    config = validate_call(y, w1, w2, buffer, stats, recipe, activation, clamp,
++                           fast_math, num_tokens_bound, shared_l1_weights,
++                           shared_l2_weights, shared_recipe, fp8_weights=True)
++    from ..jit_kernels.impls.sm90_fp8_fp4_gc_moe import launch_sm90_gc_moe
++    launch_sm90_gc_moe(config, y, w1, w2, buffer, stats,
++                       shared_l1_weights, shared_l2_weights)
+diff --git a/gc_moe/impls/sm90_fp8_fp4_gc_moe.py b/gc_moe/impls/sm90_fp8_fp4_gc_moe.py
+--- a/gc_moe/impls/sm90_fp8_fp4_gc_moe.py
++++ b/gc_moe/impls/sm90_fp8_fp4_gc_moe.py
+@@ -77,6 +77,26 @@
+ 
+ 
+ @cute.jit
++def load_fp8_fragment(tile_slab: cute.Pointer, weight_half: Uint32,
++                      warp: Uint32, lane: Uint32):
++    """Register-A fragments for one 64x128 native-E4M3 WGMMA A tile.
++
++    The payload is the shared-expert FP8 layout: per 64-row quarter there are
++    four K32 groups, and each group is 128 lane vectors of 16 contiguous bytes.
++    A lane vector holds (row0,k..k+3), (row1,k..k+3), (row0,k+16..k+19),
++    (row1,k+16..k+19), with row0=(idx//32)*16+(idx%32)//4 and k=(idx%4)*4.
++    """
++    idx = warp * 32 + lane
++    base = weight_half * 8192
++    return (
++        *load_shared_u32x4(tile_slab + base + (0 * 128 + idx) * 16),
++        *load_shared_u32x4(tile_slab + base + (1 * 128 + idx) * 16),
++        *load_shared_u32x4(tile_slab + base + (2 * 128 + idx) * 16),
++        *load_shared_u32x4(tile_slab + base + (3 * 128 + idx) * 16),
++    )
++
++
++@cute.jit
+ def wait_epoch(ptr: cute.Pointer, target: Uint32, system: cutlass.Constexpr):
+     # Same-order all-rank calls and the tail rendezvous prevent skipping a
+     # still-needed epoch. Equality also remains valid at uint32 wraparound.
+@@ -102,6 +122,7 @@
+     def __init__(self, config, layout, role, schedule, has_stats, routed_n_factor=1,
+                  routed_stage_count=0, routed_k_pack=1):
+         self.role = role
++        self.fp8_weights = bool(getattr(config, 'fp8_weights', False))
+         self.direct_route_scan = 0 < config.bound <= 2
+         self.ranks, self.local = config.ranks, config.experts // config.ranks
+         self.capacity, self.topk = config.capacity, config.topk
+@@ -165,6 +186,7 @@
+         shared_layout = get_role_shared_layout(self.max_m, self.warp_specialized,
+                                                self.routed_n_factor, routed_stage_count,
+                                                self.routed_k_pack,
++                                               fp8_weights=self.fp8_weights,
+                                                policy=schedule.policy)
+         for name in shared_layout.__dataclass_fields__:
+             setattr(self, name, getattr(shared_layout, name))
+@@ -315,7 +337,9 @@
+                 for sf_k in cutlass.range(lane, self.hidden // 128, 32):
+                     sf_value = cell(remote, Uint64(self.off_x_sf) + (Uint64(token) * (self.hidden // 128) + Uint32(sf_k)) * 4, Float32)[0]
+                     sf_out = cell(base, Uint64(self.off_l1_acts_sf) + ((Uint64(expert) * (self.hidden // 128) + Uint32(sf_k)) * self.rows + Uint32(pull_row)) * 4, Float32)
+-                    if cutlass.const_expr(self.preweighted_routed_sf):
++                    if cutlass.const_expr(self.fp8_weights):
++                        sf_out[0] = sf_value
++                    elif cutlass.const_expr(self.preweighted_routed_sf):
+                         secondary_value = cute.make_tensor(secondary, cute.make_layout((self.local,)))[Uint32(expert)]
+                         sf_out[0] = preweight_routed_sf(sf_value, secondary_value)
+                     else:
+@@ -414,8 +438,11 @@
+             for sf_k in cutlass.range(lane, self.hidden // 128, 32):
+                 sf_value = cell(remote, Uint64(self.off_x_sf) + (Uint64(token) * (self.hidden // 128) + Uint32(sf_k)) * 4, Float32)[0]
+                 sf_out = cell(base, Uint64(self.off_l1_acts_sf) + ((Uint64(expert) * (self.hidden // 128) + Uint32(sf_k)) * self.rows + Uint32(pull_row)) * 4, Float32)
+-                # Direct M8 stores SF * 64; secondary scaling remains in compute.
+-                sf_out[0] = sf_value * Float32(64)
++                # Direct M8 stores SF * 64 for MXFP4; FP8 keeps natural SF.
++                if cutlass.const_expr(self.fp8_weights):
++                    sf_out[0] = sf_value
++                else:
++                    sf_out[0] = sf_value * Float32(64)
+         fence_gpu()
+         cute.arch.sync_threads()
+         if tid == 0:
+@@ -449,15 +476,24 @@
+         stage_base = stage * self.stage_bytes
+         if tid == 0:
+             bar = cute.recast_ptr(slab + self.smem - 128 + stage * 8, dtype=Uint64)
+-            cute.arch.mbarrier_arrive_and_expect_tx(bar, 16896 * self.routed_n_factor)
+-            for sub in cutlass.range_constexpr(self.routed_n_factor):
+-                index = (Uint64(expert) * (n_size // 256) + ntile * self.routed_n_factor + sub) * (k_size // 128) + kb
+-                if cutlass.const_expr(self.routed_n_factor == 1):
+-                    bulk_g2s_1d(slab + stage_base, weights + index * 16896, Uint32(16896), bar)
+-                else:
+-                    # N512 stages both record payloads before their exponent blocks.
+-                    bulk_g2s_1d(slab + stage_base + sub * 16384, weights + index * 16896, Uint32(16384), bar)
+-                    bulk_g2s_1d(slab + stage_base + 16384 * self.routed_n_factor + sub * 512, offsets + index * 16896, Uint32(512), bar)
++            if cutlass.const_expr(self.fp8_weights):
++                cute.arch.mbarrier_arrive_and_expect_tx(bar, 33792 * self.routed_n_factor)
++                for sub in cutlass.range_constexpr(self.routed_n_factor):
++                    index = (Uint64(expert) * (n_size // 256) + ntile * self.routed_n_factor + sub) * (k_size // 128) + kb
++                    bulk_g2s_1d(slab + stage_base + sub * 32768,
++                                weights + index * 33792, Uint32(32768), bar)
++                    bulk_g2s_1d(slab + stage_base + 32768 * self.routed_n_factor + sub * 1024,
++                                offsets + index * 33792, Uint32(1024), bar)
++            else:
++                cute.arch.mbarrier_arrive_and_expect_tx(bar, 16896 * self.routed_n_factor)
++                for sub in cutlass.range_constexpr(self.routed_n_factor):
++                    index = (Uint64(expert) * (n_size // 256) + ntile * self.routed_n_factor + sub) * (k_size // 128) + kb
++                    if cutlass.const_expr(self.routed_n_factor == 1):
++                        bulk_g2s_1d(slab + stage_base, weights + index * 16896, Uint32(16896), bar)
++                    else:
++                        # N512 stages both record payloads before their exponent blocks.
++                        bulk_g2s_1d(slab + stage_base + sub * 16384, weights + index * 16896, Uint32(16384), bar)
++                        bulk_g2s_1d(slab + stage_base + 16384 * self.routed_n_factor + sub * 512, offsets + index * 16896, Uint32(512), bar)
+         for j in cutlass.range(tid, n * 8, 256):
+             row, k = Uint32(j // 8), Uint32((j % 8) * 16)
+             size = Uint32(0)
+@@ -507,21 +543,37 @@
+             for group in cutlass.range_constexpr(n // 8):
+                 token = Uint32(group * 8 + 2 * (lane % 4))
+                 raw_sf = load_scale_pair(slab + stage * self.stage_bytes + Uint32(self.sf_stage_offset) + token * 4)
+-                scale0 = raw_sf[0] * secondary_value
+-                scale1 = raw_sf[1] * secondary_value
++                if cutlass.const_expr(self.fp8_weights):
++                    scale0, scale1 = raw_sf[0], raw_sf[1]
++                else:
++                    scale0 = raw_sf[0] * secondary_value
++                    scale1 = raw_sf[1] * secondary_value
+                 scales[group * 2], scales[group * 2 + 1] = scale0, scale1
+             for h in cutlass.range_constexpr(2 * self.routed_n_factor):
+                 weight_half = Uint32(wg * 2 * self.routed_n_factor + h)
+                 row = Uint32(warp * 16 + lane // 4)
+-                word_ptr = slab + stage * self.stage_bytes + weight_half * 4096 + Uint32(warp * 1024 + lane * 16)
+-                scale_ptr = slab + stage * self.stage_bytes + Uint32(16384 * self.routed_n_factor) + weight_half * 128 + Uint32(warp * 32 + (lane // 4) * 4)
+-                frag = decode_fragment_nib4(word_ptr, scale_ptr)
+-                part = wgmma_rs_k128(frag, smem_descriptor(slab + stage * self.stage_bytes + self.routed_x_offset), n)
+-                for group in cutlass.range_constexpr(n // 8):
+-                    final[h, group * 4] = cute.math.fma(part[group * 4], scales[group * 2], final[h, group * 4])
+-                    final[h, group * 4 + 1] = cute.math.fma(part[group * 4 + 1], scales[group * 2 + 1], final[h, group * 4 + 1])
+-                    final[h, group * 4 + 2] = cute.math.fma(part[group * 4 + 2], scales[group * 2], final[h, group * 4 + 2])
+-                    final[h, group * 4 + 3] = cute.math.fma(part[group * 4 + 3], scales[group * 2 + 1], final[h, group * 4 + 3])
++                tile_slab = slab + stage * self.stage_bytes
++                if cutlass.const_expr(self.fp8_weights):
++                    frag = load_fp8_fragment(tile_slab, weight_half, warp, lane)
++                else:
++                    word_ptr = tile_slab + weight_half * 4096 + Uint32(warp * 1024 + lane * 16)
++                    scale_ptr = tile_slab + Uint32(16384 * self.routed_n_factor) + weight_half * 128 + Uint32(warp * 32 + (lane // 4) * 4)
++                    frag = decode_fragment_nib4(word_ptr, scale_ptr)
++                part = wgmma_rs_k128(frag, smem_descriptor(tile_slab + self.routed_x_offset), n)
++                if cutlass.const_expr(self.fp8_weights):
++                    sw0 = shared_cell(tile_slab, Uint32(32768) + (weight_half * 64 + row) * 4, Float32)[0]
++                    sw1 = shared_cell(tile_slab, Uint32(32768) + (weight_half * 64 + row + 8) * 4, Float32)[0]
++                    for group in cutlass.range_constexpr(n // 8):
++                        final[h, group * 4] = cute.math.fma(part[group * 4], sw0 * scales[group * 2], final[h, group * 4])
++                        final[h, group * 4 + 1] = cute.math.fma(part[group * 4 + 1], sw0 * scales[group * 2 + 1], final[h, group * 4 + 1])
++                        final[h, group * 4 + 2] = cute.math.fma(part[group * 4 + 2], sw1 * scales[group * 2], final[h, group * 4 + 2])
++                        final[h, group * 4 + 3] = cute.math.fma(part[group * 4 + 3], sw1 * scales[group * 2 + 1], final[h, group * 4 + 3])
++                else:
++                    for group in cutlass.range_constexpr(n // 8):
++                        final[h, group * 4] = cute.math.fma(part[group * 4], scales[group * 2], final[h, group * 4])
++                        final[h, group * 4 + 1] = cute.math.fma(part[group * 4 + 1], scales[group * 2 + 1], final[h, group * 4 + 1])
++                        final[h, group * 4 + 2] = cute.math.fma(part[group * 4 + 2], scales[group * 2], final[h, group * 4 + 2])
++                        final[h, group * 4 + 3] = cute.math.fma(part[group * 4 + 3], scales[group * 2 + 1], final[h, group * 4 + 3])
+         cute.arch.sync_threads()
+         for h in cutlass.range_constexpr(2 * self.routed_n_factor):
+             output_half = Uint32(wg * 2 * self.routed_n_factor + h)
+@@ -561,7 +613,10 @@
+                     inverse = cute.math.rcp(scale)
+                     if lane == 0:
+                         activation_scale_out = cell(base, Uint64(self.off_l2_acts_sf) + ((Uint64(expert) * (self.intermediate // 128) + ntile * self.routed_n_factor + sub) * self.rows + start + ep_token) * 4, Float32)
+-                        activation_scale_out[0] = scale * Float32(64)
++                        if cutlass.const_expr(self.fp8_weights):
++                            activation_scale_out[0] = scale
++                        else:
++                            activation_scale_out[0] = scale * Float32(64)
+                     low = f32x2_to_e4m3x2_bits(values[0] * inverse, values[1] * inverse)
+                     high = f32x2_to_e4m3x2_bits(values[2] * inverse, values[3] * inverse)
+                     activation_out = cell(base, Uint64(self.off_l2_acts) + (Uint64(expert) * self.rows + start + ep_token) * self.intermediate + ntile * (128 * self.routed_n_factor) + sub * 128 + lane * 4, Uint32)
+@@ -603,6 +658,11 @@
+                          + Uint64(kb) * 2)
+                 bulk_g2s_1d(slab + stage_base, weights + index * 16896,
+                             Uint32(33792), full)
++            elif cutlass.const_expr(self.fp8_weights):
++                cute.arch.mbarrier_arrive_and_expect_tx(full, 33792)
++                index = (Uint64(expert) * (n_size // 256) + ntile) * (k_size // 128) + kb
++                bulk_g2s_1d(slab + stage_base, weights + index * 33792, Uint32(32768), full)
++                bulk_g2s_1d(slab + stage_base + Uint32(32768), weights + index * 33792 + Uint64(32768), Uint32(1024), full)
+             else:
+                 cute.arch.mbarrier_arrive_and_expect_tx(full, 16896)
+                 index = (Uint64(expert) * (n_size // 256) + ntile) * (k_size // 128) + kb
+@@ -1069,7 +1129,9 @@
+                     inverse = cute.math.rcp(scale)
+                     if lane == 0:
+                         activation_scale_out = cell(base, Uint64(self.off_l2_acts_sf) + ((Uint64(expert) * (self.intermediate // 128) + ntile) * self.rows + start + ep_token) * 4, Float32)
+-                        if cutlass.const_expr(self.preweighted_routed_sf):
++                        if cutlass.const_expr(self.fp8_weights):
++                            activation_scale_out[0] = scale
++                        elif cutlass.const_expr(self.preweighted_routed_sf):
+                             activation_scale_out[0] = preweight_routed_sf(scale, output_secondary_value)
+                         else:
+                             activation_scale_out[0] = scale * Float32(64)
+@@ -1153,7 +1215,9 @@
+                         inverse = cute.math.rcp(scale)
+                         if lane == 0:
+                             activation_scale_out = cell(base, Uint64(self.off_l2_acts_sf) + ((Uint64(expert) * (self.intermediate // 128) + ntile) * self.rows + start + ep_token) * 4, Float32)
+-                            if cutlass.const_expr(self.preweighted_routed_sf):
++                            if cutlass.const_expr(self.fp8_weights):
++                                activation_scale_out[0] = scale
++                            elif cutlass.const_expr(self.preweighted_routed_sf):
+                                 activation_scale_out[0] = preweight_routed_sf(scale, output_secondary_value)
+                             else:
+                                 activation_scale_out[0] = scale * Float32(64)
+diff --git a/gc_moe/jit_kernels/heuristics/sm90_gc_moe.py b/gc_moe/jit_kernels/heuristics/sm90_gc_moe.py
+--- a/gc_moe/jit_kernels/heuristics/sm90_gc_moe.py
++++ b/gc_moe/jit_kernels/heuristics/sm90_gc_moe.py
+@@ -43,6 +43,13 @@
+         raise ValueError(f'unknown SM90 schedule policy: {policy}')
+     small_pipelined = 0 < config.bound <= (16 if policy == 'pipelined' else 2)
+     pipelined = small_pipelined or config.bound == 0 or config.bound >= 32
++    if getattr(config, 'fp8_weights', False):
++        # Native-FP8 routed records are 33792 B (vs 17408 B for MXFP4), and only
++        # the non-persistent _tile_sync consumer implements the FP8 register-A
++        # WGMMA path (the persistent warp-specialised pipeline is FP4-only via
++        # decode_fragment_nib4). Route every FP8 bound through the legacy
++        # 256-thread schedule so the two-stage FP8 ring fits compute_smem.
++        pipelined = False
+     high_sm = policy == 'pipelined'
+     has_shared = high_sm and config.shared_experts > 0
+     # Common public bound controls geometry only. Every received row is still
+@@ -58,6 +65,10 @@
+     else:
+         tile_m = 8 if config.bound <= 16 else 16
+     workers = (1 if tile_m == 64 else 2) if pipelined else (3 if tile_m == 8 else 2)
++    if getattr(config, 'fp8_weights', False):
++        # FP8 weight stages are ~2x larger; two resident CTAs per SM fit,
++        # three do not on the 78-SM H20.
++        workers = 2
+     # Small-bound routed decode (T=1/2) runs one CTA per SM so each CTA owns
+     # the SM's whole TMA stream. Packing the two adjacent K128 weight records
+     # of one task into a single stage halves the per-stage fixed cost; the
+@@ -83,7 +94,11 @@
+         compute_smem = (stages * stage_bytes + 1024 + epilogue_rows * 1024
+                         + (0 if tile_m == 64 else 256))
+     else:
+-        compute_smem = 53376
++        if getattr(config, 'fp8_weights', False):
++            fp8_stage = (33792 + tile_m * 128 + tile_m * 4 + 1023) // 1024 * 1024
++            compute_smem = (2 * fp8_stage + tile_m * 1024 + 256 + 1023) // 1024 * 1024
++        else:
++            compute_smem = 53376
+     direct_scan = 0 < config.bound <= 2
+     combine_bound = config.bound or config.capacity
+     combine_vector = 16 if high_sm and config.hidden % 512 == 0 else 8
+@@ -145,8 +160,10 @@
+ 
+ 
+ def get_sm90_role_config(config, context):
++    policy = ('legacy' if getattr(config, 'fp8_weights', False)
++              else context.schedule_policy)
+     return _get_sm90_role_config(config, context.dispatch_sms, context.compute_sms,
+-                                 context.schedule_policy)
++                                 policy)
+ 
+ 
+ @dataclass(frozen=True)
+diff --git a/gc_moe/jit_kernels/impls/sm90_fp8_fp4_gc_moe.py b/gc_moe/jit_kernels/impls/sm90_fp8_fp4_gc_moe.py
+--- a/gc_moe/jit_kernels/impls/sm90_fp8_fp4_gc_moe.py
++++ b/gc_moe/jit_kernels/impls/sm90_fp8_fp4_gc_moe.py
+@@ -192,9 +192,10 @@
+                 _CACHE[key] = prepared
+     routed_addresses = []
+     # Exponent pointers alias record storage; N512 gathers them separately.
++    record_offset = 32768 if getattr(config, 'fp8_weights', False) else 16384
+     for record, secondary in (w1, w2):
+         payload = record.data_ptr()
+-        routed_addresses.extend((payload, payload + 16384, secondary.data_ptr()))
++        routed_addresses.extend((payload, payload + record_offset, secondary.data_ptr()))
+     shared_addresses = ([t.data_ptr() for pair in (shared_l1_weights, shared_l2_weights)
+                          for t in pair] if config.shared_experts else [0, 0, 0, 0])
+     addresses = [buffer.buffer.data_ptr(), buffer.peer_table.data_ptr(), y.data_ptr(),
+diff --git a/gc_moe/layout/sm90_gc_moe.py b/gc_moe/layout/sm90_gc_moe.py
+--- a/gc_moe/layout/sm90_gc_moe.py
++++ b/gc_moe/layout/sm90_gc_moe.py
+@@ -105,14 +105,20 @@
+ def get_role_shared_layout(tile_m: int, warp_specialized: bool,
+                            routed_n_factor: int, stage_count_override: int = 0,
+                            routed_k_pack: int = 1,
++                           fp8_weights: bool = False,
+                            *, policy: str) -> SharedStorageLayout:
+-    # Each N256 weight stream is 16384B FP4 + 512B 4-bit exponents.
+-    # Keep 512B padding per stream before the activation region: the wgmma
+-    # 128B-swizzle descriptor requires a 1024B-aligned matrix base.
++    # FP4: each N256 weight stream is 16384B payload + 512B 4-bit exponents
++    # (plus 512B padding).  FP8: 32768B payload + 1024B per-row K128 scales.
++    # The wgmma 128B-swizzle descriptor requires a 1024B-aligned matrix base.
+     if routed_k_pack not in (1, 2):
+         raise ValueError('routed K packing must cover one or two K128 records')
+-    routed_x = 17408 * routed_n_factor * routed_k_pack
+-    stage_m = 8 if routed_n_factor == 2 else (tile_m if warp_specialized else 64)
++    weight_bytes = 33792 if fp8_weights else 17408
++    routed_x = weight_bytes * routed_n_factor * routed_k_pack
++    # Legacy FP8 routed roles are not warp-specialised but still launch the
++    # non-persistent _tile_sync path with at most tile_m rows per stage.
++    # Using 64 rows here doubles the stage stride and overflows compute_smem.
++    stage_m = 8 if routed_n_factor == 2 else (
++        tile_m if (warp_specialized or fp8_weights) else 64)
+     sf_stage = routed_x + stage_m * 128 * routed_k_pack
+     stage = align(sf_stage + stage_m * 4 * routed_k_pack, 1024)
+     stages, epilogue_rows = get_role_pipeline_geometry(tile_m, policy)
+diff --git a/gc_moe/sm90_gc/__init__.py b/gc_moe/sm90_gc/__init__.py
+--- a/gc_moe/sm90_gc/__init__.py
++++ b/gc_moe/sm90_gc/__init__.py
+@@ -234,3 +234,79 @@
+     launch(y, l1_weights, l2_weights, sym_buffer, cumulative_local_expert_recv_stats,
+            recipe, activation, activation_clamp, fast_math, num_tokens_bound,
+            shared_l1_weights, shared_l2_weights, shared_recipe)
++
++
++# ---------------------------------------------------------------------------
++# Routed FP8 x FP8 (E4M3 weights, per-128x128 FP32 scales)
++# ---------------------------------------------------------------------------
++
++def _pack_fp8_routed_tile(weights, scales, pair_l1):
++    """Pack (E, N, K) E4M3 weights into 33792-byte SM90 stage records.
++
++    The 32768B payload is the exact ``_transform_shared`` layout used by the
++    native shared-expert FP8 WGMMA path: per 256-row tile, four 64-row
++    quarters, each holding four K32 groups of 128 lane vectors (16B each).
++    ``pair_l1`` interleaves 128-row gate/up blocks exactly like the FP4
++    transform.  The trailing 1024B hold one FP32 K128 scale per row, ordered
++    by quarter (64 rows each), matching the routed reader.
++    """
++    if weights.dtype != torch.float8_e4m3fn or scales.dtype != torch.float32:
++        raise ValueError('routed FP8 weights require E4M3 data and FP32 scales')
++    e, n, k = weights.shape
++    if weights.ndim != 3 or n % 256 or k % 128:
++        raise ValueError('invalid routed FP8 geometry')
++    if tuple(scales.shape) != (e, n // 128, k // 128):
++        raise ValueError('routed FP8 scales must be per-128x128 blocks')
++    if pair_l1 and (n // 2) % 128:
++        raise ValueError('L1 gate/up halves must be 128-row aligned')
++    record = torch.empty((e, n // 256, k // 128, 33792), dtype=torch.uint8,
++                         device=weights.device)
++    for expert in range(e):
++        tiled, tiled_sf = _transform_shared((weights[expert], scales[expert]),
++                                            (1, 128, 128), pair_l1)
++        # [tile, kblock, quarter, group, lane, 16B] -> 32768B stage payload.
++        record[expert, :, :, :32768] = tiled.reshape(
++            n // 256, k // 128, 32768)
++        # Keep one K128 scale per row in quarter-major order.
++        per_row = tiled_sf[..., 0].contiguous()
++        record[expert, :, :, 32768:] = per_row.view(torch.uint8).reshape(
++            n // 256, k // 128, 1024)
++    return record
++
++
++def transform_fp8_weights_for_gc_moe_sm90(l1_weights, l2_weights):
++    """Convert (E4M3, per-128x128 FP32 scales) routed weights to SM90 records."""
++    pairs = (l1_weights, l2_weights)
++    if any(not isinstance(pair, (tuple, list)) or len(pair) != 2 or
++           any(not isinstance(tensor, torch.Tensor) for tensor in pair)
++           for pair in pairs):
++        raise ValueError('SM90 FP8 transform needs two (payload, scale) pairs')
++    if torch.cuda.is_current_stream_capturing():
++        raise RuntimeError('transform SM90 weights outside CUDA Graph capture')
++    inputs = tuple(tensor for pair in pairs for tensor in pair)
++    if any(not tensor.is_cuda for tensor in inputs):
++        raise ValueError('SM90 FP8 transform inputs must use CUDA storage')
++    device = torch.cuda.current_device()
++    if any(tensor.device.index != device for tensor in inputs):
++        raise ValueError('SM90 FP8 transform inputs must use the current device')
++    l1, l1_sf = l1_weights
++    l2, l2_sf = l2_weights
++    if (l1.shape[0] != l2.shape[0] or l1.shape[1] != 2 * l2.shape[2]
++            or l2.shape[1] != l1.shape[2]):
++        raise ValueError('W1/W2 geometry mismatch')
++    record1 = _pack_fp8_routed_tile(l1, l1_sf, True)
++    record2 = _pack_fp8_routed_tile(l2, l2_sf, False)
++    ones1 = torch.ones((l1.shape[0],), dtype=torch.float32, device=l1.device)
++    ones2 = torch.ones((l2.shape[0],), dtype=torch.float32, device=l2.device)
++    return (record1, ones1), (record2, ones2)
++
++
++def sm90_fp8_fp8_gc_moe(y, l1_weights, l2_weights, sym_buffer,
++                        cumulative_local_expert_recv_stats=None, recipe=(128,128,128),
++                        activation='swiglu', activation_clamp=None, fast_math=True,
++                        num_tokens_bound=None, shared_l1_weights=None,
++                        shared_l2_weights=None, shared_recipe=None):
++    from ..apis.sm90_gc_moe import sm90_fp8_fp8_gc_moe as launch
++    launch(y, l1_weights, l2_weights, sym_buffer, cumulative_local_expert_recv_stats,
++           recipe, activation, activation_clamp, fast_math, num_tokens_bound,
++           shared_l1_weights, shared_l2_weights, shared_recipe)

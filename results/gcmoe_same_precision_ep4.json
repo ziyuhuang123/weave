@@ -1,0 +1,1473 @@
+{
+  "schema": "sp1_gcmoe_strict_same_precision_final_v1",
+  "generated_at_utc": "2026-11-20T18:15:28Z",
+  "invariants": {
+    "num_shared_experts": 0,
+    "strict_same_precision": true,
+    "timing_protocol": "5-round palindromic interleaved ABBA/ABCCBA (10 windows/arm), CUDA Graph replay, 256 MiB L2 flush, slowest-rank per-window aggregation median_w(max_rank(t[rank, w]))",
+    "hosts": {
+      "h20": {
+        "device": "mail-12",
+        "platform": "NVIDIA H20",
+        "sm_count": 78,
+        "ep": 4,
+        "precision": "FP8 x FP8 (1.0 B/weight)"
+      },
+      "sm103": {
+        "device": "mail-17",
+        "platform": "NVIDIA SM103 (148-SM)",
+        "sm_count": 148,
+        "ep": 4,
+        "precision": "FP8 x MXFP4 (0.5 B/weight)"
+      }
+    },
+    "patches": {
+      "gc_moe_sm90_native_fp8": "C:\\Users\\HP\\.gemini\\antigravity-cli\\brain\\fa3f4769-5d6e-41bc-92df-1d7164fd088a\\scratch\\weave_v2_upgrade\\same_prec_and_bf16atomic\\sp1_gcmoe_strict_same_precision\\gc_moe_sm90_native_fp8.patch"
+    },
+    "raw_sources": {
+      "h20_weave_v2": "C:\\Users\\HP\\.gemini\\antigravity-cli\\brain\\fa3f4769-5d6e-41bc-92df-1d7164fd088a\\scratch\\weave_v2_upgrade\\same_prec_and_bf16atomic\\sp1_gcmoe_strict_same_precision\\abba_h20_ep4_qwen_weave_v2.json",
+      "h20_weave_v1_qwen": "C:\\Users\\HP\\.gemini\\antigravity-cli\\brain\\fa3f4769-5d6e-41bc-92df-1d7164fd088a\\scratch\\weave_v2_upgrade\\same_prec_and_bf16atomic\\sp1_gcmoe_strict_same_precision\\abba_h20_ep4_qwen_zero_cont.json",
+      "h20_weave_v1_dsk": "C:\\Users\\HP\\.gemini\\antigravity-cli\\brain\\fa3f4769-5d6e-41bc-92df-1d7164fd088a\\scratch\\weave_v2_upgrade\\same_prec_and_bf16atomic\\sp1_gcmoe_strict_same_precision\\abba_h20_ep4_final.json",
+      "h20_weave_v1_minimax": "C:\\Users\\HP\\.gemini\\antigravity-cli\\brain\\fa3f4769-5d6e-41bc-92df-1d7164fd088a\\scratch\\weave_v2_upgrade\\same_prec_and_bf16atomic\\sp1_gcmoe_strict_same_precision\\abba_h20_ep4_minimax.json",
+      "h20_weave_v1_s16": "C:\\Users\\HP\\.gemini\\antigravity-cli\\brain\\fa3f4769-5d6e-41bc-92df-1d7164fd088a\\scratch\\weave_v2_upgrade\\same_prec_and_bf16atomic\\sp1_gcmoe_strict_same_precision\\abba_h20_ep4_s16.json",
+      "sm103_abba": "C:\\Users\\HP\\.gemini\\antigravity-cli\\brain\\fa3f4769-5d6e-41bc-92df-1d7164fd088a\\scratch\\weave_v2_upgrade\\same_prec_and_bf16atomic\\sp1_gcmoe_strict_same_precision\\abba_sm103_ep4_final.json"
+    }
+  },
+  "h20_ep4_weave_v2_vs_gcmoe_fp8": [
+    {
+      "platform": "NVIDIA H20",
+      "ep": 4,
+      "precision": "FP8 x FP8",
+      "weight_bytes_per_param": 1.0,
+      "num_shared_experts": 0,
+      "model": "Qwen3.8-Max",
+      "H": 8192,
+      "I": 2048,
+      "E": 512,
+      "K": 10,
+      "tokens_per_rank": 32,
+      "global_tokens": 128,
+      "expected_rows_per_expert": 2.5,
+      "weave_suite": "weave_v2_optimal_f133130",
+      "best_weave_arm": "weave_v2_opt_bm32_smem",
+      "cuda_graph_all_ranks": {
+        "gc_moe": true,
+        "weave_official": true,
+        "weave_best": true
+      },
+      "latency_us": {
+        "gc_moe_median": 1956.7,
+        "gc_moe_mad": 4.67,
+        "gc_moe_min": 1905.85,
+        "weave_official_median": 2119.28,
+        "weave_official_mad": 44.02,
+        "weave_best_median": 1839.23,
+        "weave_best_mad": 3.64,
+        "weave_best_min": 1834.52
+      },
+      "paired_abba": {
+        "weave_best_vs_gc_speedup": 1.0588,
+        "gc_minus_weave_best_us": 108.74,
+        "gc_minus_weave_best_mad_us": 10.23,
+        "weave_official_vs_gc_speedup": 0.9309,
+        "weave_best_vs_official_ratio": 1.1523
+      },
+      "accuracy": {
+        "all_finite": true,
+        "stats_exact_all_ranks": true,
+        "gc_vs_exact_fp8_ref": {
+          "rel_l2_max": 0.004705245524120419,
+          "cos_sim_min": 0.9999889352207263,
+          "calc_diff_max": 1.1070891652753545e-05,
+          "max_abs": 0.125
+        },
+        "weave_best_vs_exact_fp8_ref": {
+          "rel_l2_max": 0.004959810364921958,
+          "cos_sim_min": 0.9999877060733784,
+          "calc_diff_max": 1.230135905527785e-05,
+          "max_abs": 0.09375
+        },
+        "gc_vs_bf16_fp32_ref": {
+          "rel_l2_max": 0.06369778543149437,
+          "cos_sim_min": 0.9979693425636624,
+          "calc_diff_max": 0.0020337739472122696
+        },
+        "weave_best_vs_bf16_fp32_ref": {
+          "rel_l2_max": 0.06517662320865648,
+          "cos_sim_min": 0.9978737773472508,
+          "calc_diff_max": 0.0021290710137659152
+        },
+        "direct_gc_vs_weave_best": {
+          "rel_l2_max": 0.03526130451096144,
+          "cos_sim_min": 0.999378218920238,
+          "calc_diff_max": 0.0006217996524879865,
+          "max_abs": 0.5078125
+        }
+      }
+    },
+    {
+      "platform": "NVIDIA H20",
+      "ep": 4,
+      "precision": "FP8 x FP8",
+      "weight_bytes_per_param": 1.0,
+      "num_shared_experts": 0,
+      "model": "Qwen3.8-Max",
+      "H": 8192,
+      "I": 2048,
+      "E": 512,
+      "K": 10,
+      "tokens_per_rank": 128,
+      "global_tokens": 512,
+      "expected_rows_per_expert": 10.0,
+      "weave_suite": "weave_v2_optimal_f133130",
+      "best_weave_arm": "weave_v2_opt_bm32_smem",
+      "cuda_graph_all_ranks": {
+        "gc_moe": true,
+        "weave_official": true,
+        "weave_best": true
+      },
+      "latency_us": {
+        "gc_moe_median": 2190.79,
+        "gc_moe_mad": 10.39,
+        "gc_moe_min": 2159.52,
+        "weave_official_median": 2527.73,
+        "weave_official_mad": 90.64,
+        "weave_best_median": 1988.27,
+        "weave_best_mad": 5.21,
+        "weave_best_min": 1979.26
+      },
+      "paired_abba": {
+        "weave_best_vs_gc_speedup": 1.102,
+        "gc_minus_weave_best_us": 202.55,
+        "gc_minus_weave_best_mad_us": 17.27,
+        "weave_official_vs_gc_speedup": 0.8797,
+        "weave_best_vs_official_ratio": 1.2713
+      },
+      "accuracy": {
+        "all_finite": true,
+        "stats_exact_all_ranks": true,
+        "gc_vs_exact_fp8_ref": {
+          "rel_l2_max": 0.004517764340394996,
+          "cos_sim_min": 0.9999897999200454,
+          "calc_diff_max": 1.0206229039133596e-05,
+          "max_abs": 0.125
+        },
+        "weave_best_vs_exact_fp8_ref": {
+          "rel_l2_max": 0.0046652435453092885,
+          "cos_sim_min": 0.9999891238296428,
+          "calc_diff_max": 1.0883572774678107e-05,
+          "max_abs": 0.125
+        },
+        "gc_vs_bf16_fp32_ref": {
+          "rel_l2_max": 0.06355511668773707,
+          "cos_sim_min": 0.9979783846909893,
+          "calc_diff_max": 0.0020243822177450355
+        },
+        "weave_best_vs_bf16_fp32_ref": {
+          "rel_l2_max": 0.06502104531906645,
+          "cos_sim_min": 0.9978839485837104,
+          "calc_diff_max": 0.002119052389005116
+        },
+        "direct_gc_vs_weave_best": {
+          "rel_l2_max": 0.03521662196883578,
+          "cos_sim_min": 0.9993801176617292,
+          "calc_diff_max": 0.0006199246934929237,
+          "max_abs": 0.828125
+        }
+      }
+    },
+    {
+      "platform": "NVIDIA H20",
+      "ep": 4,
+      "precision": "FP8 x FP8",
+      "weight_bytes_per_param": 1.0,
+      "num_shared_experts": 0,
+      "model": "Qwen3.8-Max",
+      "H": 8192,
+      "I": 2048,
+      "E": 512,
+      "K": 10,
+      "tokens_per_rank": 256,
+      "global_tokens": 1024,
+      "expected_rows_per_expert": 20.0,
+      "weave_suite": "weave_v2_optimal_f133130",
+      "best_weave_arm": "weave_v2_opt_bm64_smem",
+      "cuda_graph_all_ranks": {
+        "gc_moe": true,
+        "weave_official": true,
+        "weave_best": true
+      },
+      "latency_us": {
+        "gc_moe_median": 3740.29,
+        "gc_moe_mad": 32.33,
+        "gc_moe_min": 3700.02,
+        "weave_official_median": 3915.21,
+        "weave_official_mad": 167.88,
+        "weave_best_median": 2216.8,
+        "weave_best_mad": 60.71,
+        "weave_best_min": 2149.89
+      },
+      "paired_abba": {
+        "weave_best_vs_gc_speedup": 1.6789,
+        "gc_minus_weave_best_us": 1514.8,
+        "gc_minus_weave_best_mad_us": 14.41,
+        "weave_official_vs_gc_speedup": 0.9529,
+        "weave_best_vs_official_ratio": 1.7662
+      },
+      "accuracy": {
+        "all_finite": true,
+        "stats_exact_all_ranks": true,
+        "gc_vs_exact_fp8_ref": {
+          "rel_l2_max": 0.004449643377989645,
+          "cos_sim_min": 0.9999901058406329,
+          "calc_diff_max": 9.900804356033355e-06,
+          "max_abs": 0.125
+        },
+        "weave_best_vs_exact_fp8_ref": {
+          "rel_l2_max": 0.004655167349015669,
+          "cos_sim_min": 0.9999891711686831,
+          "calc_diff_max": 1.0836646143985718e-05,
+          "max_abs": 0.12890625
+        },
+        "gc_vs_bf16_fp32_ref": {
+          "rel_l2_max": 0.0634731448241675,
+          "cos_sim_min": 0.9979836031454746,
+          "calc_diff_max": 0.0020191624356041826
+        },
+        "weave_best_vs_bf16_fp32_ref": {
+          "rel_l2_max": 0.06496308161367768,
+          "cos_sim_min": 0.9978877862769105,
+          "calc_diff_max": 0.0021155901173779412
+        },
+        "direct_gc_vs_weave_best": {
+          "rel_l2_max": 0.035175143204967105,
+          "cos_sim_min": 0.9993814880811995,
+          "calc_diff_max": 0.0006185294553042731,
+          "max_abs": 0.828125
+        }
+      }
+    },
+    {
+      "platform": "NVIDIA H20",
+      "ep": 4,
+      "precision": "FP8 x FP8",
+      "weight_bytes_per_param": 1.0,
+      "num_shared_experts": 0,
+      "model": "Qwen3.8-Max",
+      "H": 8192,
+      "I": 2048,
+      "E": 512,
+      "K": 10,
+      "tokens_per_rank": 1024,
+      "global_tokens": 4096,
+      "expected_rows_per_expert": 80.0,
+      "weave_suite": "weave_v2_optimal_f133130",
+      "best_weave_arm": "weave_v2_opt_bm64_smem",
+      "cuda_graph_all_ranks": {
+        "gc_moe": true,
+        "weave_official": true,
+        "weave_best": true
+      },
+      "latency_us": {
+        "gc_moe_median": 11794.3,
+        "gc_moe_mad": 228.66,
+        "gc_moe_min": 11488.04,
+        "weave_official_median": 6899.19,
+        "weave_official_mad": 118.32,
+        "weave_best_median": 5272.74,
+        "weave_best_mad": 221.71,
+        "weave_best_min": 5005.1
+      },
+      "paired_abba": {
+        "weave_best_vs_gc_speedup": 2.2759,
+        "gc_minus_weave_best_us": 6612.02,
+        "gc_minus_weave_best_mad_us": 259.29,
+        "weave_official_vs_gc_speedup": 1.7439,
+        "weave_best_vs_official_ratio": 1.3085
+      },
+      "accuracy": {
+        "all_finite": true,
+        "stats_exact_all_ranks": true,
+        "gc_vs_exact_fp8_ref": {
+          "rel_l2_max": 0.004420409254689841,
+          "cos_sim_min": 0.9999902362138906,
+          "calc_diff_max": 9.771198568153672e-06,
+          "max_abs": 0.125
+        },
+        "weave_best_vs_exact_fp8_ref": {
+          "rel_l2_max": 0.004691971001748473,
+          "cos_sim_min": 0.999988998827753,
+          "calc_diff_max": 1.1008641274456998e-05,
+          "max_abs": 0.21875
+        },
+        "gc_vs_bf16_fp32_ref": {
+          "rel_l2_max": 0.06349469593383357,
+          "cos_sim_min": 0.9979822358610807,
+          "calc_diff_max": 0.002020558071800793
+        },
+        "weave_best_vs_bf16_fp32_ref": {
+          "rel_l2_max": 0.06488269001846692,
+          "cos_sim_min": 0.9978930118115029,
+          "calc_diff_max": 0.0021103254394113646
+        },
+        "direct_gc_vs_weave_best": {
+          "rel_l2_max": 0.0351443985487426,
+          "cos_sim_min": 0.9993825956556244,
+          "calc_diff_max": 0.0006174285244672229,
+          "max_abs": 0.828125
+        }
+      }
+    }
+  ],
+  "h20_ep4_weave_v1_multimodel_vs_gcmoe_fp8": [
+    {
+      "platform": "NVIDIA H20",
+      "ep": 4,
+      "precision": "FP8 x FP8",
+      "weight_bytes_per_param": 1.0,
+      "num_shared_experts": 0,
+      "model": "DSKv4-Flash",
+      "H": 4096,
+      "I": 2048,
+      "E": 256,
+      "K": 6,
+      "tokens_per_rank": 16,
+      "global_tokens": 64,
+      "expected_rows_per_expert": 1.5,
+      "weave_suite": "weave_v1_at5_tuned",
+      "best_weave_arm": "weave_tuned_bm32_fp8",
+      "cuda_graph_all_ranks": {
+        "gc_moe": true,
+        "weave_official": true,
+        "weave_best": true
+      },
+      "latency_us": {
+        "gc_moe_median": 453.89,
+        "gc_moe_mad": 1.63,
+        "gc_moe_min": 451.11,
+        "weave_official_median": 489.42,
+        "weave_official_mad": 2.86,
+        "weave_best_median": 440.9,
+        "weave_best_mad": 1.7,
+        "weave_best_min": 437.48
+      },
+      "paired_abba": {
+        "weave_best_vs_gc_speedup": 1.029,
+        "gc_minus_weave_best_us": 12.79,
+        "gc_minus_weave_best_mad_us": 0.56,
+        "weave_official_vs_gc_speedup": 0.9291,
+        "weave_best_vs_official_ratio": 1.1101
+      },
+      "accuracy": {
+        "all_finite": true,
+        "stats_exact_all_ranks": true,
+        "gc_vs_exact_fp8_ref": {
+          "rel_l2_max": 0.004648625037898962,
+          "cos_sim_min": 0.9999891975329205,
+          "calc_diff_max": 1.080573025569187e-05,
+          "max_abs": 0.0625
+        },
+        "weave_best_vs_exact_fp8_ref": {
+          "rel_l2_max": 0.004831008500940205,
+          "cos_sim_min": 0.9999883419506868,
+          "calc_diff_max": 1.167121516532088e-05,
+          "max_abs": 0.0625
+        },
+        "gc_vs_bf16_fp32_ref": {
+          "rel_l2_max": 0.06418419587113938,
+          "cos_sim_min": 0.9979385130402479,
+          "calc_diff_max": 0.0020660007802731917
+        },
+        "weave_best_vs_bf16_fp32_ref": {
+          "rel_l2_max": 0.06516759692755034,
+          "cos_sim_min": 0.9978748809779787,
+          "calc_diff_max": 0.002130151754003329
+        },
+        "direct_gc_vs_weave_best": {
+          "rel_l2_max": 0.03538221744265448,
+          "cos_sim_min": 0.9993743006588999,
+          "calc_diff_max": 0.000625750455750973,
+          "max_abs": 0.3046875
+        }
+      }
+    },
+    {
+      "platform": "NVIDIA H20",
+      "ep": 4,
+      "precision": "FP8 x FP8",
+      "weight_bytes_per_param": 1.0,
+      "num_shared_experts": 0,
+      "model": "DSKv4-Flash",
+      "H": 4096,
+      "I": 2048,
+      "E": 256,
+      "K": 6,
+      "tokens_per_rank": 128,
+      "global_tokens": 512,
+      "expected_rows_per_expert": 12.0,
+      "weave_suite": "weave_v1_at5_tuned",
+      "best_weave_arm": "weave_tuned_bm32_fp8",
+      "cuda_graph_all_ranks": {
+        "gc_moe": true,
+        "weave_official": true,
+        "weave_best": true
+      },
+      "latency_us": {
+        "gc_moe_median": 628.05,
+        "gc_moe_mad": 2.63,
+        "gc_moe_min": 620.0,
+        "weave_official_median": 670.73,
+        "weave_official_mad": 6.15,
+        "weave_best_median": 544.09,
+        "weave_best_mad": 4.85,
+        "weave_best_min": 534.06
+      },
+      "paired_abba": {
+        "weave_best_vs_gc_speedup": 1.1556,
+        "gc_minus_weave_best_us": 84.63,
+        "gc_minus_weave_best_mad_us": 5.88,
+        "weave_official_vs_gc_speedup": 0.9367,
+        "weave_best_vs_official_ratio": 1.2328
+      },
+      "accuracy": {
+        "all_finite": true,
+        "stats_exact_all_ranks": true,
+        "gc_vs_exact_fp8_ref": {
+          "rel_l2_max": 0.004637712869040231,
+          "cos_sim_min": 0.999989249240966,
+          "calc_diff_max": 1.0755204347012715e-05,
+          "max_abs": 0.078125
+        },
+        "weave_best_vs_exact_fp8_ref": {
+          "rel_l2_max": 0.004696333962809116,
+          "cos_sim_min": 0.999988979406456,
+          "calc_diff_max": 1.1029225300052126e-05,
+          "max_abs": 0.0703125
+        },
+        "gc_vs_bf16_fp32_ref": {
+          "rel_l2_max": 0.06367773222955422,
+          "cos_sim_min": 0.997970888545945,
+          "calc_diff_max": 0.0020333025775935987
+        },
+        "weave_best_vs_bf16_fp32_ref": {
+          "rel_l2_max": 0.06507034967209088,
+          "cos_sim_min": 0.9978812732829323,
+          "calc_diff_max": 0.002123877146559372
+        },
+        "direct_gc_vs_weave_best": {
+          "rel_l2_max": 0.03504739269215852,
+          "cos_sim_min": 0.9993860829424684,
+          "calc_diff_max": 0.0006139665607475253,
+          "max_abs": 0.328125
+        }
+      }
+    },
+    {
+      "platform": "NVIDIA H20",
+      "ep": 4,
+      "precision": "FP8 x FP8",
+      "weight_bytes_per_param": 1.0,
+      "num_shared_experts": 0,
+      "model": "DSKv4-Flash",
+      "H": 4096,
+      "I": 2048,
+      "E": 256,
+      "K": 6,
+      "tokens_per_rank": 256,
+      "global_tokens": 1024,
+      "expected_rows_per_expert": 24.0,
+      "weave_suite": "weave_v1_at5_tuned",
+      "best_weave_arm": "weave_tuned_bm32_fp8",
+      "cuda_graph_all_ranks": {
+        "gc_moe": true,
+        "weave_official": true,
+        "weave_best": true
+      },
+      "latency_us": {
+        "gc_moe_median": 1102.59,
+        "gc_moe_mad": 3.57,
+        "gc_moe_min": 1092.77,
+        "weave_official_median": 837.43,
+        "weave_official_mad": 9.3,
+        "weave_best_median": 632.47,
+        "weave_best_mad": 4.5,
+        "weave_best_min": 598.42
+      },
+      "paired_abba": {
+        "weave_best_vs_gc_speedup": 1.7526,
+        "gc_minus_weave_best_us": 473.79,
+        "gc_minus_weave_best_mad_us": 2.73,
+        "weave_official_vs_gc_speedup": 1.3221,
+        "weave_best_vs_official_ratio": 1.3241
+      },
+      "accuracy": {
+        "all_finite": true,
+        "stats_exact_all_ranks": true,
+        "gc_vs_exact_fp8_ref": {
+          "rel_l2_max": 0.0045554501870612545,
+          "cos_sim_min": 0.9999896291933802,
+          "calc_diff_max": 1.0377240203029992e-05,
+          "max_abs": 0.078125
+        },
+        "weave_best_vs_exact_fp8_ref": {
+          "rel_l2_max": 0.004580354806832184,
+          "cos_sim_min": 0.9999895156718077,
+          "calc_diff_max": 1.049104048267413e-05,
+          "max_abs": 0.099609375
+        },
+        "gc_vs_bf16_fp32_ref": {
+          "rel_l2_max": 0.06362343322853742,
+          "cos_sim_min": 0.9979740828308897,
+          "calc_diff_max": 0.0020290075503650584
+        },
+        "weave_best_vs_bf16_fp32_ref": {
+          "rel_l2_max": 0.06507507897483865,
+          "cos_sim_min": 0.9978804107174514,
+          "calc_diff_max": 0.0021231382545882083
+        },
+        "direct_gc_vs_weave_best": {
+          "rel_l2_max": 0.03503923768557541,
+          "cos_sim_min": 0.9993862759894782,
+          "calc_diff_max": 0.0006137458253041572,
+          "max_abs": 0.4375
+        }
+      }
+    },
+    {
+      "platform": "NVIDIA H20",
+      "ep": 4,
+      "precision": "FP8 x FP8",
+      "weight_bytes_per_param": 1.0,
+      "num_shared_experts": 0,
+      "model": "DSKv4-Flash",
+      "H": 4096,
+      "I": 2048,
+      "E": 256,
+      "K": 6,
+      "tokens_per_rank": 1024,
+      "global_tokens": 4096,
+      "expected_rows_per_expert": 96.0,
+      "weave_suite": "weave_v1_at5_tuned",
+      "best_weave_arm": "weave_tuned_bm64_fp8",
+      "cuda_graph_all_ranks": {
+        "gc_moe": true,
+        "weave_official": true,
+        "weave_best": true
+      },
+      "latency_us": {
+        "gc_moe_median": 3533.84,
+        "gc_moe_mad": 46.59,
+        "gc_moe_min": 3487.1,
+        "weave_official_median": 1886.3,
+        "weave_official_mad": 111.97,
+        "weave_best_median": 1703.16,
+        "weave_best_mad": 16.48,
+        "weave_best_min": 1680.29
+      },
+      "paired_abba": {
+        "weave_best_vs_gc_speedup": 2.0837,
+        "gc_minus_weave_best_us": 1843.86,
+        "gc_minus_weave_best_mad_us": 51.83,
+        "weave_official_vs_gc_speedup": 1.8704,
+        "weave_best_vs_official_ratio": 1.1075
+      },
+      "accuracy": {
+        "all_finite": true,
+        "stats_exact_all_ranks": true,
+        "gc_vs_exact_fp8_ref": {
+          "rel_l2_max": 0.004421916697104982,
+          "cos_sim_min": 0.9999902295012624,
+          "calc_diff_max": 9.777859902415642e-06,
+          "max_abs": 0.078125
+        },
+        "weave_best_vs_exact_fp8_ref": {
+          "rel_l2_max": 0.004715818512800219,
+          "cos_sim_min": 0.9999888867555157,
+          "calc_diff_max": 1.1120842886791493e-05,
+          "max_abs": 0.125
+        },
+        "gc_vs_bf16_fp32_ref": {
+          "rel_l2_max": 0.06351816863090415,
+          "cos_sim_min": 0.9979807022300505,
+          "calc_diff_max": 0.0020220575592160284
+        },
+        "weave_best_vs_bf16_fp32_ref": {
+          "rel_l2_max": 0.06499435646821206,
+          "cos_sim_min": 0.9978856858110438,
+          "calc_diff_max": 0.0021173003477009678
+        },
+        "direct_gc_vs_weave_best": {
+          "rel_l2_max": 0.03505529989711058,
+          "cos_sim_min": 0.9993857687408487,
+          "calc_diff_max": 0.0006142687419152804,
+          "max_abs": 0.4375
+        }
+      }
+    },
+    {
+      "platform": "NVIDIA H20",
+      "ep": 4,
+      "precision": "FP8 x FP8",
+      "weight_bytes_per_param": 1.0,
+      "num_shared_experts": 0,
+      "model": "MiniMax-M3",
+      "H": 6144,
+      "I": 3072,
+      "E": 128,
+      "K": 4,
+      "tokens_per_rank": 128,
+      "global_tokens": 512,
+      "expected_rows_per_expert": 16.0,
+      "weave_suite": "weave_v1_at5_tuned",
+      "best_weave_arm": "weave_tuned_bm32_fp8",
+      "cuda_graph_all_ranks": {
+        "gc_moe": true,
+        "weave_official": true,
+        "weave_best": true
+      },
+      "latency_us": {
+        "gc_moe_median": 969.44,
+        "gc_moe_mad": 4.99,
+        "gc_moe_min": 953.77,
+        "weave_official_median": 800.74,
+        "weave_official_mad": 5.63,
+        "weave_best_median": 611.31,
+        "weave_best_mad": 4.77,
+        "weave_best_min": 600.04
+      },
+      "paired_abba": {
+        "weave_best_vs_gc_speedup": 1.5899,
+        "gc_minus_weave_best_us": 360.1,
+        "gc_minus_weave_best_mad_us": 0.99,
+        "weave_official_vs_gc_speedup": 1.2152,
+        "weave_best_vs_official_ratio": 1.3099
+      },
+      "accuracy": {
+        "all_finite": true,
+        "stats_exact_all_ranks": true,
+        "gc_vs_exact_fp8_ref": {
+          "rel_l2_max": 0.004554128053946376,
+          "cos_sim_min": 0.9999896365490119,
+          "calc_diff_max": 1.0371344098092372e-05,
+          "max_abs": 0.125
+        },
+        "weave_best_vs_exact_fp8_ref": {
+          "rel_l2_max": 0.004886728547995892,
+          "cos_sim_min": 0.9999880654012675,
+          "calc_diff_max": 1.1941456276476359e-05,
+          "max_abs": 0.21875
+        },
+        "gc_vs_bf16_fp32_ref": {
+          "rel_l2_max": 0.06360528903195432,
+          "cos_sim_min": 0.997975189280872,
+          "calc_diff_max": 0.002027592423045621
+        },
+        "weave_best_vs_bf16_fp32_ref": {
+          "rel_l2_max": 0.06504722472935283,
+          "cos_sim_min": 0.9978823481107267,
+          "calc_diff_max": 0.002121259089470695
+        },
+        "direct_gc_vs_weave_best": {
+          "rel_l2_max": 0.03500441261880158,
+          "cos_sim_min": 0.9993874066011909,
+          "calc_diff_max": 0.000612597688292249,
+          "max_abs": 0.708984375
+        }
+      }
+    },
+    {
+      "platform": "NVIDIA H20",
+      "ep": 4,
+      "precision": "FP8 x FP8",
+      "weight_bytes_per_param": 1.0,
+      "num_shared_experts": 0,
+      "model": "MiniMax-M3",
+      "H": 6144,
+      "I": 3072,
+      "E": 128,
+      "K": 4,
+      "tokens_per_rank": 256,
+      "global_tokens": 1024,
+      "expected_rows_per_expert": 32.0,
+      "weave_suite": "weave_v1_at5_tuned",
+      "best_weave_arm": "weave_tuned_bm32_fp8",
+      "cuda_graph_all_ranks": {
+        "gc_moe": true,
+        "weave_official": true,
+        "weave_best": true
+      },
+      "latency_us": {
+        "gc_moe_median": 1566.67,
+        "gc_moe_mad": 3.15,
+        "gc_moe_min": 1554.74,
+        "weave_official_median": 1024.3,
+        "weave_official_mad": 28.01,
+        "weave_best_median": 868.28,
+        "weave_best_mad": 10.65,
+        "weave_best_min": 849.49
+      },
+      "paired_abba": {
+        "weave_best_vs_gc_speedup": 1.8142,
+        "gc_minus_weave_best_us": 699.88,
+        "gc_minus_weave_best_mad_us": 9.24,
+        "weave_official_vs_gc_speedup": 1.521,
+        "weave_best_vs_official_ratio": 1.1797
+      },
+      "accuracy": {
+        "all_finite": true,
+        "stats_exact_all_ranks": true,
+        "gc_vs_exact_fp8_ref": {
+          "rel_l2_max": 0.004475648224970749,
+          "cos_sim_min": 0.9999899889181416,
+          "calc_diff_max": 1.0016783016375541e-05,
+          "max_abs": 0.15234375
+        },
+        "weave_best_vs_exact_fp8_ref": {
+          "rel_l2_max": 0.004792721569747102,
+          "cos_sim_min": 0.9999885196739635,
+          "calc_diff_max": 1.148635074643689e-05,
+          "max_abs": 0.21875
+        },
+        "gc_vs_bf16_fp32_ref": {
+          "rel_l2_max": 0.06358049910389042,
+          "cos_sim_min": 0.9979767189521257,
+          "calc_diff_max": 0.0020255502125754443
+        },
+        "weave_best_vs_bf16_fp32_ref": {
+          "rel_l2_max": 0.06497884902095044,
+          "cos_sim_min": 0.997886677097148,
+          "calc_diff_max": 0.00211615599220516
+        },
+        "direct_gc_vs_weave_best": {
+          "rel_l2_max": 0.03506227494825377,
+          "cos_sim_min": 0.9993855131102382,
+          "calc_diff_max": 0.000614520989249856,
+          "max_abs": 0.8125
+        }
+      }
+    },
+    {
+      "platform": "NVIDIA H20",
+      "ep": 4,
+      "precision": "FP8 x FP8",
+      "weight_bytes_per_param": 1.0,
+      "num_shared_experts": 0,
+      "model": "MiniMax-M3",
+      "H": 6144,
+      "I": 3072,
+      "E": 128,
+      "K": 4,
+      "tokens_per_rank": 1024,
+      "global_tokens": 4096,
+      "expected_rows_per_expert": 128.0,
+      "weave_suite": "weave_v1_at5_tuned",
+      "best_weave_arm": "weave_tuned_bm64_fp8",
+      "cuda_graph_all_ranks": {
+        "gc_moe": true,
+        "weave_official": true,
+        "weave_best": true
+      },
+      "latency_us": {
+        "gc_moe_median": 5118.91,
+        "gc_moe_mad": 44.66,
+        "gc_moe_min": 5064.37,
+        "weave_official_median": 2567.48,
+        "weave_official_mad": 152.92,
+        "weave_best_median": 2372.17,
+        "weave_best_mad": 77.34,
+        "weave_best_min": 2264.66
+      },
+      "paired_abba": {
+        "weave_best_vs_gc_speedup": 2.2131,
+        "gc_minus_weave_best_us": 2817.67,
+        "gc_minus_weave_best_mad_us": 95.68,
+        "weave_official_vs_gc_speedup": 2.0041,
+        "weave_best_vs_official_ratio": 1.0823
+      },
+      "accuracy": {
+        "all_finite": true,
+        "stats_exact_all_ranks": true,
+        "gc_vs_exact_fp8_ref": {
+          "rel_l2_max": 0.004412966332336727,
+          "cos_sim_min": 0.9999902689633442,
+          "calc_diff_max": 9.738310351781188e-06,
+          "max_abs": 0.1875
+        },
+        "weave_best_vs_exact_fp8_ref": {
+          "rel_l2_max": 0.00477694063723373,
+          "cos_sim_min": 0.9999885966718424,
+          "calc_diff_max": 1.1410993649318968e-05,
+          "max_abs": 0.21875
+        },
+        "gc_vs_bf16_fp32_ref": {
+          "rel_l2_max": 0.06353069722150334,
+          "cos_sim_min": 0.9979799321955106,
+          "calc_diff_max": 0.002022777410982113
+        },
+        "weave_best_vs_bf16_fp32_ref": {
+          "rel_l2_max": 0.06497042066730896,
+          "cos_sim_min": 0.9978873753932451,
+          "calc_diff_max": 0.0021163274500380913
+        },
+        "direct_gc_vs_weave_best": {
+          "rel_l2_max": 0.035084463694912124,
+          "cos_sim_min": 0.9993847498525931,
+          "calc_diff_max": 0.0006152887447727906,
+          "max_abs": 0.9453125
+        }
+      }
+    },
+    {
+      "platform": "NVIDIA H20",
+      "ep": 4,
+      "precision": "FP8 x FP8",
+      "weight_bytes_per_param": 1.0,
+      "num_shared_experts": 0,
+      "model": "Qwen3.8-Max",
+      "H": 8192,
+      "I": 2048,
+      "E": 512,
+      "K": 10,
+      "tokens_per_rank": 16,
+      "global_tokens": 64,
+      "expected_rows_per_expert": 1.25,
+      "weave_suite": "weave_v1_at5_tuned",
+      "best_weave_arm": "weave_tuned_bm32_fp8",
+      "cuda_graph_all_ranks": {
+        "gc_moe": true,
+        "weave_official": true,
+        "weave_best": true
+      },
+      "latency_us": {
+        "gc_moe_median": 1546.98,
+        "gc_moe_mad": 5.68,
+        "gc_moe_min": 1517.95,
+        "weave_official_median": 1669.49,
+        "weave_official_mad": 20.77,
+        "weave_best_median": 1537.1,
+        "weave_best_mad": 6.14,
+        "weave_best_min": 1508.84
+      },
+      "paired_abba": {
+        "weave_best_vs_gc_speedup": 1.0094,
+        "gc_minus_weave_best_us": 14.28,
+        "gc_minus_weave_best_mad_us": 1.43,
+        "weave_official_vs_gc_speedup": 0.9205,
+        "weave_best_vs_official_ratio": 1.0861
+      },
+      "accuracy": {
+        "all_finite": true,
+        "stats_exact_all_ranks": true,
+        "gc_vs_exact_fp8_ref": {
+          "rel_l2_max": 0.004746580890909466,
+          "cos_sim_min": 0.9999887465019677,
+          "calc_diff_max": 1.1266856381419998e-05,
+          "max_abs": 0.078125
+        },
+        "weave_best_vs_exact_fp8_ref": {
+          "rel_l2_max": 0.005293193014784118,
+          "cos_sim_min": 0.9999860001801052,
+          "calc_diff_max": 1.401104519438423e-05,
+          "max_abs": 0.09375
+        },
+        "gc_vs_bf16_fp32_ref": {
+          "rel_l2_max": 0.06345710356392241,
+          "cos_sim_min": 0.9979846808648253,
+          "calc_diff_max": 0.002018425664727652
+        },
+        "weave_best_vs_bf16_fp32_ref": {
+          "rel_l2_max": 0.06505603066396912,
+          "cos_sim_min": 0.9978816552461967,
+          "calc_diff_max": 0.0021212493954820832
+        },
+        "direct_gc_vs_weave_best": {
+          "rel_l2_max": 0.03517753711737325,
+          "cos_sim_min": 0.9993812925947824,
+          "calc_diff_max": 0.0006187080112504129,
+          "max_abs": 0.5
+        }
+      }
+    },
+    {
+      "platform": "NVIDIA H20",
+      "ep": 4,
+      "precision": "FP8 x FP8",
+      "weight_bytes_per_param": 1.0,
+      "num_shared_experts": 0,
+      "model": "Qwen3.8-Max",
+      "H": 8192,
+      "I": 2048,
+      "E": 512,
+      "K": 10,
+      "tokens_per_rank": 128,
+      "global_tokens": 512,
+      "expected_rows_per_expert": 10.0,
+      "weave_suite": "weave_v1_at5_tuned",
+      "best_weave_arm": "weave_tuned_bm32_fp8",
+      "cuda_graph_all_ranks": {
+        "gc_moe": true,
+        "weave_official": true,
+        "weave_best": true
+      },
+      "latency_us": {
+        "gc_moe_median": 2190.99,
+        "gc_moe_mad": 9.02,
+        "gc_moe_min": 2151.33,
+        "weave_official_median": 2537.9,
+        "weave_official_mad": 76.02,
+        "weave_best_median": 2065.42,
+        "weave_best_mad": 13.56,
+        "weave_best_min": 2040.21
+      },
+      "paired_abba": {
+        "weave_best_vs_gc_speedup": 1.0667,
+        "gc_minus_weave_best_us": 136.97,
+        "gc_minus_weave_best_mad_us": 28.54,
+        "weave_official_vs_gc_speedup": 0.8699,
+        "weave_best_vs_official_ratio": 1.2288
+      },
+      "accuracy": {
+        "all_finite": true,
+        "stats_exact_all_ranks": true,
+        "gc_vs_exact_fp8_ref": {
+          "rel_l2_max": 0.004517764340394996,
+          "cos_sim_min": 0.9999897999200454,
+          "calc_diff_max": 1.0206229039133596e-05,
+          "max_abs": 0.125
+        },
+        "weave_best_vs_exact_fp8_ref": {
+          "rel_l2_max": 0.0046652435453092885,
+          "cos_sim_min": 0.9999891238296428,
+          "calc_diff_max": 1.0883572774678107e-05,
+          "max_abs": 0.125
+        },
+        "gc_vs_bf16_fp32_ref": {
+          "rel_l2_max": 0.06355511668773707,
+          "cos_sim_min": 0.9979783846909893,
+          "calc_diff_max": 0.0020243822177450355
+        },
+        "weave_best_vs_bf16_fp32_ref": {
+          "rel_l2_max": 0.06502104531906645,
+          "cos_sim_min": 0.9978839485837104,
+          "calc_diff_max": 0.002119052389005116
+        },
+        "direct_gc_vs_weave_best": {
+          "rel_l2_max": 0.03521662196883578,
+          "cos_sim_min": 0.9993801176617292,
+          "calc_diff_max": 0.0006199246934929237,
+          "max_abs": 0.828125
+        }
+      }
+    },
+    {
+      "platform": "NVIDIA H20",
+      "ep": 4,
+      "precision": "FP8 x FP8",
+      "weight_bytes_per_param": 1.0,
+      "num_shared_experts": 0,
+      "model": "Qwen3.8-Max",
+      "H": 8192,
+      "I": 2048,
+      "E": 512,
+      "K": 10,
+      "tokens_per_rank": 256,
+      "global_tokens": 1024,
+      "expected_rows_per_expert": 20.0,
+      "weave_suite": "weave_v1_at5_tuned",
+      "best_weave_arm": "weave_tuned_bm32_fp8",
+      "cuda_graph_all_ranks": {
+        "gc_moe": true,
+        "weave_official": true,
+        "weave_best": true
+      },
+      "latency_us": {
+        "gc_moe_median": 3731.14,
+        "gc_moe_mad": 29.81,
+        "gc_moe_min": 3701.02,
+        "weave_official_median": 4012.76,
+        "weave_official_mad": 186.29,
+        "weave_best_median": 2231.91,
+        "weave_best_mad": 84.51,
+        "weave_best_min": 2139.43
+      },
+      "paired_abba": {
+        "weave_best_vs_gc_speedup": 1.6926,
+        "gc_minus_weave_best_us": 1535.72,
+        "gc_minus_weave_best_mad_us": 18.89,
+        "weave_official_vs_gc_speedup": 0.9106,
+        "weave_best_vs_official_ratio": 1.7979
+      },
+      "accuracy": {
+        "all_finite": true,
+        "stats_exact_all_ranks": true,
+        "gc_vs_exact_fp8_ref": {
+          "rel_l2_max": 0.004449643377989645,
+          "cos_sim_min": 0.9999901058406329,
+          "calc_diff_max": 9.900804356033355e-06,
+          "max_abs": 0.125
+        },
+        "weave_best_vs_exact_fp8_ref": {
+          "rel_l2_max": 0.0046549157051520495,
+          "cos_sim_min": 0.9999891723177525,
+          "calc_diff_max": 1.0835472449177708e-05,
+          "max_abs": 0.12890625
+        },
+        "gc_vs_bf16_fp32_ref": {
+          "rel_l2_max": 0.0634731448241675,
+          "cos_sim_min": 0.9979836031454746,
+          "calc_diff_max": 0.0020191624356041826
+        },
+        "weave_best_vs_bf16_fp32_ref": {
+          "rel_l2_max": 0.06496311408391317,
+          "cos_sim_min": 0.9978877842377044,
+          "calc_diff_max": 0.002115592560811841
+        },
+        "direct_gc_vs_weave_best": {
+          "rel_l2_max": 0.035175090412307417,
+          "cos_sim_min": 0.9993814896800561,
+          "calc_diff_max": 0.0006185277965983227,
+          "max_abs": 0.828125
+        }
+      }
+    },
+    {
+      "platform": "NVIDIA H20",
+      "ep": 4,
+      "precision": "FP8 x FP8",
+      "weight_bytes_per_param": 1.0,
+      "num_shared_experts": 0,
+      "model": "Qwen3.8-Max",
+      "H": 8192,
+      "I": 2048,
+      "E": 512,
+      "K": 10,
+      "tokens_per_rank": 1024,
+      "global_tokens": 4096,
+      "expected_rows_per_expert": 80.0,
+      "weave_suite": "weave_v1_at5_tuned",
+      "best_weave_arm": "weave_tuned_bm64_fp8",
+      "cuda_graph_all_ranks": {
+        "gc_moe": true,
+        "weave_official": true,
+        "weave_best": true
+      },
+      "latency_us": {
+        "gc_moe_median": 11701.7,
+        "gc_moe_mad": 56.14,
+        "gc_moe_min": 11623.08,
+        "weave_official_median": 7298.07,
+        "weave_official_mad": 152.16,
+        "weave_best_median": 5876.98,
+        "weave_best_mad": 64.43,
+        "weave_best_min": 5741.71
+      },
+      "paired_abba": {
+        "weave_best_vs_gc_speedup": 2.0025,
+        "gc_minus_weave_best_us": 5864.41,
+        "gc_minus_weave_best_mad_us": 144.04,
+        "weave_official_vs_gc_speedup": 1.6046,
+        "weave_best_vs_official_ratio": 1.2418
+      },
+      "accuracy": {
+        "all_finite": true,
+        "stats_exact_all_ranks": true,
+        "gc_vs_exact_fp8_ref": {
+          "rel_l2_max": 0.004420409254689841,
+          "cos_sim_min": 0.9999902362138906,
+          "calc_diff_max": 9.771198568153672e-06,
+          "max_abs": 0.125
+        },
+        "weave_best_vs_exact_fp8_ref": {
+          "rel_l2_max": 0.004692117420976955,
+          "cos_sim_min": 0.9999889981324611,
+          "calc_diff_max": 1.100932755160322e-05,
+          "max_abs": 0.21875
+        },
+        "gc_vs_bf16_fp32_ref": {
+          "rel_l2_max": 0.06349469593383357,
+          "cos_sim_min": 0.9979822358610807,
+          "calc_diff_max": 0.002020558071800793
+        },
+        "weave_best_vs_bf16_fp32_ref": {
+          "rel_l2_max": 0.06488272133125528,
+          "cos_sim_min": 0.9978930097681498,
+          "calc_diff_max": 0.002110327447868432
+        },
+        "direct_gc_vs_weave_best": {
+          "rel_l2_max": 0.035144381935098216,
+          "cos_sim_min": 0.9993825962280516,
+          "calc_diff_max": 0.0006174279490680501,
+          "max_abs": 0.828125
+        }
+      }
+    }
+  ],
+  "sm103_ep4_weave_baseline_vs_gcmoe_fp8_mxfp4": [
+    {
+      "platform": "NVIDIA SM103 (148-SM)",
+      "ep": 4,
+      "precision": "FP8 x MXFP4",
+      "weight_bytes_per_param": 0.5,
+      "num_shared_experts": 0,
+      "model": "Qwen3.8-Max",
+      "H": 8192,
+      "I": 2048,
+      "E": 512,
+      "K": 10,
+      "tokens_per_rank": 128,
+      "global_tokens": 512,
+      "expected_rows_per_expert": 10.0,
+      "gc_moe_block_m": 16,
+      "weave_variant": "atrex_baseline_bm240",
+      "cuda_graph_all_ranks": {
+        "gc_moe": true,
+        "weave": true
+      },
+      "latency_us": {
+        "gc_moe_median": 533.89,
+        "gc_moe_mad": 0.37,
+        "gc_moe_min": 532.3,
+        "weave_median": 562.03,
+        "weave_mad": 0.33,
+        "weave_min": 561.66
+      },
+      "paired_abba": {
+        "weave_vs_gc_speedup": 0.9499,
+        "gc_vs_weave_speedup": 1.0527,
+        "gc_minus_weave_us": -28.15,
+        "gc_minus_weave_mad_us": 0.22
+      },
+      "accuracy": {
+        "gc_moe_vs_ref": {
+          "all_finite": true,
+          "stats_exact_all_ranks": true,
+          "graph_vs_eager_diff_max": 0.0,
+          "rel_l2_max": 0.00016977851696671077,
+          "cos_sim_min": 0.9999999855877302,
+          "calc_diff_max": 1.44123660783535e-08,
+          "max_abs": 0.00390625
+        },
+        "weave_vs_ref": {
+          "all_finite": true,
+          "stats_exact_all_ranks": true,
+          "graph_vs_eager_diff_max": 0.0,
+          "rel_l2_max": 0.00016977851696671077,
+          "cos_sim_min": 0.9999999855877302,
+          "calc_diff_max": 1.44123660783535e-08,
+          "max_abs": 0.00390625
+        },
+        "direct_gc_vs_weave": {
+          "rel_l2_max": 0.0,
+          "cos_sim_min": 0.9999999999999999,
+          "calc_diff_max": 0.0,
+          "max_abs": 0.0
+        }
+      }
+    },
+    {
+      "platform": "NVIDIA SM103 (148-SM)",
+      "ep": 4,
+      "precision": "FP8 x MXFP4",
+      "weight_bytes_per_param": 0.5,
+      "num_shared_experts": 0,
+      "model": "Qwen3.8-Max",
+      "H": 8192,
+      "I": 2048,
+      "E": 512,
+      "K": 10,
+      "tokens_per_rank": 256,
+      "global_tokens": 1024,
+      "expected_rows_per_expert": 20.0,
+      "gc_moe_block_m": 32,
+      "weave_variant": "atrex_baseline_bm240",
+      "cuda_graph_all_ranks": {
+        "gc_moe": true,
+        "weave": true
+      },
+      "latency_us": {
+        "gc_moe_median": 553.82,
+        "gc_moe_mad": 0.88,
+        "gc_moe_min": 550.29,
+        "weave_median": 583.42,
+        "weave_mad": 1.4,
+        "weave_min": 580.59
+      },
+      "paired_abba": {
+        "weave_vs_gc_speedup": 0.9496,
+        "gc_vs_weave_speedup": 1.0531,
+        "gc_minus_weave_us": -29.47,
+        "gc_minus_weave_mad_us": 0.18
+      },
+      "accuracy": {
+        "gc_moe_vs_ref": {
+          "all_finite": true,
+          "stats_exact_all_ranks": true,
+          "graph_vs_eager_diff_max": 0.0,
+          "rel_l2_max": 0.0002201970029260913,
+          "cos_sim_min": 0.9999999757566401,
+          "calc_diff_max": 2.42433612074322e-08,
+          "max_abs": 0.00390625
+        },
+        "weave_vs_ref": {
+          "all_finite": true,
+          "stats_exact_all_ranks": true,
+          "graph_vs_eager_diff_max": 0.0,
+          "rel_l2_max": 0.0002201970029260913,
+          "cos_sim_min": 0.9999999757566401,
+          "calc_diff_max": 2.42433612074322e-08,
+          "max_abs": 0.00390625
+        },
+        "direct_gc_vs_weave": {
+          "rel_l2_max": 0.0,
+          "cos_sim_min": 1.0,
+          "calc_diff_max": 0.0,
+          "max_abs": 0.0
+        }
+      }
+    },
+    {
+      "platform": "NVIDIA SM103 (148-SM)",
+      "ep": 4,
+      "precision": "FP8 x MXFP4",
+      "weight_bytes_per_param": 0.5,
+      "num_shared_experts": 0,
+      "model": "Qwen3.8-Max",
+      "H": 8192,
+      "I": 2048,
+      "E": 512,
+      "K": 10,
+      "tokens_per_rank": 1024,
+      "global_tokens": 4096,
+      "expected_rows_per_expert": 80.0,
+      "gc_moe_block_m": 96,
+      "weave_variant": "atrex_baseline_bm240",
+      "cuda_graph_all_ranks": {
+        "gc_moe": true,
+        "weave": true
+      },
+      "latency_us": {
+        "gc_moe_median": 795.86,
+        "gc_moe_mad": 13.55,
+        "gc_moe_min": 691.23,
+        "weave_median": 804.48,
+        "weave_mad": 24.67,
+        "weave_min": 713.9
+      },
+      "paired_abba": {
+        "weave_vs_gc_speedup": 0.9851,
+        "gc_vs_weave_speedup": 1.0151,
+        "gc_minus_weave_us": -12.18,
+        "gc_minus_weave_mad_us": 4.71
+      },
+      "accuracy": {
+        "gc_moe_vs_ref": {
+          "all_finite": true,
+          "stats_exact_all_ranks": true,
+          "graph_vs_eager_diff_max": 0.0,
+          "rel_l2_max": 0.0002110656935224257,
+          "cos_sim_min": 0.9999999777256577,
+          "calc_diff_max": 2.2274368571828518e-08,
+          "max_abs": 0.00390625
+        },
+        "weave_vs_ref": {
+          "all_finite": true,
+          "stats_exact_all_ranks": true,
+          "graph_vs_eager_diff_max": 0.0,
+          "rel_l2_max": 0.0002110656935224257,
+          "cos_sim_min": 0.9999999777256577,
+          "calc_diff_max": 2.2274368571828518e-08,
+          "max_abs": 0.00390625
+        },
+        "direct_gc_vs_weave": {
+          "rel_l2_max": 0.0,
+          "cos_sim_min": 0.9999999999999997,
+          "calc_diff_max": 0.0,
+          "max_abs": 0.0
+        }
+      }
+    },
+    {
+      "platform": "NVIDIA SM103 (148-SM)",
+      "ep": 4,
+      "precision": "FP8 x MXFP4",
+      "weight_bytes_per_param": 0.5,
+      "num_shared_experts": 0,
+      "model": "416E",
+      "H": 5120,
+      "I": 2304,
+      "E": 416,
+      "K": 6,
+      "tokens_per_rank": 128,
+      "global_tokens": 512,
+      "expected_rows_per_expert": 7.384615384615385,
+      "gc_moe_block_m": 16,
+      "weave_variant": "atrex_baseline_bm240",
+      "cuda_graph_all_ranks": {
+        "gc_moe": true,
+        "weave": true
+      },
+      "latency_us": {
+        "gc_moe_median": 304.44,
+        "gc_moe_mad": 0.17,
+        "gc_moe_min": 304.18,
+        "weave_median": 329.48,
+        "weave_mad": 0.19,
+        "weave_min": 328.93
+      },
+      "paired_abba": {
+        "weave_vs_gc_speedup": 0.9242,
+        "gc_vs_weave_speedup": 1.082,
+        "gc_minus_weave_us": -24.96,
+        "gc_minus_weave_mad_us": 0.2
+      },
+      "accuracy": {
+        "gc_moe_vs_ref": {
+          "all_finite": true,
+          "stats_exact_all_ranks": true,
+          "graph_vs_eager_diff_max": 0.0,
+          "rel_l2_max": 0.00014863624024475774,
+          "cos_sim_min": 0.999999988953645,
+          "calc_diff_max": 1.104636437876394e-08,
+          "max_abs": 0.001953125
+        },
+        "weave_vs_ref": {
+          "all_finite": true,
+          "stats_exact_all_ranks": true,
+          "graph_vs_eager_diff_max": 0.0,
+          "rel_l2_max": 0.00014863624024475774,
+          "cos_sim_min": 0.999999988953645,
+          "calc_diff_max": 1.104636437876394e-08,
+          "max_abs": 0.001953125
+        },
+        "direct_gc_vs_weave": {
+          "rel_l2_max": 0.0,
+          "cos_sim_min": 0.9999999999999998,
+          "calc_diff_max": 0.0,
+          "max_abs": 0.0
+        }
+      }
+    },
+    {
+      "platform": "NVIDIA SM103 (148-SM)",
+      "ep": 4,
+      "precision": "FP8 x MXFP4",
+      "weight_bytes_per_param": 0.5,
+      "num_shared_experts": 0,
+      "model": "416E",
+      "H": 5120,
+      "I": 2304,
+      "E": 416,
+      "K": 6,
+      "tokens_per_rank": 256,
+      "global_tokens": 1024,
+      "expected_rows_per_expert": 14.76923076923077,
+      "gc_moe_block_m": 32,
+      "weave_variant": "atrex_baseline_bm240",
+      "cuda_graph_all_ranks": {
+        "gc_moe": true,
+        "weave": true
+      },
+      "latency_us": {
+        "gc_moe_median": 315.66,
+        "gc_moe_mad": 0.35,
+        "gc_moe_min": 315.28,
+        "weave_median": 338.5,
+        "weave_mad": 0.15,
+        "weave_min": 338.17
+      },
+      "paired_abba": {
+        "weave_vs_gc_speedup": 0.9329,
+        "gc_vs_weave_speedup": 1.0719,
+        "gc_minus_weave_us": -22.71,
+        "gc_minus_weave_mad_us": 0.25
+      },
+      "accuracy": {
+        "gc_moe_vs_ref": {
+          "all_finite": true,
+          "stats_exact_all_ranks": true,
+          "graph_vs_eager_diff_max": 0.0,
+          "rel_l2_max": 0.00010575403661706153,
+          "cos_sim_min": 0.999999994408045,
+          "calc_diff_max": 5.591957785711088e-09,
+          "max_abs": 0.001953125
+        },
+        "weave_vs_ref": {
+          "all_finite": true,
+          "stats_exact_all_ranks": true,
+          "graph_vs_eager_diff_max": 0.0,
+          "rel_l2_max": 0.00010575403661706153,
+          "cos_sim_min": 0.999999994408045,
+          "calc_diff_max": 5.591957785711088e-09,
+          "max_abs": 0.001953125
+        },
+        "direct_gc_vs_weave": {
+          "rel_l2_max": 0.0,
+          "cos_sim_min": 1.0,
+          "calc_diff_max": 0.0,
+          "max_abs": 0.0
+        }
+      }
+    },
+    {
+      "platform": "NVIDIA SM103 (148-SM)",
+      "ep": 4,
+      "precision": "FP8 x MXFP4",
+      "weight_bytes_per_param": 0.5,
+      "num_shared_experts": 0,
+      "model": "416E",
+      "H": 5120,
+      "I": 2304,
+      "E": 416,
+      "K": 6,
+      "tokens_per_rank": 1024,
+      "global_tokens": 4096,
+      "expected_rows_per_expert": 59.07692307692308,
+      "gc_moe_block_m": 96,
+      "weave_variant": "atrex_baseline_bm240",
+      "cuda_graph_all_ranks": {
+        "gc_moe": true,
+        "weave": true
+      },
+      "latency_us": {
+        "gc_moe_median": 396.92,
+        "gc_moe_mad": 11.08,
+        "gc_moe_min": 375.6,
+        "weave_median": 418.77,
+        "weave_mad": 9.07,
+        "weave_min": 395.23
+      },
+      "paired_abba": {
+        "weave_vs_gc_speedup": 0.9506,
+        "gc_vs_weave_speedup": 1.052,
+        "gc_minus_weave_us": -19.53,
+        "gc_minus_weave_mad_us": 1.82
+      },
+      "accuracy": {
+        "gc_moe_vs_ref": {
+          "all_finite": true,
+          "stats_exact_all_ranks": true,
+          "graph_vs_eager_diff_max": 0.0,
+          "rel_l2_max": 0.0001107694788571816,
+          "cos_sim_min": 0.9999999938650671,
+          "calc_diff_max": 6.134938224100495e-09,
+          "max_abs": 0.001953125
+        },
+        "weave_vs_ref": {
+          "all_finite": true,
+          "stats_exact_all_ranks": true,
+          "graph_vs_eager_diff_max": 0.0,
+          "rel_l2_max": 0.0001107694788571816,
+          "cos_sim_min": 0.9999999938650671,
+          "calc_diff_max": 6.134938224100495e-09,
+          "max_abs": 0.001953125
+        },
+        "direct_gc_vs_weave": {
+          "rel_l2_max": 0.0,
+          "cos_sim_min": 0.9999999999999998,
+          "calc_diff_max": 0.0,
+          "max_abs": 0.0
+        }
+      }
+    }
+  ]
+}
