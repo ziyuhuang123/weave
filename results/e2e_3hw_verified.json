@@ -233,7 +233,35 @@
                 4.0
               ],
               "all_ranks_pass": true,
-              "note": "Full PyTorch FP32 split reference retained from the pre-rail build. The policy-wired build is bit-exact against the direct fp4 path on all four ranks."
+              "note": "Previous pre-rail build reference retained for historical comparison; the fresh policy-wired build above was re-checked against the full FP32 reference in this pass."
+            },
+            "fresh_policy_wired_fp32_reference": {
+              "test": "/root/weave_e2e_verify/repo/tests/test_nvfp4_mega_moe.py",
+              "rounds": 4,
+              "per_round_calc_diff": [
+                1.163e-06,
+                1.401e-06,
+                2.259e-06,
+                1.606e-06
+              ],
+              "calc_diff_range": [
+                1.163e-06,
+                2.259e-06
+              ],
+              "per_round_rel_l2": [
+                0.001525,
+                0.001674,
+                0.002125,
+                0.001792
+              ],
+              "rel_l2_range": [
+                0.001525,
+                0.002125
+              ],
+              "max_abs_err": 1.0,
+              "all_correctness_tests_passed": true,
+              "inputs": "torch.randn BF16 activations and weights; full PyTorch FP32 reference per rank",
+              "log": "/root/p5c_verify/run_fp4_ref.log"
             }
           },
           "latency_us": {
@@ -288,7 +316,8 @@
               "latency_worst_rank_median_us": 172.4800020456314,
               "tflops_per_gpu": 54.41828614628073,
               "gpu_name": "NVIDIA L20D        "
-            }
+            },
+            "reference_log": "/root/p5c_verify/run_fp4_ref.log"
           }
         },
         "fp8xfp4": {
