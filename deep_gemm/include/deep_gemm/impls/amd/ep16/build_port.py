@@ -88,7 +88,9 @@ if os.environ.get("BUILD_FI2_PROFILER", "0") == "1":
     fi_variants.append(("fi2_mode2", 2))
 
 for name, fi in fi_variants:
-    out = R / "build" / (name + f"_p{ablation_preset}" + os.environ.get("BUILD_ATTEMPT", ""))
+    scatter_env = os.environ.get("WEAVE_SCATTER_ENV", "0" if ablation_preset == 3 else "2")
+    out = R / "build" / (name + f"_p{ablation_preset}_m{scatter_env}"
+                         + os.environ.get("BUILD_ATTEMPT", ""))
     out.mkdir(parents=True, exist_ok=False)
     (out / "logs").mkdir()
     (out / "cache").mkdir()
@@ -103,7 +105,7 @@ for name, fi in fi_variants:
         "-DWEAVE_ADAPTIVE_POST_TIMEOUT=1", "-DWEAVE_S16_PLAN_CAP=0",
         "-DWEAVE_S16_STATIC_DISPATCH=0", "-DWEAVE_OPT_RELAXED_SPIN=1",
         "-DWEAVE_OPT_LOCAL_SCOPE=1",
-        f"-DWEAVE_SCATTER_MODE={0 if ablation_preset == 3 else 2}",
+        f"-DWEAVE_SCATTER_MODE={int(scatter_env)}",
         "-DWEAVE_CO_PROFILE=0", "-DWEAVE_TH_BM64=16u", "-DWEAVE_TH_BM128=96u",
         f"-DWEAVE_ABLATION_PRESET={ablation_preset}",
         "-DWEAVE_KNOB_BM_TIER_MODE=2", "-DWEAVE_KNOB_SELECTIVE_DEDUP=1",

@@ -30,6 +30,11 @@ inline void init_jit(const std::string& library_root_path) {
         // Preserve the existing 12.x family target when DeepJIT derives a different minor target.
         if (runtime->device.get_arch_major() == 12 and runtime->device.get_arch_minor() != 0)
             runtime->default_compiler_options.arch = "120f";
+        // SM103 (B300) is binary-compatible with the SM100 family target used by the
+        // pre-DeepJIT launch path.  DeepJIT otherwise derives "103f"; the legacy
+        // MegaMoE FP8xFP4 cubin was always built as "100f" on this part.
+        if (runtime->device.get_arch_major() == 10 and runtime->device.get_arch_minor() != 1)
+            runtime->default_compiler_options.arch = "100f";
         return runtime;
     });
 }

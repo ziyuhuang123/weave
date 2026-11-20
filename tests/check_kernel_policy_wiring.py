@@ -23,20 +23,32 @@ FILES = {
 
 # (label, needle, expected_count).  expected_count == 0 is a negative check.
 CHECKS = {
-    # B300 uses the SM100 precision-selectable MegaMoE scheduler directly.
-    # The CTA-0 publication rail is wired on H20 and MI308X, not on these
-    # SM100 kernels; keep that architectural split explicit and auditable.
+    # B300 uses the SM100 precision-selectable MegaMoE scheduler. Both SM100
+    # precision paths carry the same CTA-0 publication rail as H20/MI308X:
+    # one CTA-0 selector, a release/acquire epoch, and per-CTA consumption.
     "b300": [
         ("scheduler_include", "scheduler/mega_moe.cuh", 1),
         ("entry", "sm100_fp8_fp4_mega_moe_impl", 1),
         ("scheduler", "sched::MegaMoEScheduler", 1),
-        ("no_policy_rail", "weave_policy_runtime.cuh", 0),
+        ("include", "weave_policy_runtime.cuh", 1),
+        ("cta0", "cta0_select_from_packed_hist", 1),
+        ("consume_r", "selected_r_mask", 1),
+        ("consume_scatter", "selected_scatter_mode", 1),
+        ("consume_v_head", "selected_v_head", 1),
+        ("all_cta_read", "load_published_policy", 1),
+        ("epoch_wait", "wait_and_copy_policy", 1),
     ],
     "b300_nvfp4": [
         ("scheduler_include", "scheduler/nvfp4_mega_moe.cuh", 1),
         ("entry", "sm100_fp4_fp4_mega_moe_impl", 1),
         ("scheduler", "sched::nvfp4::MegaMoEScheduler", 1),
-        ("no_policy_rail", "weave_policy_runtime.cuh", 0),
+        ("include", "weave_policy_runtime.cuh", 1),
+        ("cta0", "cta0_select_from_packed_hist", 1),
+        ("consume_r", "selected_r_mask", 1),
+        ("consume_scatter", "selected_scatter_mode", 1),
+        ("consume_v_head", "selected_v_head", 1),
+        ("all_cta_read", "load_published_policy", 1),
+        ("epoch_wait", "wait_and_copy_policy", 1),
     ],
     "h20": [
         ("include", "weave_policy_runtime.cuh", 1),
@@ -48,10 +60,24 @@ CHECKS = {
         ("all_cta_read", "load_published_policy", 2),
         ("no_literal_cr", "`r`n", 0),
     ],
+    # The MI308X wrapper is include-only; audit the wrapper plus the two
+    # implementation headers it pulls in so the public backend name has a
+    # complete rail check of its own.
+    "mi308x": [
+        ("include_body", "amd/megamoe_amd.hip", 1),
+        ("include_policy", "weave_policy_runtime.cuh", 1),
+        ("cta0_u32", "cta0_select_and_publish", 1),
+        ("consume_r", "selected_r_mask", 1),
+        ("consume_scatter", "selected_scatter_mode", 1),
+        ("consume_v_head", "selected_v_head", 1),
+        ("all_cta_read", "load_published_policy", 1),
+    ],
     "mi308x_body": [
+        ("include", "weave_policy_runtime.cuh", 1),
         ("consume_r", "selected_r_mask", 1),
         ("consume_scatter", "selected_scatter_mode", 1),
         ("all_cta_read", "g_weave_policy_control", 1),
+        ("load_published", "load_published_policy", 1),
     ],
     "mi308x_route": [
         ("cta0", "cta0_select_and_publish", 1),
@@ -76,6 +102,13 @@ def audit() -> dict:
             report["files"][name] = {"exists": False, "checks": {}}
             continue
         text = path.read_text(encoding="utf-8", errors="replace")
+        if name == "mi308x":
+            for extra in (
+                ROOT / "deep_gemm/include/deep_gemm/impls/amd/megamoe_amd.hip",
+                ROOT / "deep_gemm/include/deep_gemm/impls/amd/include/direct_gather_and_greedy_tiles.hpp",
+                ROOT / "deep_gemm/include/deep_gemm/impls/amd/include/weave_comm_4wave_turbo.hpp",
+            ):
+                text += "\n" + extra.read_text(encoding="utf-8", errors="replace")
         rows = {}
         for label, needle, expected in checks:
             count = text.count(needle)
@@ -101,7 +134,8 @@ def main() -> None:
     report = audit()
     out = ROOT / "results" / "kernel_policy_wiring.json"
     out.parent.mkdir(parents=True, exist_ok=True)
-    out.write_text(json.dumps(report, indent=2), encoding="utf-8")
+    with out.open("w", encoding="utf-8", newline="\n") as f:
+        f.write(json.dumps(report, indent=2) + "\n")
     for name, row in report["files"].items():
         passed = row.get("exists") and all(v["ok"] for v in row["checks"].values())
         print(f"{'PASS' if passed else 'FAIL'} {name}")

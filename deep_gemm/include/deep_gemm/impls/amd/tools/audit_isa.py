@@ -14,8 +14,8 @@ def audit_asm_text(text: str) -> dict:
         code = line.split(";", 1)[0].split("//", 1)[0].strip()
         if code:
             instructions.append(code)
-    scratch_load = sum(1 for line in instructions if re.match(r"^scratch_load\b", line))
-    scratch_store = sum(1 for line in instructions if re.match(r"^scratch_store\b", line))
+    scratch_load = sum(1 for line in instructions if re.match(r"^scratch_load(?:_|\b)", line))
+    scratch_store = sum(1 for line in instructions if re.match(r"^scratch_store(?:_|\b)", line))
     s_barrier = sum(1 for line in instructions if re.match(r"^s_barrier\b", line))
     s_sleep = sum(1 for line in instructions if re.match(r"^s_sleep\b", line))
     vgpr_spills = [int(v) for v in re.findall(r"\.vgpr_spill_count:\s*(\d+)", text)]
@@ -108,12 +108,12 @@ def main() -> None:
         and rep["vgpr_spill_count_max"] == 0
         and rep["private_segment_fixed_size_max"] == 0
         and rep["group_segment_fixed_size_max"] <= 65536
-        and rep["s_barrier"] <= args.max_barriers
+        and rep["s_barrier"] == args.max_barriers
     )
     if args.co:
         co_rep = audit_co_elf(args.co, symbol=args.symbol)
         rep["post_link_elf"] = co_rep
-        asm_ok = asm_ok and co_rep["co_passed"] and (co_rep["co_s_barrier"] <= args.max_barriers)
+        asm_ok = asm_ok and co_rep["co_passed"] and (co_rep["co_s_barrier"] == args.max_barriers)
     rep["passed"] = bool(asm_ok)
     print(json.dumps(rep, indent=2))
     if not rep["passed"] and not args.advisory:

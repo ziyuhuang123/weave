@@ -151,7 +151,7 @@ static inline int ep16_turbo_build_tx(const Ep16TurboShape& s,
       if (c == 0u) {
         j[n].src = a_tx_meta + (uint64_t)p * MR;
         j[n].dst = r_meta;
-        j[n].bytes = V809_META_HEADER;
+        j[n].bytes = 64ull;
         j[n].remote_flag = 0;
         j[n].ready = meta_gate;
         j[n].target = V809_PROGRESS_MAGIC;

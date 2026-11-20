@@ -2471,7 +2471,7 @@ struct SM90MegaMoECoreRunner {
                 const bool is_d8_sm = (kAgyDMaskMode == 1) ? ((hw_smid & 1u) == 0u) : (norm_smid < (kNumSMs / 2u));
                 active_d_warps = is_d8_sm ? 8u : 4u;
             }
-            // Isolated slot in Workspace 128B header padding [48..51] 鈥?zero overlap with ring buffers!
+            // Isolated slot in Workspace 128B header padding [48..51] --zero overlap with ring buffers!
             hetero_cnt_ptr = math::advance_ptr<uint32_t>(workspace.base, 48u);
             ptx::sync_aligned(kNumDispatchThreads, kDispatchBarrierIdx);
             if (warp_idx == 0 and lane_idx == 0) {
@@ -5808,8 +5808,8 @@ struct SM90MegaMoECoreRunner {
                     ptx::sync_aligned(128, kEpilogueWGBarrierStartIdx + epilogue_wg_idx);
 
                     // Scatter to remote ranks via NVLink (one row per warp-pair)
-                    // Each warpgroup-warp covers 8 unique rows 脳 2 (r_0 + r_1 doubled by warps)
-                    // Lane group of 16 within a warp 鈫?1 row.
+                    // Each warpgroup-warp covers 8 unique rows x 2 (r_0 + r_1 doubled by warps)
+                    // Lane group of 16 within a warp ->1 row.
                     const uint32_t row_in_warp_block = lane_idx / 16;  // 0 or 1
                     const uint32_t lane_in_row = lane_idx % 16;
                     const uint32_t cols_per_lane = WG_BLOCK_N / 16;

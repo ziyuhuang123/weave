@@ -12,11 +12,35 @@
 #include <deep_gemm/layout/nvfp4_mega_moe.cuh>
 #include <deep_gemm/mma/sm100.cuh>
 #include <deep_gemm/scheduler/nvfp4_mega_moe.cuh>
+#include <deep_gemm/scheduler/weave_policy_runtime.cuh>
 #include <deep_gemm/ptx/tcgen05.cuh>
 #include <deep_gemm/ptx/tma.cuh>
 #include <deep_gemm/ptx/utils.cuh>
 
 namespace deep_gemm::nvfp4 {
+
+// The CTA-0 cost-model search is a cold path (one thread, once per launch) but
+// it is large enough to push the 512-thread fp4 kernel over its 128-register
+// budget when force-inlined.  Keep it out of line so the steady-state pull and
+// GEMM paths stay spill-free.
+static __device__ __noinline__ bool weave_publish_or_copy_policy(
+    weave::PolicyControl* control, bool is_leader, weave::HardwareArch arch,
+    uint32_t local_experts, uint32_t hidden, uint32_t intermediate_hidden,
+    weave::PrecisionMode precision, const uint64_t* packed_counts,
+    uint32_t dedup_pulls, uint32_t scatter_count, uint32_t epoch,
+    weave::PolicyDecision* out_decision) {
+  const weave::WorkloadSpec wl{local_experts, hidden, intermediate_hidden};
+  const weave::WeaveKnobs knobs =
+      weave::default_weave_knobs(arch, 0u, precision);
+  if (is_leader) {
+    *out_decision = weave::cta0_select_from_packed_hist(
+        control, arch, wl, knobs, packed_counts, dedup_pulls,
+        scatter_count, epoch);
+    return weave::policy_is_valid(*out_decision);
+  }
+  (void) weave::load_published_policy(control);
+  return weave::wait_and_copy_policy(control, epoch, out_decision);
+}
 
 #if (defined(__CUDA_ARCH__) and (__CUDA_ARCH__ >= 1000)) or defined(__CLION_IDE__)
 
@@ -275,10 +299,27 @@ sm100_fp4_fp4_mega_moe_impl(void* y,
         Barrier combine_barriers[kNumEpilogueWarps * 2];
         Barrier task_info_full_barriers[kNumScheduleStages];
         Barrier task_info_empty_barriers[kNumScheduleStages];
+        // Weave CTA-0 decision, copied once per CTA after the live histogram
+        // publication barrier. Kept outside every DeepGEMM task-info slot.
+        weave::PolicyDecision weave_policy;
+        uint32_t weave_policy_ready;
+        uint32_t weave_epoch_base;
+        uint32_t weave_active_pull_warps;
+        uint32_t weave_head_pull_end;
+        uint32_t weave_selected_scatter_mode;
         uint32_t tmem_ptr_in_smem;
     };
     constexpr uint32_t kNumReusableSmemBytes = offsetof(SharedStorage, dispatch_barriers);
     SharedStorage &shared_storage = *reinterpret_cast<SharedStorage*>(smem_buffer);
+    if (thread_idx == 0u) {
+        auto* const control = workspace.get_weave_policy_control_ptr();
+        shared_storage.weave_epoch_base =
+            *reinterpret_cast<volatile uint32_t*>(&control->published_epoch);
+        shared_storage.weave_policy_ready = 0u;
+        shared_storage.weave_active_pull_warps = kNumDispatchWarps;
+        shared_storage.weave_head_pull_end = 0xffffffffu;
+        shared_storage.weave_selected_scatter_mode = 0u;
+    }
 
     // Send buffers
     constexpr auto pull_layout = layout::Data(kNumBytesPerPull);
@@ -374,11 +415,12 @@ sm100_fp4_fp4_mega_moe_impl(void* y,
         phase ^= stage_idx == 0;
     };
 
-    // Intra-SM Barrier indices
-    constexpr uint32_t kDispatchBarrierIdx = 0;
-    constexpr uint32_t kDispatchWithEpilogueBarrierIdx = 1;
-    constexpr uint32_t kEpilogueFullBarrierIdx = 2;
-    constexpr uint32_t kEpilogueWGBarrierStartIdx = 3;
+    // Intra-SM Barrier indices.  Keep user named barriers out of
+    // CUTLASS's reserved 1..7 range.
+    constexpr uint32_t kDispatchBarrierIdx = 8;
+    constexpr uint32_t kDispatchWithEpilogueBarrierIdx = 9;
+    constexpr uint32_t kEpilogueFullBarrierIdx = 10;
+    constexpr uint32_t kEpilogueWGBarrierStartIdx = 11;
 
     // NVLink barrier tags
     constexpr uint32_t kBeforeDispatchPullBarrierTag = 1;
@@ -486,13 +528,62 @@ sm100_fp4_fp4_mega_moe_impl(void* y,
         // Ensure the epilogue barrier cannot run with the pull barrier
         ptx::sync_unaligned(kNumDispatchThreads + kNumEpilogueThreads, kDispatchWithEpilogueBarrierIdx);
 
+        // -----------------------------------------------------------------
+        // Weave CTA-0 runtime selection.  expert_recv_count_sum is live
+        // after the post-dispatch NVLink/grid barrier above.  Only thread 0
+        // of CTA 0 evaluates Eq.(1)-(3); every other CTA acquire-waits on
+        // the published epoch and copies the decision.
+        // -----------------------------------------------------------------
+        if (thread_idx == 0u) {
+            auto* const control = workspace.get_weave_policy_control_ptr();
+            const uint32_t weave_epoch = shared_storage.weave_epoch_base + 1u;
+            const uint32_t m_out = weave::count_remote_expert_sends(
+                workspace, kNumExperts, kNumExpertsPerRank,
+                static_cast<uint32_t>(sym_buffer.rank_idx));
+            const bool policy_ok = weave_publish_or_copy_policy(
+                control, sm_idx == 0u, weave::HardwareArch::B300_SM100,
+                static_cast<uint32_t>(kNumExpertsPerRank),
+                static_cast<uint32_t>(kHidden),
+                static_cast<uint32_t>(kIntermediateHidden),
+                weave::PrecisionMode::NVFP4,
+                workspace.get_expert_recv_count_sum_ptr(),
+                0u, m_out, weave_epoch, &shared_storage.weave_policy);
+            if (policy_ok)
+                shared_storage.weave_policy_ready = 1u;
+        }
+        ptx::sync_aligned(kNumDispatchThreads, kDispatchBarrierIdx);
+
+        // Cache expert token counts in registers (same pattern as scheduler)
+        scheduler.fetch_expert_recv_count();
+
+        // Derive the head/middle temporal split once per CTA.  Keeping the
+        // derived values in shared memory avoids five extra live registers in
+        // the long pull loop (the fp4 kernel has a tight 128-register budget).
+        if (thread_idx == 0u) {
+            const bool policy_ok = shared_storage.weave_policy_ready != 0u;
+            uint32_t comm_warps = kNumDispatchWarps;
+            uint32_t v_head = 0u;
+            uint32_t scatter_mode = 0u;
+            if (policy_ok) {
+                comm_warps = weave::r_comm_units(shared_storage.weave_policy.selected_r_mask);
+                v_head = shared_storage.weave_policy.selected_v_head;
+                scatter_mode = shared_storage.weave_policy.selected_scatter_mode;
+            }
+            uint32_t total_tokens = 0u;
+            for (uint32_t e = 0u; e < kNumExpertsPerRank; ++e)
+                total_tokens += scheduler.get_num_tokens(e);
+            shared_storage.weave_active_pull_warps =
+                comm_warps == 0u ? 1u : cute::min(comm_warps, kNumDispatchWarps);
+            shared_storage.weave_head_pull_end =
+                v_head == 0u ? total_tokens : cute::min(v_head, total_tokens);
+            shared_storage.weave_selected_scatter_mode = scatter_mode;
+        }
+        ptx::sync_aligned(kNumDispatchThreads, kDispatchBarrierIdx);
+
         // Pull token data and SF from remote ranks into local L1 buffer
         uint32_t pull_mbarrier_phase = 0;
         const auto pull_buffer = smem_send_buffers.get_rank_buffer(warp_idx).get_data_buffer(0);
         const auto pull_mbarrier = &shared_storage.dispatch_barriers[warp_idx];
-
-        // Cache expert token counts in registers (same pattern as scheduler)
-        scheduler.fetch_expert_recv_count();
 
         // Per-rank counts for current expert (re-loaded when expert changes)
         constexpr uint32_t kNumRanksPerLane = math::constexpr_ceil_div(kNumRanks, 32u);
@@ -521,6 +612,11 @@ sm100_fp4_fp4_mega_moe_impl(void* y,
             if (current_expert_idx >= kNumExpertsPerRank)
                 break;
 
+            // Temporal head/middle split: after the head window only
+            // active_pull_warps warps per SM continue pulling.
+            if (token_idx >= shared_storage.weave_head_pull_end and
+                warp_idx >= shared_storage.weave_active_pull_warps)
+                continue;
             // Load per-rank counts when expert changes
             if (old_expert_idx != current_expert_idx) {
                 old_expert_idx = current_expert_idx;
@@ -555,6 +651,14 @@ sm100_fp4_fp4_mega_moe_impl(void* y,
                         min_in_lane = cute::min(min_in_lane, remaining[i]);
                 }
                 const uint32_t num_active_ranks = __reduce_add_sync(0xffffffff, num_actives_in_lane);
+                // The per-rank receive-count snapshot can be transiently all-zero for a
+                // token that the summed histogram still reports. Without this guard the
+                // selector divides by zero (slot_idx % 0) and wedges the CTA.
+                if (num_active_ranks == 0u) {
+                    current_rank_in_expert_idx = 0u;
+                    token_idx_in_rank = token_idx_in_expert;
+                    break;
+                }
                 const uint32_t length = __reduce_min_sync(0xffffffff, min_in_lane);
 
                 // Hit in the current round

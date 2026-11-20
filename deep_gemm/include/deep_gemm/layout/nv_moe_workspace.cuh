@@ -25,7 +25,7 @@ CUTLASS_HOST_DEVICE constexpr T get_num_max_pool_tokens(T num_ranks, T num_max_t
         static_cast<T>(kLCMCandidateBlockM));
 }
 
-// SF pool capacity: all experts share a contiguous SF region, sized by pool blocks 脳 SF_BLOCK_M
+// SF pool capacity: all experts share a contiguous SF region, sized by pool blocks x SF_BLOCK_M
 template <typename T>
 CUTLASS_HOST_DEVICE constexpr T get_num_sf_ring_tokens(T num_ring_tokens, T block_m) {
     return (num_ring_tokens / block_m) * math::constexpr_align(block_m, static_cast<T>(128));

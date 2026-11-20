@@ -75,20 +75,37 @@ static_assert(WEAVE_KNOB_BM_TIER_MODE == 2,
               "EP16 requires adaptive BM_e in {32,64,128,256} in every arm");
 
 __host__ __device__ __forceinline__ uint32_t weave_greedy_next_tile(
-    WeaveGreedyTilePlan& p, uint32_t& valid_rows) {
+    WeaveGreedyTilePlan& p, uint32_t& valid_rows, uint32_t max_bm = 256u) {
     uint32_t bm;
-    if (p.q32 >= 8u)      { bm = 256u; p.q32 -= 8u; }
-    else if (p.q32 >= 4u) { bm = 128u; p.q32 -= 4u; }
-    else if (p.q32 >= 2u) { bm = 64u;  p.q32 -= 2u; }
-    else if (p.q32 == 1u) { bm = 32u;  p.q32 = 0u; }
-    else                  { valid_rows = 0u; return 0u; }
+    if (max_bm >= 256u && p.q32 >= 8u)      { bm = 256u; p.q32 -= 8u; }
+    else if (max_bm >= 128u && p.q32 >= 4u) { bm = 128u; p.q32 -= 4u; }
+    else if (p.q32 >= 2u)                   { bm = 64u;  p.q32 -= 2u; }
+    else if (p.q32 == 1u)                   { bm = 32u;  p.q32 = 0u; }
+    else                                    { valid_rows = 0u; return 0u; }
     valid_rows = p.rem_valid >= bm ? bm : p.rem_valid;
     p.rem_valid -= valid_rows;
     return bm;
 }
 
 __host__ __device__ __forceinline__ void weave_compute_expert_tile_counts(
-    uint32_t q32, uint32_t* out5) {
+    uint32_t q32, uint32_t* out5, uint32_t max_bm = 256u) {
+    if (max_bm <= 64u) {
+        out5[0] = 0u;
+        out5[1] = 0u;
+        out5[2] = q32 >> 1u;
+        out5[3] = q32 & 1u;
+        out5[4] = 0u;
+        return;
+    }
+    if (max_bm <= 128u) {
+        out5[0] = 0u;
+        out5[1] = q32 >> 2u;
+        q32 &= 3u;
+        out5[2] = q32 >> 1u;
+        out5[3] = q32 & 1u;
+        out5[4] = 0u;
+        return;
+    }
     out5[0] = q32 >> 3u;
     q32 &= 7u;
     out5[1] = q32 >> 2u;
@@ -442,7 +459,7 @@ __device__ __forceinline__ bool v983_route_plan_parallel_80cta(
                 plan_padded[lid] = q16 << 4u;
 #endif
                 uint32_t t5[5];
-                weave_compute_expert_tile_counts(q32, t5);
+                weave_compute_expert_tile_counts(q32, t5, (ck.ck_intermediate <= 512u) ? ((e.t_local <= 256u) ? 64u : 128u) : 256u);
                 #pragma unroll
                 for (unsigned b = 0u; b < 5u; ++b) plan_tiles[lid * 5u + b] = t5[b];
             }
@@ -453,11 +470,14 @@ __device__ __forceinline__ bool v983_route_plan_parallel_80cta(
                 for (unsigned prev = 0u; prev < lid; ++prev)
                     row_base += plan_padded[prev];
                 offsets[lid] = row_base;
-                for (unsigned src = 0u; src < e.world; ++src) {
-                    uint32_t src_prefix = 0u;
-                    for (unsigned prev_src = 0u; prev_src < src; ++prev_src)
-                        src_prefix += g_hist[prev_src * local_experts + lid];
-                    g_curs[src * local_experts + lid] = row_base + src_prefix;
+                {
+                    const unsigned my_node = e.rank & 8u;
+                    uint32_t cur_off = row_base;
+                    for (unsigned ord = 0u; ord < e.world; ++ord) {
+                        const unsigned src = my_node ^ ord;
+                        g_curs[src * local_experts + lid] = cur_off;
+                        cur_off += g_hist[src * local_experts + lid];
+                    }
                 }
             }
             for (unsigned b = tid; b < 5u; b += 256u) {
@@ -507,7 +527,7 @@ __device__ __forceinline__ bool v983_route_plan_parallel_80cta(
                     uint32_t cur_row = offsets[lid];
                     uint32_t previous_bucket = 5u, local_bucket_index = 0u;
                     uint32_t valid_rows = 0u, bm = 0u;
-                    while ((bm = weave_greedy_next_tile(p, valid_rows)) != 0u) {
+                    while ((bm = weave_greedy_next_tile(p, valid_rows, (ck.ck_intermediate <= 512u) ? ((e.t_local <= 256u) ? 64u : 128u) : 256u)) != 0u) {
                         const int bucket = weave_bm_to_bucket(bm);
                         if (bucket < 0 || bucket >= 4) {
                             weave_error(reinterpret_cast<unsigned*>(e.error), 126u);
@@ -558,7 +578,7 @@ __device__ __forceinline__ bool v983_route_plan_parallel_80cta(
             auto* const control = &g_weave_policy_control;
             const uint32_t epoch = control->published_epoch + 1u;
             uint32_t total = 0u;
-            for (unsigned lid = 0u; lid < local_experts; ++lid) {
+            for (uint32_t lid = 0u; lid < local_experts; ++lid) {
                 control->histogram[lid] = plan_counts[lid];
                 total += plan_counts[lid];
             }

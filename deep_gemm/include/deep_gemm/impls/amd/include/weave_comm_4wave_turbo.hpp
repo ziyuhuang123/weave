@@ -238,22 +238,13 @@ __device__ __forceinline__ void v983_local_plan_4wave(
   const bool include_self = (e.flags & 1u) != 0u;
   const bool fp16 = (e.flags & 2u) != 0u;
 
-  if (blockIdx.x == 32u && tid == 256u) {
-    for (unsigned d = 0u; d < e.world; ++d) {
-      count[d] = 0u;
-      cursor[d] = 0u;
-    }
-    flags[2] = 0u;
-    flags[3] = 0u;
-    __scoped_atomic_thread_fence(__ATOMIC_RELEASE, __HIP_MEMORY_SCOPE_SYSTEM);
-    __hip_atomic_store(flags + 4u, 1u, __ATOMIC_RELAXED, __HIP_MEMORY_SCOPE_SYSTEM);
-  }
-
-  if (!weave_comm_wave_wait_ge(flags + 4u, 1u, nullptr, reinterpret_cast<unsigned*>(e.error), 201u)) {
-    FI_EG(V1988_FI_PHASE, V1988_EV_LOCAL_PLAN, 0u);
-    return;
-  }
-
+  // bucket_count, bucket_cursor, and plan_flags are host-prezeroed before launch
+  // (ep16_turbo_layout.hpp marks all three zero_on_reset=1, and the runner calls
+  // ep16_turbo_reset() every generation): ZERO 85us startup barrier!
+  //
+  // Weave policy rail: selected_v_head may only *shrink* the deterministic
+  // bucket batch, never enlarge it, so a stale/invalid decision degrades to the
+  // v33 default instead of changing semantics.
   const auto& weave_decision = g_weave_policy_control.decision;
   const bool weave_policy_ok = weave_decision.magic == weave::kPolicyMagic &&
       weave_decision.version == weave::kPolicyVersion && weave_decision.valid != 0u;
@@ -380,8 +371,7 @@ __device__ __forceinline__ void v983_local_plan_4wave(
           prefix += n;
         }
         reinterpret_cast<unsigned*>(e.bucket_prefix)[e.world] = prefix;
-        __scoped_atomic_thread_fence(__ATOMIC_RELEASE, __HIP_MEMORY_SCOPE_SYSTEM);
-        __hip_atomic_store(flags + 0u, 1u, __ATOMIC_RELAXED, __HIP_MEMORY_SCOPE_SYSTEM);
+        __hip_atomic_store(flags + 0u, 1u, __ATOMIC_RELEASE, __HIP_MEMORY_SCOPE_AGENT);
       }
     }
     __syncwarp();
@@ -410,9 +400,24 @@ __device__ __forceinline__ void v983_dispatch_4wave(
   auto* flags = reinterpret_cast<unsigned*>(o.plan_flags);
 
   FI_BG(V1988_FI_PHASE, V1988_EV_DISPATCH_WAIT_PLAN, comm_worker);
-  if (!weave_comm_wave_wait_ge(flags + 0u, 1u, trace ? trace + 16u + cta * 16u + 14u : nullptr,
-                          reinterpret_cast<unsigned*>(e.error), 201u)) {
-    return;
+  {
+    int ok_p0 = 1;
+    if (lane == 0u) {
+      const unsigned long long t0_p0 = weave_comm_clock();
+      unsigned sp_p0 = 0u;
+      while (__hip_atomic_load(flags + 0u, __ATOMIC_RELAXED, __HIP_MEMORY_SCOPE_AGENT) < 1u) {
+        if (sp_p0 < 256u) asm volatile("s_nop 0\n" ::: "memory");
+        else __builtin_amdgcn_s_sleep(1);
+        ++sp_p0;
+        if ((sp_p0 & 63u) == 0u && (weave_comm_clock() - t0_p0 >= 20000000ull)) {
+          weave_comm_error(reinterpret_cast<unsigned*>(e.error), 201u);
+          ok_p0 = 0;
+          break;
+        }
+      }
+    }
+    if (!__shfl(ok_p0, 0u)) return;
+    asm volatile("buffer_inv sc1\ns_waitcnt vmcnt(0)\n" ::: "memory");
   }
   FI_EG(V1988_FI_PHASE, V1988_EV_DISPATCH_WAIT_PLAN, comm_worker);
 
@@ -430,7 +435,7 @@ __device__ __forceinline__ void v983_dispatch_4wave(
 
   FI_BG(V1988_FI_PHASE, V1988_EV_DISPATCH_META, comm_worker);
   for (unsigned dst = comm_worker; dst < e.world; dst += kCommWorkers) {
-    const unsigned n = weave_comm_load_relaxed_sys(count + dst);
+    const unsigned n = __hip_atomic_load(count + dst, __ATOMIC_RELAXED, __HIP_MEMORY_SCOPE_AGENT);
     const uint64_t entry_bytes = static_cast<uint64_t>(n) * V809_META_STRIDE;
     const uint64_t nbytes = 64ull + entry_bytes;
     const auto* src = reinterpret_cast<const unsigned char*>(local_meta[dst]);
@@ -972,4 +977,3 @@ __device__ __forceinline__ bool v1988_epilogue_finish_4wave(
 }
 
 #endif // WEAVE_COMM_4WAVE_TURBO_HPP
-

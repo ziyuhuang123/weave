@@ -279,8 +279,15 @@ __device__ __forceinline__ void ep16_combine(const V968DispatchExt& env,const V9
     unsigned ready=0u;
     if(lane==0u && !ep16_load_relaxed((unsigned*)x.node_ready+t)){
      auto* parts=(unsigned*)x.node_ready+x.node_tokens;
-     const bool mine=(ns==1u)||((ep16_load_agent_relaxed(parts+t)&(1u<<sl))==0u);
-     if(mine)ready=ep16_load_relaxed((unsigned*)x.node_arrival+t)>=((unsigned*)x.node_expected)[t]?1u:2u;
+     if(ns==1u){
+      if(ep16_load_relaxed((unsigned*)x.node_arrival+t)>=((unsigned*)x.node_expected)[t]){
+       if((__hip_atomic_fetch_or(parts+t,0x80000000u,__ATOMIC_RELAXED,__HIP_MEMORY_SCOPE_AGENT)&0x80000000u)==0u)ready=1u;
+       else ready=ep16_load_relaxed((unsigned*)x.node_ready+t)?0u:2u;
+      }else ready=2u;
+     }else{
+      const bool mine=((ep16_load_agent_relaxed(parts+t)&(1u<<sl))==0u);
+      if(mine)ready=ep16_load_relaxed((unsigned*)x.node_arrival+t)>=((unsigned*)x.node_expected)[t]?1u:2u;
+     }
     }
     ready=__shfl(ready,0u);
     if(ready==1u){FI_BG(V1988_FI_CORE,41u,t);ep16_node_reduce(env,o,x,t,sl,ns);FI_EG(V1988_FI_CORE,41u,t);did_work=1u;}
@@ -297,8 +304,15 @@ __device__ __forceinline__ void ep16_combine(const V968DispatchExt& env,const V9
     const unsigned t=task/nh,sl=task%nh;unsigned ready=0u;
     if(lane==0u && !ep16_load_agent_relaxed((unsigned*)o.home_done+t)){
      auto* parts=(unsigned*)o.home_done+(unsigned)e.t_local;
-     const bool mine=(nh==1u)||((ep16_load_agent_relaxed(parts+t)&(1u<<sl))==0u);
-     if(mine)ready=ep16_home_ready(env,o,x,t)?1u:2u;
+     if(nh==1u){
+      if(ep16_home_ready(env,o,x,t)){
+       if((__hip_atomic_fetch_or(parts+t,0x80000000u,__ATOMIC_RELAXED,__HIP_MEMORY_SCOPE_AGENT)&0x80000000u)==0u)ready=1u;
+       else ready=ep16_load_agent_relaxed((unsigned*)o.home_done+t)?0u:2u;
+      }else ready=2u;
+     }else{
+      const bool mine=((ep16_load_agent_relaxed(parts+t)&(1u<<sl))==0u);
+      if(mine)ready=ep16_home_ready(env,o,x,t)?1u:2u;
+     }
     }
     ready=__shfl(ready,0u);
     if(ready==1u){FI_BG(V1988_FI_CORE,12u,t);ep16_home(env,o,x,t,sl,nh);FI_EG(V1988_FI_CORE,12u,t);did_work=1u;}
@@ -350,4 +364,54 @@ __device__ __forceinline__ void ep16_scatter_reclaim(const V968DispatchExt& env,
   if(!__shfl(had_unready,0u))break;
  }
  if(reclaimed){FI_EG(V1988_FI_CORE,9u,reclaimed);}
+ // Cooperative 608-wave Temporal Tail-Reduce: enlist all post-GEMM compute waves
+ // into ep16_node_reduce & ep16_home for large-S (ns==1 && nh==1)!
+ if(e.t_local>=240u && x.node_tokens>=240u){
+  bool seen_loc_r=false;
+  auto t_start_r=__builtin_amdgcn_s_memrealtime();
+  for(;;){
+   unsigned did_r=0u, pend_r=0u;
+#if WEAVE_SCATTER_MODE == 2
+   for(unsigned t=worker;t<x.node_tokens;t+=stride){
+    unsigned c_nr=0u;
+    if(lane==0u && !ep16_load_relaxed((unsigned*)x.node_ready+t)){
+     auto* parts=(unsigned*)x.node_ready+x.node_tokens;
+     if(ep16_load_relaxed((unsigned*)x.node_arrival+t)>=((unsigned*)x.node_expected)[t]){
+      if((__hip_atomic_fetch_or(parts+t,0x80000000u,__ATOMIC_RELAXED,__HIP_MEMORY_SCOPE_AGENT)&0x80000000u)==0u)c_nr=1u;
+      else c_nr=ep16_load_relaxed((unsigned*)x.node_ready+t)?0u:2u;
+     }else c_nr=2u;
+    }
+    c_nr=__shfl(c_nr,0u);
+    if(c_nr==1u){ep16_node_reduce(env,o,x,t,0u,1u);did_r=1u;}
+    else if(c_nr==2u)++pend_r;
+   }
+#endif
+   unsigned lp_r=0u;if(lane==0u)lp_r=ep16_load_relaxed((unsigned*)o.plan_flags);lp_r=__shfl(lp_r,0u);
+   if(lp_r==2u)break;
+   if(lp_r==1u){
+    if(!seen_loc_r){asm volatile("buffer_inv sc1\ns_waitcnt vmcnt(0)\n" ::: "memory");seen_loc_r=true;}
+    for(unsigned t=worker;t<e.t_local;t+=stride){
+     unsigned c_hm=0u;
+     if(lane==0u && !ep16_load_agent_relaxed((unsigned*)o.home_done+t)){
+      auto* parts=(unsigned*)o.home_done+(unsigned)e.t_local;
+      if(ep16_home_ready(env,o,x,t)){
+       if((__hip_atomic_fetch_or(parts+t,0x80000000u,__ATOMIC_RELAXED,__HIP_MEMORY_SCOPE_AGENT)&0x80000000u)==0u)c_hm=1u;
+       else c_hm=ep16_load_agent_relaxed((unsigned*)o.home_done+t)?0u:2u;
+      }else c_hm=2u;
+     }
+     c_hm=__shfl(c_hm,0u);
+     if(c_hm==1u){ep16_home(env,o,x,t,0u,1u);did_r=1u;}
+     else if(c_hm==2u)++pend_r;
+    }
+   }else ++pend_r;
+   if(!pend_r)break;
+   unsigned stop_r=0u;
+   if(lane==0u){
+    stop_r=ep16_load_relaxed((unsigned*)e.error);
+    if(__builtin_amdgcn_s_memrealtime()-t_start_r>x.timeout_ticks)stop_r=1u;
+   }
+   if(__shfl(stop_r,0u))break;
+   if(!did_r)__builtin_amdgcn_s_sleep(4);
+  }
+ }
 }

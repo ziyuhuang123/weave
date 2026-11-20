@@ -1,5 +1,6 @@
 #include <deep_gemm/scheduler/weave_knobs.cuh>
 #include <deep_gemm/scheduler/weave_policy_runtime.cuh>
+#include <deep_gemm/scheduler/weave_cost_model.cuh>
 // MEGA_OPT_OPTIONS_BEGIN
 #ifndef WEAVE_OPT_RELAXED_SPIN
 #define WEAVE_OPT_RELAXED_SPIN 0
@@ -459,9 +460,7 @@ __device__ __forceinline__ bool v983_wait_ge(const unsigned* p, unsigned target,
                                               unsigned* error, unsigned code) {
   unsigned backoff = 1u, spins = 0u;
 #if WEAVE_OPT_RELAXED_SPIN
-  // relaxed 轮询：不带 acquire 语义，因此不会每圈作废 L1/L2；
-  // 条件满足后在函数返回前补一次 acquire 栅栏，保证后续读到的 payload 是新的。
-  while(__hip_atomic_load(p, __ATOMIC_RELAXED, __HIP_MEMORY_SCOPE_SYSTEM) < target) {
+  // relaxed 轮询：不�?acquire 语义，因此不会每圈作�?L1/L2�?  // 条件满足后在函数返回前补一�?acquire 栅栏，保证后续读到的 payload 是新的�?  while(__hip_atomic_load(p, __ATOMIC_RELAXED, __HIP_MEMORY_SCOPE_SYSTEM) < target) {
 #else
   while(v983_load_system(p) < target) {
 #endif
@@ -670,7 +669,7 @@ __device__ __forceinline__ bool weave_v4_group_no_error(
   volatile WeaveBk64LocalU32* sh = reinterpret_cast<volatile WeaveBk64LocalU32*>(reinterpret_cast<uintptr_t>(g_v1262_phase_arena + 65476u + grp_sh)); (void)arena;
   weave_4wave_barrier_65440(arena);
   if ((threadIdx.x & 255u) == 0u)
-    sh[0] = (v983_load_system(err_ptr) == 0u) ? 1u : 0u;
+    sh[0] = (__hip_atomic_load(err_ptr, __ATOMIC_RELAXED, __HIP_MEMORY_SCOPE_AGENT) == 0u) ? 1u : 0u;
   weave_4wave_barrier_65440(arena);
   return sh[0] != 0u;
 }
@@ -751,171 +750,115 @@ __device__ __forceinline__ void weave_v4_gemm1_direct(
     d.tile_idx   = __builtin_amdgcn_readfirstlane(d_raw.tile_idx);
     const unsigned run = __builtin_amdgcn_readfirstlane(plan->total_padded_rows);
     const unsigned pad_gather = __builtin_amdgcn_readfirstlane(plan->pad_gather_slot);
-    // Single-producer MALL-cached dense_a staging (eliminates 8x-16x uncached HBM gathers!)
-    {
-      auto* cached_ready = reinterpret_cast<unsigned*>(o.a_tile_ready) + mt;
-      volatile WeaveBk64LocalU32* cached_sh = reinterpret_cast<volatile WeaveBk64LocalU32*>(reinterpret_cast<uintptr_t>(g_v1262_phase_arena + 65488u + grp_sh));
-      if (tid == 0u) {
-        unsigned st = __hip_atomic_load(cached_ready, __ATOMIC_RELAXED, __HIP_MEMORY_SCOPE_AGENT);
-        if (st == 0u) {
-          unsigned exp0 = 0u;
-          if (__hip_atomic_compare_exchange_strong(cached_ready, &exp0, 1u,
-                __ATOMIC_RELAXED, __ATOMIC_RELAXED, __HIP_MEMORY_SCOPE_AGENT)) {
-            st = 1u;
-          } else {
-            st = (exp0 == 2u) ? 2u : 3u;
-          }
-        } else if (st == 1u) {
-          st = 3u;
-        }
-        *cached_sh = st;
-      }
-      weave_4wave_barrier_65440(arena);
-      const unsigned st_mt = *cached_sh;
-      if (st_mt == 1u) {
-        FI_BG(V1988_FI_DETAIL, V1988_EV_GEMM1_TILE_WAIT, mt);
-        const bool rdy_ok = weave_wait_tile_payload_ready(recv_ready, stage1_ids, d, pad_gather,
-                                           trace + 16u + cta * 16u + 14u,
-                                           reinterpret_cast<unsigned*>(e.error));
-        FI_EG(V1988_FI_DETAIL, V1988_EV_GEMM1_TILE_WAIT, mt);
-        if (!rdy_ok) {
-          if (tid == 0u) __hip_atomic_store(cached_ready, 4u, __ATOMIC_RELEASE, __HIP_MEMORY_SCOPE_AGENT);
-          return;
-        }
-        const unsigned char* rp = reinterpret_cast<const unsigned char*>(
-            reinterpret_cast<const uint64_t*>(e.peer_payload_table)[e.rank]) -
-            static_cast<uint64_t>(e.rank) * e.capacity * e.payload_bytes;
-        const float* rs = reinterpret_cast<const float*>(
-            reinterpret_cast<const uint64_t*>(e.peer_scale_table)[e.rank]) -
-            static_cast<uint64_t>(e.rank) * e.capacity * e.scale_groups;
-        uint8_t* ca = reinterpret_cast<uint8_t*>(ck.ck_stage1_output);
-        const uint64_t ca_str = (((uint64_t)ck.ck_route_rows + 16ull) * (uint64_t)ck.ck_hidden + 255ull) & ~255ull;
-        float* cs = reinterpret_cast<float*>(ck.ck_stage1_output + ca_str);
-        const unsigned k_u4 = ck.ck_hidden >> 4u;
-        const unsigned sg = ck.ck_groups_per_row;
-        #pragma clang loop unroll(disable)
-        for (unsigned r_loc = 0u; r_loc < d.valid_rows; ++r_loc) {
-          const unsigned row = d.row_start + r_loc;
-          const unsigned ps = __builtin_amdgcn_readfirstlane(static_cast<unsigned>(stage1_ids[row]));
-          if (ps != pad_gather) {
-            const uint4* src_u4 = reinterpret_cast<const uint4*>(rp + static_cast<uint64_t>(ps) * ck.ck_hidden);
-            uint4* dst_u4 = reinterpret_cast<uint4*>(ca + static_cast<uint64_t>(row) * ck.ck_hidden);
-            #pragma clang loop unroll(disable)
-            for (unsigned c_u4 = tid; c_u4 < k_u4; c_u4 += 256u) {
-              dst_u4[c_u4] = src_u4[c_u4];
-            }
-            if (tid < sg) {
-              cs[static_cast<uint64_t>(row) * sg + tid] = rs[static_cast<uint64_t>(ps) * sg + tid];
-            }
-          }
-        }
-        __builtin_amdgcn_s_waitcnt(0);
-        weave_4wave_barrier_65440(arena);
-        if (tid == 0u) {
-          __hip_atomic_store(cached_ready, 2u, __ATOMIC_RELEASE, __HIP_MEMORY_SCOPE_AGENT);
-        }
-      } else {
-        if (st_mt != 2u) {
-          if (tid == 0u) {
-            unsigned cur = 0u;
-            while ((cur = __hip_atomic_load(cached_ready, __ATOMIC_RELAXED, __HIP_MEMORY_SCOPE_AGENT)) < 2u) {
-              __builtin_amdgcn_s_sleep(1);
-            }
-            *cached_sh = (cur == 2u) ? 1u : 0u;
-          }
-          weave_4wave_barrier_65440(arena);
-          if (*cached_sh == 0u) return;
-        }
-        asm volatile("buffer_inv sc1\ns_waitcnt vmcnt(0)\n" ::: "memory");
-      }
+    const unsigned char* recv_payload = reinterpret_cast<const unsigned char*>(
+        reinterpret_cast<const uint64_t*>(e.peer_payload_table)[e.rank]) -
+        static_cast<uint64_t>(e.rank) * e.capacity * e.payload_bytes;
+    const float* recv_scale = reinterpret_cast<const float*>(
+        reinterpret_cast<const uint64_t*>(e.peer_scale_table)[e.rank]) -
+        static_cast<uint64_t>(e.rank) * e.capacity * e.scale_groups;
+    // Cache one validated readiness bit per M tile; every launch resets this array.
+    auto* cached_ready = reinterpret_cast<unsigned*>(o.a_tile_ready) + mt;
+    volatile WeaveBk64LocalU32* cached_sh = reinterpret_cast<volatile WeaveBk64LocalU32*>(reinterpret_cast<uintptr_t>(g_v1262_phase_arena + 65488u + grp_sh));
+    if (tid == 0u)
+      *cached_sh = __hip_atomic_load(cached_ready, __ATOMIC_RELAXED, __HIP_MEMORY_SCOPE_AGENT);
+    weave_4wave_barrier_65440(arena);
+    if (*cached_sh != 0u) {
+      // recv_payload & recv_scale are in hardware-uncached self.arena: ZERO buffer_inv!
+    } else {
+      FI_BG(V1988_FI_DETAIL, V1988_EV_GEMM1_TILE_WAIT, mt);
+      const bool rdy_ok = weave_wait_tile_payload_ready(recv_ready, stage1_ids, d, pad_gather,
+                                         trace + 16u + cta * 16u + 14u,
+                                         reinterpret_cast<unsigned*>(e.error));
+      FI_EG(V1988_FI_DETAIL, V1988_EV_GEMM1_TILE_WAIT, mt);
+      if (!rdy_ok) return;
+      if (tid == 0u)
+        __hip_atomic_store(cached_ready, 1u, __ATOMIC_RELEASE, __HIP_MEMORY_SCOPE_AGENT);
     }
 
     const unsigned g1_aux = ((unsigned)d.bm << 16u) | (unsigned)d.valid_rows;
     FI_BG(V1988_FI_CORE, V1988_EV_GEMM1_TILE, g1_aux);
-    const int32_t* ids = reinterpret_cast<const int32_t*>(ck.ck_m64_sorted_ids) + d.row_start;
-    const uint8_t* cached_a = reinterpret_cast<const uint8_t*>(ck.ck_stage1_output);
-    const float* cached_scale = reinterpret_cast<const float*>(ck.ck_stage1_output + ((((uint64_t)ck.ck_route_rows + 16ull) * (uint64_t)ck.ck_hidden + 255ull) & ~255ull));
+    const int32_t* ids = stage1_ids + d.row_start;
     if (split_128 && (d.bm == 128u || d.bm == 256u)) {
       #pragma clang loop unroll(disable)
       for (unsigned r_off = 0u; r_off < d.valid_rows; r_off += 64u) {
         const unsigned r_rem = d.valid_rows - r_off;
         const unsigned chunk = (r_rem > 64u) ? 64u : r_rem;
         if (chunk > 32u) {
-          weave_dispatch_stage1_bk64<64u>(ids + r_off, (int32_t)d.expert_id, cached_a,
-              reinterpret_cast<const uint8_t*>(ck.ck_b), cached_scale,
+          weave_dispatch_stage1_bk64<64u>(ids + r_off, (int32_t)d.expert_id, recv_payload,
+              reinterpret_cast<const uint8_t*>(ck.ck_b), recv_scale,
               reinterpret_cast<const float*>(ck.ck_b_scale), nullptr,
               reinterpret_cast<uint8_t*>(ck.ck_quant_output),
               reinterpret_cast<float*>(ck.ck_quant_scale), d.row_start + r_off, chunk, n1,
-              run, run, ck.ck_intermediate, ck.ck_hidden, arena);
+              num_tokens, run, ck.ck_intermediate, ck.ck_hidden, arena);
         } else {
-          weave_dispatch_stage1_bk64<32u>(ids + r_off, (int32_t)d.expert_id, cached_a,
-              reinterpret_cast<const uint8_t*>(ck.ck_b), cached_scale,
+          weave_dispatch_stage1_bk64<32u>(ids + r_off, (int32_t)d.expert_id, recv_payload,
+              reinterpret_cast<const uint8_t*>(ck.ck_b), recv_scale,
               reinterpret_cast<const float*>(ck.ck_b_scale), nullptr,
               reinterpret_cast<uint8_t*>(ck.ck_quant_output),
               reinterpret_cast<float*>(ck.ck_quant_scale), d.row_start + r_off, chunk, n1,
-              run, run, ck.ck_intermediate, ck.ck_hidden, arena);
+              num_tokens, run, ck.ck_intermediate, ck.ck_hidden, arena);
         }
       }
     } else if (d.bm == 256u) {
       const unsigned v0 = (d.valid_rows < 128u) ? d.valid_rows : 128u;
-      weave_dispatch_stage1_bk64<128u>(ids, (int32_t)d.expert_id, cached_a,
-          reinterpret_cast<const uint8_t*>(ck.ck_b), cached_scale,
+      weave_dispatch_stage1_bk64<128u>(ids, (int32_t)d.expert_id, recv_payload,
+          reinterpret_cast<const uint8_t*>(ck.ck_b), recv_scale,
           reinterpret_cast<const float*>(ck.ck_b_scale),
           nullptr,
           reinterpret_cast<uint8_t*>(ck.ck_quant_output),
           reinterpret_cast<float*>(ck.ck_quant_scale), d.row_start, v0, n1,
-          run, run, ck.ck_intermediate, ck.ck_hidden, arena);
+          num_tokens, run, ck.ck_intermediate, ck.ck_hidden, arena);
       if (d.valid_rows > 128u) {
         const unsigned rem = d.valid_rows - 128u;
         const int32_t* ids1 = ids + 128u;
         const unsigned rs1 = d.row_start + 128u;
         if (rem > 64u) {
-          weave_dispatch_stage1_bk64<128u>(ids1, (int32_t)d.expert_id, cached_a,
-              reinterpret_cast<const uint8_t*>(ck.ck_b), cached_scale,
+          weave_dispatch_stage1_bk64<128u>(ids1, (int32_t)d.expert_id, recv_payload,
+              reinterpret_cast<const uint8_t*>(ck.ck_b), recv_scale,
               reinterpret_cast<const float*>(ck.ck_b_scale), nullptr,
               reinterpret_cast<uint8_t*>(ck.ck_quant_output),
               reinterpret_cast<float*>(ck.ck_quant_scale), rs1, rem, n1,
-              run, run, ck.ck_intermediate, ck.ck_hidden, arena);
+              num_tokens, run, ck.ck_intermediate, ck.ck_hidden, arena);
         } else if (rem > 32u) {
-          weave_dispatch_stage1_bk64<64u>(ids1, (int32_t)d.expert_id, cached_a,
-              reinterpret_cast<const uint8_t*>(ck.ck_b), cached_scale,
+          weave_dispatch_stage1_bk64<64u>(ids1, (int32_t)d.expert_id, recv_payload,
+              reinterpret_cast<const uint8_t*>(ck.ck_b), recv_scale,
               reinterpret_cast<const float*>(ck.ck_b_scale), nullptr,
               reinterpret_cast<uint8_t*>(ck.ck_quant_output),
               reinterpret_cast<float*>(ck.ck_quant_scale), rs1, rem, n1,
-              run, run, ck.ck_intermediate, ck.ck_hidden, arena);
+              num_tokens, run, ck.ck_intermediate, ck.ck_hidden, arena);
         } else {
-          weave_dispatch_stage1_bk64<32u>(ids1, (int32_t)d.expert_id, cached_a,
-              reinterpret_cast<const uint8_t*>(ck.ck_b), cached_scale,
+          weave_dispatch_stage1_bk64<32u>(ids1, (int32_t)d.expert_id, recv_payload,
+              reinterpret_cast<const uint8_t*>(ck.ck_b), recv_scale,
               reinterpret_cast<const float*>(ck.ck_b_scale), nullptr,
               reinterpret_cast<uint8_t*>(ck.ck_quant_output),
               reinterpret_cast<float*>(ck.ck_quant_scale), rs1, rem, n1,
-              run, run, ck.ck_intermediate, ck.ck_hidden, arena);
+              num_tokens, run, ck.ck_intermediate, ck.ck_hidden, arena);
         }
       }
     } else if (d.bm == 128u) {
-      weave_dispatch_stage1_bk64<128u>(ids, (int32_t)d.expert_id, cached_a,
-          reinterpret_cast<const uint8_t*>(ck.ck_b), cached_scale,
+      weave_dispatch_stage1_bk64<128u>(ids, (int32_t)d.expert_id, recv_payload,
+          reinterpret_cast<const uint8_t*>(ck.ck_b), recv_scale,
           reinterpret_cast<const float*>(ck.ck_b_scale),
           nullptr,
           reinterpret_cast<uint8_t*>(ck.ck_quant_output),
           reinterpret_cast<float*>(ck.ck_quant_scale), d.row_start, d.valid_rows, n1,
-          run, run, ck.ck_intermediate, ck.ck_hidden, arena);
+          num_tokens, run, ck.ck_intermediate, ck.ck_hidden, arena);
     } else if (d.bm == 32u) {
-      weave_dispatch_stage1_bk64<32u>(ids, (int32_t)d.expert_id, cached_a,
-          reinterpret_cast<const uint8_t*>(ck.ck_b), cached_scale,
+      weave_dispatch_stage1_bk64<32u>(ids, (int32_t)d.expert_id, recv_payload,
+          reinterpret_cast<const uint8_t*>(ck.ck_b), recv_scale,
           reinterpret_cast<const float*>(ck.ck_b_scale),
           nullptr,
           reinterpret_cast<uint8_t*>(ck.ck_quant_output),
           reinterpret_cast<float*>(ck.ck_quant_scale), d.row_start, d.valid_rows, n1,
-          run, run, ck.ck_intermediate, ck.ck_hidden, arena);
+          num_tokens, run, ck.ck_intermediate, ck.ck_hidden, arena);
     } else {
-      weave_dispatch_stage1_bk64<64u>(ids, (int32_t)d.expert_id, cached_a,
-          reinterpret_cast<const uint8_t*>(ck.ck_b), cached_scale,
+      weave_dispatch_stage1_bk64<64u>(ids, (int32_t)d.expert_id, recv_payload,
+          reinterpret_cast<const uint8_t*>(ck.ck_b), recv_scale,
           reinterpret_cast<const float*>(ck.ck_b_scale),
           nullptr,
           reinterpret_cast<uint8_t*>(ck.ck_quant_output),
           reinterpret_cast<float*>(ck.ck_quant_scale), d.row_start, d.valid_rows, n1,
-          run, run, ck.ck_intermediate, ck.ck_hidden, arena);
+          num_tokens, run, ck.ck_intermediate, ck.ck_hidden, arena);
     }
     __builtin_amdgcn_s_waitcnt(0);
     weave_4wave_barrier_65440(arena);
@@ -961,10 +904,11 @@ __device__ __forceinline__ void weave_v4_gemm2_direct(
 #if WEAVE_KNOB_S2_NGROUP_MODE >= 1
   const unsigned n2_group = (!use_bn64 && ((n2_blocks % WEAVE_KNOB_S2_NGROUP_MODE) == 0u)) ? WEAVE_KNOB_S2_NGROUP_MODE : 1u;
 #else
-  const unsigned ng_min_work = split_128 ? 256u : 160u;
+  const unsigned ng4_min_work = split_128 ? 256u : 160u;
+  const unsigned ng2_min_work = split_128 ? 192u : 128u;
   const unsigned n2_group = (!use_bn64)
-      ? ((((n2_blocks & 3u) == 0u) && (init_m_tiles * (n2_blocks >> 2u) >= ng_min_work)) ? 4u
-         : ((((n2_blocks & 1u) == 0u) && (init_m_tiles * (n2_blocks >> 1u) >= ng_min_work)) ? 2u : 1u))
+      ? ((((n2_blocks & 3u) == 0u) && (init_m_tiles * (n2_blocks >> 2u) >= ng4_min_work)) ? 4u
+         : ((((n2_blocks & 1u) == 0u) && (init_m_tiles * (n2_blocks >> 1u) >= ng2_min_work)) ? 2u : 1u))
       : 1u;
 #endif
   const unsigned n2_claims_per_mt = use_bn64 ? (n2_blocks * 2u) : (n2_blocks / n2_group);
@@ -1246,6 +1190,7 @@ void stage_ep16_turbo_overlap(V983Envelope envelope,
   // the V1864 role split, selected_scatter_mode drives scatter reclamation,
   // and selected_v_head is consumed by weave_comm_4wave_turbo.hpp.
   // -----------------------------------------------------------------------
+  (void) weave::load_published_policy(&g_weave_policy_control);
   const auto& weave_decision = g_weave_policy_control.decision;
   const bool weave_policy_ok = weave_decision.magic == weave::kPolicyMagic &&
       weave_decision.version == weave::kPolicyVersion && weave_decision.valid != 0u;

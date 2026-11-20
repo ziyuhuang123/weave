@@ -5,7 +5,7 @@
     "b300": {
       "exists": true,
       "path": "deep_gemm\\include\\deep_gemm\\impls\\sm100_fp8_fp4_mega_moe.cuh",
-      "bytes": 244534,
+      "bytes": 254061,
       "checks": {
         "scheduler_include": {
           "needle": "scheduler/mega_moe.cuh",
@@ -25,10 +25,46 @@
           "observed_count": 1,
           "ok": true
         },
-        "no_policy_rail": {
+        "include": {
           "needle": "weave_policy_runtime.cuh",
-          "expected_count": 0,
-          "observed_count": 0,
+          "expected_count": 1,
+          "observed_count": 1,
+          "ok": true
+        },
+        "cta0": {
+          "needle": "cta0_select_from_packed_hist",
+          "expected_count": 1,
+          "observed_count": 1,
+          "ok": true
+        },
+        "consume_r": {
+          "needle": "selected_r_mask",
+          "expected_count": 1,
+          "observed_count": 1,
+          "ok": true
+        },
+        "consume_scatter": {
+          "needle": "selected_scatter_mode",
+          "expected_count": 1,
+          "observed_count": 4,
+          "ok": true
+        },
+        "consume_v_head": {
+          "needle": "selected_v_head",
+          "expected_count": 1,
+          "observed_count": 1,
+          "ok": true
+        },
+        "all_cta_read": {
+          "needle": "load_published_policy",
+          "expected_count": 1,
+          "observed_count": 1,
+          "ok": true
+        },
+        "epoch_wait": {
+          "needle": "wait_and_copy_policy",
+          "expected_count": 1,
+          "observed_count": 1,
           "ok": true
         }
       }
@@ -36,7 +72,7 @@
     "b300_nvfp4": {
       "exists": true,
       "path": "deep_gemm\\include\\deep_gemm\\impls\\sm100_fp4_fp4_mega_moe.cuh",
-      "bytes": 104502,
+      "bytes": 110309,
       "checks": {
         "scheduler_include": {
           "needle": "scheduler/nvfp4_mega_moe.cuh",
@@ -56,10 +92,46 @@
           "observed_count": 1,
           "ok": true
         },
-        "no_policy_rail": {
+        "include": {
           "needle": "weave_policy_runtime.cuh",
-          "expected_count": 0,
-          "observed_count": 0,
+          "expected_count": 1,
+          "observed_count": 1,
+          "ok": true
+        },
+        "cta0": {
+          "needle": "cta0_select_from_packed_hist",
+          "expected_count": 1,
+          "observed_count": 1,
+          "ok": true
+        },
+        "consume_r": {
+          "needle": "selected_r_mask",
+          "expected_count": 1,
+          "observed_count": 1,
+          "ok": true
+        },
+        "consume_scatter": {
+          "needle": "selected_scatter_mode",
+          "expected_count": 1,
+          "observed_count": 4,
+          "ok": true
+        },
+        "consume_v_head": {
+          "needle": "selected_v_head",
+          "expected_count": 1,
+          "observed_count": 1,
+          "ok": true
+        },
+        "all_cta_read": {
+          "needle": "load_published_policy",
+          "expected_count": 1,
+          "observed_count": 1,
+          "ok": true
+        },
+        "epoch_wait": {
+          "needle": "wait_and_copy_policy",
+          "expected_count": 1,
+          "observed_count": 1,
           "ok": true
         }
       }
@@ -67,7 +139,7 @@
     "h20": {
       "exists": true,
       "path": "deep_gemm\\include\\deep_gemm\\impls\\sm90_fp8_mega_moe.cuh",
-      "bytes": 381966,
+      "bytes": 381960,
       "checks": {
         "include": {
           "needle": "weave_policy_runtime.cuh",
@@ -119,11 +191,66 @@
         }
       }
     },
+    "mi308x": {
+      "exists": true,
+      "path": "deep_gemm\\include\\deep_gemm\\impls\\gfx942_fp8_mega_moe.cuh",
+      "bytes": 244,
+      "checks": {
+        "include_body": {
+          "needle": "amd/megamoe_amd.hip",
+          "expected_count": 1,
+          "observed_count": 2,
+          "ok": true
+        },
+        "include_policy": {
+          "needle": "weave_policy_runtime.cuh",
+          "expected_count": 1,
+          "observed_count": 3,
+          "ok": true
+        },
+        "cta0_u32": {
+          "needle": "cta0_select_and_publish",
+          "expected_count": 1,
+          "observed_count": 1,
+          "ok": true
+        },
+        "consume_r": {
+          "needle": "selected_r_mask",
+          "expected_count": 1,
+          "observed_count": 2,
+          "ok": true
+        },
+        "consume_scatter": {
+          "needle": "selected_scatter_mode",
+          "expected_count": 1,
+          "observed_count": 2,
+          "ok": true
+        },
+        "consume_v_head": {
+          "needle": "selected_v_head",
+          "expected_count": 1,
+          "observed_count": 5,
+          "ok": true
+        },
+        "all_cta_read": {
+          "needle": "load_published_policy",
+          "expected_count": 1,
+          "observed_count": 1,
+          "ok": true
+        }
+      }
+    },
     "mi308x_body": {
       "exists": true,
       "path": "deep_gemm\\include\\deep_gemm\\impls\\amd\\megamoe_amd.hip",
-      "bytes": 61571,
+      "bytes": 59247,
       "checks": {
+        "include": {
+          "needle": "weave_policy_runtime.cuh",
+          "expected_count": 1,
+          "observed_count": 1,
+          "ok": true
+        },
         "consume_r": {
           "needle": "selected_r_mask",
           "expected_count": 1,
@@ -139,6 +266,12 @@
         "all_cta_read": {
           "needle": "g_weave_policy_control",
           "expected_count": 1,
+          "observed_count": 2,
+          "ok": true
+        },
+        "load_published": {
+          "needle": "load_published_policy",
+          "expected_count": 1,
           "observed_count": 1,
           "ok": true
         }
@@ -147,7 +280,7 @@
     "mi308x_route": {
       "exists": true,
       "path": "deep_gemm\\include\\deep_gemm\\impls\\amd\\include\\direct_gather_and_greedy_tiles.hpp",
-      "bytes": 28979,
+      "bytes": 29080,
       "checks": {
         "cta0": {
           "needle": "cta0_select_and_publish",
@@ -184,12 +317,12 @@
     "mi308x_comm": {
       "exists": true,
       "path": "deep_gemm\\include\\deep_gemm\\impls\\amd\\include\\weave_comm_4wave_turbo.hpp",
-      "bytes": 37469,
+      "bytes": 36864,
       "checks": {
         "consume_v_head": {
           "needle": "selected_v_head",
           "expected_count": 1,
-          "observed_count": 3,
+          "observed_count": 4,
           "ok": true
         },
         "policy_valid": {

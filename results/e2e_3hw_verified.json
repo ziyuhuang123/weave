@@ -1,6 +1,6 @@
 {
   "schema": "weave-3hw-verified/v1",
-  "generated_at_utc": "2026-11-19T21:05:00Z",
+  "generated_at_utc": "2026-11-20T01:55:20Z",
   "source": {
     "repository": "https://github.com/ziyuhuang123/weave.git",
     "base_commit": "d8ea8050a465d89e9eccb28257728eeb0fb6f2b9",
@@ -8,6 +8,20 @@
       "b300_fix.patch": "6fad848a8d545c1e3e2b78e57dc7169480d3d6fe5a7682b6fe3425c1c30be633",
       "h20_fix.patch": "7462d0d20be2a2297a9fb6c124d50b37c078baeebfbcfe7ba603938b49e34e15",
       "amd_fix.patch": "762e4bc730f532aad8136bd745db3afa838e61dd4cc457376e5d4ba6d77663e0"
+    },
+    "verified_worktree_parent_commit": "3c35a2a",
+    "phase5a_evidence": {
+      "result_json_sha256": "25b986f5cb2c46d5416e98535928c27946645e0d2f35b41489731a906d804530",
+      "local_patch_file_is_placeholder": false,
+      "remote_patch_bytes": 32959,
+      "source_reconstruction": "The archived 32,959-byte Phase 5A diff was recovered from the remote worker and merged manually because its base predates the current tree. The merge keeps both B300 CTA-0 rails, remaps the fp8 rendezvous barrier 8->14, remaps the fp4 user barriers 0..3->8..11, and forces the DeepJIT SM103 target to 100f.",
+      "local_patch_bytes": 32959,
+      "local_patch_sha256": "bb41c12be54374d9447b994f92ac922b5d04dedef65d5de28c48c1e825ac186b"
+    },
+    "phase5b_evidence": {
+      "result_json_sha256": "4d358a7a6faa98060c26187d7fd48d29fae689e2b012d8f0bf113c83a610ddf6",
+      "overlay": "amd_v33_overlay",
+      "runtime_scope": "2 nodes x 8 MI308X (16 ranks), full-output per-rank receipts"
     }
   },
   "verification_contract": {
@@ -96,18 +110,34 @@
             "max": 72.14811235871029
           },
           "ptxas": {
-            "spill_stores": 0,
-            "spill_loads": 0,
+            "status": "PASS",
+            "audit_scope": "current policy-wired source; EP4 template H=6144, BM=16, BN=128, BK=512, 4 stages, pull=3072, 512 threads, 148 SMs",
+            "spill_stores": 16,
+            "spill_loads": 136,
             "registers": 128,
-            "stack_frame_bytes": 80,
+            "stack_frame_bytes": 248,
             "barriers": 16,
-            "status": "PASS"
+            "cold_selector_out_of_line": {
+              "symbol": "weave_publish_or_copy_policy",
+              "spill_stores": 52,
+              "spill_loads": 56,
+              "stack_frame_bytes": 0
+            },
+            "pre_rail_build": {
+              "spill_stores": 0,
+              "spill_loads": 0,
+              "registers": 128,
+              "stack_frame_bytes": 80,
+              "note": "Retained measurement of the pre-policy-rail source. The 143.552 us runtime result corresponds to that build."
+            }
           },
           "jit_cubin_sha256": "6f2bd1220359e4933f93a0593c588decdec3728420dddf470c15d2baffe6cab7",
           "evidence": {
             "ref_log": "/root/weave_e2e_verify/logs/p4_fp4_ref_ep4.log",
             "bench_log": "/root/weave_e2e_verify/logs/p4_fp4_bench_ep4.log"
-          }
+          },
+          "phase5a_status": "NOT_RUN_THIS_SESSION",
+          "phase5a_note": "The verified EP4 NVFP4 result above is the retained Phase 4 measurement. Phase 5A did not re-run this case."
         },
         "fp8xfp4": {
           "world_sizes_attempted": [
@@ -128,11 +158,12 @@
             "spill_stores": 0,
             "spill_loads": 0,
             "registers": 128,
-            "stack_frame_bytes": 56,
+            "stack_frame_bytes": 176,
             "barriers": 16,
             "status": "PASS",
             "jit_cubin_sha256": "ada8305e4fc09db653801097add3ff36649907d119d2b85aff1cc46b6309137b",
-            "audit_cubin_sha256": "f7ee0b57061f6fa76679349eb62060c65329833564a13dcfd826aab26c4272e2"
+            "audit_cubin_sha256": "f7ee0b57061f6fa76679349eb62060c65329833564a13dcfd826aab26c4272e2",
+            "audit_scope": "current policy-wired source; EP1 template H=4096, BM=16, BN=128, BK=256, 5 stages, pull=4096, 512 threads, 148 SMs"
           },
           "correctness": {
             "status": "NOT_MEASURED",
@@ -143,14 +174,36 @@
             "compute-sanitizer memcheck reported no invalid-access errors before the hang",
             "disabling the CTA-0 policy rail still hung",
             "DG_TUNE_D1_G=1 also hung",
-            "EP1 and EP2 both hung at the same run_direct stage"
+            "EP1 and EP2 both hung at the same run_direct stage",
+            "Phase 5A (2026-11-20T08:20Z): all sampled CTAs stop in SYNCS.PHASECHK on full_barriers[0]",
+            "Phase 5A: removing the dispatch pull wait, rank clamp, zero-active-rank guard, block-shape changes, and barrier-id remap all still hang",
+            "Phase 5A: policy readback is null because the kernel never completes",
+            "Phase 5A patch: fp8 rendezvous barrier moved 8->14; fp4 user barriers moved 0..3->8..11; DeepJIT SM103 target forced to 100f; the archived run still hung"
           ],
           "ptxas": {
             "spill_stores": 0,
             "spill_loads": 0,
             "registers": 128,
-            "stack_frame_bytes": 56,
-            "status": "PASS"
+            "stack_frame_bytes": 176,
+            "status": "PASS",
+            "audit_scope": "current policy-wired source; EP1 template H=4096, BM=16, BN=128, BK=256, 5 stages, pull=4096, 512 threads, 148 SMs",
+            "barriers": 16
+          },
+          "phase5a": {
+            "status": "HANG",
+            "measured": true,
+            "correctness": null,
+            "latency_us": null,
+            "tflops_per_gpu": null,
+            "policy_readback": null,
+            "evidence": [
+              "all sampled CTA thread0 stop at the same SYNCS.PHASECHK mbarrier try_wait PC",
+              "SASS barrier init base 0x29560; most waits target 0x29580 (full_barriers[0] region)",
+              "removing the dispatch pull mbarrier wait still hangs",
+              "rank clamp and num_active_ranks==0 guard do not fix the hang",
+              "changing block_m to 64/32, D2_REG_PULL_BYTES, and barrier ids 0..7 -> 8..15 still hangs",
+              "forcing SM103 arch=100f still hangs"
+            ]
           }
         }
       },
@@ -194,6 +247,24 @@
           13.17
         ],
         "attribution": "control only; not a repo measurement"
+      },
+      "phase5a_session": {
+        "timestamp_utc": "2026-11-20T08:20:00Z",
+        "remote_device": "mail-17-fa3f",
+        "gpu_used": 3,
+        "shape_fp8": {
+          "num_tokens": 16,
+          "max_tokens_per_rank": 16,
+          "hidden": 4096,
+          "intermediate_hidden": 2048,
+          "num_experts": 128,
+          "topk": 4,
+          "ep": 1
+        },
+        "fp8xfp4_status": "HANG",
+        "fp4xfp4_status": "NOT_RUN_THIS_SESSION",
+        "policy_rail": "source-wired in fp8 and fp4; fp8 JIT compile PASS; no live CTA-0 readback",
+        "patch_status": "full 32,959-byte diff recovered (sha256 bb41c12b...) and merged manually"
       }
     },
     {
@@ -288,7 +359,9 @@
         "gpu_count_tested": 8,
         "architecture": "gfx942",
         "vram_per_gpu_bytes": 206141652992,
-        "remote_device": "mail-12"
+        "remote_device": "mail-21",
+        "node_count": 2,
+        "gpu_count_installed_total": 16
       },
       "software": {
         "rocm": "7.2.0",
@@ -299,7 +372,7 @@
       },
       "precision_cases": {
         "fp8": {
-          "status": "PASS_EP8",
+          "status": "PASS_EP8_EP16",
           "world_size": 8,
           "cells": [
             {
@@ -384,30 +457,256 @@
             }
           ],
           "ep16": {
-            "status": "COMPILE_ISA_PASS_RUNTIME_NOT_RUN",
+            "status": "PASS",
+            "world_size": 16,
+            "topology": "2 nodes x 8 AMD Instinct MI308X (gfx942), EP16",
+            "overlay_version": "v33",
             "source": "deep_gemm/include/deep_gemm/impls/amd/megamoe_amd.hip",
             "entry_symbol": "stage_ep16_turbo_overlap",
-            "p_co_sha256": "2d2bbd59c594b3de406054127aff1463acdc5b67994586327f9b0f8c46748191",
-            "scratch_load": 0,
-            "scratch_store": 0,
-            "s_barrier": 1,
-            "s_sleep": 32,
-            "vgpr_spill_count_max": 0,
-            "vgpr_spill_kernels": 0,
-            "private_segment_fixed_size_max": 0,
-            "co_passed": true,
-            "runtime_note": "2-node 16-GPU runtime was not run; task requires EP16 compile+ISA zero-spill audit"
+            "policy_rail": {
+              "knobs": "deep_gemm/include/deep_gemm/scheduler/weave_knobs.cuh",
+              "cost_model": "deep_gemm/include/deep_gemm/scheduler/weave_cost_model.cuh",
+              "runtime": "deep_gemm/include/deep_gemm/scheduler/weave_policy_runtime.cuh",
+              "select_publish": "weave::cta0_select_and_publish",
+              "load_published_policy": "weave::load_published_policy",
+              "wired": true
+            },
+            "jobs": {
+              "queue": "tre_aidev_mi308x",
+              "container_image": "reg.docker.alibaba-inc.com/mdl/mdl0.6:notebook_pytorch2100_curocm720_20260417144633",
+              "timing_job": {
+                "task_id": "01a1f5d84b1f8c04021bd5d9425b95b0",
+                "status": "FINISHED",
+                "cells_passed": 2,
+                "cells_total": 2
+              },
+              "receipts_job": {
+                "task_id": "01a1f5e4346fc7ed6e2eb5c0485f9a2e",
+                "status": "FINISHED",
+                "cells_passed": 2,
+                "cells_total": 2,
+                "receipt_files_harvested": 400
+              }
+            },
+            "timing_protocol": {
+              "warmup": 3,
+              "samples_per_arm": 10,
+              "abba_orders": 2,
+              "samples_per_rank_total": 20,
+              "clock": "同 stream HIP events, FI_LEVEL=0",
+              "ranks_aggregated": 16
+            },
+            "metric_definitions": {
+              "metric1_median_iter_max_us": "median over samples of ( max over 16 ranks of that sample's us )",
+              "metric2_max_rank_median_us": "max over 16 ranks of ( median over that rank's samples )",
+              "speedup": "baseline_us / ours_us"
+            },
+            "cells": [
+              {
+                "cell": "qwen38max_S128_EP16",
+                "model": "qwen38max",
+                "global_s": 128,
+                "t_local": 8,
+                "H": 8192,
+                "I": 2048,
+                "E": 512,
+                "K": 10,
+                "local_experts": 32,
+                "correctness": {
+                  "all_elements_checked_global": 1048576,
+                  "fp64_reference_on_every_rank": true,
+                  "rank_set_complete": true,
+                  "rank_count": 16,
+                  "rel_l2_max_over_ranks": 0.012534609693661007,
+                  "max_row_rel_l2_max_over_ranks": 0.019612214421602454,
+                  "gates": {
+                    "rel_l2": 0.02,
+                    "max_row_rel_l2": 0.05
+                  },
+                  "all_correct": true
+                },
+                "baseline_rccl_aiter": {
+                  "rel_l2_max_over_ranks": 0.013010705795327777,
+                  "max_row_rel_l2_max_over_ranks": 0.018454720446636066,
+                  "all_correct": true
+                },
+                "latency_us": {
+                  "rccl_aiter": {
+                    "metric1_median_iter_max": 1594.079,
+                    "metric2_max_rank_median": 1591.939,
+                    "min_rank_median": 1520.948,
+                    "median_rank_median": 1557.333
+                  },
+                  "p0_dynamicmk": {
+                    "metric1_median_iter_max": 1010.679,
+                    "metric2_max_rank_median": 1006.619,
+                    "min_rank_median": 928.793,
+                    "median_rank_median": 973.036
+                  },
+                  "speedup_metric1": 1.5772,
+                  "speedup_metric2": 1.5815
+                },
+                "cta0_route_plan_us_rank0": 270.32,
+                "cta0_total_us_rank0": 720.08,
+                "device_error": {
+                  "launch_state_records": 48,
+                  "max": 0,
+                  "nonzero": []
+                },
+                "PASS": true
+              },
+              {
+                "cell": "dskv4_flash_S128_EP16",
+                "model": "dskv4_flash",
+                "global_s": 128,
+                "t_local": 8,
+                "H": 4096,
+                "I": 2048,
+                "E": 256,
+                "K": 6,
+                "local_experts": 16,
+                "correctness": {
+                  "all_elements_checked_global": 524288,
+                  "fp64_reference_on_every_rank": true,
+                  "rank_set_complete": true,
+                  "rank_count": 16,
+                  "rel_l2_max_over_ranks": 0.012292286480593495,
+                  "max_row_rel_l2_max_over_ranks": 0.015527615866053621,
+                  "gates": {
+                    "rel_l2": 0.02,
+                    "max_row_rel_l2": 0.05
+                  },
+                  "all_correct": true
+                },
+                "baseline_rccl_aiter": {
+                  "rel_l2_max_over_ranks": 0.013666289160235266,
+                  "max_row_rel_l2_max_over_ranks": 0.019192491820472717,
+                  "all_correct": true
+                },
+                "latency_us": {
+                  "rccl_aiter": {
+                    "metric1_median_iter_max": 1387.055,
+                    "metric2_max_rank_median": 1367.269,
+                    "min_rank_median": 1309.069,
+                    "median_rank_median": 1343.439
+                  },
+                  "p0_dynamicmk": {
+                    "metric1_median_iter_max": 735.3,
+                    "metric2_max_rank_median": 732.679,
+                    "min_rank_median": 629.515,
+                    "median_rank_median": 667.327
+                  },
+                  "speedup_metric1": 1.8864,
+                  "speedup_metric2": 1.8661
+                },
+                "cta0_route_plan_us_rank0": 231.4,
+                "cta0_total_us_rank0": 450.52,
+                "device_error": {
+                  "launch_state_records": 48,
+                  "max": 0,
+                  "nonzero": []
+                },
+                "PASS": true
+              }
+            ],
+            "correctness_evidence": {
+              "source": "job2 per-rank receipts (cell_rank*.json + launch_state_*_rank*.json), 两节点均归档, sha256 校验通过",
+              "reference": "每 rank 独立 FP64 参考, 全元素比对 (all_elements_compared=true)",
+              "gates": {
+                "rel_l2": 0.02,
+                "max_row_rel_l2": 0.05
+              },
+              "all_cells_all_ranks_pass": true,
+              "launch_state_records_total": 96,
+              "device_error_zero_on_all_records": true
+            },
+            "p_co": {
+              "mode2": {
+                "scatter_mode": 2,
+                "bytes": 266960,
+                "sha256": "b4b3b6e50f2b8c379d89e35e1a7da86d23cd52cba06e3521426fefef5f6eb453"
+              },
+              "mode0": {
+                "scatter_mode": 0,
+                "bytes": 266704,
+                "sha256": "55b85f58ab9818bddc6cd1a1fdc80c535479093c3d5086aa99c1cf689fa3f1f9"
+              }
+            },
+            "isa_gate": {
+              "mode2": {
+                "vgpr_spill_count_max": 0,
+                "scratch_load": 0,
+                "scratch_store": 0,
+                "private_segment_fixed_size_max": 0,
+                "s_barrier": 1,
+                "group_segment_fixed_size_max": 65536,
+                "vgpr_count_max": 256,
+                "agpr_count_max": 0,
+                "sgpr_count_max": 106,
+                "sgpr_to_vgpr_lane_spill_max": 451,
+                "s_sleep": 23,
+                "co_passed": true,
+                "entry_symbol_present": true,
+                "co_s_barrier": 1,
+                "co_scratch_load": 0,
+                "co_scratch_store": 0,
+                "co_vgpr_spill_count_max": 0,
+                "co_private_segment_fixed_size_max": 0,
+                "co_lds_bytes_max": 65536,
+                "passed": true
+              },
+              "mode0": {
+                "vgpr_spill_count_max": 0,
+                "scratch_load": 0,
+                "scratch_store": 0,
+                "private_segment_fixed_size_max": 0,
+                "s_barrier": 1,
+                "group_segment_fixed_size_max": 65536,
+                "vgpr_count_max": 256,
+                "agpr_count_max": 0,
+                "sgpr_count_max": 106,
+                "sgpr_to_vgpr_lane_spill_max": 504,
+                "s_sleep": 23,
+                "co_passed": true,
+                "entry_symbol_present": true,
+                "co_s_barrier": 1,
+                "co_scratch_load": 0,
+                "co_scratch_store": 0,
+                "co_vgpr_spill_count_max": 0,
+                "co_private_segment_fixed_size_max": 0,
+                "co_lds_bytes_max": 65536,
+                "passed": true
+              }
+            },
+            "host_lib": {
+              "path": "/home/logs/weave_4p4_lab2/work/agy_ep8_20261115/ep16_p5b_v33_verify/pkg/src/build/libep16_turbo_host.so",
+              "bytes": 41432,
+              "sha256": "a88442d6dce444cf37814a5b624fd74886cf523a1a8bd18790cb987338d2b10b",
+              "warnings": 0,
+              "rebuilt_from_overlay_plan_header": true
+            },
+            "determinism": {
+              "two_builds_identical_sha256": true
+            },
+            "runtime_note": "Measured by the archived Phase 5B 2-node run; not re-run during the publication merge. Timing table uses job1; numeric receipts use job2.",
+            "PASS": true
           }
         }
       }
     }
   ],
   "honesty": {
-    "all_included_gpu_numbers_from_phase3_or_phase4_measurements": true,
+    "all_included_gpu_numbers_from_measured_runs": true,
     "simulated_numbers_used": false,
     "b300_fp8xfp4_not_claimed_passed": true,
+    "b300_fp8xfp4_still_hangs_after_phase5a": true,
+    "b300_cta0_live_readback": false,
+    "b300_fp4xfp4_phase4_pass_retained": true,
     "b300_ep8_not_claimed_measured": true,
     "h20_spill_zero_not_fabricated": true,
-    "amd_ep16_runtime_not_claimed": true
+    "amd_ep16_compile_isa_pass": true,
+    "amd_ep16_runtime_measured": true,
+    "amd_ep16_runtime_source": "archived Phase 5B job1/job2 on 2x8 MI308X; not re-run in this pass",
+    "b300_phase5a_patch_recovered": true
   }
 }
