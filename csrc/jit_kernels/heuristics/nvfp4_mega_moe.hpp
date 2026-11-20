@@ -125,7 +125,7 @@ static std::pair<int, int> get_pipeline_config_for_mega_moe(
     const int smem_task_info = kNumScheduleStages * static_cast<int>(sizeof(sched::nvfp4::TaskInfo<true>));
     const int smem_barriers = (num_dispatch_warps + kNumEpilogueStages * 2 + num_epilogue_warps * 2 + kNumScheduleStages * 2) * 8;
     const int smem_weave_policy = align(
-        static_cast<int>(sizeof(weave::PolicyDecision)) + 2 * static_cast<int>(sizeof(uint32_t)),
+        static_cast<int>(sizeof(weave::PolicyDecision)) + 5 * static_cast<int>(sizeof(uint32_t)),
         16);
     const int smem_tmem_ptr = 4;
     const int smem_sfa_per_stage = sf_block_m * (block_k / gran_k);

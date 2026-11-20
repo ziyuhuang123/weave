@@ -239,7 +239,7 @@ static std::pair<int, int> get_pipeline_config_for_mega_moe(
     const int smem_d2_meta = (is_mma_with_sf(mma_kind) and d2_mode >= 1) ? 8 : 0;
     const int smem_d7_meta = d7_handoff_active ? 96 : 0;
     const int smem_weave_policy = align(
-        static_cast<int>(sizeof(weave::PolicyDecision)) + 2 * static_cast<int>(sizeof(uint32_t)),
+        static_cast<int>(sizeof(weave::PolicyDecision)) + 5 * static_cast<int>(sizeof(uint32_t)),
         16);
     const int smem_tmem_ptr = 4 + smem_d2_meta + smem_d7_meta;
 
