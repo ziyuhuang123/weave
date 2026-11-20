@@ -238,7 +238,7 @@ weave_sm90_fp8_mega_moe_core(WEAVE_SM90_FP8_MOE_CORE_ARGS_DECL) {
     // L2 activation SFs use per-64 K granularity in the nv_dev workspace.
     const auto workspace = layout::nv_moe::Workspace(
         sym_buffer.get_base_ptr(), kNumRanks, kNumExperts, kNumMaxTokensPerRank,
-        kNumTopk, kNumMaxPoolTokens);
+        kNumTopk, kNumMaxPoolTokens, kHidden);
 
     constexpr auto fp8_token_layout              = layout::Data(kHidden);
     constexpr auto fp8_intermediate_token_layout = layout::Data(kIntermediateHidden);

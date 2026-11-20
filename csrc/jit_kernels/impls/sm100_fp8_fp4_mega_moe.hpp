@@ -163,6 +163,7 @@ public:
         const int d7_smem_alias = get_weave_env<int>("WEAVE_SCATTER_SMEM_ALIAS", "DG_TUNE_D7_SMEM_ALIAS", nullptr, 1);
         const int d7_warps = get_weave_env<int>("WEAVE_SCATTER_WARPS", "DG_TUNE_D7_WARPS", "DG_TUNE_D7_SCATTER_WARPS", get_env<int>("DG_SCATTER_WARPS", 0));
         const int d7_handoff_wait = get_weave_env<int>("WEAVE_SCATTER_HANDOFF_WAIT", "DG_TUNE_D7_HANDOFF_WAIT", nullptr, 1);
+        const int d7_active_sms = get_weave_env<int>("WEAVE_SCATTER_ACTIVE_SMS", "DG_D7_ACTIVE_SMS", nullptr, 0);
         const int enable_multicast = get_weave_env<int>("WEAVE_ENABLE_MULTICAST", nullptr, nullptr, 1);
 
         std::ostringstream d7_macros;
@@ -170,6 +171,7 @@ public:
         d7_macros << "#define WEAVE_SCATTER_SMEM_ALIAS " << d7_smem_alias << "\n";
         d7_macros << "#define WEAVE_SCATTER_WARPS " << d7_warps << "\n";
         d7_macros << "#define WEAVE_SCATTER_HANDOFF_WAIT " << d7_handoff_wait << "\n";
+        d7_macros << "#define WEAVE_SCATTER_ACTIVE_SMS " << d7_active_sms << "\n";
 
         return fmt::format(R"(
 #define WEAVE_READY_GROUP_SIZE {}

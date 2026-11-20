@@ -241,6 +241,8 @@ static AgySm90KnobSpec parse_agy_sm90_spec_string(const char* raw_str) {
     append_weave_env("swap_pipe", "WEAVE_SWAP_PIPE", "AGY_SWAP_PIPE");
     append_weave_env("fast_pull", "WEAVE_FAST_PULL", "AGY_FAST_PULL");
     append_weave_env("adapt_bm", "WEAVE_ADAPT_BM", "AGY_ADAPT_BM");
+    append_weave_env("hbm_scat", "WEAVE_HBM_SCATTER_QUEUE", "AGY_HBM_SCAT");
+    append_weave_env("scatter_sms", "WEAVE_SCATTER_ACTIVE_SMS", "AGY_SCATTER_ACTIVE_SMS");
     if (combined.empty())
         return spec;
     spec.enabled = true;
@@ -421,6 +423,12 @@ static std::string get_agy_sm90_jit_defines(const AgySm90KnobSpec& spec) {
         defs += "#define AGY_L2_OMIT_DISPATCH_SMEM 1\n";
     if (spec.get_int("full_nswap", 0) > 0)
         defs += "#define AGY_FULL_NSWAP 1\n";
+    if (spec.get_int("hbm_scat", spec.get_int("hbm_scatter_queue", 0)) > 0)
+        defs += "#define WEAVE_HBM_SCATTER_QUEUE 1\n";
+    const int scatter_sms = spec.get_int(
+        "scatter_sms", spec.get_int("scatter_active_sms", 0));
+    if (scatter_sms > 0)
+        defs += std::format("#define WEAVE_SCATTER_ACTIVE_SMS {}\n", scatter_sms);
     if (spec.get_int("adapt_bm", 0) > 0) {
         defs += "#define WEAVE_ADAPT_BM 1\n";
         if (spec.get_int("full_nswap", 0) == 0)

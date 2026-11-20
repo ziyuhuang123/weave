@@ -428,6 +428,21 @@
 #define DG_TUNE_D7_HANDOFF_WAIT WEAVE_SCATTER_HANDOFF_WAIT
 #endif
 
+#ifndef WEAVE_SCATTER_ACTIVE_SMS
+#  if defined(DG_D7_ACTIVE_SMS)
+#    define WEAVE_SCATTER_ACTIVE_SMS DG_D7_ACTIVE_SMS
+#  else
+#    define WEAVE_SCATTER_ACTIVE_SMS 0
+#  endif
+#endif
+#ifndef DG_D7_ACTIVE_SMS
+#define DG_D7_ACTIVE_SMS WEAVE_SCATTER_ACTIVE_SMS
+#endif
+
+#ifndef DG_D7_QUEUE_SCATTER
+#define DG_D7_QUEUE_SCATTER 0
+#endif
+
 #ifndef WEAVE_SHARED_L2_EARLY_BLOCKS
 #  if defined(DG_SHARED_L2_EARLY_BLOCKS)
 #    define WEAVE_SHARED_L2_EARLY_BLOCKS DG_SHARED_L2_EARLY_BLOCKS
@@ -685,6 +700,11 @@ CUTLASS_DEVICE void record(
     #elif DG_TUNE_D7_SCATTER_MODE == 2
         #define DG_D7_HANDOFF_MODE 0
         #define DG_D7_LOCAL_DEDUP 1
+    #elif DG_TUNE_D7_SCATTER_MODE == 3
+        #define DG_D7_HANDOFF_MODE 0
+        #define DG_D7_LOCAL_DEDUP 1
+        #undef DG_D7_QUEUE_SCATTER
+        #define DG_D7_QUEUE_SCATTER 1
     #else
         #define DG_D7_HANDOFF_MODE 0
         #define DG_D7_LOCAL_DEDUP 0
@@ -1054,8 +1074,10 @@ sm100_fp8_fp4_mega_moe_impl(void* y,
         D7ScatterJobInfo scatter_jobs[2];
         Barrier scatter_full_barriers[2];
         Barrier scatter_empty_barriers[2];
-        uint32_t dispatch_pull_done;
         uint32_t epi_scatter_mode[4];
+#endif
+#if (DG_D7_HANDOFF_MODE != 0) || (DG_D7_QUEUE_SCATTER != 0)
+        uint32_t dispatch_pull_done;
 #endif
 #if DG_ISOLATED_D2_MODE >= 1
         uint32_t d2_warp_base;
@@ -1160,8 +1182,10 @@ sm100_fp8_fp4_mega_moe_impl(void* y,
                 shared_storage.task_info_full_barriers[i].init(1);
                 shared_storage.task_info_empty_barriers[i].init(kNumScheduleConsumerThreads);
             }
-#if DG_D7_HANDOFF_MODE != 0
+#if (DG_D7_HANDOFF_MODE != 0) || (DG_D7_QUEUE_SCATTER != 0)
             shared_storage.dispatch_pull_done = 0u;
+#endif
+#if DG_D7_HANDOFF_MODE != 0
             #pragma unroll
             for (uint32_t i = 0; i < 4; ++ i) {
                 shared_storage.epi_scatter_mode[i] = 0u;
@@ -1209,11 +1233,12 @@ sm100_fp8_fp4_mega_moe_impl(void* y,
     constexpr uint32_t kEpilogueFullBarrierIdx = 2;
     constexpr uint32_t kEpilogueWGBarrierStartIdx = 3;
     constexpr uint32_t kAllWarpReduceBarrierIdx = 7;
-#if DG_D7_HANDOFF_MODE != 0
+#if (DG_D7_HANDOFF_MODE != 0) || (DG_D7_QUEUE_SCATTER != 0)
     constexpr uint32_t kScatterDrainBarrierIdx = 6;
     DG_STATIC_ASSERT(kScatterDrainBarrierIdx >= kEpilogueWGBarrierStartIdx + kNumEpilogueWarpgroups and
                      kScatterDrainBarrierIdx < 16, "Invalid scatter drain barrier index");
     DG_STATIC_ASSERT(kNumEpilogueWarpgroups <= 2, "D7 scatter supports 1 or 2 epilogue warpgroups");
+#if DG_D7_HANDOFF_MODE != 0
     #if DG_TUNE_D7_SMEM_ALIAS == 0
     constexpr uint32_t kD7DeadDispatchBytes = sizeof(SharedStorage::d7_dedicated_scatter_smem);
     #else
@@ -1243,6 +1268,7 @@ sm100_fp8_fp4_mega_moe_impl(void* y,
         #endif
     };
 #endif
+#endif
 
     // NVLink barrier tags
     constexpr uint32_t kBeforeDispatchPullBarrierTag = 1;
@@ -1260,6 +1286,14 @@ sm100_fp8_fp4_mega_moe_impl(void* y,
     constexpr uint32_t kD6SafeDiv = (kD6GroupTiles > 0u) ? kD6GroupTiles : 1u;
     constexpr uint32_t kD6ReduceWarps = DG_ISOLATED_D6_REDUCE_WARPS;
     static constexpr bool kD7LocalDedupActive = (DG_D7_LOCAL_DEDUP != 0) and (kD6GroupTiles == 0u);
+    // Queue scatter is an epilogue-local-dedup path with a single dispatch-side
+    // NVLink writer pool.  It is only legal for 128-column epilogue subtiles.
+    static constexpr bool kD7QueueScatterActive =
+        (DG_D7_QUEUE_SCATTER != 0) and (kD6GroupTiles == 0u) and (LAYOUT_AD_M == 128u);
+    static constexpr uint32_t kD7QueueActiveSms =
+        (DG_D7_ACTIVE_SMS <= 0 or static_cast<uint32_t>(DG_D7_ACTIVE_SMS) >= kNumSMs)
+            ? kNumSMs : static_cast<uint32_t>(DG_D7_ACTIVE_SMS);
+    static constexpr uint32_t kD7QueueReserveBatch = 64u;
     DG_STATIC_ASSERT(kD6GroupTiles == 0u or
                      ((kD6GroupTiles & (kD6GroupTiles - 1u)) == 0u and
                       (L2_SHAPE_N / BLOCK_N) % kD6SafeDiv == 0u),
@@ -1958,6 +1992,20 @@ sm100_fp8_fp4_mega_moe_impl(void* y,
             }
         }
 
+#if DG_D7_QUEUE_SCATTER != 0
+        if constexpr (kD7QueueScatterActive) {
+            if (sm_idx == 0u and thread_idx == 0u) {
+                auto* const queue_epoch_ptr = buffer.get_d7_queue_epoch_ptr();
+                uint32_t next_epoch = *reinterpret_cast<volatile uint32_t*>(queue_epoch_ptr);
+                next_epoch = (next_epoch == 0xffffffffu) ? 1u : (next_epoch + 1u);
+                *queue_epoch_ptr = next_epoch;
+                *buffer.get_d7_queue_tail_ptr() = 0u;
+                *buffer.get_d7_queue_head_ptr() = 0u;
+                *buffer.get_d7_queue_producer_done_ptr() = 0u;
+                *buffer.get_d7_queue_consumer_done_ptr() = 0u;
+            }
+        }
+#endif
         comm::grid_sync<kNumSMs, kDispatchGridSyncIndex>(
             workspace, sm_idx, thread_idx,
             [=]() { ptx::sync_aligned(kNumDispatchThreads, kDispatchBarrierIdx); }
@@ -2725,9 +2773,9 @@ sm100_fp8_fp4_mega_moe_impl(void* y,
     #endif
 #endif
 
-#if DG_D7_HANDOFF_MODE != 0
+#if (DG_D7_HANDOFF_MODE != 0) || (DG_D7_QUEUE_SCATTER != 0)
         // ====================================================================
-        // Axis 7 (D7 Mode 1): Reuse idle dispatch warps as FC2 scatter executor
+        // Axis 7 (D7): publish 'opening pull finished' and wake the scatter role.
         // ====================================================================
         const uint32_t d7_act_disp_t = get_active_dispatch_threads();
         ptx::sync_aligned(d7_act_disp_t, kDispatchBarrierIdx);
@@ -2735,7 +2783,9 @@ sm100_fp8_fp4_mega_moe_impl(void* y,
             ptx::st_shared(&shared_storage.dispatch_pull_done, 1u);
         }
         ptx::sync_aligned(d7_act_disp_t, kDispatchBarrierIdx);
+#endif
 
+#if DG_D7_HANDOFF_MODE != 0
         {
             constexpr uint32_t WG_BLOCK_M = BLOCK_M / kNumEpilogueWarpgroups;
             constexpr uint32_t kNumBankGroupBytes = 16u;
@@ -2849,6 +2899,106 @@ sm100_fp8_fp4_mega_moe_impl(void* y,
 #endif
             }
 
+            ptx::arrive_unaligned(d7_act_disp_t + kNumEpilogueThreads, kScatterDrainBarrierIdx);
+        }
+#elif DG_D7_QUEUE_SCATTER != 0
+        if constexpr (kD7QueueScatterActive) {
+            const bool is_scatter_sm =
+                (kD7QueueActiveSms >= kNumSMs) or
+                (((sm_idx * kD7QueueActiveSms) % kNumSMs) < kD7QueueActiveSms);
+            if (is_scatter_sm) {
+                const uint32_t epoch = ptx::ld_acq(buffer.get_d7_queue_epoch_ptr());
+#if DG_MEGA_TILE_PROF
+                const uint64_t prof_d7_s = tile_prof::read_gtimer();
+#endif
+                const uint32_t half_base = lane_idx & 16u;
+                const uint32_t lane_in_half = lane_idx & 15u;
+                while (true) {
+                    uint32_t claim_old = 0u, claim_n = 0u;
+                    if (lane_idx == 0u) {
+                        uint32_t h = ptx::ld_acq(buffer.get_d7_queue_head_ptr());
+                        while (true) {
+                            const uint32_t t = ptx::ld_acq(buffer.get_d7_queue_tail_ptr());
+                            if (h >= t) {
+                                claim_n = 0u;
+                                break;
+                            }
+                            const uint32_t n = cute::min(2u, t - h);
+                            uint32_t prev;
+                            asm volatile("atom.acq_rel.gpu.global.cas.b32 %0, [%1], %2, %3;"
+                                         : "=r"(prev)
+                                         : "l"(buffer.get_d7_queue_head_ptr()), "r"(h), "r"(h + n)
+                                         : "memory");
+                            if (prev == h) {
+                                claim_old = h;
+                                claim_n = n;
+                                break;
+                            }
+                            h = prev;
+                        }
+                    }
+                    claim_old = __shfl_sync(0xffffffffu, claim_old, 0);
+                    claim_n = __shfl_sync(0xffffffffu, claim_n, 0);
+                    if (claim_n == 0u) {
+                        if (ptx::ld_acq(buffer.get_d7_queue_producer_done_ptr()) >= kNumSMs)
+                            break;
+                        __nanosleep(64);
+                        continue;
+                    }
+                    const uint32_t half = lane_idx >> 4;
+                    if (half < claim_n) {
+                        const uint32_t slot = claim_old + half;
+                        uint64_t desc = 0ull;
+                        if (lane_in_half == 0u) {
+                            while (ptx::ld_acq(buffer.get_d7_queue_ready_ptr() + slot) != epoch)
+                                __nanosleep(32);
+                            desc = ptx::ld_acq_gpu(buffer.get_d7_queue_desc_ptr() + slot);
+                        }
+                        const uint32_t group_mask = half ? 0xffff0000u : 0x0000ffffu;
+                        const uint32_t desc_lo = __shfl_sync(group_mask, static_cast<uint32_t>(desc), half_base);
+                        const uint32_t desc_hi = __shfl_sync(group_mask, static_cast<uint32_t>(desc >> 32), half_base);
+                        desc = (static_cast<uint64_t>(desc_hi) << 32) | desc_lo;
+                        if ((desc & 0x8000000000000000ull) == 0ull) {
+                            const uint32_t dst_rank = static_cast<uint32_t>((desc >> 32) & 0xfull);
+                            const uint32_t dst_token = static_cast<uint32_t>(desc & 0xffffffffull);
+                            const uint32_t dst_topk = static_cast<uint32_t>((desc >> 36) & 0x1full);
+                            const uint32_t sub_n = static_cast<uint32_t>((desc >> 41) & 0xffull);
+                            const uint32_t n_idx = sub_n * 128u;
+                            const auto dst_token_buf = buffer.combine_token_buffer
+                                .get_rank_buffer(dst_topk).get_data_buffer(dst_token);
+                            const auto dst_ptr = math::advance_ptr<float4>(
+                                dst_token_buf.get_base_ptr(),
+                                n_idx * static_cast<uint32_t>(sizeof(nv_bfloat16)) +
+                                lane_in_half * static_cast<uint32_t>(sizeof(float4)));
+                            float4 packed;
+                            asm volatile("ld.global.cg.v4.u32 {%0, %1, %2, %3}, [%4];"
+                                         : "=r"(*reinterpret_cast<uint32_t*>(&packed.x)),
+                                           "=r"(*reinterpret_cast<uint32_t*>(&packed.y)),
+                                           "=r"(*reinterpret_cast<uint32_t*>(&packed.z)),
+                                           "=r"(*reinterpret_cast<uint32_t*>(&packed.w))
+                                         : "l"(buffer.get_d7_local_row_ptr(dst_rank, dst_token, n_idx) + lane_in_half));
+                            *sym_buffer.map(dst_ptr, dst_rank) = packed;
+                        }
+                    }
+                }
+#if DG_MEGA_TILE_PROF
+                tile_prof::record(cumulative_local_expert_recv_stats, sm_idx, warp_idx, lane_idx,
+                                  prof_rec_idx, prof_t0_ns, prof_d7_s, tile_prof::read_gtimer(),
+                                  29u, sm_idx);
+#endif
+                ptx::sync_aligned(d7_act_disp_t, kDispatchBarrierIdx);
+                ptx::fence_acq_rel_sys();
+                if (thread_idx == 0u)
+                    ptx::red_add_rel(buffer.get_d7_queue_consumer_done_ptr(), 1u);
+                ptx::sync_aligned(d7_act_disp_t, kDispatchBarrierIdx);
+            } else {
+                if (thread_idx == 0u) {
+                    while (ptx::ld_acq(buffer.get_d7_queue_producer_done_ptr()) < kNumSMs or
+                           ptx::ld_acq(buffer.get_d7_queue_consumer_done_ptr()) < kD7QueueActiveSms)
+                        __nanosleep(512);
+                }
+                ptx::sync_aligned(d7_act_disp_t, kDispatchBarrierIdx);
+            }
             ptx::arrive_unaligned(d7_act_disp_t + kNumEpilogueThreads, kScatterDrainBarrierIdx);
         }
 #endif
@@ -3437,6 +3587,68 @@ sm100_fp8_fp4_mega_moe_impl(void* y,
         uint32_t epi_scatter_step = 0u;
         bool scatter_handoff_enabled = false;
 #endif
+        uint32_t d7_queue_epoch = 0u;
+        uint32_t d7_queue_slot_next = 0u;
+        uint32_t d7_queue_slot_end = 0u;
+#if DG_D7_QUEUE_SCATTER != 0
+        if constexpr (kD7QueueScatterActive)
+            d7_queue_epoch = ptx::ld_acq(buffer.get_d7_queue_epoch_ptr());
+#endif
+
+        // Publish one completed local row.  Only the leader lane of a 16-lane
+        // half-warp reserves a slot; the reservation is amortized over a batch
+        // so 148 CTAs do not serialize on a single global atomic per row.
+        const auto d7_queue_publish = [&](const uint32_t& dst_rank_idx,
+                                          const uint32_t& dst_token_idx,
+                                          const uint32_t& dst_topk_idx,
+                                          const uint32_t& sub_n_idx) {
+            if constexpr (!kD7QueueScatterActive) {
+                return;
+            } else {
+                if ((lane_idx & 15u) != 0u)
+                    return;
+                if (d7_queue_slot_next >= d7_queue_slot_end) {
+                    const uint32_t base = ptx::atomic_add(
+                        buffer.get_d7_queue_tail_ptr(), kD7QueueReserveBatch);
+                    d7_queue_slot_next = base;
+                    d7_queue_slot_end = base + kD7QueueReserveBatch;
+                }
+                const uint32_t slot = d7_queue_slot_next ++;
+                const uint64_t desc =
+                    (static_cast<uint64_t>(dst_token_idx) & 0xffffffffull) |
+                    ((static_cast<uint64_t>(dst_rank_idx) & 0xfull) << 32) |
+                    ((static_cast<uint64_t>(dst_topk_idx) & 0x1full) << 36) |
+                    ((static_cast<uint64_t>(sub_n_idx) & 0xffull) << 41);
+                auto* const desc_ptr = buffer.get_d7_queue_desc_ptr() + slot;
+                auto* const ready_ptr = buffer.get_d7_queue_ready_ptr() + slot;
+                asm volatile("st.global.cg.u64 [%0], %1;" :: "l"(desc_ptr), "l"(desc) : "memory");
+                asm volatile("st.release.gpu.global.u32 [%0], %1;"
+                             :: "l"(ready_ptr), "r"(d7_queue_epoch) : "memory");
+            }
+        };
+
+        // Reserved-but-unused slots are filled with dummy descriptors so the
+        // monotone tail never leaves a permanent hole in the consumer stream.
+        const auto d7_queue_flush = [&]() {
+            if constexpr (!kD7QueueScatterActive) {
+                return;
+            } else {
+                if ((lane_idx & 15u) != 0u)
+                    return;
+                constexpr uint64_t kDummyDescriptor = 0x8000000000000000ull;
+                for (uint32_t slot = d7_queue_slot_next; slot < d7_queue_slot_end; ++ slot) {
+                    auto* const desc_ptr = buffer.get_d7_queue_desc_ptr() + slot;
+                    auto* const ready_ptr = buffer.get_d7_queue_ready_ptr() + slot;
+                    asm volatile("st.global.cg.u64 [%0], %1;"
+                                 :: "l"(desc_ptr), "l"(kDummyDescriptor) : "memory");
+                    asm volatile("st.release.gpu.global.u32 [%0], %1;"
+                                 :: "l"(ready_ptr), "r"(d7_queue_epoch) : "memory");
+                }
+                d7_queue_slot_next = 0u;
+                d7_queue_slot_end = 0u;
+            }
+        };
+
         const auto d7_scatter_or_prereduce_row = [&](const bool& is_shared,
                                                      const uint32_t& dst_rank_idx,
                                                      const uint32_t& dst_token_idx,
@@ -3445,7 +3657,76 @@ sm100_fp8_fp4_mega_moe_impl(void* y,
                                                      const float4& packed) {
             const uint32_t dst_topk_idx = raw_topk_meta & 0xffu;
             const uint32_t lane_in_half = lane_idx & 15u;
-            if constexpr (!kD7LocalDedupActive) {
+            if constexpr (kD7QueueScatterActive) {
+                const uint32_t sub_n_idx = n_idx / 128u;
+                const uint32_t topk_bm = is_shared ? 0u : ((raw_topk_meta >> 8) & 0x3ffu);
+                const uint32_t hit_count = is_shared ? 1u : static_cast<uint32_t>(__popc(topk_bm));
+                const uint32_t leader_topk_idx = is_shared ? kNumTopk : static_cast<uint32_t>(__ffs(topk_bm) - 1);
+                const uint32_t half_mask = __activemask();
+                const uint32_t half_base = lane_idx & 16u;
+                float4* const local_ptr =
+                    buffer.get_d7_local_row_ptr(dst_rank_idx, dst_token_idx, n_idx) + lane_in_half;
+                float4 out_val = packed;
+                uint32_t next_cnt = 1u;
+                if (hit_count > 1u) {
+                    uint32_t* const state_ptr =
+                        buffer.get_d7_subtile_state_ptr(dst_rank_idx, dst_token_idx, sub_n_idx);
+                    uint32_t old_state = 0u;
+                    if (lane_in_half == 0u) {
+                        while (true) {
+                            asm volatile("atom.acquire.gpu.global.cas.b32 %0, [%1], %2, %3;"
+                                         : "=r"(old_state)
+                                         : "l"(state_ptr),
+                                           "r"(old_state & 0x7fffffffu),
+                                           "r"((old_state & 0x7fffffffu) | 0x80000000u)
+                                         : "memory");
+                            if ((old_state & 0x80000000u) == 0u)
+                                break;
+                        }
+                    }
+                    const uint32_t done_cnt = __shfl_sync(half_mask, old_state, half_base);
+                    if (done_cnt > 0u) {
+                        float4 prev_val;
+                        asm volatile("ld.global.cg.v4.u32 {%0, %1, %2, %3}, [%4];"
+                                     : "=r"(*reinterpret_cast<uint32_t*>(&prev_val.x)),
+                                       "=r"(*reinterpret_cast<uint32_t*>(&prev_val.y)),
+                                       "=r"(*reinterpret_cast<uint32_t*>(&prev_val.z)),
+                                       "=r"(*reinterpret_cast<uint32_t*>(&prev_val.w))
+                                     : "l"(local_ptr));
+                        const auto* p_bf16 = reinterpret_cast<const nv_bfloat162*>(&prev_val);
+                        const auto* c_bf16 = reinterpret_cast<const nv_bfloat162*>(&packed);
+                        auto* o_bf16 = reinterpret_cast<nv_bfloat162*>(&out_val);
+                        #pragma unroll
+                        for (uint32_t l = 0; l < 4; ++ l) {
+                            o_bf16[l] = __float22bfloat162_rn(__fadd2_rn(
+                                __bfloat1622float2(p_bf16[l]),
+                                __bfloat1622float2(c_bf16[l])));
+                        }
+                    }
+                    next_cnt = done_cnt + 1u;
+                }
+                // Every completion writes the final local row, including the
+                // last contributor, before the queue descriptor is published.
+                asm volatile("st.global.cg.v4.u32 [%0], {%1, %2, %3, %4};"
+                             :: "l"(local_ptr),
+                                "r"(*reinterpret_cast<const uint32_t*>(&out_val.x)),
+                                "r"(*reinterpret_cast<const uint32_t*>(&out_val.y)),
+                                "r"(*reinterpret_cast<const uint32_t*>(&out_val.z)),
+                                "r"(*reinterpret_cast<const uint32_t*>(&out_val.w))
+                             : "memory");
+                asm volatile("fence.acq_rel.gpu;" ::: "memory");
+                __syncwarp(half_mask);
+                if (hit_count > 1u and lane_in_half == 0u) {
+                    uint32_t* const state_ptr =
+                        buffer.get_d7_subtile_state_ptr(dst_rank_idx, dst_token_idx, sub_n_idx);
+                    const uint32_t new_state = (next_cnt < hit_count) ? next_cnt : 0u;
+                    asm volatile("st.release.gpu.global.u32 [%0], %1;"
+                                 :: "l"(state_ptr), "r"(new_state) : "memory");
+                }
+                if (next_cnt == hit_count) {
+                    d7_queue_publish(dst_rank_idx, dst_token_idx, leader_topk_idx, sub_n_idx);
+                }
+            } else if constexpr (!kD7LocalDedupActive) {
                 const auto dst_token = buffer.combine_token_buffer.get_rank_buffer(dst_topk_idx)
                                        .get_data_buffer(dst_token_idx);
                 const auto dst_ptr = math::advance_ptr<float4>(
@@ -3919,7 +4200,7 @@ sm100_fp8_fp4_mega_moe_impl(void* y,
 #if DG_MEGA_TILE_PROF
                 tile_prof::record(cumulative_local_expert_recv_stats, sm_idx, warp_idx, lane_idx,
                                   prof_rec_idx, prof_t0_ns, prof_epi_s, tile_prof::read_gtimer(),
-                                  11u, pool_block_idx);
+                                  kD7QueueScatterActive ? 23u : 11u, pool_block_idx);
 #endif
             } else {
                 if (not task_info.is_shared()) {
@@ -4375,6 +4656,16 @@ sm100_fp8_fp4_mega_moe_impl(void* y,
         }
         shared_storage.scatter_full_barriers[epi_scatter_slot].arrive();
         ptx::sync_unaligned(get_active_dispatch_threads() + kNumEpilogueThreads, kScatterDrainBarrierIdx);
+#elif DG_D7_QUEUE_SCATTER != 0
+        if constexpr (kD7QueueScatterActive) {
+            d7_queue_flush();
+            ptx::sync_aligned(kNumEpilogueThreads, kEpilogueFullBarrierIdx);
+            if (epilogue_warp_idx == 0 and lane_idx == 0) {
+                ptx::red_add_rel(buffer.get_d7_queue_producer_done_ptr(), 1u);
+            }
+            ptx::sync_aligned(kNumEpilogueThreads, kEpilogueFullBarrierIdx);
+            ptx::sync_unaligned(get_active_dispatch_threads() + kNumEpilogueThreads, kScatterDrainBarrierIdx);
+        }
 #endif
 
         // Deallocate tensor memory

@@ -486,6 +486,16 @@ struct MegaMoEBuffer {
            // the D7 staging region so existing offsets stay unchanged.
            routed_topk_weights_buffer;
 
+    // Axis 7 (D7 queue mode): global HBM scatter-ready descriptor store.
+    // The queue is appended after the routed top-k weights so all pre-existing
+    // offsets are unchanged.  Each slot contains an 8-byte descriptor plus a
+    // 4-byte publication epoch; the control line is one 128B block.
+    uint32_t d7_queue_capacity = 0;
+    uint64_t d7_queue_offset = 0;
+    uint64_t d7_queue_desc_offset = 0;
+    uint64_t d7_queue_ready_offset = 0;
+    uint64_t d7_queue_bytes = 0;
+
     CUTLASS_HOST_DEVICE
     MegaMoEBuffer(void* base,
                   const uint32_t& hidden,
@@ -596,6 +606,27 @@ struct MegaMoEBuffer {
             math::advance_ptr<uint8_t>(
                 workspace.base,
                 get_d7_local_row_offset() + get_d7_local_row_bytes()));
+
+        // D7 queue: one descriptor per (destination rank, token, 128-column
+        // hidden subtile) plus a small reservation slack.  Producers reserve
+        // slots in batches, so the slack bounds the number of dummy slots that
+        // can be left at the end of a CTA's batch.
+        const uint64_t d7_queue_slots_per_token = math::ceil_div<uint64_t>(
+            static_cast<uint64_t>(bf16_token_layout.num_bytes), 256ull);
+        const uint64_t d7_queue_capacity_raw =
+            static_cast<uint64_t>(workspace.num_max_pool_tokens) * d7_queue_slots_per_token + 262144ull;
+        d7_queue_capacity = static_cast<uint32_t>(d7_queue_capacity_raw);
+        const uint64_t routed_topk_weights_end =
+            get_d7_local_row_offset() + get_d7_local_row_bytes() +
+            static_cast<uint64_t>(routed_topk_weights_buffer.data_layout.num_bytes) *
+                static_cast<uint64_t>(workspace.num_max_pool_tokens);
+        d7_queue_offset = math::align<uint64_t>(routed_topk_weights_end, 128ull);
+        d7_queue_desc_offset = d7_queue_offset + 128ull;
+        d7_queue_ready_offset = math::align<uint64_t>(
+            d7_queue_desc_offset + static_cast<uint64_t>(d7_queue_capacity) * sizeof(uint64_t), 128ull);
+        d7_queue_bytes = math::align<uint64_t>(
+            d7_queue_ready_offset + static_cast<uint64_t>(d7_queue_capacity) * sizeof(uint32_t), 128ull) -
+            d7_queue_offset;
     }
 
     static constexpr uint32_t kD6ReadyRowStride = 32u;
@@ -724,11 +755,50 @@ struct MegaMoEBuffer {
         return reinterpret_cast<float4*>(base_ptr + byte_off);
     }
 
+    // Axis 7 (D7 queue mode): descriptor / publication / control pointers.
+    CUTLASS_DEVICE
+    uint32_t get_d7_queue_capacity() const {
+        return d7_queue_capacity;
+    }
+
+    CUTLASS_DEVICE
+    uint32_t* get_d7_queue_epoch_ptr() const {
+        return math::advance_ptr<uint32_t>(workspace.base, d7_queue_offset + 0ull);
+    }
+
+    CUTLASS_DEVICE
+    uint32_t* get_d7_queue_tail_ptr() const {
+        return math::advance_ptr<uint32_t>(workspace.base, d7_queue_offset + 4ull);
+    }
+
+    CUTLASS_DEVICE
+    uint32_t* get_d7_queue_head_ptr() const {
+        return math::advance_ptr<uint32_t>(workspace.base, d7_queue_offset + 8ull);
+    }
+
+    CUTLASS_DEVICE
+    uint32_t* get_d7_queue_producer_done_ptr() const {
+        return math::advance_ptr<uint32_t>(workspace.base, d7_queue_offset + 12ull);
+    }
+
+    CUTLASS_DEVICE
+    uint32_t* get_d7_queue_consumer_done_ptr() const {
+        return math::advance_ptr<uint32_t>(workspace.base, d7_queue_offset + 16ull);
+    }
+
+    CUTLASS_DEVICE
+    uint64_t* get_d7_queue_desc_ptr() const {
+        return math::advance_ptr<uint64_t>(workspace.base, d7_queue_desc_offset);
+    }
+
+    CUTLASS_DEVICE
+    uint32_t* get_d7_queue_ready_ptr() const {
+        return math::advance_ptr<uint32_t>(workspace.base, d7_queue_ready_offset);
+    }
+
     CUTLASS_HOST_DEVICE
     int64_t get_num_bytes() const {
-        return static_cast<int64_t>(
-            static_cast<uint8_t*>(routed_topk_weights_buffer.get_end_ptr()) -
-            static_cast<uint8_t*>(workspace.base));
+        return static_cast<int64_t>(d7_queue_offset + d7_queue_bytes);
     }
 };
 

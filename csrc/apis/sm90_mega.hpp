@@ -46,7 +46,7 @@ get_symm_buffer_size_for_sm90_mega_moe(
         num_ranks, num_max_tokens_per_rank, num_topk, num_experts / num_ranks);
     const auto workspace = layout::nv_moe::Workspace(
         nullptr, num_ranks, num_experts, num_max_tokens_per_rank, num_topk,
-        num_max_pool_tokens);
+        num_max_pool_tokens, hidden);
 
     // Layouts
     const auto fp8_token_layout = layout::Data(hidden);

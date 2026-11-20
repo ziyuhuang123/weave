@@ -44,6 +44,16 @@ struct TokenSrcMetadata {
     uint32_t topk_idx;
 };
 
+// One published row of the global HBM scatter queue.  The descriptor is
+// produced by the last FC2 epilogue chunk that finishes a (dst_rank, token)
+// staging slot and consumed by a throttled Dispatch/Comm SM.
+struct ScatterQueueDesc {
+    uint32_t dst_rank;
+    uint32_t token;
+    uint32_t topk;
+    uint32_t reserved;
+};
+
 struct Workspace {
     void* base;
     uint32_t num_ranks, num_experts;
@@ -59,6 +69,11 @@ struct Workspace {
     // Full-pool span used by non-ring token metadata
     uint32_t num_max_pool_tokens;
 
+    // Hidden width; non-zero enables the global HBM/L2 scatter staging region.
+    // The region is allocated for every SM90 symmetric buffer so the kernel can
+    // switch paths at JIT time without reallocating the communication buffer.
+    uint32_t hidden;
+
     // Keep grid/NVLink/schedule counters separated from expert counters.
     // NVIDIA L2 cache lines are 128B, and these counters are hot atomics.
     static constexpr uint64_t kNumBarrierSignalBytes = 128;
@@ -71,11 +86,12 @@ struct Workspace {
               const uint32_t& num_experts,
               const uint32_t& num_max_tokens_per_rank,
               const uint32_t& num_topk,
-              const uint32_t& num_ring_tokens):
+              const uint32_t& num_ring_tokens,
+              const uint32_t& hidden = 0u):
         base(base),
         num_ranks(num_ranks), num_experts(num_experts),
         num_max_tokens_per_rank(num_max_tokens_per_rank),
-        num_ring_tokens(num_ring_tokens) {
+        num_ring_tokens(num_ring_tokens), hidden(hidden) {
         num_experts_per_rank = num_experts / num_ranks;
         num_max_recv_tokens_per_expert = num_ranks * num_max_tokens_per_rank;
         num_max_pool_tokens = get_num_max_pool_tokens(num_ranks, num_max_tokens_per_rank, num_topk, num_experts_per_rank);
@@ -84,7 +100,7 @@ struct Workspace {
     }
 
     CUTLASS_HOST_DEVICE
-    uint64_t get_num_bytes() const {
+    uint64_t get_pre_scatter_bytes() const {
         uint64_t num_bytes = 0;
 
         // Barrier and in-kernel task scheduling counters
@@ -116,6 +132,24 @@ struct Workspace {
 
         // Combine push source indices (full)
         num_bytes += num_max_pool_tokens * sizeof(TokenSrcMetadata);
+        return num_bytes;
+    }
+
+    CUTLASS_HOST_DEVICE
+    uint64_t get_num_bytes() const {
+        uint64_t num_bytes = math::align<uint64_t>(get_pre_scatter_bytes(), 128);
+        // Global HBM/L2 dedup scatter staging.  Every logical (dst_rank, token)
+        // owns one full BF16 hidden vector.  Chunk counters are sized for the
+        // smallest supported WG_BLOCK_N (64) so any build shares one layout.
+        num_bytes += get_scatter_stage_bytes();
+        num_bytes += get_num_scatter_slots() * sizeof(ScatterQueueDesc);
+        num_bytes += get_num_scatter_slots() * sizeof(uint32_t);
+        num_bytes += get_num_scatter_slots() * get_max_scatter_chunks() * sizeof(uint32_t);
+        num_bytes += get_num_scatter_slots() * sizeof(uint32_t);
+        num_bytes = math::align<uint64_t>(num_bytes, 128);
+        static_assert((kScatterCtrlWords & 3u) == 0u, "Scatter control must stay 16B aligned");
+        num_bytes += kScatterCtrlWords * sizeof(uint32_t);
+
         // Append the Weave CTA-0 policy header after all existing offsets.
         num_bytes = math::align<uint64_t>(num_bytes, 128);
         num_bytes += kWeaveControlBytes;
@@ -134,6 +168,84 @@ struct Workspace {
     weave::PolicyControl* get_weave_policy_control_ptr() const {
         return reinterpret_cast<weave::PolicyControl*>(
             math::advance_ptr<uint8_t>(base, get_num_bytes() - kWeaveControlBytes));
+    }
+
+    // ---- Global HBM/L2 dedup scatter region --------------------------------
+    static constexpr uint32_t kScatterCtrlWords = 4u;
+
+    CUTLASS_HOST_DEVICE
+    uint32_t get_num_scatter_slots() const {
+        return num_ranks * num_max_tokens_per_rank;
+    }
+
+    CUTLASS_HOST_DEVICE
+    uint32_t get_max_scatter_chunks() const {
+        // WG_BLOCK_N is at least 64 on every supported SM90 path.
+        return hidden == 0u ? 1u : (hidden / 64u);
+    }
+
+    CUTLASS_HOST_DEVICE
+    uint64_t get_scatter_stage_bytes() const {
+        return hidden == 0u ? 0ull :
+            static_cast<uint64_t>(get_num_scatter_slots()) * hidden * sizeof(uint16_t);
+    }
+
+    CUTLASS_HOST_DEVICE
+    uint64_t get_scatter_region_offset() const {
+        return math::align<uint64_t>(get_pre_scatter_bytes(), 128);
+    }
+
+    CUTLASS_DEVICE
+    void* get_scatter_stage_ptr() const {
+        return math::advance_ptr<uint8_t>(base, get_scatter_region_offset());
+    }
+
+    CUTLASS_DEVICE
+    ScatterQueueDesc* get_scatter_queue_desc_ptr() const {
+        return reinterpret_cast<ScatterQueueDesc*>(
+            math::advance_ptr<uint8_t>(get_scatter_stage_ptr(), get_scatter_stage_bytes()));
+    }
+
+    CUTLASS_DEVICE
+    uint32_t* get_scatter_queue_ready_ptr() const {
+        return reinterpret_cast<uint32_t*>(
+            get_scatter_queue_desc_ptr() + get_num_scatter_slots());
+    }
+
+    CUTLASS_DEVICE
+    uint32_t* get_scatter_chunk_count_ptr() const {
+        return get_scatter_queue_ready_ptr() + get_num_scatter_slots();
+    }
+
+    CUTLASS_DEVICE
+    uint32_t* get_scatter_chunks_done_ptr() const {
+        return get_scatter_chunk_count_ptr() +
+            get_num_scatter_slots() * get_max_scatter_chunks();
+    }
+
+    CUTLASS_DEVICE
+    uint32_t* get_scatter_ctrl_ptr() const {
+        return get_scatter_chunks_done_ptr() + get_num_scatter_slots();
+    }
+
+    CUTLASS_DEVICE
+    uint32_t* get_scatter_queue_tail_ptr() const {
+        return get_scatter_ctrl_ptr() + 0;
+    }
+
+    CUTLASS_DEVICE
+    uint32_t* get_scatter_queue_head_ptr() const {
+        return get_scatter_ctrl_ptr() + 1;
+    }
+
+    CUTLASS_DEVICE
+    uint32_t* get_scatter_queue_completed_ptr() const {
+        return get_scatter_ctrl_ptr() + 2;
+    }
+
+    CUTLASS_DEVICE
+    uint32_t* get_scatter_epilogue_done_ptr() const {
+        return get_scatter_ctrl_ptr() + 3;
     }
 
     // Grid sync counters: `kNumBarrierSignalBytes` layout
