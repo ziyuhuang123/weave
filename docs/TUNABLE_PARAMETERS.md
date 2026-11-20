@@ -9,12 +9,12 @@ paths and are not part of the public surface.
 Every accepted value of every knob is explicitly named below. Parameters are
 organized into three categories:
 
-- **Spatial dimension (Weave core):** comm/compute warp partitioning, SM role
+- **Spatial dimension:** comm/compute warp partitioning, SM role
   masks, 2-CTA multicast, numeric precision, and runtime per-expert tile sizing
   (MI308X five-tier `BM_e in {16, 32, 64, 128, 256}` with EP16 floored at 32;
   H20 8-tier swapAB `{8..64}` gated by padding waste; 148-SM SM103 dynamic
   TMA-A `m8/m16/BM` and dynamic epilogue `store_m8/m16`).
-- **Temporal dimension (Weave core):** compute-communication overlap, scatter
+- **Temporal dimension:** compute-communication overlap, scatter
   executor ownership (epilogue inline / async comm queue / local pre-reduce
   dedup), opening head-pull prefetch budget, ready-queue and hot-cold /
   L2-swizzled ordering, L1/L2 interleaving, cooperative all-wave tail combine,

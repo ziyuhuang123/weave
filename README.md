@@ -146,7 +146,7 @@ does not claim absolute clock alignment.
 
 Weave's scheduling and kernel parameters fall into three categories:
 
-- **Spatial dimension (Weave core):** how compute, communication, and tile
+- **Spatial dimension:** how compute, communication, and tile
   resources are partitioned across SMs/CUs, warps, clusters, and numeric
   formats—including the comm/compute warp split, heterogeneous SM role masks,
   2-CTA multicast, numeric precision (`fp8xfp4` / `fp4xfp4` / `fp8` / `bf16`),
@@ -155,7 +155,7 @@ Weave's scheduling and kernel parameters fall into three categories:
   H20 8-tier swapAB `{8..64}` gated by padding waste; 148-SM SM103 dynamic
   TMA-A `m8/m16/BM`, dynamic epilogue `store_m8/m16`, and per-expert tile
   ladders).
-- **Temporal dimension (Weave core):** execution order, compute-communication
+- **Temporal dimension:** execution order, compute-communication
   overlap, scatter ownership (epilogue inline vs. async comm queue vs. local
   pre-reduce dedup), opening head-pull prefetch budget, ready-queue / hot-cold
   / L2-swizzled ordering, L1/L2 interleaving, cooperative all-wave tail

@@ -132,14 +132,14 @@ FP8 Tensor Core 活跃度封顶在 `58%` 以下。
 
 Weave 的调度与内核参数按职责分为三类：
 
-- **空间维度（Spatial · Weave 核心）**：控制计算、通信与 tile 资源在 SM/CU、
+- **空间维度（Spatial）**：控制计算、通信与 tile 资源在 SM/CU、
   warp、cluster 及数值精度上的空间切分，包括通信/计算 warp 比例、异构 SM 角色
   掩码、双 CTA 多播、精度模式（`fp8xfp4` / `fp4xfp4` / `fp8` / `bf16`），以及
   依据实时逐专家 token 数的**运行时逐专家 tile 自适应**（MI308X 五档动态规划
   `BM_e in {16, 32, 64, 128, 256}`，EP16 下限 32；H20 八档 swapAB `{8..64}`
   由 padding 比例门控；148-SM SM103 动态 TMA-A `m8/m16/BM`、动态 epilogue
   `store_m8/m16` 及逐专家 tile 阶梯）。
-- **时间维度（Temporal · Weave 核心）**：控制执行顺序、通算重叠与阶段衔接，
+- **时间维度（Temporal）**：控制执行顺序、通算重叠与阶段衔接，
   包括 Scatter 执行归属（Epilogue 内联 / 通信队列异步 / 本地预归约去重后异步）、
   启动首波预取配额、就绪队列与冷热/L2-swizzle 顺序、L1/L2 交错、全 warp 协作
   尾部 Combine，以及**运行时自适应流水深度**（GEMM 流水级数 `num_stages` 按当前
