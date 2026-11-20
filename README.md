@@ -37,7 +37,11 @@ Each SM/CU is partitioned into a **Communication Partition (`N_c`)** and a
 counters, per-expert group bitmaps, and prefix sums replace expensive runtime
 sorting.
 
-![Weave: Partitioned Hardware Execution & Dual Global Ready Queues](docs/figures/weave_architecture_queues.png)
+![Weave Design Overview: Routing + Hardware Profile -> Cost Model -> Spatial Warp Ratio & Temporal Warp Roles](docs/figures/weave_design_overview.png)
+
+![Weave Spatial Partitioning & Scatter Ownership vs MegaMoE](docs/figures/weave_design_rolegraph.png)
+
+![Weave Temporal Scheduling: Register-Specialized All-Warp Head Pull & Fine-Grained Per-Token Tail Combine](docs/figures/weave_design_temporal.png)
 
 - **GEMM Ready Queue** (consumed by the Compute Partition `N_e`): receives
   ready `(expert, m_block)` tiles as tokens arrive through the
@@ -87,7 +91,15 @@ sizes.
 
 Bound hardware resource utilization: each point is the measured peak
 utilization of the resource that actually bounds that cell (HBM, NVLink/xGMI,
-or compute).
+or compute). Small models such as `Qwen3.5-35B` (`H=2048, I=512`) and
+`Qwen3.5-122B` at `S=16..1024` across 8-GPU EP8 are strictly latency-floor
+dominated (their entire ideal HBM/NVLink time is only `2-10 us` on 148-SM SM103
+versus the `~35 us` 8-GPU barrier/launch floor), and climb back to `79.4%`
+(SM103) / `60.8%` (H20) once `S=16K` amortizes the fixed floor. On 8-GPU-scale
+models (`Qwen3.8-2.4T`, `MiniMax-M3`), Weave reaches up to `97.6%` on 148-SM
+SM103 and `85.5%` on H20; at `S=1024` on H20, `Qwen3.8-2.4T` is HBM3-bound
+(`T_hbm=755 us` vs `T_comp=437 us`), which physically caps FP8 Tensor Core
+activity below `58%`.
 
 All numbers below are measured on real hardware. Every TFLOPS value is a
 single-GPU value, never a cluster aggregate. Full-output correctness is checked
@@ -118,11 +130,20 @@ source line passes end-to-end with live policy readback.
 
 All three panels use the unified WeaveProfiler contract on the matched
 `Qwen3.8-Max, EP8, S=1024` workload: hardware counters, all physical SM/CU
-lanes, and a representative CTA pipeline. Values come from the checked-in
-measured paired traces; missing counters remain unavailable rather than being
-zero-filled. MI308X hardware counters are per-dispatch aggregates; its trace
-explicitly records a window mismatch and does not claim absolute clock
-alignment.
+lanes, and a representative CTA pipeline. Each figure displays the exact tuned
+`WEAVE_*` preset (organized by **Spatial**, **Temporal**, and
+**Implementation**) right below the title. Complete reproducible launch and
+timeline-rendering scripts live under [examples/](examples/README.md):
+
+- NVIDIA SM103 (148-SM): [examples/sm103_qwen38max_ep8_s1024.sh](examples/sm103_qwen38max_ep8_s1024.sh)
+- NVIDIA H20: [examples/h20_qwen38max_ep8_s1024.sh](examples/h20_qwen38max_ep8_s1024.sh)
+- AMD MI308X: [examples/mi308x_qwen38max_ep8_s1024.sh](examples/mi308x_qwen38max_ep8_s1024.sh) (EP8) and [examples/mi308x_qwen38max_ep16_s128.sh](examples/mi308x_qwen38max_ep16_s128.sh) (2-node EP16)
+- One-command runner & renderer: `python examples/profile_and_render_timeline.py --preset sm103` (supports `sm103`, `h20`, `mi308x_ep8`, `mi308x_ep16`, plus `--run` / `--render`)
+
+Values come from the checked-in measured paired traces; missing counters remain
+unavailable rather than being zero-filled. MI308X hardware counters are
+per-dispatch aggregates; its trace explicitly records a window mismatch and
+does not claim absolute clock alignment.
 
 ## How parameters are selected: three levels
 

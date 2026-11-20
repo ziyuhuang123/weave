@@ -33,7 +33,11 @@ V_head。该路径没有主机往返，也没有动态并行启动。
 队列索引是轻量且隐式的：到达计数器、逐专家分组位图与前缀和替代了昂贵的运行时
 排序。
 
-![Weave：分区化硬件执行与双全局 Ready Queue 架构](docs/figures/weave_architecture_queues_zh.png)
+![Weave 系统设计总览：路由直方图 + 硬件画像 -> 代价模型 -> 空间 Warp 配比与时间 Warp 角色](docs/figures/weave_design_overview.png)
+
+![Weave 空间通算分区与 Scatter 归属对比 MegaMoE](docs/figures/weave_design_rolegraph.png)
+
+![Weave 时间维度调度：头部寄存器特化全 Warp 拉取与尾部逐 Token 细粒度归约](docs/figures/weave_design_temporal.png)
 
 - **GEMM Ready Queue**（由 Compute Partition `N_e` 消费）：随着 token 按
   `LOCAL_READY -> REMOTE_PRIMARY -> LOCAL_COPY` 流程到达，接收就绪的
@@ -79,7 +83,15 @@ Python 入口示意：
 ![6 模型 x 5 batch size x 3 硬件平台的绑定硬件资源利用率 %](docs/figures/weave_bound_utilization_3hw.png)
 
 绑定硬件资源利用率：每个点是对该 cell 真正形成瓶颈的资源（HBM、NVLink/xGMI
-或计算）的实测峰值利用率。
+或计算）的实测峰值利用率。对于 `Qwen3.5-35B`（`H=2048, I=512`）与
+`Qwen3.5-122B` 等较小模型，在 8 卡 EP8 + 小 batch（`S=16..1024`）下属于典型的
+**8 卡固定延迟下限主导**（例如 148-SM SM103 上 `Qwen3.5-35B` 全量理论 HBM/NVLink
+耗时仅 `2-10 us`，远低于 8 卡跨卡同步与常驻 kernel 启动的 `~35 us` 物理下限）；
+当 batch 增至 `S=16K` 摊薄固定开销后，SM103 利用率回升至 `79.4%`，H20 回升至
+`60.8%`。在适配 8 卡的大模型（`Qwen3.8-2.4T`、`MiniMax-M3`）上，Weave 在
+148-SM SM103 最高达 `97.6%`、H20 最高达 `85.5%`；其中 H20 在 `Qwen3.8-2.4T`
+`S=1024` 处受 HBM3 带宽受限（`T_hbm=755 us` 对比 `T_comp=437 us`），物理上将
+FP8 Tensor Core 活跃度封顶在 `58%` 以下。
 
 下表全部为真实硬件实测值。所有 TFLOPS 都是单卡值，绝不是集群聚合值。计时前已在
 每个 rank 上检查完整输出。
@@ -106,9 +118,17 @@ Python 入口示意：
 ![AMD MI308X WeaveProfiler SW+HW 时间线](docs/figures/weaveprofiler_mi308x_timeline.png)
 
 三张图在匹配的 `Qwen3.8-Max, EP8, S=1024` 负载上使用统一的 WeaveProfiler
-契约：硬件计数器、全部物理 SM/CU 泳道与代表性 CTA 流水线。数值来自已测配对
-trace；不可用的计数器保持 unavailable，不填零。MI308X 的硬件计数器是每次
-dispatch 的聚合值；trace 自身声明窗口长度不一致，不主张绝对时钟对齐。
+契约：硬件计数器、全部物理 SM/CU 泳道与代表性 CTA 流水线。每张图标题下方都直接
+标注了产出该条 trace 的完整调优 `WEAVE_*` 参数（按 **空间维度 / 时间维度 / 工程实现**
+分类），全部可一键复现的启动与插桩出图脚本均位于 [examples/](examples/README_zh.md)：
+
+- NVIDIA SM103 (148-SM)：[examples/sm103_qwen38max_ep8_s1024.sh](examples/sm103_qwen38max_ep8_s1024.sh)
+- NVIDIA H20：[examples/h20_qwen38max_ep8_s1024.sh](examples/h20_qwen38max_ep8_s1024.sh)
+- AMD MI308X：[examples/mi308x_qwen38max_ep8_s1024.sh](examples/mi308x_qwen38max_ep8_s1024.sh)（EP8）与 [examples/mi308x_qwen38max_ep16_s128.sh](examples/mi308x_qwen38max_ep16_s128.sh)（2 节点 EP16）
+- 一键运行与重绘时间线：`python examples/profile_and_render_timeline.py --preset sm103`（支持 `sm103`、`h20`、`mi308x_ep8`、`mi308x_ep16`，并支持 `--run` / `--render`）
+
+数值来自已测配对 trace；不可用的计数器保持 unavailable，不填零。MI308X 的硬件
+计数器是每次 dispatch 的聚合值；trace 自身声明窗口长度不一致，不主张绝对时钟对齐。
 
 ## 参数如何选择：三层机制
 

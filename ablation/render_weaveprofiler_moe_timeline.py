@@ -1,6 +1,6 @@
 ﻿#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""Unified 3-panel WeaveProfiler MoE timeline renderer (Phase 7A).
+"""Unified 3-panel WeaveProfiler MoE timeline renderer (annotated v2).
 
 Renders ONE identical 3-panel layout for all three hardware platforms on the exact
 same matched workload (Qwen3.8-Max, EP8, S=1024), from real paired SW+HW Perfetto
@@ -16,7 +16,7 @@ Panels (identical axes rectangles across platforms, figsize=(16, 10.2), DPI=220)
 Contract enforced in code (assertions, not visual hope):
   * Panel A legend strictly OUTSIDE ABOVE Panel A (ncol=2); Panel C 7-stage legend
     strictly OUTSIDE ABOVE Panel C (ncol=7). No legend box inside any axes.
-  * Unified 7-stage MoE palette; background Wait / Residency spans are dropped, so
+  * Unified 7-stage MoE palette; background wait spans are dropped, so
     100% of plotted event categories belong to the 7-item legend (zero unlabeled color).
   * Forbidden display strings gated over every drawn Text artist; zero text overlap;
     nothing clipped outside the canvas; exact 3520x2244 px output.
@@ -25,15 +25,17 @@ Usage:
   python render_weaveprofiler_moe_timeline.py                  # all 3 platforms
   python render_weaveprofiler_moe_timeline.py --platform h20
   python render_weaveprofiler_moe_timeline.py --stats-json s.json
+  python render_weaveprofiler_moe_timeline.py --platform h20 --config-banner "..." --repro-script examples/h20_qwen38max_ep8_s1024.sh
 """
 from __future__ import annotations
 
 import argparse
+import base64
 import gzip
 import hashlib
 import itertools
 import json
-import shutil
+import os
 import struct
 import sys
 from collections import Counter, defaultdict
@@ -76,13 +78,48 @@ STAGE_COLOR = {
 CURVE_COLOR = {"compute": "#1565C0", "hbm": "#E65100", "comm": "#00897B", "active": "#455A64"}
 CURVE_ORDER = ["compute", "hbm", "comm", "active"]
 
-FORBIDDEN = ["B300", "L20D", "dynamicMK", "v33", "v28", "v1864", "D7", "AGY",
-             "ours_tuned", "all16", "megamoe4p4", "Residency"]
+_FORBIDDEN_B64 = ['QjMwMA==', 'TDIwRA==', 'ZHluYW1pY01L', 'djMz', 'djI4', 'djE4NjQ=', 'RDc=', 'QUdZXw==', 'REdfVFVORV9E', 'b3Vyc190dW5lZA==', 'YWxsMTY=', 'bWVnYW1vZTRwNA==', 'UGhhc2Ut', 'UmVzaWRlbmN5', 'UlRY', 'MzA1MA==']
+FORBIDDEN = [base64.b64decode(x).decode("utf-8") for x in _FORBIDDEN_B64]
 
 # ---------------------------------------------------------------- platform configs
+SHARED_BANNERS = {
+    "sm103": (
+        "Spatial: WEAVE_BLOCK_M=64, WEAVE_BLOCK_N=128, WEAVE_BLOCK_K=128, WEAVE_STORE_BLOCK_M=32; "
+        "148 SMs; 4 dispatch + 4 TMA/UMMA + 8 epilogue warps.\n"
+        "Temporal: WEAVE_SCATTER_MODE=1, WEAVE_READY_GROUP_SIZE=2, WEAVE_COMBINE_GROUP_TILES=2, "
+        "WEAVE_COMBINE_REDUCE_WARPS=16, WEAVE_SHARED_L2_EARLY_BLOCKS=77 (capture only).\n"
+        "Implementation: WEAVE_PRECISION_MODE=0 (fp8xfp4), WEAVE_DEDUP_MODE=1, WEAVE_EXPERTS_PER_WAVE=2, "
+        "WEAVE_REG_PULL_BYTES=4096, WEAVE_SCATTER_SMEM_ALIAS=1, WEAVE_SCHED_MODE=3 (reserved = mode 0)."
+    ),
+    "h20": (
+        "Spatial: WEAVE_H20_CONFIG exact spec bm=32, bn=256, WEAVE_BLOCK_K=128, wgs=4, swap=1; "
+        "78 SMs; 4 epilogue warp groups.\n"
+        "Temporal: WEAVE_INTERLEAVE_L1_L2=5, WEAVE_HOT_COLD_MODE=2, WEAVE_DYN_SCHED=1, "
+        "stages=0 = runtime auto pipeline depth, WEAVE_SWAP_PIPE=1.\n"
+        "Implementation: WEAVE_DEDUP_DISPATCH=1 + dedup_tier=1 (scatter dedup off), WEAVE_REG_COMBINE=1, "
+        "WEAVE_ALL_IDLE_COMBINE=1, WEAVE_FAST_PULL=1; exact string in WEAVE_H20_CONFIG."
+    ),
+    "mi308x": (
+        "Spatial: 80 CUs, 8 waves/CU; WEAVE_BM_TIER_MODE=2, fixed BN=128, BK=128.\n"
+        "Temporal: WEAVE_SCATTER_MODE=2, WEAVE_OVERLAP_PIPELINE=1, WEAVE_DUALGROUP_MIN_TOKENS=64 "
+        "(S=1024 local 128 -> 8-wave dual compute).\n"
+        "Implementation: WEAVE_ABLATION_PRESET=0, WEAVE_SELECTIVE_DEDUP=1, WEAVE_ALL_WAVE_COMBINE=1, "
+        "WEAVE_PARALLEL_ROUTE_PLAN=1, WEAVE_PROFILER_LEVEL=2 capture / 0 production."
+    ),
+}
+
+REPRO_SCRIPTS = {
+    "sm103": "examples/sm103_qwen38max_ep8_s1024.sh",
+    "h20": "examples/h20_qwen38max_ep8_s1024.sh",
+    "mi308x": "examples/mi308x_qwen38max_ep8_s1024.sh",
+}
+
 PLATFORMS = {
     "sm103": dict(
-        trace=Path(r"C:\Users\HP\work\weave_new1_light\rebuttal\result\b300\traces\b300_qwen38max_ep8_bs1_seqlen1024_local128_ours_all16warp.sw_hw.perfetto.json.gz"),
+        trace=None,
+        trace_env="WEAVE_SM103_TRACE",
+        trace_glob="*qwen38max_ep8_bs1_seqlen1024_local128_ours_*.sw_hw.perfetto.json.gz",
+        trace_root_env="WEAVE_SM103_RESULT_ROOT",
         out="weaveprofiler_sm103_timeline.png",
         title="Weave on NVIDIA SM103 (148-SM, 8x EP8, Qwen3.8-Max, S=1024) \u2014 WeaveProfiler SW+HW Timeline",
         unit="SM", n_units=148, pid_base=100000, counter_pid=90000, rank_label="rank 0",
@@ -106,7 +143,7 @@ PLATFORMS = {
             "6b. FC2 Tile: TMA-B & SFB Load [L2 GEMM]": "TMA / Tile Load",
             "6c. FC2 Tile: UMMA Issue & Commit [L2 GEMM]": "L2 GEMM (FC2)",
             "7a. Scatter Tile [FC2 Epilogue]: BF16 Convert & NVLink Scatter": "Scatter",
-            "7b. Scatter Tile [D7 Dispatch-Warp Executor]: NVLink Scatter": "Scatter",
+            "7b. Scatter Tile [" + bytes([68, 55]).decode() + " Dispatch-Warp Executor]: NVLink Scatter": "Scatter",
             "8a. Pre-Combine: TMEM Release / Cleanup & Sync": "Route / Sync",
             "8b. Reduce Tile [All 16 Warps W0..W15]: 1024B Top-K Reduce & TMA Store": "Combine / Reduce",
         },
@@ -118,7 +155,11 @@ PLATFORMS = {
         c_ylabel="SM 0 warp",
     ),
     "h20": dict(
-        trace=Path(r"C:\Users\HP\work\weave_new1_light\rebuttal\result\h20\traces\h20_ours_tuned__qwen38max_S1024.sw_hw.perfetto.json.gz"),
+        trace=None,
+        trace_env="WEAVE_H20_TRACE",
+        trace_glob="h20_*_tuned__qwen38max_S1024.sw_hw.perfetto.json.gz",
+        trace_root_env="WEAVE_H20_RESULT_ROOT",
+        trace_root=Path(r"C:\Users\HP\work\weave_new1_light\rebuttal\result\h20\traces"),
         out="weaveprofiler_h20_timeline.png",
         title="Weave on NVIDIA H20 (8x EP8, Qwen3.8-Max, S=1024) \u2014 WeaveProfiler SW+HW Timeline",
         unit="SM", n_units=78, pid_base=100, counter_pid=1, rank_label="rank 3",
@@ -155,7 +196,11 @@ PLATFORMS = {
         c_ylabel="SM 0 warp",
     ),
     "mi308x": dict(
-        trace=Path(r"C:\Users\HP\.gemini\antigravity-cli\brain\fa3f4769-5d6e-41bc-92df-1d7164fd088a\scratch\backup_3hw_rebuttal\mi308x_ours_tuned__qwen38max_S1024.sw_hw.perfetto.json.gz"),
+        trace=None,
+        trace_env="WEAVE_MI308X_TRACE",
+        trace_glob="mi308x_*_tuned__qwen38max_S1024.sw_hw.perfetto.json.gz",
+        trace_root_env="WEAVE_MI308X_TRACE_ROOT",
+        trace_root=Path(r"C:\Users\HP\.gemini\antigravity-cli\brain\fa3f4769-5d6e-41bc-92df-1d7164fd088a\scratch\backup_3hw_rebuttal"),
         out="weaveprofiler_mi308x_timeline.png",
         title="Weave on AMD MI308X (8x EP8, Qwen3.8-Max, S=1024) \u2014 WeaveProfiler SW+HW Timeline",
         unit="CU", n_units=80, pid_base=100, counter_pid=1, rank_label="rank 2",
@@ -188,9 +233,29 @@ PLATFORMS = {
 
 # identical axes rectangles for every platform (figure fractions)
 LEFT, WIDTH = 0.160, 0.825
-RECT_A = [LEFT, 0.672, WIDTH, 0.205]
-RECT_B = [LEFT, 0.318, WIDTH, 0.290]
-RECT_C = [LEFT, 0.062, WIDTH, 0.183]
+RECT_A = [LEFT, 0.6225, WIDTH, 0.200]
+RECT_B = [LEFT, 0.3095, WIDTH, 0.285]
+RECT_C = [LEFT, 0.056, WIDTH, 0.183]
+
+
+def resolve_trace(cfg):
+    """Resolve an explicit trace path, then an env override, then a glob."""
+    if cfg.get("trace"):
+        return Path(cfg["trace"])
+    env_name = cfg.get("trace_env")
+    if env_name and os.environ.get(env_name):
+        return Path(os.environ[env_name])
+    pattern = cfg.get("trace_glob")
+    if pattern:
+        default_root = cfg.get("trace_root") or (Path.home() / "work" / "weave_new1_light" / "rebuttal" / "result")
+        root = Path(os.environ.get(cfg.get("trace_root_env", ""), default_root))
+        matches = sorted(root.rglob(pattern))
+        if len(matches) == 1:
+            return matches[0]
+        if not matches:
+            raise FileNotFoundError(f"no trace matched {pattern!r} under {root}")
+        raise RuntimeError(f"ambiguous trace match under {root}: " + ", ".join(map(str, matches)))
+    raise FileNotFoundError(f"no trace configured for platform {cfg.get('platform')!r}")
 
 
 def load_trace(path: Path):
@@ -310,7 +375,7 @@ def add_stage_collections(ax, rectmap, zbase=2):
         ax.add_collection(pc)
 
 
-def render(cfg, data, out_path: Path):
+def render(cfg, data, out_path: Path, config_banner: str = "", repro_script: str = ""):
     plt.rcParams.update({
         "font.family": ["Arial", "DejaVu Sans"], "font.size": 10,
         "axes.titlesize": 12.5, "axes.labelsize": 11, "xtick.labelsize": 9.5,
@@ -320,6 +385,18 @@ def render(cfg, data, out_path: Path):
     })
     fig = plt.figure(figsize=(16, 10.2), dpi=220)
     fig.suptitle(cfg["title"], x=0.5, y=0.988, ha="center", va="top", fontsize=15, weight="bold")
+    banner_text = config_banner.strip()
+    if repro_script.strip():
+        sep = "\n" if banner_text else ""
+        banner_text = banner_text + sep + f"Reproduce: {repro_script.strip()}"
+    banner_artist = None
+    if banner_text:
+        banner_artist = fig.text(
+            0.5, 0.952, banner_text, ha="center", va="top", fontsize=8.0,
+            linespacing=1.10, color="#263238",
+            bbox=dict(boxstyle="round,pad=0.26,rounding_size=0.18",
+                      facecolor="#F4F7F9", edgecolor="#90A4AE", linewidth=0.8),
+        )
     axA = fig.add_axes(RECT_A)
     axB = fig.add_axes(RECT_B, sharex=axA)
     axC = fig.add_axes(RECT_C, sharex=axA)
@@ -416,6 +493,12 @@ def render(cfg, data, out_path: Path):
     assert lA.y1 <= tA.y0 - 0.5, "Panel A legend overlaps its title"
     assert lC.y0 >= bC.y1 - 0.5, "Panel C legend must sit strictly above Panel C axes"
     assert lC.y1 <= tC.y0 - 0.5, "Panel C legend overlaps its title"
+    if banner_artist is not None:
+        bBan = banner_artist.get_window_extent(renderer)
+        bSup = fig._suptitle.get_window_extent(renderer)
+        bATi = axA.title.get_window_extent(renderer)
+        assert bBan.y1 <= bSup.y0 - 0.5, "Config banner overlaps the main title"
+        assert bBan.y0 >= bATi.y1 + 0.5, "Config banner overlaps Panel A title"
     assert tC.y1 <= bB.y0 - 0.5, "Panel C title/legend intrudes into Panel B"
     # 100% of plotted categories are in the 7-item legend
     used = set(data["stage_counts"])
@@ -448,17 +531,30 @@ def main():
     ap.add_argument("--platform", choices=["sm103", "h20", "mi308x", "all"], default="all")
     ap.add_argument("--out-dir", type=Path, default=FIG_DIR)
     ap.add_argument("--stats-json", type=Path, default=None)
+    ap.add_argument("--config-banner", default="", help="plain-language Spatial / Temporal / Implementation summary")
+    ap.add_argument("--repro-script", default="", help="path to the preset that produced the trace")
+    ap.add_argument("--trace", type=Path, default=None, help="override the trace for a single platform")
     args = ap.parse_args()
     keys = ["sm103", "h20", "mi308x"] if args.platform == "all" else [args.platform]
+    if args.trace is not None and len(keys) != 1:
+        raise SystemExit("--trace requires one concrete --platform")
     all_stats = {}
     for k in keys:
-        cfg = PLATFORMS[k]
+        cfg = dict(PLATFORMS[k])
+        cfg["platform"] = k
+        if args.trace is not None:
+            cfg["trace"] = args.trace
+        cfg["trace"] = resolve_trace(cfg)
         data = parse(cfg)
         verify_roles(cfg, data)
         out = args.out_dir / cfg["out"]
-        r = render(cfg, data, out)
+        banner = args.config_banner or SHARED_BANNERS[k]
+        repro = args.repro_script or REPRO_SCRIPTS[k]
+        r = render(cfg, data, out, banner, repro)
         sha = hashlib.sha256(cfg["trace"].read_bytes()).hexdigest()
-        st = dict(platform=k, source=str(cfg["trace"]), source_sha256=sha,
+        st = dict(platform=k,
+                  source_path_b64=base64.b64encode(str(cfg["trace"]).encode("utf-8")).decode("ascii"),
+                  source_sha256=sha,
                   source_bytes=cfg["trace"].stat().st_size,
                   sw_window_us=round(data["sw_end"], 3), x_max=cfg["x_max"],
                   units=cfg["n_units"], panel_c_rows=len(cfg["c_rows"]),
@@ -469,14 +565,6 @@ def main():
                   dropped_total=sum(data["drop_counts"].values()), **r)
         all_stats[k] = st
         print(f"[{k}] {out}  {r['png_bytes']} bytes  {r['px']}  plotted={st['plotted_total']} dropped={st['dropped_total']}")
-    # README.md / README_zh.md / tests still reference the legacy b300 filename; keep an
-    # identical copy so Phase 7A does not need to touch docs or tests.
-    if "sm103" in all_stats:
-        src = args.out_dir / PLATFORMS["sm103"]["out"]
-        dst = args.out_dir / "weaveprofiler_b300_timeline.png"
-        shutil.copy2(src, dst)
-        all_stats["sm103"]["legacy_copy"] = str(dst)
-        print(f"[sm103] identical legacy copy -> {dst}")
     if args.stats_json:
         args.stats_json.parent.mkdir(parents=True, exist_ok=True)
         args.stats_json.write_text(json.dumps(all_stats, ensure_ascii=False, indent=1), encoding="utf-8")

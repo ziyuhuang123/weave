@@ -34,7 +34,11 @@ Each SM/CU is partitioned into a **Communication Partition (`N_c`)** and a
 **global ready queue**; queue indexing is lightweight and implicit (arrival
 counters, per-expert group bitmaps, prefix sums) rather than a runtime sort.
 
-![Weave: Partitioned Hardware Execution & Dual Global Ready Queues](figures/weave_architecture_queues.png)
+![Weave Design Overview](figures/weave_design_overview.png)
+
+![Weave Spatial Partitioning & Scatter Ownership](figures/weave_design_rolegraph.png)
+
+![Weave Temporal Head Pull & Tail Reduce](figures/weave_design_temporal.png)
 
 - **GEMM Ready Queue** (consumed by `N_e`): receives ready `(expert, m_block)`
   tiles in the `LOCAL_READY -> REMOTE_PRIMARY -> LOCAL_COPY` flow, traversed in
