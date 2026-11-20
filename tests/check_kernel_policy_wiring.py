@@ -53,11 +53,11 @@ CHECKS = {
     "h20": [
         ("include", "weave_policy_runtime.cuh", 1),
         ("cta0", "cta0_select_from_packed_hist", 1),
-        ("live_m_out", "count_remote_expert_sends", 1),
+        ("cta0_smem", "cta0_select_and_publish", 1),
         ("consume_r", "selected_r_mask", 1),
-        ("consume_scatter", "selected_scatter_mode", 1),
+        ("consume_scatter", "WEAVE_SCATTER_OWNER", 1),
         ("consume_v_head", "selected_v_head", 1),
-        ("all_cta_read", "load_published_policy", 2),
+        ("all_cta_read", "load_published_policy", 1),
         ("no_literal_cr", "`r`n", 0),
     ],
     # The MI308X wrapper is include-only; audit the wrapper plus the two

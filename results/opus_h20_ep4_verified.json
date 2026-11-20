@@ -1,0 +1,128 @@
+{
+  "agent": "opus-h20",
+  "hardware": "4x NVIDIA H20 (SM90, 78 SMs/GPU, 4.0 TB/s HBM3, 450 GB/s NVLink4, EP4 on mail-19 GPUs 0,1,2,3)",
+  "model": "Qwen3.8-Max (E=512, K=10, H=8192, I=2048, num_shared_experts=0)",
+  "remote_repo": "/home/hengfeng.hzy/weave_opus_h20_ep4",
+  "base_commit": "be219cb",
+  "deliverables": {
+    "patch": "C:/Users/HP/.gemini/antigravity-cli/brain/fa3f4769-5d6e-41bc-92df-1d7164fd088a/scratch/weave_v2_upgrade/opus_h20/opus_h20.patch",
+    "report": "C:/Users/HP/.gemini/antigravity-cli/brain/fa3f4769-5d6e-41bc-92df-1d7164fd088a/scratch/weave_v2_upgrade/opus_h20/OPUS_H20_REPORT.md",
+    "result_json": "C:/Users/HP/.gemini/antigravity-cli/brain/fa3f4769-5d6e-41bc-92df-1d7164fd088a/scratch/weave_v2_upgrade/opus_h20/OPUS_H20_RESULT.json",
+    "optimal_trace_gz": "C:/Users/HP/.gemini/antigravity-cli/brain/fa3f4769-5d6e-41bc-92df-1d7164fd088a/scratch/weave_v2_upgrade/opus_h20/opus_h20_optimal.sw_hw.perfetto.json.gz",
+    "optimal_png": "C:/Users/HP/.gemini/antigravity-cli/brain/fa3f4769-5d6e-41bc-92df-1d7164fd088a/scratch/weave_v2_upgrade/opus_h20/opus_h20_optimal_timeline.png",
+    "official_png": "C:/Users/HP/.gemini/antigravity-cli/brain/fa3f4769-5d6e-41bc-92df-1d7164fd088a/scratch/weave_v2_upgrade/opus_h20/opus_h20_official_timeline.png",
+    "smem_comm_v1_png": "C:/Users/HP/.gemini/antigravity-cli/brain/fa3f4769-5d6e-41bc-92df-1d7164fd088a/scratch/weave_v2_upgrade/opus_h20/opus_h20_smem_comm_timeline.png",
+    "hbm_dedup_diag_png": "C:/Users/HP/.gemini/antigravity-cli/brain/fa3f4769-5d6e-41bc-92df-1d7164fd088a/scratch/weave_v2_upgrade/opus_h20/opus_h20_hbm_dedup_diag.png"
+  },
+  "winning_configs": {
+    "S1024_and_S4096": {
+      "name": "bm64_adapt_p0_nmaj_smem",
+      "env": {
+        "WEAVE_H20_CONFIG": "fast_host=1,fused=1,compact=1,dyn=1,alias=1,bm=64,adapt_bm=1,bf16_acc=0,bn=256,bk=128,wgs=4,swap=1,stages=0,swap_pipe=0,fast_swap_epi=1,l1_nmajor=1,l2_nmajor=1,rank_cache=1,fast_clean=1,fast_pull=1,dedup_disp=1,dedup_tier=1,reg_comb=1,fast_comb=1,all_idle_comb=1",
+        "WEAVE_SCATTER_OWNER": "comm_only",
+        "WEAVE_SCATTER_STAGING": "smem",
+        "WEAVE_SWAPAB_EPI_WG": "4"
+      },
+      "ptxas_hot_math_epi_spill_bytes": {
+        "role3_noinline_2_stack": 0,
+        "role3_noinline_2_stores": 16,
+        "role3_noinline_2_loads": 8,
+        "role3_noinline_3_stack": 0,
+        "role3_noinline_3_stores": 0,
+        "role3_noinline_3_loads": 0,
+        "num_stages": 4,
+        "smem_bytes": 229488
+      }
+    },
+    "S128_low_batch": {
+      "name": "bm16_p1_nmaj_smem",
+      "env": {
+        "WEAVE_H20_CONFIG": "fast_host=1,fused=1,compact=1,dyn=1,alias=1,bm=16,bn=256,bk=128,wgs=4,swap=1,stages=0,swap_pipe=1,fast_swap_epi=1,l1_nmajor=1,l2_nmajor=1,rank_cache=1,fast_clean=1,fast_pull=1,dedup_disp=1,dedup_tier=1,reg_comb=1,fast_comb=1,all_idle_comb=1",
+        "WEAVE_SCATTER_OWNER": "comm_only",
+        "WEAVE_SCATTER_STAGING": "smem",
+        "WEAVE_SWAPAB_EPI_WG": "4"
+      }
+    },
+    "zero_spill_bm32_alternative": {
+      "name": "bm32_p1_nmaj_smem",
+      "env": {
+        "WEAVE_H20_CONFIG": "fast_host=1,fused=1,compact=1,dyn=1,alias=1,bm=32,bn=256,bk=128,wgs=4,swap=1,stages=0,swap_pipe=1,fast_swap_epi=1,l1_nmajor=1,l2_nmajor=1,rank_cache=1,fast_clean=1,fast_pull=1,dedup_disp=1,dedup_tier=1,reg_comb=1,fast_comb=1,all_idle_comb=1",
+        "WEAVE_SCATTER_OWNER": "comm_only",
+        "WEAVE_SCATTER_STAGING": "smem",
+        "WEAVE_SWAPAB_EPI_WG": "4"
+      },
+      "ptxas_hot_math_epi_spill_bytes": {
+        "role3_noinline_2_stores": 0,
+        "role3_noinline_2_loads": 0,
+        "role3_noinline_3_stores": 0,
+        "role3_noinline_3_loads": 0,
+        "num_stages": 5,
+        "smem_bytes": 228736
+      }
+    }
+  },
+  "abba_results_same_gpu_0123": {
+    "S128": {
+      "official": {"median_us": 1477.84, "min_us": 1473.312, "speedup_vs_official": 1.0, "passed": true, "max_calc_diff": 0.0003645},
+      "prev_bm32_reg2_i5": {"median_us": 1386.112, "min_us": 1381.472, "speedup_vs_official": 1.06618, "passed": true, "max_calc_diff": 0.0003645},
+      "bm16_p1_nmaj_smem": {"median_us": 1328.256, "min_us": 1321.056, "speedup_vs_official": 1.11262, "vs_prev": 1.04356, "passed": true, "max_calc_diff": 0.0003645},
+      "bm32_p1_nmaj_smem": {"median_us": 1329.152, "min_us": 1327.552, "speedup_vs_official": 1.11187, "vs_prev": 1.04285, "passed": true, "max_calc_diff": 0.0003645},
+      "bm64_adapt_p0_nmaj_smem": {"median_us": 1338.064, "min_us": 1336.32, "speedup_vs_official": 1.10446, "vs_prev": 1.03591, "passed": true, "max_calc_diff": 0.0003645},
+      "bm64_p0_nmaj_hbm_k24_g32": {"median_us": 1454.064, "min_us": 1449.92, "speedup_vs_official": 1.01635, "passed": true, "max_calc_diff": 0.0003670}
+    },
+    "S1024": {
+      "official": {"median_us": 3241.712, "min_us": 3229.856, "speedup_vs_official": 1.0, "passed": true, "max_calc_diff": 0.0003586},
+      "prev_bm32_reg2_i5": {"median_us": 2341.92, "min_us": 2334.656, "speedup_vs_official": 1.38421, "passed": true, "max_calc_diff": 0.0003586},
+      "bm32_p1_nmaj_epi": {"median_us": 2223.696, "min_us": 2219.168, "speedup_vs_official": 1.45780, "vs_prev": 1.05317, "passed": true, "max_calc_diff": 0.0003586},
+      "bm64_p0_nmaj_epi": {"median_us": 2245.344, "min_us": 2239.712, "speedup_vs_official": 1.44375, "vs_prev": 1.04301, "passed": true, "max_calc_diff": 0.0003586},
+      "bm64_p0_nmaj_smem": {"median_us": 2202.80, "min_us": 2196.096, "speedup_vs_official": 1.47163, "vs_prev": 1.06316, "passed": true, "max_calc_diff": 0.0003586},
+      "bm32_p1_nmaj_smem": {"median_us": 2201.248, "min_us": 2196.544, "speedup_vs_official": 1.47267, "vs_prev": 1.06391, "passed": true, "max_calc_diff": 0.0003586},
+      "bm64_adapt_p0_nmaj_smem": {"median_us": 2177.536, "min_us": 2174.144, "speedup_vs_official": 1.48871, "vs_prev": 1.07549, "passed": true, "max_calc_diff": 0.0003586, "min_cos_sim": 0.9996415, "stats_exact": true, "repeat_diff": 9.12e-09},
+      "bm64_p0_nmaj_hbm_k24_g32": {"median_us": 2798.576, "min_us": 2788.928, "speedup_vs_official": 1.15834, "passed": true, "max_calc_diff": 0.0003613}
+    },
+    "S4096": {
+      "official": {"median_us": 6210.224, "min_us": 6175.264, "speedup_vs_official": 1.0, "passed": true, "max_calc_diff": 0.0003557},
+      "prev_bm32_reg2_i5": {"median_us": 5814.432, "min_us": 5750.816, "speedup_vs_official": 1.06807, "passed": true, "max_calc_diff": 0.0003557},
+      "bm32_p1_nmaj_smem": {"median_us": 5430.24, "min_us": 5389.664, "speedup_vs_official": 1.14364, "vs_prev": 1.07075, "passed": true, "max_calc_diff": 0.0003557},
+      "bm64_p0_nmaj_smem": {"median_us": 5336.208, "min_us": 5286.944, "speedup_vs_official": 1.16379, "vs_prev": 1.08962, "passed": true, "max_calc_diff": 0.0003557},
+      "bm64_adapt_p0_nmaj_smem": {"median_us": 5248.656, "min_us": 5235.072, "speedup_vs_official": 1.18320, "vs_prev": 1.10779, "passed": true, "max_calc_diff": 0.0003557},
+      "bm64_p0_nmaj_hbm_k24_g32": {"median_us": 7436.064, "min_us": 7385.92, "speedup_vs_official": 0.83515, "passed": true, "max_calc_diff": 0.0003584}
+    }
+  },
+  "weaveprofiler_swhw_s1024": {
+    "official": {
+      "trace_sha256": "ba18dc58dcd6d056cf579759b082d973d6f92535c851157c69c62ec5a04b050d",
+      "cupti_span_us": 3285.901,
+      "globaltimer_span_us": 3284.0,
+      "tps_verified": true,
+      "tps_import_errors": 0,
+      "epi_scatter_spans": 8384,
+      "disp_scatter_spans": 0,
+      "hw_mean_pct": {"compute": 86.7, "hbm3": 51.4, "nvlink4": 3.7, "active_sms": 98.5},
+      "stage_spans_us": {"L1_GEMM_SwiGLU": 2126.7, "L2_GEMM_and_Scatter": 1126.4, "NVLink_Bar2": 29.1, "Combine_Reduce": 16.5}
+    },
+    "final_winner_bm64_adapt_p0_nmaj_smem": {
+      "trace_sha256": "6ec2831adb970371553fff60780a20f1886c9135df295bca837769a4ae635023",
+      "cupti_span_us": 2259.464,
+      "globaltimer_span_us": 2257.952,
+      "end_margin_us": 0.756,
+      "sw_slices": 75154,
+      "hw_samples_per_curve": 1130,
+      "tps_verified": true,
+      "tps_import_errors": 0,
+      "epi_scatter_spans": 0,
+      "disp_scatter_spans": 8384,
+      "hw_mean_pct": {"compute": 51.5, "hbm3": 91.5, "nvlink4": 4.2, "active_sms": 97.7},
+      "hw_p50_pct": {"compute": 54.4, "hbm3": 96.1, "nvlink4": 0.2, "active_sms": 100.0},
+      "stage_spans_us": {"Opening_Meta": 67.0, "L1_GEMM_SwiGLU": 1398.1, "Dispatch_Pull": 409.0, "L2_GEMM_and_Scatter": 762.4, "L2_Scatter": 744.3, "NVLink_Bar2": 11.7, "Combine_Reduce": 24.6}
+    },
+    "hbm_dedup_chunked_g32_diagnostic": {
+      "epi_scatter_spans": 0,
+      "disp_scatter_spans": 1002,
+      "nvlink_bar2_spans": 0,
+      "scatter_combine_overlap_us": 43.81,
+      "active_scatter_sms": 24,
+      "combine_sync_chunk": 32
+    }
+  }
+}

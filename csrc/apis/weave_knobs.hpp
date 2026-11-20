@@ -84,6 +84,9 @@ static const std::vector<KnobSchemaEntry>& knob_schema_entries() {
         {"WEAVE_EPI_REG_STAGES", "Temporal",
          "0 = auto; 1 = single register buffer; 2 = two register stages",
          "Epilogue TMEM-to-register pipeline depth."},
+        {"WEAVE_SCHED_L2_RATIO", "Temporal",
+         "1..4 = L2 tasks per L1 task in interleaved scheduling",
+         "L2-to-L1 interleaved scheduling ratio."},
         {"WEAVE_V_HEAD", "Temporal",
          "0 = automatic; N = opening head-pull budget in tokens",
          "Opening head-pull budget."},
@@ -116,10 +119,10 @@ static const std::vector<KnobSchemaEntry>& knob_schema_entries() {
          "0 = fixed BM; 1 = per-expert dynamic BM ladder",
          "Per-expert adaptive block M."},
         {"WEAVE_BLOCK_M_L1", "Implementation",
-         "0 = auto; 16, 32, 64, 96, 128, 192, 240, 256",
+         "0 = auto; 16, 32, 64, 80, 96, 128, 192, 240, 256",
          "GEMM1 per-expert block-M envelope."},
         {"WEAVE_BLOCK_M_L2", "Implementation",
-         "0 = auto; 16, 32, 64, 96, 128, 192, 240, 256",
+         "0 = auto; 16, 32, 64, 80, 96, 128, 192, 240, 256",
          "GEMM2 per-expert block-M envelope."},
         {"WEAVE_STORE_BLOCK_M_L1", "Implementation",
          "0 = auto; positive multiple of 8",
@@ -148,6 +151,12 @@ static const std::vector<KnobSchemaEntry>& knob_schema_entries() {
         {"WEAVE_DEDUP_MODE", "Implementation",
          "0 = off; 1 = unique buckets; 2 = local pre-reduce",
          "Selective input deduplication."},
+        {"WEAVE_REG_BALANCE", "Implementation",
+         "0 = default (96/72/168); 1 = rebalanced (64/56/192) at E/rank > 64",
+         "SM103 epilogue register rebalance."},
+        {"WEAVE_PROFILE", "Implementation",
+         "0 = production; 1 = per-warp %globaltimer WeaveProfiler recorder",
+         "Zero-overhead SM103 WeaveProfiler recorder."},
         {"WEAVE_PROFILER_LEVEL", "Implementation",
          "0 = production; 1 = phase events; 2 = full events",
          "Instrumentation level."},
@@ -201,6 +210,9 @@ static py::dict weave_knob_defaults(const std::string& mma_type) {
     out["WEAVE_EPI_REG_STAGES"] = knobs.epi_reg_stages;
     out["WEAVE_DISPATCH_ACTIVE_SMS"] = knobs.dispatch_active_sms;
     out["WEAVE_COMBINE_SYNC_CHUNK"] = knobs.combine_sync_chunk;
+    out["WEAVE_SCHED_L2_RATIO"] = knobs.sched_l2_ratio;
+    out["WEAVE_REG_BALANCE"] = knobs.reg_balance;
+    out["WEAVE_PROFILE"] = static_cast<uint32_t>(WEAVE_PROFILE);
     out["WEAVE_ABLATION_PRESET"] = static_cast<uint32_t>(WEAVE_ABLATION_PRESET);
     out["WEAVE_ENABLE_COST_MODEL"] = knobs.enable_runtime_cost_model;
     out["WEAVE_V_HEAD"] = static_cast<uint32_t>(WEAVE_V_HEAD);

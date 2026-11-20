@@ -5,7 +5,7 @@
     "b300": {
       "exists": true,
       "path": "deep_gemm\\include\\deep_gemm\\impls\\sm100_fp8_fp4_mega_moe.cuh",
-      "bytes": 265320,
+      "bytes": 301335,
       "checks": {
         "scheduler_include": {
           "needle": "scheduler/mega_moe.cuh",
@@ -72,7 +72,7 @@
     "b300_nvfp4": {
       "exists": true,
       "path": "deep_gemm\\include\\deep_gemm\\impls\\sm100_fp4_fp4_mega_moe.cuh",
-      "bytes": 109450,
+      "bytes": 109398,
       "checks": {
         "scheduler_include": {
           "needle": "scheduler/nvfp4_mega_moe.cuh",
@@ -139,7 +139,7 @@
     "h20": {
       "exists": true,
       "path": "deep_gemm\\include\\deep_gemm\\impls\\sm90_fp8_mega_moe.cuh",
-      "bytes": 385954,
+      "bytes": 431748,
       "checks": {
         "include": {
           "needle": "weave_policy_runtime.cuh",
@@ -153,8 +153,8 @@
           "observed_count": 1,
           "ok": true
         },
-        "live_m_out": {
-          "needle": "count_remote_expert_sends",
+        "cta0_smem": {
+          "needle": "cta0_select_and_publish",
           "expected_count": 1,
           "observed_count": 1,
           "ok": true
@@ -166,9 +166,9 @@
           "ok": true
         },
         "consume_scatter": {
-          "needle": "selected_scatter_mode",
+          "needle": "WEAVE_SCATTER_OWNER",
           "expected_count": 1,
-          "observed_count": 1,
+          "observed_count": 3,
           "ok": true
         },
         "consume_v_head": {
@@ -179,8 +179,8 @@
         },
         "all_cta_read": {
           "needle": "load_published_policy",
-          "expected_count": 2,
-          "observed_count": 2,
+          "expected_count": 1,
+          "observed_count": 1,
           "ok": true
         },
         "no_literal_cr": {

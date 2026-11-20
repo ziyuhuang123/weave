@@ -431,6 +431,17 @@ static void bf16_mega_moe(
         sym_buffer.zero_();
 }
 
+static std::tuple<torch::Tensor, torch::Tensor, torch::Tensor> get_weave_profile_buffers() {
+    auto& ps = get_weave_prof_state();
+    return {ps.events, ps.counts, ps.overflow};
+}
+
+static void reset_weave_profile_buffers() {
+    auto& ps = get_weave_prof_state();
+    if (ps.counts.defined()) ps.counts.zero_();
+    if (ps.overflow.defined()) ps.overflow.zero_();
+}
+
 static void register_apis(pybind11::module_& m) {
     m.def("get_token_alignment_for_mega_moe", &get_token_alignment_for_mega_moe,
           pybind11::arg("mma_type") = "fp8xfp4");
@@ -439,6 +450,8 @@ static void register_apis(pybind11::module_& m) {
     m.def("fp4_fp4_mega_moe", &nvfp4::fp4_fp4_mega_moe);
     m.def("fp8_fp4_mega_moe", &fp8_fp4_mega_moe);
     m.def("bf16_mega_moe", &bf16_mega_moe);
+    m.def("get_weave_profile_buffers", &get_weave_profile_buffers);
+    m.def("reset_weave_profile_buffers", &reset_weave_profile_buffers);
 }
 
 } // namespace deep_gemm::mega

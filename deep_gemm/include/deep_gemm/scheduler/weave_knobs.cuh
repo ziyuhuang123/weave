@@ -375,6 +375,24 @@
 #if WEAVE_EPI_REG_STAGES > 2
 #error "WEAVE_EPI_REG_STAGES must be 0 (auto), 1 or 2"
 #endif
+// L2-to-L1 interleaved scheduling ratio (1..4).
+#ifndef WEAVE_SCHED_L2_RATIO
+#define WEAVE_SCHED_L2_RATIO 1u
+#endif
+#if WEAVE_SCHED_L2_RATIO < 1 || WEAVE_SCHED_L2_RATIO > 4
+#error "WEAVE_SCHED_L2_RATIO must be in [1, 4]"
+#endif
+// Register budget rebalance on SM103 (0 = 96/72/168, 1 = 64/56/192 at E/rank > 64).
+#ifndef WEAVE_REG_BALANCE
+#define WEAVE_REG_BALANCE 0u
+#endif
+#if WEAVE_REG_BALANCE > 1
+#error "WEAVE_REG_BALANCE must be 0 or 1"
+#endif
+// Zero-overhead per-warp %globaltimer WeaveProfiler recorder (0 = off, 1 = on).
+#ifndef WEAVE_PROFILE
+#define WEAVE_PROFILE 0u
+#endif
 
 // --- Implementation --------------------------------------------------------
 // 0 = fixed per-expert BM; 1 = per-expert dynamic BM ladder.
@@ -511,6 +529,7 @@ struct WeaveKnobs {
   uint32_t head_pull_chunk;     // 0 = one prefix; N = tokens per chunk.
   uint32_t combine_sync_chunk;  // 0 = global barrier; G = chunked dedup sync.
   uint32_t epi_reg_stages;      // 0 = auto; 1 or 2 register stages.
+  uint32_t sched_l2_ratio;      // 1..4: L2-to-L1 interleaved schedule ratio.
 
   // --- Implementation ------------------------------------------------------
   uint32_t adapt_bm;            // 0/1: per-expert dynamic BM ladder.
@@ -520,6 +539,7 @@ struct WeaveKnobs {
   uint32_t store_block_m_l2;    // 0 = auto; GEMM2 epilogue store height.
   uint32_t local_scatter_dedup; // 0/1: bf16x2 L2 atomic dedup before send.
   uint32_t scatter_staging;     // 0 = reg_2stage; 1 = smem; 2 = hbm_dedup.
+  uint32_t reg_balance;         // 0/1: SM103 register rebalance (64/56/192).
 };
 WEAVE_HOST_DEVICE constexpr uint32_t default_r_mask_for_arch(
     HardwareArch arch) {
@@ -562,6 +582,7 @@ WEAVE_HOST_DEVICE constexpr WeaveKnobs default_weave_knobs(
       WEAVE_HEAD_PULL_CHUNK,
       WEAVE_COMBINE_SYNC_CHUNK,
       WEAVE_EPI_REG_STAGES,
+      WEAVE_SCHED_L2_RATIO,
       WEAVE_ADAPT_BM,
       WEAVE_BLOCK_M_L1,
       WEAVE_BLOCK_M_L2,
@@ -569,6 +590,7 @@ WEAVE_HOST_DEVICE constexpr WeaveKnobs default_weave_knobs(
       WEAVE_STORE_BLOCK_M_L2,
       WEAVE_LOCAL_SCATTER_DEDUP,
       WEAVE_SCATTER_STAGING,
+      WEAVE_REG_BALANCE,
   };
 }
 
@@ -610,12 +632,13 @@ WEAVE_HOST_DEVICE constexpr uint32_t resolve_dispatch_active_sms(
           knobs.dispatch_active_sms >= num_sms)
       ? num_sms : knobs.dispatch_active_sms;
 }
-// Auto register pipeline: two stages exactly where the verified prefetch
-// pays off (BM >= 240 with a TMEM depth of at least 1.75), else one.
+// Auto register pipeline: two stages where the verified SM103 register
+// prefetch pays off (BM in {80, 96, 240, 256} with TMEM depth >= 1.75), else 1.
 WEAVE_HOST_DEVICE constexpr uint32_t resolve_epi_reg_stages(
     const WeaveKnobs& knobs, uint32_t block_m, uint32_t tmem_mode) {
   return knobs.epi_reg_stages != 0u ? knobs.epi_reg_stages
-      : ((block_m >= 240u && tmem_mode >= 175u) ? 2u : 1u);
+      : (((block_m == 80u || block_m == 96u || block_m >= 240u) &&
+          tmem_mode >= 175u) ? 2u : 1u);
 }
 WEAVE_HOST_DEVICE constexpr uint32_t resolve_block_m(
     const WeaveKnobs& knobs, uint32_t phase_l1, uint32_t phase_l2,

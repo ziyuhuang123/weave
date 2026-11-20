@@ -366,6 +366,37 @@ CUTLASS_DEVICE uint64_t ld_acq_gpu(const uint64_t* ptr) {
     return ret;
 }
 
+/// Fire-and-forget L2 BF16x2 atomic add & cache-global helpers (Weave v2 SM103)
+CUTLASS_DEVICE void red_add_noftz_bf16x2(const uint32_t* ptr, const uint32_t& value) {
+    asm volatile("red.relaxed.gpu.global.add.noftz.bf16x2 [%0], %1;" :: "l"(ptr), "r"(value) : "memory");
+}
+
+CUTLASS_DEVICE uint32_t atomic_add_acq_rel(const uint32_t* ptr, const uint32_t& value) {
+    uint32_t ret;
+    asm volatile("atom.acq_rel.gpu.global.add.u32 %0, [%1], %2;" : "=r"(ret) : "l"(ptr), "r"(value) : "memory");
+    return ret;
+}
+
+CUTLASS_DEVICE float4 ld_cg(const float4* ptr) {
+    float4 ret;
+    asm volatile("ld.global.cg.v4.f32 {%0, %1, %2, %3}, [%4];"
+                 : "=f"(ret.x), "=f"(ret.y), "=f"(ret.z), "=f"(ret.w) : "l"(ptr) : "memory");
+    return ret;
+}
+
+CUTLASS_DEVICE void st_cg(const float4* ptr, const float4& value) {
+    asm volatile("st.global.cg.v4.f32 [%0], {%1, %2, %3, %4};"
+                 :: "l"(ptr), "f"(value.x), "f"(value.y), "f"(value.z), "f"(value.w) : "memory");
+}
+
+CUTLASS_DEVICE void st_cg_u32(const uint32_t* ptr, const uint32_t& value) {
+    asm volatile("st.global.cg.u32 [%0], %1;" :: "l"(ptr), "r"(value) : "memory");
+}
+
+CUTLASS_DEVICE void red_add_sys_u32(const uint32_t* ptr, const uint32_t& value) {
+    asm volatile("red.relaxed.sys.global.add.u32 [%0], %1;" :: "l"(ptr), "r"(value) : "memory");
+}
+
 /// Predicated loads
 CUTLASS_DEVICE longlong4_t ld_gez_pred(const longlong4_t* ptr, const int& pred) {
     longlong4_t ret = make_longlong4_t(0, 0, 0, 0);

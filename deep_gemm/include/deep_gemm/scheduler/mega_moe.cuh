@@ -12,6 +12,11 @@
 #define WEAVE_L2_KBLOCK_DEP 0
 #endif
 
+// Number of L2 tasks scheduled per L1 task in interleaved scheduling (1..4).
+#ifndef WEAVE_SCHED_L2_RATIO
+#define WEAVE_SCHED_L2_RATIO 1
+#endif
+
 // ============================================================================
 // Public B300 compile-time knobs. WEAVE_* is the primary spelling; archived
 // DG_* names are accepted only as source-level compatibility aliases.
@@ -877,7 +882,11 @@ struct MegaMoEScheduler {
     uint32_t stored_lane_block_offset[kNumExpertsPerLane] = {};
     #endif
     uint32_t num_total_m_blocks = 0;
+    static constexpr uint32_t kEffL2PerL1Ratio =
+        (WEAVE_SCHED_L2_RATIO > 1 and kNumL2Clusters >= static_cast<uint32_t>(WEAVE_SCHED_L2_RATIO) * kNumL1Clusters)
+            ? static_cast<uint32_t>(WEAVE_SCHED_L2_RATIO) : 1u;
     uint32_t num_sched_l1_waves = 0;
+    uint32_t num_sched_l2_in_cycle = 0;
 
     // Locality-domain affinity. Each die owns a contiguous half of the N-cluster
     // range, so its L2 only sees half of the expert weight columns. When that half
@@ -1542,8 +1551,12 @@ struct MegaMoEScheduler {
                 if (l2_task_idx >= num_total_m_blocks * kNumL2Clusters)
                     return task_info_t(BlockPhase::None, 0, 0, 0, 0, 0, 0, 0);
 
-                if (num_sched_l1_waves != kNumSchedL1WavesDone)
-                    num_sched_l1_waves = 1;
+                if (num_sched_l1_waves != kNumSchedL1WavesDone) {
+                    if (++ num_sched_l2_in_cycle >= kEffL2PerL1Ratio) {
+                        num_sched_l2_in_cycle = 0;
+                        num_sched_l1_waves = 1;
+                    }
+                }
 
                 const uint32_t seq_idx = l2_task_idx / kNumL2Clusters;
                 sel_n_cluster = l2_task_idx % kNumL2Clusters;
@@ -1604,8 +1617,12 @@ struct MegaMoEScheduler {
                         workspace.get_l2_task_count_ptr(), num_total_m_blocks, sel_m_block, sel_n_cluster))
                     break;
 
-                if (num_sched_l1_waves != kNumSchedL1WavesDone)
-                    num_sched_l1_waves = 1;
+                if (num_sched_l1_waves != kNumSchedL1WavesDone) {
+                    if (++ num_sched_l2_in_cycle >= kEffL2PerL1Ratio) {
+                        num_sched_l2_in_cycle = 0;
+                        num_sched_l1_waves = 1;
+                    }
+                }
 
                 auto task_info = create_task_for_block(BlockPhase::Linear2, sel_m_block, sel_n_cluster, L2_SHAPE_N, L2_SHAPE_K
 #if DG_ISOLATED_D4_LUT_ACTIVE

@@ -58,11 +58,23 @@
 #ifndef WEAVE_EPI_REG_STAGES
 #define WEAVE_EPI_REG_STAGES 0
 #endif
+#ifndef WEAVE_SCHED_L2_RATIO
+#define WEAVE_SCHED_L2_RATIO 1
+#endif
+#ifndef WEAVE_REG_BALANCE
+#define WEAVE_REG_BALANCE 0
+#endif
+#ifndef WEAVE_PROFILE
+#define WEAVE_PROFILE 0
+#endif
 static_assert(WEAVE_SCATTER_OWNER <= 1, "WEAVE_SCATTER_OWNER: 0 = epilogue_only, 1 = comm_only");
 static_assert(WEAVE_SCATTER_STAGING <= 2, "WEAVE_SCATTER_STAGING: 0 = reg_2stage, 1 = smem, 2 = hbm_dedup");
 static_assert(WEAVE_SCATTER_STAGING == 0 or WEAVE_SCATTER_OWNER == 1,
               "smem / hbm_dedup staging is owned by communication warps (comm_only)");
 static_assert(WEAVE_EPI_REG_STAGES <= 2, "WEAVE_EPI_REG_STAGES: 0 = auto, 1, 2");
+static_assert(WEAVE_SCHED_L2_RATIO >= 1 and WEAVE_SCHED_L2_RATIO <= 4,
+              "WEAVE_SCHED_L2_RATIO must be in [1, 4]");
+static_assert(WEAVE_REG_BALANCE <= 1, "WEAVE_REG_BALANCE must be 0 or 1");
 
 // Reset both per-domain queues even when the build does not use them; the cost
 // is four stores once per launch and keeps the workspace byte layout stable.
@@ -558,6 +570,7 @@ static_assert(kNumTaskCountDomains == 1u or kNumTaskCountDomains == 2u,
 #include <deep_gemm/common/tma_copy.cuh>
 #include <deep_gemm/common/types.cuh>
 #include <deep_gemm/common/utils.cuh>
+#include <deep_gemm/common/weave_profiler.cuh>
 #include <deep_gemm/comm/barrier.cuh>
 #include <deep_gemm/mma/sm100.cuh>
 #include <deep_gemm/layout/mega_moe.cuh>
@@ -1096,9 +1109,20 @@ sm100_fp8_fp4_mega_moe_impl(void* y,
     constexpr uint32_t kNumSFBTmemColsPerSubtile = SF_BLOCK_N / 32;
     constexpr uint32_t kNumSFATmemCols = kNumSFATmemColsPerSubtile * kNumKSubtilesPerBlock;
     constexpr uint32_t kNumSFBTmemCols = kNumSFBTmemColsPerSubtile * kNumKSubtilesPerBlock;
-    constexpr uint32_t kMaxLegalAccumStages = (512u - (kNumSFATmemCols + kNumSFBTmemCols)) / kNumAccumColsPerStage;
+    // TMEM epilogue pipeline depth: 1.0 (100), 1.75 overlapping (175, BM=256), 2.0 (200)
+    constexpr uint32_t kTmemModeKernel = WEAVE_TMEM_PIPELINE_MODE == 0
+        ? (BLOCK_M >= 256u ? 175u : 200u)
+        : static_cast<uint32_t>(WEAVE_TMEM_PIPELINE_MODE);
+    constexpr uint32_t kAccumOverlapCols =
+        (kTmemModeKernel == 175u and BLOCK_M == 256u and kNumNSubtiles == 1u) ? 64u : 0u;
+    constexpr uint32_t kAccumStageStride = kNumAccumColsPerStage - kAccumOverlapCols;
+    constexpr uint32_t kMaxLegalAccumStages = kAccumOverlapCols > 0u
+        ? 2u
+        : ((512u - (kNumSFATmemCols + kNumSFBTmemCols)) / kNumAccumColsPerStage);
+    constexpr uint32_t kRequestedAccumStages = (kTmemModeKernel == 100u) ? 1u
+        : (kAccumOverlapCols > 0u ? 2u : static_cast<uint32_t>(DG_D3_ACCUM_STAGES));
     constexpr uint32_t kNumEpilogueStages =
-        (DG_D3_ACCUM_STAGES <= kMaxLegalAccumStages) ? DG_D3_ACCUM_STAGES :
+        (kRequestedAccumStages <= kMaxLegalAccumStages) ? kRequestedAccumStages :
         (kMaxLegalAccumStages >= 1u ? kMaxLegalAccumStages : 1u);
     constexpr uint32_t kNumTMAStoreStages = DG_D3_TMA_STORE_STAGES;
     constexpr uint32_t kNumScheduleStages = DG_D3_SCHED_STAGES;
@@ -1167,6 +1191,7 @@ sm100_fp8_fp4_mega_moe_impl(void* y,
         Barrier empty_barriers[kNumStages];
         Barrier tmem_full_barriers[kNumEpilogueStages];
         Barrier tmem_empty_barriers[kNumEpilogueStages];
+        Barrier overlap_empty_barriers[2];
         Barrier combine_barriers[kNumEpilogueWarps * 2];
         Barrier task_info_full_barriers[kNumScheduleStages];
         Barrier task_info_empty_barriers[kNumScheduleStages];
@@ -1206,8 +1231,10 @@ sm100_fp8_fp4_mega_moe_impl(void* y,
         static_cast<void*>(shared_storage.dispatch_send_buffer));
 #endif
 
-    // Tensor memory size
-    constexpr uint32_t kNumAccumTmemCols = kNumAccumColsPerStage * kNumEpilogueStages;
+    // Tensor memory size (1.75-stage overlapping accumulators share kAccumOverlapCols columns)
+    constexpr uint32_t kNumAccumTmemCols = kNumEpilogueStages == 1u
+        ? kNumAccumColsPerStage
+        : kNumAccumColsPerStage + (kNumEpilogueStages - 1u) * kAccumStageStride;
     constexpr uint32_t kNumTmemCols = utils::get_num_aligned_tmem_cols<kNumAccumTmemCols + kNumSFATmemCols + kNumSFBTmemCols>();
     constexpr uint32_t kTmemStartColOfSFA = kNumAccumTmemCols;
     constexpr uint32_t kTmemStartColOfSFB = kNumAccumTmemCols + kNumSFATmemCols;
@@ -1273,6 +1300,10 @@ sm100_fp8_fp4_mega_moe_impl(void* y,
             for (uint32_t i = 0; i < kNumEpilogueStages; ++ i) {
                 shared_storage.tmem_full_barriers[i].init(1);
                 shared_storage.tmem_empty_barriers[i].init(2 * kNumEpilogueThreads);
+            }
+            #pragma unroll
+            for (uint32_t i = 0; i < 2; ++ i) {
+                shared_storage.overlap_empty_barriers[i].init(kNumEpilogueThreads);
             }
             #pragma unroll
             for (uint32_t i = 0; i < kNumEpilogueWarps * 2; ++ i)
@@ -1471,9 +1502,12 @@ sm100_fp8_fp4_mega_moe_impl(void* y,
     constexpr uint32_t kNumNonEpilogueRegisters = 72u;
     constexpr uint32_t kNumEpilogueRegisters = 208u;
 #else
-    constexpr uint32_t kNumDispatchRegisters = (DG_ISOLATED_D2_DISP_REGS > 0u) ? DG_ISOLATED_D2_DISP_REGS : kAutoDispRegs;
-    constexpr uint32_t kNumNonEpilogueRegisters = kAutoNonEpiRegs;
-    constexpr uint32_t kNumEpilogueRegisters = (DG_ISOLATED_D2_EPI_REGS > 0u) ? DG_ISOLATED_D2_EPI_REGS : kAutoEpiRegs;
+    constexpr uint32_t kRegBalDisp = (WEAVE_REG_BALANCE != 0 and not kUseMoreEpilogueRegisters) ? 64u : kAutoDispRegs;
+    constexpr uint32_t kRegBalNonEpi = (WEAVE_REG_BALANCE != 0 and not kUseMoreEpilogueRegisters) ? 56u : kAutoNonEpiRegs;
+    constexpr uint32_t kRegBalEpi = (WEAVE_REG_BALANCE != 0 and not kUseMoreEpilogueRegisters) ? 192u : kAutoEpiRegs;
+    constexpr uint32_t kNumDispatchRegisters = (DG_ISOLATED_D2_DISP_REGS > 0u) ? DG_ISOLATED_D2_DISP_REGS : kRegBalDisp;
+    constexpr uint32_t kNumNonEpilogueRegisters = kRegBalNonEpi;
+    constexpr uint32_t kNumEpilogueRegisters = (DG_ISOLATED_D2_EPI_REGS > 0u) ? DG_ISOLATED_D2_EPI_REGS : kRegBalEpi;
 #endif
     DG_STATIC_ASSERT(kNumDispatchRegisters % 8 == 0 and kNumNonEpilogueRegisters % 8 == 0 and kNumEpilogueRegisters % 8 == 0,
                      "warpgroup_reg_alloc/dealloc requires multiples of 8");
@@ -1481,6 +1515,11 @@ sm100_fp8_fp4_mega_moe_impl(void* y,
                      kNumNonEpilogueRegisters * kNumNonEpilogueThreads +
                      kNumEpilogueRegisters * kNumEpilogueThreads <= 64512,
                      "Too many registers");
+
+    static constexpr bool kEnableWeaveProfile = (WEAVE_PROFILE != 0);
+    prof::WeaveProfRecorder<kEnableWeaveProfile> weave_prof_rec(
+        nullptr, nullptr, nullptr, 0u, sm_idx, warp_idx, lane_idx);
+    (void)weave_prof_rec;
 
 #if DG_MEGA_TILE_PROF
     constexpr uint32_t prof_t0_ns = 0u;
@@ -2799,13 +2838,18 @@ sm100_fp8_fp4_mega_moe_impl(void* y,
         #endif
         uint32_t expert_start_idx = 0, expert_end_idx = 0;
 
-        // SM 0 streaming scheduler: SM 0's communication warps leave the pull
-        // queue and the remaining SMs evenly own the full token range.
+        // SM 0 streaming scheduler & independent partial-SM dispatch throttle:
+        // when WEAVE_DISPATCH_ACTIVE_SMS = D > 0, only D SMs pull remote tokens
+        // while remaining SMs proceed immediately to GEMM / cleanup barriers.
         constexpr bool kSm0StreamSchedActive = WEAVE_SM0_STREAM_SCHED != 0;
+        constexpr uint32_t kMaxPullSms = kSm0StreamSchedActive ? (kNumSMs - 1u) : kNumSMs;
+        constexpr uint32_t kActiveDispatchSMs =
+            (WEAVE_DISPATCH_ACTIVE_SMS == 0 or static_cast<uint32_t>(WEAVE_DISPATCH_ACTIVE_SMS) > kMaxPullSms)
+                ? kMaxPullSms : static_cast<uint32_t>(WEAVE_DISPATCH_ACTIVE_SMS);
         const uint32_t pull_sm_idx = kSm0StreamSchedActive
             ? (sm_idx == 0u ? kNumSMs : sm_idx - 1u) : sm_idx;
-        const uint32_t pull_num_sms = kSm0StreamSchedActive ? (kNumSMs - 1u) : kNumSMs;
-        uint32_t initial_pull_warp_idx = (kSm0StreamSchedActive and sm_idx == 0u)
+        const uint32_t pull_num_sms = kActiveDispatchSMs;
+        uint32_t initial_pull_warp_idx = ((kSm0StreamSchedActive and sm_idx == 0u) or pull_sm_idx >= kActiveDispatchSMs)
             ? 0xffffffffu : pull_sm_idx * kNumDispatchWarps + warp_idx;
         #if DG_P1_HEAD_HELPER_K > 0
         if (initial_pull_warp_idx != 0xffffffffu)
@@ -3566,6 +3610,13 @@ sm100_fp8_fp4_mega_moe_impl(void* y,
                 const auto accum_stage_idx = current_iter_idx % kNumEpilogueStages;
                 const auto accum_phase = (current_iter_idx ++ / kNumEpilogueStages) & 1;
                 shared_storage.tmem_empty_barriers[accum_stage_idx].wait(accum_phase ^ 1);
+                if constexpr (kAccumOverlapCols > 0u) {
+                    if (current_iter_idx > 1u) {
+                        const uint32_t prev_stage_idx = (current_iter_idx - 2u) % kNumEpilogueStages;
+                        const uint32_t prev_stage_phase = ((current_iter_idx - 2u) / kNumEpilogueStages) & 1u;
+                        shared_storage.overlap_empty_barriers[prev_stage_idx].wait(prev_stage_phase);
+                    }
+                }
                 ptx::tcgen05_after_thread_sync();
 
                 auto empty_barrier_arrive = [&](const bool& do_tmem_full_arrive) {
@@ -3630,7 +3681,7 @@ sm100_fp8_fp4_mega_moe_impl(void* y,
                                     }
                                     ptx::SM100_MMA_MXF8F6F4_2x1SM_SS::fma(
                                         b_desc, a_desc,
-                                        accum_stage_idx * kNumAccumColsPerStage + n_sub * UMMA_N,
+                                        accum_stage_idx * kAccumStageStride + n_sub * UMMA_N,
                                         k_block_idx > 0 or umma_k_block_idx > 0 or k > 0,
                                         runtime_instr_desc,
                                         kTmemStartColOfSFB + umma_k_block_idx * kNumSFBTmemColsPerSubtile + n_sub * 4,
@@ -3713,7 +3764,7 @@ sm100_fp8_fp4_mega_moe_impl(void* y,
         constexpr bool kEpiRegPrefetchLegal =
             (kNumNSubtiles == 1u and DG_D3_DYN_EPI == 0);
         constexpr uint32_t kNumEpiPrefetchStages = (WEAVE_EPI_REG_STAGES == 0)
-            ? ((kTmemPipelineMode >= 175u and BLOCK_M >= 240u and kEpiRegPrefetchLegal) ? 1u : 0u)
+            ? ((kTmemPipelineMode >= 175u and (BLOCK_M == 80u or BLOCK_M == 96u or BLOCK_M >= 240u) and kEpiRegPrefetchLegal) ? 1u : 0u)
             : static_cast<uint32_t>(WEAVE_EPI_REG_STAGES) - 1u;
         DG_STATIC_ASSERT(kNumEpiPrefetchStages == 0u or kEpiRegPrefetchLegal,
                          "WEAVE_EPI_REG_STAGES=2 needs one N subtile and a static epilogue");
@@ -4033,10 +4084,11 @@ sm100_fp8_fp4_mega_moe_impl(void* y,
                 if (wg_atoms == 0u) {
                     ptx::tcgen05_before_thread_sync();
                     shared_storage.tmem_empty_barriers[accum_stage_idx].arrive(0u);
+if constexpr (kAccumOverlapCols > 0u) { if (accum_stage_idx == 0u ? (epilogue_wg_idx == kNumEpilogueWarpgroups - 1u) : (epilogue_wg_idx == 0u)) shared_storage.overlap_empty_barriers[accum_stage_idx].arrive(0u); }
                 } else {
                     #pragma unroll
                     for (uint32_t n_sub = 0; n_sub < kNumNSubtiles; ++ n_sub) {
-                        const uint32_t sub_accum_base = accum_stage_idx * kNumAccumColsPerStage + n_sub * UMMA_N;
+                        const uint32_t sub_accum_base = accum_stage_idx * kAccumStageStride + n_sub * UMMA_N;
                         const uint32_t sub_n_block_idx = n_block_idx * kNumNSubtiles + n_sub;
                         float stored_cached_weight = 1.0f;
 
@@ -4080,6 +4132,7 @@ sm100_fp8_fp4_mega_moe_impl(void* y,
                                 if ((n_sub == kNumNSubtiles - 1) and (s * kNumAtomsPerStore + i == wg_atoms - 1)) {
                                     ptx::tcgen05_before_thread_sync();
                                     shared_storage.tmem_empty_barriers[accum_stage_idx].arrive(0u);
+if constexpr (kAccumOverlapCols > 0u) { if (accum_stage_idx == 0u ? (epilogue_wg_idx == kNumEpilogueWarpgroups - 1u) : (epilogue_wg_idx == 0u)) shared_storage.overlap_empty_barriers[accum_stage_idx].arrive(0u); }
                                 }
 
                                 auto fp32_values = reinterpret_cast<float2*>(raw_values);
@@ -4196,7 +4249,7 @@ sm100_fp8_fp4_mega_moe_impl(void* y,
 #else
                 #pragma unroll
                 for (uint32_t n_sub = 0; n_sub < kNumNSubtiles; ++ n_sub) {
-                    const uint32_t sub_accum_base = accum_stage_idx * kNumAccumColsPerStage + n_sub * UMMA_N;
+                    const uint32_t sub_accum_base = accum_stage_idx * kAccumStageStride + n_sub * UMMA_N;
                     const uint32_t sub_n_block_idx = n_block_idx * kNumNSubtiles + n_sub;
                     float stored_cached_weight = 1.0f;
                     const uint32_t num_valid_store_blocks_l1 = math::ceil_div(num_valid_wg_rows, STORE_BLOCK_M);
@@ -4218,12 +4271,14 @@ sm100_fp8_fp4_mega_moe_impl(void* y,
                             cutlass::arch::fence_view_async_tmem_load();
                             ptx::tcgen05_before_thread_sync();
                             shared_storage.tmem_empty_barriers[accum_stage_idx].arrive(0u);
+if constexpr (kAccumOverlapCols > 0u) { if (accum_stage_idx == 0u ? (epilogue_wg_idx == kNumEpilogueWarpgroups - 1u) : (epilogue_wg_idx == 0u)) shared_storage.overlap_empty_barriers[accum_stage_idx].arrive(0u); }
                         }
                     };
                     if constexpr (kNumEpiPrefetchStages > 0) {
                         if (num_valid_store_blocks_l1 == 0u) {
                             ptx::tcgen05_before_thread_sync();
                             shared_storage.tmem_empty_barriers[accum_stage_idx].arrive(0u);
+if constexpr (kAccumOverlapCols > 0u) { if (accum_stage_idx == 0u ? (epilogue_wg_idx == kNumEpilogueWarpgroups - 1u) : (epilogue_wg_idx == 0u)) shared_storage.overlap_empty_barriers[accum_stage_idx].arrive(0u); }
                         } else {
                             issue_l1_epi_block(0u);
                         }
@@ -4272,6 +4327,7 @@ sm100_fp8_fp4_mega_moe_impl(void* y,
                                 if (n_sub == kNumNSubtiles - 1 and j == WG_BLOCK_M / ATOM_M - 1) {
                                     ptx::tcgen05_before_thread_sync();
                                     shared_storage.tmem_empty_barriers[accum_stage_idx].arrive(0u);
+if constexpr (kAccumOverlapCols > 0u) { if (accum_stage_idx == 0u ? (epilogue_wg_idx == kNumEpilogueWarpgroups - 1u) : (epilogue_wg_idx == 0u)) shared_storage.overlap_empty_barriers[accum_stage_idx].arrive(0u); }
                                 }
                             }
 
@@ -4413,7 +4469,7 @@ sm100_fp8_fp4_mega_moe_impl(void* y,
 #if DG_D7_HANDOFF_MODE != 0
                 #pragma unroll
                 for (uint32_t n_sub = 0; n_sub < kNumNSubtiles; ++ n_sub) {
-                    const uint32_t sub_accum_base = accum_stage_idx * kNumAccumColsPerStage + n_sub * UMMA_N;
+                    const uint32_t sub_accum_base = accum_stage_idx * kAccumStageStride + n_sub * UMMA_N;
                     const uint32_t n_idx = base_n_idx + n_sub * LAYOUT_AD_M;
                     const bool is_last_n_sub = (n_sub == kNumNSubtiles - 1);
 
@@ -4457,6 +4513,7 @@ sm100_fp8_fp4_mega_moe_impl(void* y,
                                         if (is_last_n_sub and is_last_valid_s_wg and is_last_valid_atom and not tmem_released) {
                                             ptx::tcgen05_before_thread_sync();
                                             shared_storage.tmem_empty_barriers[accum_stage_idx].arrive(0u);
+if constexpr (kAccumOverlapCols > 0u) { if (accum_stage_idx == 0u ? (epilogue_wg_idx == kNumEpilogueWarpgroups - 1u) : (epilogue_wg_idx == 0u)) shared_storage.overlap_empty_barriers[accum_stage_idx].arrive(0u); }
                                             tmem_released = true;
                                         }
 
@@ -4469,6 +4526,7 @@ sm100_fp8_fp4_mega_moe_impl(void* y,
                             } else if (is_last_n_sub and not tmem_released) {
                                 ptx::tcgen05_before_thread_sync();
                                 shared_storage.tmem_empty_barriers[accum_stage_idx].arrive(0u);
+if constexpr (kAccumOverlapCols > 0u) { if (accum_stage_idx == 0u ? (epilogue_wg_idx == kNumEpilogueWarpgroups - 1u) : (epilogue_wg_idx == 0u)) shared_storage.overlap_empty_barriers[accum_stage_idx].arrive(0u); }
                                 tmem_released = true;
                             }
 
@@ -4604,6 +4662,7 @@ sm100_fp8_fp4_mega_moe_impl(void* y,
                         if (is_last_n_sub and not tmem_released) {
                             ptx::tcgen05_before_thread_sync();
                             shared_storage.tmem_empty_barriers[accum_stage_idx].arrive(0u);
+if constexpr (kAccumOverlapCols > 0u) { if (accum_stage_idx == 0u ? (epilogue_wg_idx == kNumEpilogueWarpgroups - 1u) : (epilogue_wg_idx == 0u)) shared_storage.overlap_empty_barriers[accum_stage_idx].arrive(0u); }
                         }
                     };
 
@@ -4623,10 +4682,11 @@ sm100_fp8_fp4_mega_moe_impl(void* y,
                 if (wg_atoms == 0u) {
                     ptx::tcgen05_before_thread_sync();
                     shared_storage.tmem_empty_barriers[accum_stage_idx].arrive(0u);
+if constexpr (kAccumOverlapCols > 0u) { if (accum_stage_idx == 0u ? (epilogue_wg_idx == kNumEpilogueWarpgroups - 1u) : (epilogue_wg_idx == 0u)) shared_storage.overlap_empty_barriers[accum_stage_idx].arrive(0u); }
                 } else {
                     #pragma unroll
                     for (uint32_t n_sub = 0; n_sub < kNumNSubtiles; ++ n_sub) {
-                        const uint32_t sub_accum_base = accum_stage_idx * kNumAccumColsPerStage + n_sub * UMMA_N;
+                        const uint32_t sub_accum_base = accum_stage_idx * kAccumStageStride + n_sub * UMMA_N;
                         const uint32_t n_idx = base_n_idx + n_sub * LAYOUT_AD_M;
 
                         #pragma unroll
@@ -4657,6 +4717,7 @@ sm100_fp8_fp4_mega_moe_impl(void* y,
                                 if ((n_sub == kNumNSubtiles - 1) and (s * kNumAtomsPerStore + i == wg_atoms - 1)) {
                                     ptx::tcgen05_before_thread_sync();
                                     shared_storage.tmem_empty_barriers[accum_stage_idx].arrive(0u);
+if constexpr (kAccumOverlapCols > 0u) { if (accum_stage_idx == 0u ? (epilogue_wg_idx == kNumEpilogueWarpgroups - 1u) : (epilogue_wg_idx == 0u)) shared_storage.overlap_empty_barriers[accum_stage_idx].arrive(0u); }
                                 }
 
                                 uint32_t row = lane_idx % 8;
@@ -4719,7 +4780,7 @@ sm100_fp8_fp4_mega_moe_impl(void* y,
 
                 #pragma unroll
                 for (uint32_t n_sub = 0; n_sub < kNumNSubtiles; ++ n_sub) {
-                    const uint32_t sub_accum_base = accum_stage_idx * kNumAccumColsPerStage + n_sub * UMMA_N;
+                    const uint32_t sub_accum_base = accum_stage_idx * kAccumStageStride + n_sub * UMMA_N;
                     const uint32_t n_idx = base_n_idx + n_sub * LAYOUT_AD_M;
                     constexpr uint32_t kNumAtomsPerStoreL2 = STORE_BLOCK_M_L2 / ATOM_M;
                     const uint32_t num_valid_store_blocks_l2 = math::ceil_div(num_valid_wg_rows, STORE_BLOCK_M_L2);
@@ -4741,12 +4802,14 @@ sm100_fp8_fp4_mega_moe_impl(void* y,
                             cutlass::arch::fence_view_async_tmem_load();
                             ptx::tcgen05_before_thread_sync();
                             shared_storage.tmem_empty_barriers[accum_stage_idx].arrive(0u);
+if constexpr (kAccumOverlapCols > 0u) { if (accum_stage_idx == 0u ? (epilogue_wg_idx == kNumEpilogueWarpgroups - 1u) : (epilogue_wg_idx == 0u)) shared_storage.overlap_empty_barriers[accum_stage_idx].arrive(0u); }
                         }
                     };
                     if constexpr (kNumEpiPrefetchStages > 0) {
                         if (num_valid_store_blocks_l2 == 0u) {
                             ptx::tcgen05_before_thread_sync();
                             shared_storage.tmem_empty_barriers[accum_stage_idx].arrive(0u);
+if constexpr (kAccumOverlapCols > 0u) { if (accum_stage_idx == 0u ? (epilogue_wg_idx == kNumEpilogueWarpgroups - 1u) : (epilogue_wg_idx == 0u)) shared_storage.overlap_empty_barriers[accum_stage_idx].arrive(0u); }
                         } else {
                             issue_l2_epi_block(0u);
                         }
@@ -4778,6 +4841,7 @@ sm100_fp8_fp4_mega_moe_impl(void* y,
                                 if (n_sub == kNumNSubtiles - 1 and s == WG_BLOCK_M / STORE_BLOCK_M_L2 - 1 and i == STORE_BLOCK_M_L2 / ATOM_M - 1) {
                                     ptx::tcgen05_before_thread_sync();
                                     shared_storage.tmem_empty_barriers[accum_stage_idx].arrive(0u);
+if constexpr (kAccumOverlapCols > 0u) { if (accum_stage_idx == 0u ? (epilogue_wg_idx == kNumEpilogueWarpgroups - 1u) : (epilogue_wg_idx == 0u)) shared_storage.overlap_empty_barriers[accum_stage_idx].arrive(0u); }
                                 }
                             }
 

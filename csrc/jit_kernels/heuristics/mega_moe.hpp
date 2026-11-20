@@ -124,18 +124,23 @@ static std::tuple<int, int, int, int, int, int> get_block_config_for_mega_moe(
             } else if (num_expected_tokens_per_expert <= 64.5) {
                 return {2, 96, 16, 128, 2};
             } else if (num_expected_tokens_per_expert <= 96.5) {
+                if (num_covered_tokens <= 96.0f and mma_kind == MmaKind::MXFP8FP4)
+                    return {2, 96, 16, 128, 2};
                 return {2, 128, 32, 128, 2};
             } else {
                 int num_blocks = static_cast<int>(std::ceil(num_covered_tokens / 240));
                 if (num_blocks == 1 and num_covered_tokens > 192 and num_experts / num_ranks < 14)
                     num_blocks = 2;
                 int chosen = 240;
-                for (const int& candidate: {64, 128, 192, 240}) {
+                for (const int& candidate: {64, 80, 96, 128, 192, 240}) {
                     chosen = candidate;
                     if (num_blocks * candidate >= num_covered_tokens)
                         break;
                 }
-                const int chosen_store_m = chosen <= 64 ? 16 : chosen <= 192 ? 32 :
+                const int chosen_store_m = chosen <= 64 ? 16 :
+                                           (chosen == 80 and mma_kind == MmaKind::MXFP8FP4) ? 8 :
+                                           (chosen == 96 and mma_kind == MmaKind::MXFP8FP4) ? 16 :
+                                           chosen <= 192 ? 32 :
                                            mma_kind == MmaKind::MXFP8FP4 ? 24 : 40;
                 return {2, chosen, chosen_store_m, 128, 2};
             }
@@ -158,9 +163,11 @@ static std::tuple<int, int, int, int, int, int> get_block_config_for_mega_moe(
     block_k = get_weave_env<int>("WEAVE_BLOCK_K", "DG_MEGA_BLOCK_K", nullptr, block_k);
     num_epilogue_warpgroups = get_weave_env<int>("WEAVE_EPILOGUE_WARPGROUPS", "DG_MEGA_EPILOGUE_WARPGROUPS", nullptr, num_epilogue_warpgroups);
 
-    // Asymmetric L1/L2 store split: BM=240 + FP8xFP4 uses 24/8 to keep six TMA
-    // pipeline stages inside 232,448B SMEM. All other tiles stay symmetric.
-    int store_block_m_l2 = (block_m == 240 and mma_kind == MmaKind::MXFP8FP4) ? 8 : store_block_m_l1;
+    // Asymmetric L1/L2 store split for FP8xFP4:
+    //   - BM=80 (8/8) & BM=96 (16/8) unlock 8 TMA stages on SM103;
+    //   - BM=240 (24/8) unlocks 6 TMA stages inside 232,448B SMEM.
+    int store_block_m_l2 = ((block_m == 80 or block_m == 96 or block_m == 240) and
+                            mma_kind == MmaKind::MXFP8FP4) ? 8 : store_block_m_l1;
 
     const int d3_bm = get_weave_env<int>("WEAVE_BLOCK_M", "DG_TUNE_D3_BM", "DG_D3_BM", 0);
     const int d3_store_m = get_weave_env<int>("WEAVE_STORE_BLOCK_M", "DG_TUNE_D3_STORE_M", "DG_D3_STORE_M", 0);
@@ -172,16 +179,18 @@ static std::tuple<int, int, int, int, int, int> get_block_config_for_mega_moe(
     if (d3_store_m > 0) {
         store_block_m_l1 = d3_store_m;
     } else {
-        // Reference producer's FP8xFP4 BM=240 split: 24 rows for the L1
-        // (post-SwiGLU, 64-column) store and 8 rows for the L2 BF16 store.
-        if (block_m == 240 and mma_kind == MmaKind::MXFP8FP4)
-            store_block_m_l1 = 24;
+        if (mma_kind == MmaKind::MXFP8FP4) {
+            if (block_m == 80) store_block_m_l1 = 8;
+            else if (block_m == 96) store_block_m_l1 = 16;
+            else if (block_m == 240) store_block_m_l1 = 24;
+            else if (block_m == 256) store_block_m_l1 = 32;
+        }
         if (store_block_m_l1 * num_epilogue_warpgroups > block_m)
             store_block_m_l1 = std::max(8, block_m / num_epilogue_warpgroups);
     }
     if (d3_store_m_l2 > 0) {
         store_block_m_l2 = d3_store_m_l2;
-    } else if (d3_store_m > 0 or block_m != 240) {
+    } else if (d3_store_m > 0 or (block_m != 80 and block_m != 96 and block_m != 240)) {
         store_block_m_l2 = store_block_m_l1;
     }
     if (store_block_m_l2 * num_epilogue_warpgroups > block_m)
@@ -268,7 +277,7 @@ static std::pair<int, int> get_pipeline_config_for_mega_moe(
     const int smem_cd = align(std::max(smem_cd_l1, smem_cd_l2), kSmemAlignment);
 
     const int smem_task_info = kNumScheduleStages * static_cast<int>(sizeof(sched::TaskInfo<true>));
-    const int smem_barriers = (num_dispatch_barrier_slots + num_epilogue_stages * 2 + num_epilogue_warps * 2 + kNumScheduleStages * 2) * 8;
+    const int smem_barriers = (num_dispatch_barrier_slots + num_epilogue_stages * 2 + 2 + num_epilogue_warps * 2 + kNumScheduleStages * 2) * 8;
     const int smem_amax_reduction = is_mma_with_sf(mma_kind) ?
         store_block_m_l1 * num_epilogue_warps * static_cast<int>(sizeof(float)) : 0;
 

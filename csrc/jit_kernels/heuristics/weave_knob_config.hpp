@@ -33,7 +33,7 @@ static inline int bounded_env(const char* primary, const char* legacy,
 static inline bool is_candidate_block_m(const uint32_t block_m) {
     if (block_m == 0u)
         return true;
-    for (const uint32_t candidate : {16u, 32u, 64u, 96u, 128u, 192u, 240u, 256u})
+    for (const uint32_t candidate : {16u, 32u, 64u, 80u, 96u, 128u, 192u, 240u, 256u})
         if (block_m == candidate)
             return true;
     return false;
@@ -110,6 +110,9 @@ static inline weave::WeaveKnobs from_env(
     knobs.epi_reg_stages = static_cast<uint32_t>(bounded_env(
         "WEAVE_EPI_REG_STAGES", nullptr,
         static_cast<int>(knobs.epi_reg_stages), 0, 2));
+    knobs.sched_l2_ratio = static_cast<uint32_t>(bounded_env(
+        "WEAVE_SCHED_L2_RATIO", nullptr,
+        static_cast<int>(knobs.sched_l2_ratio), 1, 4));
 
     // Implementation
     knobs.adapt_bm = static_cast<uint32_t>(bounded_env(
@@ -130,6 +133,9 @@ static inline weave::WeaveKnobs from_env(
     knobs.local_scatter_dedup = static_cast<uint32_t>(bounded_env(
         "WEAVE_LOCAL_SCATTER_DEDUP", "DG_LOCAL_SCATTER_DEDUP",
         static_cast<int>(knobs.local_scatter_dedup), 0, 1));
+    knobs.reg_balance = static_cast<uint32_t>(bounded_env(
+        "WEAVE_REG_BALANCE", nullptr,
+        static_cast<int>(knobs.reg_balance), 0, 1));
 
     // Scatter ownership and staging.  Local dedup without an explicit staging
     // request selects the HBM dedup path; HBM dedup always enables the bf16x2
@@ -202,6 +208,8 @@ static inline void validate(const weave::WeaveKnobs& knobs,
     if (knobs.combine_sync_chunk != 0u)
         DG_HOST_ASSERT(knobs.local_scatter_dedup == 1u);
     DG_HOST_ASSERT(knobs.epi_reg_stages <= 2u);
+    DG_HOST_ASSERT(knobs.sched_l2_ratio >= 1u and knobs.sched_l2_ratio <= 4u);
+    DG_HOST_ASSERT(knobs.reg_balance <= 1u);
 }
 
 static inline uint32_t resolve_tmem_pipeline_mode(

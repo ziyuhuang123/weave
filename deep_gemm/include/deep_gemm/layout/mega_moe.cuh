@@ -8,13 +8,14 @@
 
 namespace deep_gemm::layout {
 
-static constexpr int kNumCandidateBlockMs = 9;
-// BM=240 is the largest tile whose BF16/FP8 epilogue still fits a 24/8 asymmetric
-// store split inside one SMEM budget (see SM103 MegaMoE producer heuristics).
-static constexpr int kCandidateBlockM[kNumCandidateBlockMs] = {8, 16, 32, 64, 96, 128, 192, 240, 256};
+static constexpr int kNumCandidateBlockMs = 10;
+// BM=80/96 unlock 8-stage asymmetric SM103 pipelines; BM=240 fits 24/8 @ 6 stages;
+// BM=256 is legal with the fractional 1.75-stage or single-stage TMEM pipeline.
+static constexpr int kCandidateBlockM[kNumCandidateBlockMs] = {8, 16, 32, 64, 80, 96, 128, 192, 240, 256};
 static constexpr int kMaxCandidateBlockM = 256;
 static constexpr int kMinCandidateBlockM = 8;
-static constexpr int kLCMCandidateBlockM = 3840;  // lcm(..., 240, 256)
+static constexpr int kLCMCandidateBlockM = 7680;  // lcm(8,16,32,64,80,96,128,192,240,256)
+static constexpr int kWeaveMinCombineSyncChunk = 16;
 
 // Pool capacity for shared expert token pool: worst-case total tokens + per-expert BLOCK_M alignment padding, among all possible BLOCK_M
 template <typename T>
