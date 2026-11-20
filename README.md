@@ -37,35 +37,7 @@ Each SM/CU is partitioned into a **Communication Partition (`N_c`)** and a
 counters, per-expert group bitmaps, and prefix sums replace expensive runtime
 sorting.
 
-```
-  +--------------------------------------------------------------------------------------+
-  | GPU rank (EP8: 8 ranks / node; EP16: 16 ranks / 2 nodes)                             |
-  |                                                                                      |
-  |   routed tokens                                                                      |
-  |        |                                                                             |
-  |        v                                                                             |
-  |  +-------------------+     arrival counters / per-expert group bitmaps               |
-  |  | Dispatch / Pull   |------------------------------+                               |
-  |  +---------+---------+                              |                               |
-  |            | ready (e, m_block)                      |                               |
-  |            v                                         v                               |
-  |  +-----------------------------+          +-------------------------------+          |
-  |  | GEMM READY QUEUE            |          | COMMUNICATION READY QUEUE     |          |
-  |  | (e, m_block, pool, valid_m) |          | (dst_rank, token, offset, ...)|          |
-  |  +--------------+--------------+          +---------------+---------------+          |
-  |                 |                                         ^                          |
-  |                 v                                         | FC2 scatter job          |
-  |  +-----------------------------+   s=comm / s=dedup       |                          |
-  |  | Compute / GEMM Partition    |-------------------------+                          |
-  |  | N_e SM/CU                   |                                                    |
-  |  | L1 GEMM + SwiGLU            |          +-------------------------------+          |
-  |  | L2 GEMM + epilogue          |          | Communication Partition N_c   |          |
-  |  +-----------------------------+          | NVLink / xGMI remote scatter  |          |
-  |                                           | remote pull / write           |          |
-  |                                           +-------------------------------+          |
-  +--------------------------------------------------------------------------------------+
-
-```
+![Weave: Partitioned Hardware Execution & Dual Global Ready Queues](docs/figures/weave_architecture_queues.png)
 
 - **GEMM Ready Queue** (consumed by the Compute Partition `N_e`): receives
   ready `(expert, m_block)` tiles as tokens arrive through the
