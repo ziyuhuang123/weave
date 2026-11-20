@@ -33,22 +33,22 @@ MI308X 实际执行需要指定独立 kernel driver：
 ### 已验证的 48 格汇总（论文 Table IV）
 
 下表是各平台相对官方基线的 measured 几何平均加速比，属于参考证据，不是
-dry-run 脚本重新生成的数字。B300 数字来自论文的 fp8xfp4 实测 campaign；当前仓库
-中 B300 fp8xfp4 仍为 BLOCKED_RUNTIME_HANG，因此新跑的消融应通过 --runner 指向
+dry-run 脚本重新生成的数字。SM103 数字来自论文的 fp8xfp4 实测 campaign；当前仓库
+中 SM103 fp8xfp4 仍为 BLOCKED_RUNTIME_HANG，因此新跑的消融应通过 --runner 指向
 NVFP4 测试入口 tests/test_nvfp4_mega_moe.py。
 
 | 平台 | S 范围 | Weave | -S | -S-T | -S-T-C |
 |---|---|---:|---:|---:|---:|
-| B300 | S <= 128（12 格） | 1.165 | 1.076 | 0.915 | 0.913 |
-| B300 | 1K--4K（18 格） | 1.112 | 1.073 | 0.919 | 0.916 |
-| B300 | S >= 8K（18 格） | 1.638 | 1.416 | 1.185 | 1.148 |
-| B300 | 全部（48 格） | 1.301 | 1.192 | 1.010 | 0.996 |
+| NVIDIA SM103 (148-SM) | S <= 128（12 格） | 1.165 | 1.076 | 0.915 | 0.913 |
+| NVIDIA SM103 (148-SM) | 1K--4K（18 格） | 1.112 | 1.073 | 0.919 | 0.916 |
+| NVIDIA SM103 (148-SM) | S >= 8K（18 格） | 1.638 | 1.416 | 1.185 | 1.148 |
+| NVIDIA SM103 (148-SM) | 全部（48 格） | 1.301 | 1.192 | 1.010 | 0.996 |
 | H20 | 全部（48 格） | 1.162 | 1.137 | 1.053 | 0.947 |
 | MI308X EP16 | 全部（48 格） | 2.147 | 1.808 | 1.537 | 1.362 |
 
 ## 2. 代价模型与 Oracle 对比
 
-紧凑回放直接读取 data/routing_stats_3hw.json，覆盖四种配置：B300 EP8、
+紧凑回放直接读取 data/routing_stats_3hw.json，覆盖四种配置：SM103 EP8、
 H20 EP8、MI308X EP8 和 MI308X EP16。
 
     python ablation/eval_cost_model_vs_oracle.py
@@ -93,7 +93,7 @@ Zipf(0.9) 代理生成 m_e，并把预测候选中的最小值称为 model oracl
 
 ### 已验证的论文汇总
 
-- B300 48 格：38/48 格与已记录最优候选完全一致；
+- SM103 48 格：38/48 格与已记录最优候选完全一致；
 - 几何平均选择后悔：2.4%（算术平均 2.6%）；
 - 所选配置相对基线 1.301x，穷举 oracle 为 1.332x；
 - 平均绝对时延预测误差：34.0%。
@@ -126,7 +126,7 @@ EPLB 副本会改变路由直方图。不得复用原始路由的策略 trace �
 
 ### NVIDIA 捕获
 
-    WEAVE_PROFILER_LEVEL=2 nsys profile         --trace=cuda,nvtx,osrt --sample=cpu --cpuctxsw=none         -o results/profiler/b300_run1         python tests/bench_b300_ep8.py --dry-run
+    WEAVE_PROFILER_LEVEL=2 nsys profile         --trace=cuda,nvtx,osrt --sample=cpu --cpuctxsw=none         -o results/profiler/sm103_run1         python tests/bench_b300_ep8.py --dry-run
 
 ### AMD 捕获
 
@@ -141,7 +141,7 @@ EPLB 副本会改变路由直方图。不得复用原始路由的策略 trace �
 
 仓库内三张出版图：
 
-    docs/figures/weaveprofiler_b300_timeline.png
+    docs/figures/weaveprofiler_sm103_timeline.png
     docs/figures/weaveprofiler_h20_timeline.png
     docs/figures/weaveprofiler_mi308x_timeline.png
 

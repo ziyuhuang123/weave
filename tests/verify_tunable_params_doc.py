@@ -1,14 +1,21 @@
 #!/usr/bin/env python3
 """Publication gate for tunable-parameter documentation.
 
-The gate verifies three independent properties:
+The gate verifies four independent properties:
 
 1. Every path:line citation in README.md, README_zh.md and
    docs/TUNABLE_PARAMETERS.md resolves to a line containing the parameter or
    documented kernel-side symbol named by that table row.
-2. Public documentation contains no archived project codeword or BOM.
+2. Public documentation contains no archived project codeword or BOM, and no
+   obsolete hardware codeword in prose, headings, table headers or captions.
+   Fenced code blocks, indented command blocks and inline code/path literals are
+   excluded from the prose scan only because they are executable literals such
+   as baselines/run_b300_baselines.py that cannot be renamed without breaking
+   the launch surface.
 3. Every required result figure is referenced by both READMEs, exists, and is a
    structurally valid PNG.
+4. The obsolete docs/figures/weaveprofiler_b300_timeline.png file is absent, so
+   even the figure filename contains no obsolete hardware codeword.
 """
 from __future__ import annotations
 
@@ -33,20 +40,32 @@ SCAN_DOCS = DOCS + [
 README_DOCS = [ROOT / "README.md", ROOT / "README_zh.md"]
 REQUIRED_FIGURES = [
     "docs/figures/weave_eval_3hw_speedup.png",
-    "docs/figures/weaveprofiler_b300_timeline.png",
+    "docs/figures/weave_bound_utilization_3hw.png",
+    "docs/figures/weaveprofiler_sm103_timeline.png",
     "docs/figures/weaveprofiler_h20_timeline.png",
     "docs/figures/weaveprofiler_mi308x_timeline.png",
+]
+OBSOLETE_FIGURES = [
+    "docs/figures/weaveprofiler_b300_timeline.png",
 ]
 
 CITATION_RE = re.compile(r"\`([^\`\s]+):(\d+)\`")
 IDENT_RE = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
 IMAGE_RE = re.compile(r"!\[[^\]]*\]\(([^)]+)\)")
+FENCED_RE = re.compile(r"```.*?```", re.S)
+INLINE_CODE_RE = re.compile(r"\`[^\`\n]*\`")
 
 FORBIDDEN = [
     "\ufeff", "v33", "v28", "v20", "r31", "V1864", "D1-D7", "D1–D7",
     "DG_TUNE_D", "DG_ISOLATED_", "DG_MOE_", "AGY_", "kAgy",
     "DELIVERY_20261116", "Phase-2", "Phase-3", "Phase-4", "Phase-5",
     "Phase 2", "Phase 3", "Phase 4", "Phase 5", "3050", "RTX",
+]
+
+# Hardware naming and stale-figure rules apply to prose only, case-sensitively,
+# so C++ symbols and executable path literals are not false positives.
+PROSE_FORBIDDEN = [
+    "B300", "L20D", "17 作者", "17-author", "dynamicMK", "Residency",
 ]
 
 REQUIRED = """
@@ -79,6 +98,18 @@ WEAVE_PROFILER_LEVEL
 def knob_tokens(cell: str) -> List[str]:
     return [t for t in IDENT_RE.findall(cell)
             if t.startswith("WEAVE_") or t in {"mma_type", "precision_mode"}]
+
+
+def prose_only(text: str) -> str:
+    """Remove executable literals before the case-sensitive prose scan."""
+    text = FENCED_RE.sub("", text)
+    kept = []
+    for line in text.splitlines():
+        if line.startswith("    ") or line.startswith("\t"):
+            continue
+        kept.append(line)
+    text = "\n".join(kept)
+    return INLINE_CODE_RE.sub("", text)
 
 
 def check_citations(path: Path) -> Tuple[Dict[str, int], List[str]]:
@@ -152,6 +183,10 @@ def check_forbidden(path: Path) -> List[str]:
             continue
         if token.casefold() in folded:
             errors.append(f"{path.name}: forbidden token {token!r}")
+    prose = prose_only(text)
+    for token in PROSE_FORBIDDEN:
+        if token in prose:
+            errors.append(f"{path.name}: forbidden prose token {token!r}")
     return errors
 
 
@@ -191,6 +226,9 @@ def check_figures() -> List[str]:
                 png_header(target)
             except Exception as exc:
                 errors.append(f"invalid PNG {rel}: {exc}")
+    for rel in OBSOLETE_FIGURES:
+        if (ROOT / rel).exists():
+            errors.append(f"obsolete figure still present: {rel}")
     return errors
 
 
@@ -218,9 +256,11 @@ def main() -> None:
     figure_errors = check_figures()
     errors.extend(figure_errors)
     print(f"[{'PASS' if not figure_errors else 'FAIL'}] figures="
-          f"{len(REQUIRED_FIGURES)} referenced by both READMEs")
-    print(f"[{'PASS' if not any('forbidden' in e for e in errors) else 'FAIL'}] "
-          f"forbidden-token/BOM scan: {len(SCAN_DOCS)} documents")
+          f"{len(REQUIRED_FIGURES)} referenced by both READMEs; "
+          f"obsolete={len(OBSOLETE_FIGURES)}")
+    forbidden_hits = sum(1 for e in errors if "forbidden" in e)
+    print(f"[{'PASS' if not forbidden_hits else 'FAIL'}] "
+          f"forbidden-token/BOM/prose scan: {len(SCAN_DOCS)} documents")
     print(f"TOTAL rows={total_rows} citations={total_citations}")
 
     if errors:

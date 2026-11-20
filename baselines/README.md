@@ -3,7 +3,7 @@
 # Baseline Reproduction
 
 This directory documents the official baselines used by the Weave evaluation.
-It covers NVIDIA B300, NVIDIA H20, and AMD MI308X for both EP8 and EP16. The
+It covers NVIDIA SM103 (148-SM), NVIDIA H20, and AMD MI308X for both EP8 and EP16. The
 launchers preserve one measurement contract across all platforms:
 
 - every rank checks the complete rank-local output before timing;
@@ -19,7 +19,7 @@ number. Use --dry-run to inspect a plan on any CPU-only host.
 
 The clean source installation helper is:
 
-    bash baselines/install_baselines.sh nvidia   # B300 or H20 host
+    bash baselines/install_baselines.sh nvidia   # SM103 or H20 host
     bash baselines/install_baselines.sh amd      # MI308X host
 
 Run each stack in a dedicated Python environment: the upstream DeepGEMM
@@ -36,9 +36,9 @@ Verify the environment:
     python -c "import torch; print(torch.__version__, torch.version.cuda, torch.version.hip)"
     python -m pip show deep-gemm flashinfer sglang vllm 2>/dev/null || true
 
-## 2. NVIDIA B300: 8x EP8
+## 2. NVIDIA SM103 (148-SM): 8x EP8
 
-The Figure 7 B300 sweep uses eight ranks, one GPU per rank. The two official
+The Figure 7 SM103 sweep uses eight ranks, one GPU per rank. The two official
 DeepGEMM precision arms are selected by mma_type:
 
 | Arm | Precision | Command |
@@ -64,7 +64,7 @@ the first timed iteration. Do not replace it with an all-to-all timing alone.
 | vLLM | python baselines/run_h20_baselines.py --baseline vllm --model-path /absolute/path/to/checkpoint |
 
 The official arm uses the SM90 FP8 MegaMoE implementation and its own symmetric
-buffer allocator. It is not the B300 scheduler compiled for an older
+buffer allocator. It is not the SM103 scheduler compiled for an older
 architecture. The bundled official wrapper runs the repository's fixed SM90
 shape-coverage suite; to reproduce the paper's six-model x S grid, pass the
 matching shapes to an external official DeepGEMM driver or to the split and
