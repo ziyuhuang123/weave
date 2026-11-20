@@ -621,9 +621,6 @@ sm100_fp8_fp4_mega_moe_impl(void* y,
         weave::PolicyDecision weave_policy;
         uint32_t weave_policy_ready;
         uint32_t weave_epoch_base;
-        uint32_t weave_active_pull_warps;
-        uint32_t weave_head_pull_end;
-        uint32_t weave_selected_scatter_mode;
         uint32_t tmem_ptr_in_smem;
     };
     constexpr uint32_t kNumReusableSmemBytes = offsetof(SharedStorage, dispatch_barriers);
@@ -633,9 +630,6 @@ sm100_fp8_fp4_mega_moe_impl(void* y,
         shared_storage.weave_epoch_base =
             *reinterpret_cast<volatile uint32_t*>(&control->published_epoch);
         shared_storage.weave_policy_ready = 0u;
-        shared_storage.weave_active_pull_warps = kNumDispatchWarps;
-        shared_storage.weave_head_pull_end = 0xffffffffu;
-        shared_storage.weave_selected_scatter_mode = 0u;
     }
 
 #if !(DG_ISOLATED_D2_REG_PULL_BYTES > 0)
@@ -1746,21 +1740,6 @@ sm100_fp8_fp4_mega_moe_impl(void* y,
             true
         );
 
-#if DG_P1_HEAD_HELPER_K > 0
-        if (sm_idx == 0u and warp_idx == 0u) {
-            const uint32_t encoded_limit = p1_count_head_tokens() + 1u;
-            if (lane_idx == 0u)
-                asm volatile("st.release.gpu.global.u32 [%0], %1;"
-                             :: "l"(p1_published_limit), "r"(encoded_limit) : "memory");
-        }
-        const uint32_t p1_head_end = p1_wait_for_metadata();
-#else
-        ptx::sync_unaligned(get_active_dispatch_threads() + kNumEpilogueThreads, kDispatchWithEpilogueBarrierIdx);
-#endif
-#if DG_MEGA_TILE_PROF
-        tile_prof::record(cumulative_local_expert_recv_stats, sm_idx, warp_idx, lane_idx,
-                          prof_rec_idx, prof_t0_ns, prof_sync_s, tile_prof::read_gtimer(), 2u, 0u);
-#endif
         // -----------------------------------------------------------------
         // Weave CTA-0 runtime selection.  expert_recv_count_sum is live
         // after the post-dispatch NVLink/grid barrier above.  Only thread 0
@@ -1797,37 +1776,49 @@ sm100_fp8_fp4_mega_moe_impl(void* y,
         }
         ptx::sync_aligned(get_active_dispatch_threads(), kDispatchBarrierIdx);
 
-        scheduler.fetch_expert_recv_count();
-
-        // Derive the head/middle temporal split once per CTA and keep the
-        // results in shared memory so the pull loop does not carry the policy
-        // decision in extra registers.
-        if (thread_idx == 0u) {
-            const bool policy_ok = shared_storage.weave_policy_ready != 0u;
-            uint32_t comm_warps = kNumDispatchWarps;
-            uint32_t v_head = 0u;
-            uint32_t scatter_mode = 0u;
-            if (policy_ok) {
-                comm_warps = weave::r_comm_units(shared_storage.weave_policy.selected_r_mask);
-                v_head = shared_storage.weave_policy.selected_v_head;
-                scatter_mode = shared_storage.weave_policy.selected_scatter_mode;
-            }
-            uint32_t total_tokens = 0u;
-            for (uint32_t e = 0u; e < kNumExpertsPerRank; ++e)
-                total_tokens += scheduler.get_num_tokens(e);
-            shared_storage.weave_active_pull_warps =
-                comm_warps == 0u ? 1u : cute::min(comm_warps, kNumDispatchWarps);
-            shared_storage.weave_head_pull_end =
-                v_head == 0u ? total_tokens : cute::min(v_head, total_tokens);
-            shared_storage.weave_selected_scatter_mode = scatter_mode;
+#if DG_P1_HEAD_HELPER_K > 0
+        if (sm_idx == 0u and warp_idx == 0u) {
+            const uint32_t encoded_limit = p1_count_head_tokens() + 1u;
+            if (lane_idx == 0u)
+                asm volatile("st.release.gpu.global.u32 [%0], %1;"
+                             :: "l"(p1_published_limit), "r"(encoded_limit) : "memory");
         }
-        ptx::sync_aligned(get_active_dispatch_threads(), kDispatchBarrierIdx);
+        const uint32_t p1_head_end = p1_wait_for_metadata();
+#else
+        ptx::sync_unaligned(get_active_dispatch_threads() + kNumEpilogueThreads, kDispatchWithEpilogueBarrierIdx);
+#endif
+#if DG_MEGA_TILE_PROF
+        tile_prof::record(cumulative_local_expert_recv_stats, sm_idx, warp_idx, lane_idx,
+                          prof_rec_idx, prof_t0_ns, prof_sync_s, tile_prof::read_gtimer(), 2u, 0u);
+#endif
 
 #if DG_P1_HEAD_HELPER_K > 0
         run_p1_head_pull.template operator()<kNumDispatchRegisters, true>(p1_head_end);
 #endif
 
         uint32_t pull_mbarrier_phase = 0;
+        scheduler.fetch_expert_recv_count();
+
+        // Head/middle temporal split from the CTA-0 decision: all dispatch
+        // warps pull the first selected_v_head tasks, then only N_c warps per
+        // SM remain in the pull queue.
+        const bool weave_policy_ok = shared_storage.weave_policy_ready != 0u;
+        const uint32_t weave_comm_warps_per_sm = weave_policy_ok
+            ? weave::r_comm_units(shared_storage.weave_policy.selected_r_mask)
+            : kNumDispatchWarps;
+        const uint32_t active_pull_warps =
+            weave_comm_warps_per_sm == 0u ? 1u :
+            (weave_comm_warps_per_sm < kNumDispatchWarps
+                 ? weave_comm_warps_per_sm : kNumDispatchWarps);
+        const uint32_t selected_v_head = weave_policy_ok
+            ? shared_storage.weave_policy.selected_v_head : 0u;
+        (void) shared_storage.weave_policy.selected_scatter_mode;
+        uint32_t weave_total_tokens = 0u;
+        for (uint32_t weave_e = 0u; weave_e < kNumExpertsPerRank; ++weave_e)
+            weave_total_tokens += scheduler.get_num_tokens(weave_e);
+        const uint32_t head_pull_end = selected_v_head == 0u
+            ? weave_total_tokens
+            : cute::min(selected_v_head, weave_total_tokens);
         uint32_t expert_pool_block_offset = 0;
 
     #if DG_ISOLATED_D5_DEDUP == 2
@@ -2228,8 +2219,7 @@ sm100_fp8_fp4_mega_moe_impl(void* y,
 
             // Temporal head/middle split: after the head window only
             // active_pull_warps warps per SM continue pulling.
-            if (token_idx >= shared_storage.weave_head_pull_end and
-                warp_idx >= shared_storage.weave_active_pull_warps)
+            if (token_idx >= head_pull_end and warp_idx >= active_pull_warps)
                 continue;
 
             #if DG_ISOLATED_D5_DEDUP == 1
