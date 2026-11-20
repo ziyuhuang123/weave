@@ -21,11 +21,11 @@ import sys
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 SCHEMA_PATH = ROOT / "deep_gemm" / "mega" / "knobs.py"
 
-CATEGORY_ZH = {"Spatial": "??", "Temporal": "??", "Implementation": "??"}
+CATEGORY_ZH = {"Spatial": "空间", "Temporal": "时间", "Implementation": "实现"}
 HEADERS_EN = ["Parameter", "Category", "Values (every accepted value is named)",
               "Default", "Mechanism", "Host parse", "Kernel consumption"]
-HEADERS_ZH = ["??", "??", "???????????????", "???",
-              "??", "Host ??", "Kernel ??"]
+HEADERS_ZH = ["参数", "分类", "取值（每个接受值均已命名）", "默认值",
+              "机制", "Host 解析", "Kernel 消费"]
 
 
 def load_schema():
@@ -71,14 +71,14 @@ def parameter_section(schema, lang: str) -> str:
               for c in ("Spatial", "Temporal", "Implementation")}
     if lang == "zh":
         intro = (
-            "??????? **?? / ?? / ??** ??????????? host ????? "
-            "kernel ?????`tests/verify_tunable_params_doc.py` ??????? "
-            "`file:line` ??????????????? "
-            "[docs/TUNABLE_PARAMETERS.md](docs/TUNABLE_PARAMETERS.md)?\n"
+            "本参数面严格按 **空间 / 时间 / 实现** 三轴组织。每行同时给出 host 解析位置与 "
+            "kernel 消费位置；`tests/verify_tunable_params_doc.py` 会逐条解析 "
+            "`file:line` 引用。完整取值语义见 "
+            "[docs/TUNABLE_PARAMETERS.md](docs/TUNABLE_PARAMETERS.md)。\n"
         )
-        headings = {"Spatial": "### ???Spatial?",
-                    "Temporal": "### ???Temporal?",
-                    "Implementation": "### ???Implementation?"}
+        headings = {"Spatial": "### 空间（Spatial）",
+                    "Temporal": "### 时间（Temporal）",
+                    "Implementation": "### 实现（Implementation）"}
     else:
         intro = (
             "The parameter surface is organized strictly as **Spatial / Temporal / "
@@ -97,8 +97,8 @@ def parameter_section(schema, lang: str) -> str:
         parts.append("")
     if lang == "zh":
         parts.append(
-            "`num_shared_experts` ? Python/C++ API ??????????????????? "
-            "`0`?????????????????????\n"
+            "`num_shared_experts` 是 Python/C++ API 参数而非环境变量 knob。所有入口默认取 "
+            "`0`，只有显式传入非零值时才分配 shared-expert 缓冲区。\n"
         )
     else:
         parts.append(
