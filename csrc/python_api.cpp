@@ -10,6 +10,7 @@
 #include "apis/hyperconnection.hpp"
 #include "apis/gemm.hpp"
 #include "apis/layout.hpp"
+#include "apis/locality_domain.hpp"
 #include "apis/mega_moe.hpp"
 #include "apis/sm90_mega.hpp"
 #include "apis/mega_mhc.hpp"
@@ -36,6 +37,7 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
     deep_gemm::hyperconnection::register_apis(m);
     deep_gemm::gemm::register_apis(m);
     deep_gemm::layout::register_apis(m);
+    deep_gemm::locality_domain::register_apis(m);
     deep_gemm::mega::register_apis(m);
     deep_gemm::mega::register_sm90_apis(m);
     deep_gemm::mega_mhc::register_apis(m);

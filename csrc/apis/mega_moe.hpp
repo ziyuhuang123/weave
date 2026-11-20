@@ -11,6 +11,7 @@
 #include "../runtime/runtime.hpp"
 #include "../jit_kernels/impls/sm100_bf16_mega_moe.hpp"
 #include "../jit_kernels/impls/sm100_fp8_fp4_mega_moe.hpp"
+#include "locality_domain.hpp"
 #include "nvfp4_mega_moe.hpp"
 
 namespace deep_gemm::mega {
@@ -280,6 +281,7 @@ static void fp8_fp4_mega_moe(
                 l1_acts, l1_acts_sf, l2_acts, l2_acts_sf] = slice(sym_buffer);
 
     // Dispatch into different architectures
+    const auto sm_locality_domains = locality_domain::get_balanced_sm_locality_domains();
     if (arch_major == 10) {
         sm100_fp8_fp4_mega_moe(y,
                                l1_acts, l1_acts_sf,
@@ -292,6 +294,7 @@ static void fp8_fp4_mega_moe(
                                shared_l1_weights_sf, shared_l2_weights_sf,
                                cumulative_local_expert_recv_stats,
                                sym_buffer_ptrs,
+                               sm_locality_domains,
                                rank_idx, num_max_tokens_per_rank,
                                num_experts_per_rank,
                                num_shared_experts,

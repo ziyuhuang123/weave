@@ -19,6 +19,10 @@ class Runtime {
 public:
     int num_sms = 0, tc_util = 0;
 
+    // Cached SM -> locality-domain maps (see apis/locality_domain.hpp).
+    torch::Tensor sm_locality_domains;
+    torch::Tensor balanced_sm_locality_domains;
+
     // cuBLASLt utils
     // cuBLAS will select worse heuristics when workspace > 16 MiB with shape, e.g. m=128, n=7168, k=16384
     static constexpr size_t kCublasLtWorkspaceSize = 16 * 1024 * 1024;

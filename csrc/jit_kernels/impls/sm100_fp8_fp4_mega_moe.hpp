@@ -40,6 +40,7 @@ public:
         int profile_mode;
         int* cumulative_local_expert_recv_stats;
         int num_tokens;
+        const uint8_t* sm_locality_domains;
         layout::SymBuffer<> sym_buffer_ptrs;
 
         // Tensormap
@@ -167,7 +168,22 @@ public:
         const int d7_active_sms = get_weave_env<int>("WEAVE_SCATTER_ACTIVE_SMS", "DG_D7_ACTIVE_SMS", nullptr, 0);
         const int enable_multicast = get_weave_env<int>("WEAVE_ENABLE_MULTICAST", nullptr, nullptr, 1);
 
+        // Locality-domain routing is only valid when every queue can be split
+        // into two equal halves; otherwise the build silently keeps one domain.
+        const int num_l1_clusters = (args.intermediate_hidden * 2) / (args.config.block_n * 2);
+        const int num_l2_clusters = args.hidden / (args.config.block_n * 2);
+        const int num_shared_l1_clusters = args.num_shared_experts > 0
+            ? (args.intermediate_hidden * 2 * args.num_shared_experts) / (args.config.block_n * 2) : 0;
+        const int requested_locality_domains =
+            get_weave_env<int>("WEAVE_LOCALITY_DOMAINS", "DG_LOCALITY_DOMAINS", nullptr, 0);
+        const bool use_locality_domains = requested_locality_domains != 0 and
+            num_l1_clusters % 2 == 0 and num_l2_clusters % 2 == 0 and num_shared_l1_clusters % 2 == 0;
+        if (requested_locality_domains != 0 and not use_locality_domains)
+            printf("WEAVE_LOCALITY_DOMAINS disabled: L1/L2 cluster counts (%d, %d) do not split evenly\n",
+                   num_l1_clusters, num_l2_clusters);
+
         std::ostringstream d7_macros;
+        d7_macros << "#define WEAVE_LOCALITY_DOMAINS " << (use_locality_domains ? 1 : 0) << "\n";
         d7_macros << "#define WEAVE_SCATTER_MODE " << d7_isolated_scatter << "\n";
         d7_macros << "#define WEAVE_SCATTER_SMEM_ALIAS " << d7_smem_alias << "\n";
         d7_macros << "#define WEAVE_SCATTER_WARPS " << d7_warps << "\n";
@@ -292,7 +308,8 @@ static void __instantiate_kernel() {{
                 args.tensor_map_shared_l2_acts,
                 args.tensor_map_shared_l2_acts_sf,
                 args.tensor_map_shared_l2_weights,
-                args.tensor_map_shared_l2_weights_sf
+                args.tensor_map_shared_l2_weights_sf,
+                args.sm_locality_domains
             ));
             return;
         }
@@ -323,7 +340,8 @@ static void __instantiate_kernel() {{
             args.tensor_map_shared_l2_acts,
             args.tensor_map_shared_l2_acts_sf,
             args.tensor_map_shared_l2_weights,
-            args.tensor_map_shared_l2_weights_sf
+            args.tensor_map_shared_l2_weights_sf,
+            args.sm_locality_domains
         ));
     }
 };
@@ -340,6 +358,7 @@ static void sm100_fp8_fp4_mega_moe(
     const torch::Tensor& shared_l1_weights_sf, const torch::Tensor& shared_l2_weights_sf,
     const std::optional<torch::Tensor> cumulative_local_expert_recv_stats,
     const std::vector<int64_t>& sym_buffer_ptrs,
+    const torch::Tensor& sm_locality_domains,
     const int& rank_idx, const int& num_max_tokens_per_rank,
     const int& num_experts_per_rank,
     const int& num_shared_experts,
@@ -540,6 +559,7 @@ static void sm100_fp8_fp4_mega_moe(
         .profile_mode = selected_profile_mode,
         .cumulative_local_expert_recv_stats = cumulative_local_expert_recv_stats_ptr,
         .num_tokens = num_tokens,
+        .sm_locality_domains = sm_locality_domains.data_ptr<uint8_t>(),
         .sym_buffer_ptrs = layout::SymBuffer<>(sym_buffer_ptrs, rank_idx),
         .tensor_map_l1_acts = tensor_map_l1_acts,
         .tensor_map_l1_acts_sf = tensor_map_l1_acts_sf,
