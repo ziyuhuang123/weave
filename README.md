@@ -19,15 +19,13 @@ at runtime, inside the kernel, without a host round trip.
 | NVIDIA H20 (SM90) | CUDA C++ | `2 = fp8` (fp8xfp8) only | sm90_fp8_mega_moe.cuh |
 | AMD MI308X (gfx942) | HIP C++ | `2 = fp8` (fp8xfp8) only; EP8 and EP16 | gfx942_fp8_mega_moe.cuh and amd/megamoe_amd.hip |
 
-C++ symbol and file names (`sm100_*` and internal enum values) are kept
-unchanged for compilation and test compatibility; all public prose, titles,
-table headers, and figure labels use NVIDIA SM103 (148-SM).
-
-The kernel has one publication rail. CTA 0 reads the live post-dispatch
-histogram, evaluates Eq. (1)-(3), publishes a PolicyDecision with a release
-store, and every CTA acquires it with load_published_policy or
-wait_and_copy_policy. The selected fields are r_mask, scatter mode, and V_head.
-No host round trip and no dynamic parallel launch are on this path.
+The kernel uses a single device-side publication rail: CTA 0 reads the live
+post-dispatch routing histogram, evaluates the cost model, publishes the
+selected schedule with a release store, and every CTA acquires it with
+`load_published_policy` or `wait_and_copy_policy`. At runtime, the scheduler
+adapts the comm/compute warp split, scatter executor placement (epilogue inline
+vs. async comm queue), and opening head-pull prefetch budget—with no host round
+trip and no dynamic parallel launch.
 
 ## Partitioned hardware execution and global ready queues
 
@@ -145,38 +143,38 @@ unavailable rather than being zero-filled. MI308X hardware counters are
 per-dispatch aggregates; its trace explicitly records a window mismatch and
 does not claim absolute clock alignment.
 
-## How parameters are selected: three levels
+## Parameter taxonomy: Spatial, Temporal, and Implementation
 
-**Level 1 - compile-time architecture and ablation knobs.** Hardware
-resource/ISA defaults (pipeline/TMEM/TMA-store stages, register budgets,
-ablation switches) are determined per GPU architecture. They are exposed as
-WEAVE_* names so ablations and future architectures can be tested without
-changing the public surface.
+Weave's scheduling and kernel parameters fall into three categories:
 
-**Level 2 - runtime per-expert tile adaptation (live per-expert `m_e`).** When
-an expert's runtime token count `m_e` changes after routing, block/tile shapes
-adapt at runtime inside the kernel. Three concrete ladders are active today:
-MI308X uses a five-tier dynamic planner `B_{M,e} in {16, 32, 64, 128, 256}`
-from the live `m_e` (EP16 floors the ladder at 32); H20 uses an 8-tier swapAB
-M-ladder `{8, 16, 24, 32, 40, 48, 56, 64}` gated by the host
-`pad_frac >= 25%`; and the 148-SM SM103 path uses dynamic TMA-A
-(`m8/m16/BM`) and a dynamic epilogue (`store_m8/m16`), plus a per-expert
-`select_expert_bm` ladder when `WEAVE_EXPERT_STEP_MODE > 0`.
+- **Spatial dimension (Weave core):** how compute, communication, and tile
+  resources are partitioned across SMs/CUs, warps, clusters, and numeric
+  formats—including the comm/compute warp split, heterogeneous SM role masks,
+  2-CTA multicast, numeric precision (`fp8xfp4` / `fp4xfp4` / `fp8` / `bf16`),
+  and **runtime per-expert tile sizing** from live per-expert token counts
+  (MI308X five-tier `BM_e in {16, 32, 64, 128, 256}` with EP16 floored at 32;
+  H20 8-tier swapAB `{8..64}` gated by padding waste; 148-SM SM103 dynamic
+  TMA-A `m8/m16/BM`, dynamic epilogue `store_m8/m16`, and per-expert tile
+  ladders).
+- **Temporal dimension (Weave core):** execution order, compute-communication
+  overlap, scatter ownership (epilogue inline vs. async comm queue vs. local
+  pre-reduce dedup), opening head-pull prefetch budget, ready-queue / hot-cold
+  / L2-swizzled ordering, L1/L2 interleaving, cooperative all-wave tail
+  combine, and **runtime-derived pipeline stage depth** (`num_stages` is
+  computed at launch from the tile shape and remaining SMEM budget rather than
+  hardcoded at compile time).
+- **Implementation & prior work:** standard GPU/MoE systems techniques from
+  prior work (register-direct pull/combine, selective deduplication, RDMA
+  descriptor chunking, SMEM aliasing, profiler instrumentation, and ablation
+  presets).
 
-**Level 3 - runtime CTA-0 global scheduling `(r, s, V_head)` (Paper Eq. 1-3).**
-Immediately after dispatch completes, CTA 0 reads the full live
-post-dispatch histogram `m_e[]`, `D_in`, and `M_out`, then chooses the spatial
-split `r = (N_c, N_e)`, the scatter partition ownership `s in {epi, comm}`,
-and the opening head-pull token budget `V_head`. The cost model ranks
-candidates; it is not used as an absolute-latency oracle. On the measured 48
-SM103 (148-SM) cells its mean absolute latency prediction error is 34.0%, yet shared
-overheads cancel in the argmin: it matches the exhaustive oracle in 38/48
-cells and obtains a 1.301x geomean speedup versus a 1.332x oracle, for a 2.4%
-geomean selection regret. This distinction is intentional and is part of the
-design argument.
+At runtime, CTA 0 ranks candidate schedules with the lightweight on-device cost
+model: shared fixed overheads cancel in the ranking, matching the exhaustive
+oracle on 38/48 measured 148-SM SM103 cells (1.301x geomean speedup vs. 1.332x
+oracle, 2.4% selection regret; 34.0% mean absolute latency error).
 
-Every row below is tagged with its level. Every file:line citation is checked
-by tests/verify_tunable_params_doc.py. The expanded document is
+Every file:line citation below is checked by
+`tests/verify_tunable_params_doc.py`. The full reference is in
 [docs/TUNABLE_PARAMETERS.md](docs/TUNABLE_PARAMETERS.md).
 
 ## Unified core WEAVE_* parameters

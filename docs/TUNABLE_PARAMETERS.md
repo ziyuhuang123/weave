@@ -6,26 +6,29 @@ line must contain the parameter or its documented kernel-side binding. New
 launch scripts use WEAVE_* only. Archived spellings remain internal C++ fallback
 paths and are not part of the public surface.
 
-Every accepted value of every knob is named here. A bare `0/1` or `0..6` is
-never used as documentation: each row lists what `0`, `1`, `2`, ... mean for
-that knob. The three levels are:
+Every accepted value of every knob is explicitly named below. Parameters are
+organized into three categories:
 
-- **Level 1 - compile-time architecture and ablation knobs.** Hardware
-  resource/ISA defaults (pipeline/TMEM/TMA-store stages, register budgets,
-  ablation switches) determined per GPU architecture.
-- **Level 2 - runtime per-expert tile adaptation.** Live per-expert `m_e`
-  selects tile shapes inside the kernel: MI308X five-tier
-  `B_{M,e} in {16, 32, 64, 128, 256}` (EP16 floors at 32), H20 8-tier swapAB
-  `{8, 16, 24, 32, 40, 48, 56, 64}` gated by host `pad_frac >= 25%`, and
-  148-SM SM103 dynamic TMA-A (`m8/m16/BM`) plus dynamic epilogue
-  (`store_m8/m16`).
-- **Level 3 - runtime CTA-0 global scheduling `(r, s, V_head)` (Paper
-  Eq. 1-3).** CTA 0 reads the full live post-dispatch histogram `m_e[]`,
-  `D_in`, and `M_out` and selects the spatial split `r = (N_c, N_e)`, scatter
-  ownership `s in {epi, comm}`, and opening head-pull token budget `V_head`.
-  Accuracy is reported honestly: 34.0% mean absolute latency error versus
-  38/48 exact Oracle matches and 2.4% geomean selection regret (1.301x versus
-  1.332x Oracle).
+- **Spatial dimension (Weave core):** comm/compute warp partitioning, SM role
+  masks, 2-CTA multicast, numeric precision, and runtime per-expert tile sizing
+  (MI308X five-tier `BM_e in {16, 32, 64, 128, 256}` with EP16 floored at 32;
+  H20 8-tier swapAB `{8..64}` gated by padding waste; 148-SM SM103 dynamic
+  TMA-A `m8/m16/BM` and dynamic epilogue `store_m8/m16`).
+- **Temporal dimension (Weave core):** compute-communication overlap, scatter
+  executor ownership (epilogue inline / async comm queue / local pre-reduce
+  dedup), opening head-pull prefetch budget, ready-queue and hot-cold /
+  L2-swizzled ordering, L1/L2 interleaving, cooperative all-wave tail combine,
+  and runtime-derived pipeline stage depth (`num_stages` is derived at launch
+  from tile shape and remaining SMEM budget rather than fixed at compile time).
+- **Implementation & prior work:** standard GPU/MoE implementation techniques
+  from prior systems (register-direct pull/combine, selective deduplication,
+  RDMA descriptor chunking, SMEM aliasing, profiler instrumentation, and
+  ablation presets).
+
+At runtime, CTA 0 ranks candidates with the on-device cost model: shared fixed
+overheads cancel in the ranking, matching the exhaustive oracle on 38/48
+measured 148-SM SM103 cells (1.301x vs. 1.332x oracle, 2.4% selection regret;
+34.0% mean absolute latency error).
 
 ## 0. Partitioned hardware execution and global ready queues
 

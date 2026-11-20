@@ -18,13 +18,11 @@ scatter 归属与开局头部拉取配额，无需主机往返。
 | NVIDIA H20（SM90） | CUDA C++ | 仅 `2 = fp8`（fp8xfp8） | sm90_fp8_mega_moe.cuh |
 | AMD MI308X（gfx942） | HIP C++ | 仅 `2 = fp8`（fp8xfp8）；支持 EP8 与 EP16 | gfx942_fp8_mega_moe.cuh 与 amd/megamoe_amd.hip |
 
-为保持编译与测试兼容，C++ 符号名与文件名（`sm100_*` 及内部枚举值）保持不变；
-所有公开散文、标题、表头与图注统一使用 NVIDIA SM103 (148-SM)。
-
-内核使用单一发布轨。CTA 0 读取 dispatch 完成后的实时直方图，计算 Eq. (1)-(3)，
-再用 release store 发布 PolicyDecision；所有 CTA 通过 load_published_policy 或
-wait_and_copy_policy 获取它。被选择的三项动态决策是 r_mask、scatter mode 与
-V_head。该路径没有主机往返，也没有动态并行启动。
+内核使用单一设备端发布轨：CTA 0 读取 dispatch 完成后的实时路由直方图，在片上
+评估代价模型并通过 release store 发布调度决策，其余 CTA 通过
+`load_published_policy` 或 `wait_and_copy_policy` 获取。运行期动态调整三项核心
+决策：通信/计算硬件分区比例、Scatter 执行归属（Epilogue 内联或通信队列异步）以
+及启动阶段首波预取配额，全程无主机往返、无动态二次启动。
 
 ## 分区化硬件执行与全局 ready queue
 
@@ -130,32 +128,33 @@ FP8 Tensor Core 活跃度封顶在 `58%` 以下。
 数值来自已测配对 trace；不可用的计数器保持 unavailable，不填零。MI308X 的硬件
 计数器是每次 dispatch 的聚合值；trace 自身声明窗口长度不一致，不主张绝对时钟对齐。
 
-## 参数如何选择：三层机制
+## 参数分类：空间维度、时间维度与工程实现
 
-**Level 1 - 编译期架构与消融旋钮。** 硬件资源/ISA 默认值（流水/TMEM/TMA-store
-级数、寄存器预算、消融开关）按 GPU 架构确定。它们以 WEAVE_* 名称公开，便于
-消融和未来架构复用，而无需改变公开接口。
+Weave 的调度与内核参数按职责分为三类：
 
-**Level 2 - 运行时逐专家 tile 自适应（实时 `m_e`）。** 路由后专家的运行时
-token 数 `m_e` 变化时，block/tile 形状在内核内部运行时自适应。当前有三条具体
-阶梯：MI308X 使用五档动态规划器 `B_{M,e} in {16, 32, 64, 128, 256}`，输入是
-实时 `m_e`（EP16 下限为 32）；H20 使用 8 档 swapAB M 阶梯
-`{8, 16, 24, 32, 40, 48, 56, 64}`，由主机 `pad_frac >= 25%` 门控；148-SM
-SM103 路径使用动态 TMA-A（`m8/m16/BM`）与动态 epilogue（`store_m8/m16`），
-并在 `WEAVE_EXPERT_STEP_MODE > 0` 时启用逐专家 `select_expert_bm` 阶梯。
+- **空间维度（Spatial · Weave 核心）**：控制计算、通信与 tile 资源在 SM/CU、
+  warp、cluster 及数值精度上的空间切分，包括通信/计算 warp 比例、异构 SM 角色
+  掩码、双 CTA 多播、精度模式（`fp8xfp4` / `fp4xfp4` / `fp8` / `bf16`），以及
+  依据实时逐专家 token 数的**运行时逐专家 tile 自适应**（MI308X 五档动态规划
+  `BM_e in {16, 32, 64, 128, 256}`，EP16 下限 32；H20 八档 swapAB `{8..64}`
+  由 padding 比例门控；148-SM SM103 动态 TMA-A `m8/m16/BM`、动态 epilogue
+  `store_m8/m16` 及逐专家 tile 阶梯）。
+- **时间维度（Temporal · Weave 核心）**：控制执行顺序、通算重叠与阶段衔接，
+  包括 Scatter 执行归属（Epilogue 内联 / 通信队列异步 / 本地预归约去重后异步）、
+  启动首波预取配额、就绪队列与冷热/L2-swizzle 顺序、L1/L2 交错、全 warp 协作
+  尾部 Combine，以及**运行时自适应流水深度**（GEMM 流水级数 `num_stages` 按当前
+  tile 形状与剩余 SMEM 预算在启动时动态推导，而非编译期写死）。
+- **工程实现与已有工作（Implementation / Prior Art）**：来自已有 GPU/MoE 系统
+  工作的通用实现技术与实验开关，包括寄存器直拉/直归约、选择性去重、RDMA 描述符
+  分片、SMEM 复用、Profiler 插桩级别与消融预设。
 
-**Level 3 - 运行时 CTA-0 全局调度 `(r, s, V_head)`（论文 Eq. 1-3）。**
-dispatch 完成后，CTA 0 立即读取完整的实时 post-dispatch 直方图 `m_e[]`、
-`D_in` 与 `M_out`，然后选择空间切分 `r = (N_c, N_e)`、scatter 分区归属
-`s in {epi, comm}` 与开局头部拉取 token 配额 `V_head`。代价模型用于候选排序，
-而不是绝对时延预言。在 48 个实测 SM103 (148-SM) cell 上，其平均绝对时延预测误差为
-34.0%，但共享开销在 argmin 中相互抵消：它与穷举 Oracle 在 38/48 个 cell 上
-完全一致，取得 1.301x 几何平均加速，而 Oracle 为 1.332x，几何平均选择后悔为
-2.4%。这一差异是有意披露的设计论点。
+运行时 CTA 0 用轻量片上代价模型对候选调度排序：共享固定开销在候选比较中相互
+抵消，在 48 个实测 148-SM SM103 测试点上与穷举 Oracle 匹配 38/48，取得
+1.301x 几何平均加速（Oracle 为 1.332x，选择损失仅 2.4%；单点绝对延迟平均误差
+34.0%）。
 
-下表每一行都标注层级。每个 file:line 引用由
-tests/verify_tunable_params_doc.py 机械校验。完整参数文档见
-[docs/TUNABLE_PARAMETERS.md](docs/TUNABLE_PARAMETERS.md)。
+下表每个 `file:line` 引用均由 `tests/verify_tunable_params_doc.py` 自动校验。
+完整参数文档见 [docs/TUNABLE_PARAMETERS.md](docs/TUNABLE_PARAMETERS.md)。
 
 ## 统一核心 WEAVE_* 参数
 
