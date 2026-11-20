@@ -116,9 +116,9 @@ FP8 Tensor Core 活跃度封顶在 `58%` 以下。
 ![AMD MI308X WeaveProfiler SW+HW 时间线](docs/figures/weaveprofiler_mi308x_timeline.png)
 
 三张图在匹配的 `Qwen3.8-Max, EP8, S=1024` 负载上使用统一的 WeaveProfiler
-契约：硬件计数器、全部物理 SM/CU 泳道与代表性 CTA 流水线。每张图标题下方都直接
-标注了产出该条 trace 的完整调优 `WEAVE_*` 参数（按 **空间维度 / 时间维度 / 工程实现**
-分类），全部可一键复现的启动与插桩出图脚本均位于 [examples/](examples/README_zh.md)：
+契约：硬件计数器、全部物理 SM/CU 泳道与代表性 CTA 流水线。产出各条 trace 的
+完整调优 `WEAVE_*` 参数（按 **空间维度 / 时间维度 / 工程实现** 分类）及一键
+复现脚本均位于 [examples/](examples/README_zh.md)：
 
 - NVIDIA SM103 (148-SM)：[examples/sm103_qwen38max_ep8_s1024.sh](examples/sm103_qwen38max_ep8_s1024.sh)
 - NVIDIA H20：[examples/h20_qwen38max_ep8_s1024.sh](examples/h20_qwen38max_ep8_s1024.sh)

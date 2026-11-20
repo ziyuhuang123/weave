@@ -128,10 +128,9 @@ source line passes end-to-end with live policy readback.
 
 All three panels use the unified WeaveProfiler contract on the matched
 `Qwen3.8-Max, EP8, S=1024` workload: hardware counters, all physical SM/CU
-lanes, and a representative CTA pipeline. Each figure displays the exact tuned
-`WEAVE_*` preset (organized by **Spatial**, **Temporal**, and
-**Implementation**) right below the title. Complete reproducible launch and
-timeline-rendering scripts live under [examples/](examples/README.md):
+lanes, and a representative CTA pipeline. The exact tuned `WEAVE_*` presets
+(organized by **Spatial**, **Temporal**, and **Implementation**) and
+reproducible launch scripts live under [examples/](examples/README.md):
 
 - NVIDIA SM103 (148-SM): [examples/sm103_qwen38max_ep8_s1024.sh](examples/sm103_qwen38max_ep8_s1024.sh)
 - NVIDIA H20: [examples/h20_qwen38max_ep8_s1024.sh](examples/h20_qwen38max_ep8_s1024.sh)
