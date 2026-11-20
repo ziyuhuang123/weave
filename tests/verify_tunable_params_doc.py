@@ -43,7 +43,6 @@ README_DOCS = [ROOT / "README.md", ROOT / "README_zh.md"]
 REQUIRED_FIGURES = [
     "docs/figures/weave_design_overview.png",
     "docs/figures/weave_design_rolegraph.png",
-    "docs/figures/weave_design_temporal.png",
     "docs/figures/weave_eval_3hw_speedup.png",
     "docs/figures/weave_bound_utilization_3hw.png",
     "docs/figures/weaveprofiler_sm103_timeline.png",
