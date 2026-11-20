@@ -122,6 +122,8 @@ static std::tuple<int, int, int, int, int, int> get_block_config_for_mega_moe(
             } else if (num_expected_tokens_per_expert <= 32.5) {
                 return {2, 64, 32, 128, 1};
             } else if (num_expected_tokens_per_expert <= 64.5) {
+                if (num_covered_tokens <= 80.0f and mma_kind == MmaKind::MXFP8FP4)
+                    return {2, 80, 8, 128, 2};
                 return {2, 96, 16, 128, 2};
             } else if (num_expected_tokens_per_expert <= 96.5) {
                 if (num_covered_tokens <= 96.0f and mma_kind == MmaKind::MXFP8FP4)
