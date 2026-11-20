@@ -5,7 +5,7 @@
     "b300": {
       "exists": true,
       "path": "deep_gemm\\include\\deep_gemm\\impls\\sm100_fp8_fp4_mega_moe.cuh",
-      "bytes": 301335,
+      "bytes": 304910,
       "checks": {
         "scheduler_include": {
           "needle": "scheduler/mega_moe.cuh",
@@ -139,7 +139,7 @@
     "h20": {
       "exists": true,
       "path": "deep_gemm\\include\\deep_gemm\\impls\\sm90_fp8_mega_moe.cuh",
-      "bytes": 431748,
+      "bytes": 432864,
       "checks": {
         "include": {
           "needle": "weave_policy_runtime.cuh",
@@ -150,7 +150,7 @@
         "cta0": {
           "needle": "cta0_select_from_packed_hist",
           "expected_count": 1,
-          "observed_count": 1,
+          "observed_count": 2,
           "ok": true
         },
         "cta0_smem": {
