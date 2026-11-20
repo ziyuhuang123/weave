@@ -415,12 +415,12 @@ sm100_fp4_fp4_mega_moe_impl(void* y,
         phase ^= stage_idx == 0;
     };
 
-    // Intra-SM Barrier indices.  Keep user named barriers out of
-    // CUTLASS's reserved 1..7 range.
-    constexpr uint32_t kDispatchBarrierIdx = 8;
-    constexpr uint32_t kDispatchWithEpilogueBarrierIdx = 9;
-    constexpr uint32_t kEpilogueFullBarrierIdx = 10;
-    constexpr uint32_t kEpilogueWGBarrierStartIdx = 11;
+    // Intra-SM Barrier indices.  Phase 4 validated 0..3 for this kernel;
+    // the 8..11 remap from the external patch hangs at the first launch.
+    constexpr uint32_t kDispatchBarrierIdx = 0;
+    constexpr uint32_t kDispatchWithEpilogueBarrierIdx = 1;
+    constexpr uint32_t kEpilogueFullBarrierIdx = 2;
+    constexpr uint32_t kEpilogueWGBarrierStartIdx = 3;
 
     // NVLink barrier tags
     constexpr uint32_t kBeforeDispatchPullBarrierTag = 1;
