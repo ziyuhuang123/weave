@@ -2,6 +2,8 @@
 # Reproducible installation helper for the official baselines used by Weave.
 #
 # The script performs source installs only; it never edits the Weave tree.
+# Use one dedicated Python environment per baseline stack: the upstream
+# DeepGEMM baseline shares the `deep_gemm` import name with this repository.
 # Set BASELINE_ROOT to a persistent directory with enough space.
 set -euo pipefail
 

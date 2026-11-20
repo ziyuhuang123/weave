@@ -20,7 +20,9 @@ CPU 主机都可以用 --dry-run 查看完整命令。
     bash baselines/install_baselines.sh nvidia   # B300 或 H20
     bash baselines/install_baselines.sh amd      # MI308X
 
-建议把 BASELINE_ROOT 指向容量充足的持久化目录。CUDA 主机需要匹配版本的
+每个栈应使用独立的 Python 环境：上游 DeepGEMM 基线与本仓库都提供 `deep_gemm`
+导入名，装进同一环境会互相遮蔽。建议把 BASELINE_ROOT 指向容量充足的持久化目录。
+CUDA 主机需要匹配版本的
 CUDA Toolkit、NCCL，以及 DeepEP 所需的 NVSHMEM。ROCm 主机需要可用的
 RCCL、HIP 和 ROCm PyTorch。安装脚本中的推理引擎 wheel 只是起点；正式对比
 时应把实验清单中的精确 wheel 版本固定下来。

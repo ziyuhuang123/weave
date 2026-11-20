@@ -22,7 +22,10 @@ The clean source installation helper is:
     bash baselines/install_baselines.sh nvidia   # B300 or H20 host
     bash baselines/install_baselines.sh amd      # MI308X host
 
-Set BASELINE_ROOT to a persistent disk directory. CUDA hosts need a matching
+Run each stack in a dedicated Python environment: the upstream DeepGEMM
+baseline and this repository both provide a `deep_gemm` import, so installing
+both into one environment shadows one of them. Set BASELINE_ROOT to a persistent
+disk directory. CUDA hosts need a matching
 CUDA toolkit, NCCL, and NVSHMEM where required by DeepEP. ROCm hosts need a
 working RCCL installation, HIP, and a ROCm PyTorch build. The inference-engine
 wheels in the helper are a starting point; reproduce the exact wheel versions
