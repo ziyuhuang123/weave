@@ -30,7 +30,7 @@ static int get_block_m_for_mega_moe(
             num_ranks, num_experts, num_max_tokens_per_rank, num_tokens, num_topk, mma_type);
     DG_HOST_ASSERT(num_tokens >= 0);
     const auto mma_kind = parse_mma_kind(mma_type);
-    const auto [cluster_size, block_m, store_block_m, block_k, num_epilogue_threads] =
+    const auto [cluster_size, block_m, store_block_m_l1, store_block_m_l2, block_k, num_epilogue_threads] =
         get_block_config_for_mega_moe(num_ranks, num_experts, num_max_tokens_per_rank, num_topk, num_tokens, mma_kind);
     return block_m;
 }

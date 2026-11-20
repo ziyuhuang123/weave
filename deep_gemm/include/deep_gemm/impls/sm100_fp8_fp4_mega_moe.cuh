@@ -149,6 +149,23 @@
 #define DG_D3_STORE_M WEAVE_STORE_BLOCK_M
 #endif
 
+// Asymmetric L2 epilogue store block.  0 = mirror WEAVE_STORE_BLOCK_M.
+#ifndef WEAVE_STORE_BLOCK_M_L2
+#  if defined(DG_TUNE_D3_STORE_M_L2)
+#    define WEAVE_STORE_BLOCK_M_L2 DG_TUNE_D3_STORE_M_L2
+#  elif defined(DG_D3_STORE_M_L2)
+#    define WEAVE_STORE_BLOCK_M_L2 DG_D3_STORE_M_L2
+#  else
+#    define WEAVE_STORE_BLOCK_M_L2 0
+#  endif
+#endif
+#ifndef DG_TUNE_D3_STORE_M_L2
+#define DG_TUNE_D3_STORE_M_L2 WEAVE_STORE_BLOCK_M_L2
+#endif
+#ifndef DG_D3_STORE_M_L2
+#define DG_D3_STORE_M_L2 WEAVE_STORE_BLOCK_M_L2
+#endif
+
 #ifndef WEAVE_DYN_EPILOGUE
 #  if defined(DG_TUNE_D3_DYN_EPI)
 #    define WEAVE_DYN_EPILOGUE DG_TUNE_D3_DYN_EPI
@@ -878,6 +895,12 @@ sm100_fp8_fp4_mega_moe_impl(void* y,
         : T_STORE_BLOCK_M;
     static constexpr uint32_t STORE_BLOCK_M =
         (DG_D3_DYN_EPI == 2) ? 16u : ((RAW_STORE_M <= WG_BLOCK_M_RAW) ? RAW_STORE_M : WG_BLOCK_M_RAW);
+    static constexpr uint32_t RAW_STORE_M_L2 = (DG_TUNE_D3_STORE_M_L2 > 0)
+        ? static_cast<uint32_t>(DG_TUNE_D3_STORE_M_L2)
+        : ((WEAVE_STORE_BLOCK_M_L2 > 0) ? static_cast<uint32_t>(WEAVE_STORE_BLOCK_M_L2) : STORE_BLOCK_M);
+    static constexpr uint32_t STORE_BLOCK_M_L2 =
+        (DG_D3_DYN_EPI > 0) ? STORE_BLOCK_M
+                            : ((RAW_STORE_M_L2 <= WG_BLOCK_M_RAW) ? RAW_STORE_M_L2 : WG_BLOCK_M_RAW);
     static constexpr uint32_t SF_BLOCK_M = math::constexpr_align(BLOCK_M, 128u);
     static constexpr uint32_t SF_BLOCK_N = math::constexpr_align(BLOCK_N, 128u);
     static constexpr uint32_t kNumBytesPerPull =
@@ -1018,20 +1041,12 @@ sm100_fp8_fp4_mega_moe_impl(void* y,
     static constexpr uint32_t kNumDispatchBarrierSlots =
         kD2AllRegPull ? 1u : kNumTmaDispatchWarps;
 
-    // Clamp kNumStages automatically to fit within 232,448B SMEM for any BM/BN/BK/D7 override
-    static constexpr uint32_t kD7DedicatedSmemBytes =
-        (DG_D7_HANDOFF_MODE != 0 and DG_TUNE_D7_SMEM_ALIAS == 0)
-            ? (2u * kNumEpilogueWarpgroups * 16u * 256u)
-            : 0u;
-    static constexpr uint32_t kSmemPerStageEst =
-        LOAD_BLOCK_M * BLOCK_K * sizeof(a_dtype_t) +
-        LOAD_BLOCK_N * BLOCK_K * sizeof(b_dtype_t) +
-        SF_BLOCK_M * (BLOCK_K / 128u) * sizeof(uint32_t) +
-        SF_BLOCK_N * (BLOCK_K / 128u) * sizeof(uint32_t) + 16u;
-    static constexpr uint32_t kSmemFixedEst = 49152u + kD7DedicatedSmemBytes;
-    static constexpr uint32_t kMaxFitStages = (232448u - kSmemFixedEst) / kSmemPerStageEst;
-    static constexpr uint32_t kNumStages =
-        (T_kNumStages <= kMaxFitStages) ? T_kNumStages : (kMaxFitStages >= 2u ? kMaxFitStages : 2u);
+    // The host pipeline planner computes the exact SMEM footprint (including the
+    // asymmetric L1/L2 epilogue buffers) and passes the largest legal stage count.
+    // Trust it here: the previous fixed 48 KiB estimate rejected the 6-stage
+    // BM=240 + 24/8 configuration even though its real fixed footprint is ~29 KiB.
+    static constexpr uint32_t kNumStages = T_kNumStages;
+    DG_STATIC_ASSERT(kNumStages >= 2u, "Invalid pipeline stage count");
 
     struct SharedStorage {
 #if DG_D3_OVERLAP_EXPERT_SMEM && ((DG_D7_HANDOFF_MODE == 0) || (DG_TUNE_D7_SMEM_ALIAS == 0))
@@ -1054,7 +1069,7 @@ sm100_fp8_fp4_mega_moe_impl(void* y,
 #endif
         union {
             alignas(kSharedMemoryAlignment) cutlass::float_e4m3_t l1[kNumEpilogueWarpgroups][kNumTMAStoreStages][STORE_BLOCK_M * L1_OUT_BLOCK_N];
-            alignas(kSharedMemoryAlignment) nv_bfloat16 l2[kNumEpilogueWarpgroups][STORE_BLOCK_M * LAYOUT_AD_M];
+            alignas(kSharedMemoryAlignment) nv_bfloat16 l2[kNumEpilogueWarpgroups][STORE_BLOCK_M_L2 * LAYOUT_AD_M];
         } smem_d;
         alignas(kSharedMemoryAlignment) a_dtype_t smem_a[kNumStages][LOAD_BLOCK_M * BLOCK_K];
         alignas(kSharedMemoryAlignment) b_dtype_t smem_b[kNumStages][LOAD_BLOCK_N * BLOCK_K];
@@ -3558,6 +3573,11 @@ sm100_fp8_fp4_mega_moe_impl(void* y,
         constexpr uint32_t WG_BLOCK_M = BLOCK_M / kNumEpilogueWarpgroups;
         constexpr uint32_t ATOM_M = 8;
         constexpr uint32_t kNumBankGroupBytes = 16u;
+        // BM=240's 120-row warpgroup slice is the first tile where a one-store-block
+        // register prefetch of the TMEM accumulator pays off: it hides the TMEM read
+        // latency behind SwiGLU / cast work while keeping the same 2-stage TMEM pool.
+        constexpr uint32_t kNumEpiPrefetchStages =
+            (BLOCK_M == 240u and kNumNSubtiles == 1u and DG_D3_DYN_EPI == 0) ? 1u : 0u;
         constexpr uint32_t kNumAtomsPerStore = STORE_BLOCK_M / ATOM_M;
         constexpr uint32_t kMaxTotalAtoms = BLOCK_M / ATOM_M;
         constexpr uint32_t kMaxWgAtoms = (kMaxTotalAtoms + kNumEpilogueWarpgroups - 1) / kNumEpilogueWarpgroups;
@@ -3569,6 +3589,9 @@ sm100_fp8_fp4_mega_moe_impl(void* y,
 
         DG_STATIC_ASSERT(BLOCK_M % kNumEpilogueWarpgroups == 0, "Invalid block M");
         DG_STATIC_ASSERT(STORE_BLOCK_M % ATOM_M == 0, "Invalid store block M");
+        DG_STATIC_ASSERT(STORE_BLOCK_M_L2 % ATOM_M == 0, "Invalid L2 store block M");
+        DG_STATIC_ASSERT(WG_BLOCK_M % STORE_BLOCK_M == 0, "Invalid warpgroup/store L1 block M");
+        DG_STATIC_ASSERT(WG_BLOCK_M % STORE_BLOCK_M_L2 == 0, "Invalid warpgroup/store L2 block M");
 
 #if DG_P1_HEAD_HELPER_K > 0
         run_p1_head_pull.template operator()<kNumEpilogueRegisters, false>(p1_wait_for_metadata());
@@ -3827,6 +3850,8 @@ sm100_fp8_fp4_mega_moe_impl(void* y,
             scheduler.release_task_info();
 
             const uint32_t valid_m = ptx::exchange(task_info.valid_m, 0);
+            const uint32_t wg_start_m = epilogue_wg_idx * WG_BLOCK_M;
+            const uint32_t num_valid_wg_rows = valid_m <= wg_start_m ? 0u : cute::min(valid_m - wg_start_m, WG_BLOCK_M);
             const uint32_t pool_block_idx = task_info.pool_block_idx;
             const uint32_t ring_block_idx = pool_block_idx % kNumRingBlocks;
             const uint32_t block_idx = task_info.is_shared() ? pool_block_idx : ring_block_idx;
@@ -4035,15 +4060,43 @@ sm100_fp8_fp4_mega_moe_impl(void* y,
                     const uint32_t sub_accum_base = accum_stage_idx * kNumAccumColsPerStage + n_sub * UMMA_N;
                     const uint32_t sub_n_block_idx = n_block_idx * kNumNSubtiles + n_sub;
                     float stored_cached_weight = 1.0f;
+                    const uint32_t num_valid_store_blocks_l1 = math::ceil_div(num_valid_wg_rows, STORE_BLOCK_M);
+                    uint2 prefetched_l1[kNumEpiPrefetchStages + 1][kNumAtomsPerStore][4];
+                    const auto issue_l1_epi_block = [&](const uint32_t& sb) {
+                        if (sb >= num_valid_store_blocks_l1)
+                            return;
+                        #pragma unroll
+                        for (uint32_t pi = 0; pi < kNumAtomsPerStore; ++ pi) {
+                            auto& rv = prefetched_l1[sb % (kNumEpiPrefetchStages + 1)][pi];
+                            const uint32_t tmem_addr = sub_accum_base + epilogue_wg_idx * WG_BLOCK_M +
+                                (sb * kNumAtomsPerStore + pi) * ATOM_M;
+                            cute::SM100_TMEM_LOAD_16dp256b1x::copy(tmem_addr,
+                                                                   rv[0].x, rv[0].y, rv[1].x, rv[1].y);
+                            cute::SM100_TMEM_LOAD_16dp256b1x::copy(tmem_addr | 0x00100000,
+                                                                   rv[2].x, rv[2].y, rv[3].x, rv[3].y);
+                        }
+                        if (sb + 1u == num_valid_store_blocks_l1) {
+                            cutlass::arch::fence_view_async_tmem_load();
+                            ptx::tcgen05_before_thread_sync();
+                            shared_storage.tmem_empty_barriers[accum_stage_idx].arrive(0u);
+                        }
+                    };
+                    if constexpr (kNumEpiPrefetchStages > 0) {
+                        if (num_valid_store_blocks_l1 == 0u) {
+                            ptx::tcgen05_before_thread_sync();
+                            shared_storage.tmem_empty_barriers[accum_stage_idx].arrive(0u);
+                        } else {
+                            issue_l1_epi_block(0u);
+                        }
+                    }
 
                     #pragma unroll
                     for (uint32_t s = 0; s < WG_BLOCK_M / STORE_BLOCK_M; ++ s) {
-                        if (epilogue_wg_idx * WG_BLOCK_M + s * STORE_BLOCK_M >= valid_m) {
-                            if (n_sub == kNumNSubtiles - 1) {
-                                ptx::tcgen05_before_thread_sync();
-                                shared_storage.tmem_empty_barriers[accum_stage_idx].arrive(0u);
-                            }
+                        if (s >= num_valid_store_blocks_l1)
                             break;
+                        if constexpr (kNumEpiPrefetchStages > 0) {
+                            cutlass::arch::fence_view_async_tmem_load();
+                            issue_l1_epi_block(s + 1u);
                         }
 
                         float2 activation_values[kNumAtomsPerStore][2];
@@ -4065,17 +4118,22 @@ sm100_fp8_fp4_mega_moe_impl(void* y,
                                 ptx::exchange(stored_cached_weight, (j * ATOM_M) % 32 + (lane_idx % 4) * 2 + 1)
                             };
 
-                            uint2 raw_values[4];
-                            uint32_t tmem_addr = sub_accum_base + epilogue_wg_idx * WG_BLOCK_M + j * ATOM_M;
-                            cute::SM100_TMEM_LOAD_16dp256b1x::copy(tmem_addr,
-                                                                   raw_values[0].x, raw_values[0].y, raw_values[1].x, raw_values[1].y);
-                            cute::SM100_TMEM_LOAD_16dp256b1x::copy(tmem_addr | 0x00100000,
-                                                                   raw_values[2].x, raw_values[2].y, raw_values[3].x, raw_values[3].y);
-                            cutlass::arch::fence_view_async_tmem_load();
+                            uint2 raw_values_local[4];
+                            uint2* raw_values = raw_values_local;
+                            if constexpr (kNumEpiPrefetchStages > 0) {
+                                raw_values = prefetched_l1[s % (kNumEpiPrefetchStages + 1)][i];
+                            } else {
+                                uint32_t tmem_addr = sub_accum_base + epilogue_wg_idx * WG_BLOCK_M + j * ATOM_M;
+                                cute::SM100_TMEM_LOAD_16dp256b1x::copy(tmem_addr,
+                                                                       raw_values[0].x, raw_values[0].y, raw_values[1].x, raw_values[1].y);
+                                cute::SM100_TMEM_LOAD_16dp256b1x::copy(tmem_addr | 0x00100000,
+                                                                       raw_values[2].x, raw_values[2].y, raw_values[3].x, raw_values[3].y);
+                                cutlass::arch::fence_view_async_tmem_load();
 
-                            if (n_sub == kNumNSubtiles - 1 and j == WG_BLOCK_M / ATOM_M - 1) {
-                                ptx::tcgen05_before_thread_sync();
-                                shared_storage.tmem_empty_barriers[accum_stage_idx].arrive(0u);
+                                if (n_sub == kNumNSubtiles - 1 and j == WG_BLOCK_M / ATOM_M - 1) {
+                                    ptx::tcgen05_before_thread_sync();
+                                    shared_storage.tmem_empty_barriers[accum_stage_idx].arrive(0u);
+                                }
                             }
 
                             auto fp32_values = reinterpret_cast<float2*>(raw_values);
@@ -4211,7 +4269,7 @@ sm100_fp8_fp4_mega_moe_impl(void* y,
                     __syncwarp();
                 }
 
-                DG_STATIC_ASSERT(STORE_BLOCK_M % 8 == 0, "Invalid store M");
+                DG_STATIC_ASSERT(STORE_BLOCK_M_L2 % 8 == 0, "Invalid store M");
 
 #if DG_D7_HANDOFF_MODE != 0
                 #pragma unroll
@@ -4421,7 +4479,7 @@ sm100_fp8_fp4_mega_moe_impl(void* y,
                     }
                 }
 #elif DG_D3_DYN_EPI > 0
-                constexpr uint32_t kMaxRowsPerWarp = STORE_BLOCK_M / 8;
+                constexpr uint32_t kMaxRowsPerWarp = STORE_BLOCK_M_L2 / 8;
 
                 if (wg_atoms == 0u) {
                     ptx::tcgen05_before_thread_sync();
@@ -4518,45 +4576,79 @@ sm100_fp8_fp4_mega_moe_impl(void* y,
 
                 ptx::sync_aligned(kNumEpilogueThreads, kEpilogueFullBarrierIdx);
 #else
-                constexpr uint32_t kNumRowsPerWarp = STORE_BLOCK_M / 8;
+                constexpr uint32_t kNumRowsPerWarp = STORE_BLOCK_M_L2 / 8;
 
                 #pragma unroll
                 for (uint32_t n_sub = 0; n_sub < kNumNSubtiles; ++ n_sub) {
                     const uint32_t sub_accum_base = accum_stage_idx * kNumAccumColsPerStage + n_sub * UMMA_N;
                     const uint32_t n_idx = base_n_idx + n_sub * LAYOUT_AD_M;
+                    constexpr uint32_t kNumAtomsPerStoreL2 = STORE_BLOCK_M_L2 / ATOM_M;
+                    const uint32_t num_valid_store_blocks_l2 = math::ceil_div(num_valid_wg_rows, STORE_BLOCK_M_L2);
+                    uint32_t prefetched_l2[kNumEpiPrefetchStages + 1][kNumAtomsPerStoreL2][ATOM_M];
+                    const auto issue_l2_epi_block = [&](const uint32_t& sb) {
+                        if (sb >= num_valid_store_blocks_l2)
+                            return;
+                        #pragma unroll
+                        for (uint32_t pi = 0; pi < kNumAtomsPerStoreL2; ++ pi) {
+                            auto& v = prefetched_l2[sb % (kNumEpiPrefetchStages + 1)][pi];
+                            const uint32_t tmem_addr = sub_accum_base + epilogue_wg_idx * WG_BLOCK_M +
+                                (sb * kNumAtomsPerStoreL2 + pi) * ATOM_M;
+                            cute::SM100_TMEM_LOAD_16dp256b1x::copy(tmem_addr,
+                                                                   v[0], v[1], v[2], v[3]);
+                            cute::SM100_TMEM_LOAD_16dp256b1x::copy(tmem_addr | 0x00100000,
+                                                                   v[4], v[5], v[6], v[7]);
+                        }
+                        if (sb + 1u == num_valid_store_blocks_l2) {
+                            cutlass::arch::fence_view_async_tmem_load();
+                            ptx::tcgen05_before_thread_sync();
+                            shared_storage.tmem_empty_barriers[accum_stage_idx].arrive(0u);
+                        }
+                    };
+                    if constexpr (kNumEpiPrefetchStages > 0) {
+                        if (num_valid_store_blocks_l2 == 0u) {
+                            ptx::tcgen05_before_thread_sync();
+                            shared_storage.tmem_empty_barriers[accum_stage_idx].arrive(0u);
+                        } else {
+                            issue_l2_epi_block(0u);
+                        }
+                    }
 
                     #pragma unroll
-                    for (uint32_t s = 0; s < WG_BLOCK_M / STORE_BLOCK_M; ++ s) {
-                        if (epilogue_wg_idx * WG_BLOCK_M + s * STORE_BLOCK_M >= valid_m) {
-                            if (n_sub == kNumNSubtiles - 1) {
-                                ptx::tcgen05_before_thread_sync();
-                                shared_storage.tmem_empty_barriers[accum_stage_idx].arrive(0u);
-                            }
+                    for (uint32_t s = 0; s < WG_BLOCK_M / STORE_BLOCK_M_L2; ++ s) {
+                        if (s >= num_valid_store_blocks_l2)
                             break;
+                        if constexpr (kNumEpiPrefetchStages > 0) {
+                            cutlass::arch::fence_view_async_tmem_load();
+                            issue_l2_epi_block(s + 1u);
                         }
 
                         #pragma unroll
-                        for (uint32_t i = 0; i < STORE_BLOCK_M / ATOM_M; ++ i) {
-                            uint32_t tmem_addr = sub_accum_base + epilogue_wg_idx * WG_BLOCK_M + s * STORE_BLOCK_M + i * ATOM_M;
-                            uint32_t values[ATOM_M];
-                            cute::SM100_TMEM_LOAD_16dp256b1x::copy(tmem_addr,
-                                                                   values[0], values[1], values[2], values[3]);
-                            cute::SM100_TMEM_LOAD_16dp256b1x::copy(tmem_addr | 0x00100000,
-                                                                   values[4], values[5], values[6], values[7]);
-                            cutlass::arch::fence_view_async_tmem_load();
+                        for (uint32_t i = 0; i < STORE_BLOCK_M_L2 / ATOM_M; ++ i) {
+                            uint32_t values_local[ATOM_M];
+                            uint32_t* values = values_local;
+                            if constexpr (kNumEpiPrefetchStages > 0) {
+                                values = prefetched_l2[s % (kNumEpiPrefetchStages + 1)][i];
+                            } else {
+                                uint32_t tmem_addr = sub_accum_base + epilogue_wg_idx * WG_BLOCK_M + s * STORE_BLOCK_M_L2 + i * ATOM_M;
+                                cute::SM100_TMEM_LOAD_16dp256b1x::copy(tmem_addr,
+                                                                       values[0], values[1], values[2], values[3]);
+                                cute::SM100_TMEM_LOAD_16dp256b1x::copy(tmem_addr | 0x00100000,
+                                                                       values[4], values[5], values[6], values[7]);
+                                cutlass::arch::fence_view_async_tmem_load();
+
+                                if (n_sub == kNumNSubtiles - 1 and s == WG_BLOCK_M / STORE_BLOCK_M_L2 - 1 and i == STORE_BLOCK_M_L2 / ATOM_M - 1) {
+                                    ptx::tcgen05_before_thread_sync();
+                                    shared_storage.tmem_empty_barriers[accum_stage_idx].arrive(0u);
+                                }
+                            }
 
                             if (i == 0 and (s > 0 or n_sub > 0))
                                 ptx::sync_aligned(128, kEpilogueWGBarrierStartIdx + epilogue_wg_idx);
 
-                            if (n_sub == kNumNSubtiles - 1 and s == WG_BLOCK_M / STORE_BLOCK_M - 1 and i == STORE_BLOCK_M / ATOM_M - 1) {
-                                ptx::tcgen05_before_thread_sync();
-                                shared_storage.tmem_empty_barriers[accum_stage_idx].arrive(0u);
-                            }
-
                             uint32_t row = lane_idx % 8;
                             uint32_t col = (epilogue_warp_idx % 2) * 4 + lane_idx / 8;
                             const auto smem_ptr = reinterpret_cast<uint8_t*>(shared_storage.smem_d.l2[epilogue_wg_idx]) +
-                                (warp_idx_in_wg / 2) * STORE_BLOCK_M * kSwizzleCDMode +
+                                (warp_idx_in_wg / 2) * STORE_BLOCK_M_L2 * kSwizzleCDMode +
                                 i * ATOM_M * kSwizzleCDMode +
                                 row * (kNumBankGroupBytes * 8) +
                                 (col ^ row) * kNumBankGroupBytes;
@@ -4577,7 +4669,7 @@ sm100_fp8_fp4_mega_moe_impl(void* y,
                         #pragma unroll
                         for (uint32_t j = 0; j < kNumRowsPerWarp; ++ j) {
                             const uint32_t row_in_store = j * 8 + warp_idx_in_wg * 2 + lane_idx / 16;
-                            const uint32_t m_idx_in_block = epilogue_wg_idx * WG_BLOCK_M + s * STORE_BLOCK_M + row_in_store;
+                            const uint32_t m_idx_in_block = epilogue_wg_idx * WG_BLOCK_M + s * STORE_BLOCK_M_L2 + row_in_store;
                             if (m_idx_in_block >= valid_m)
                                 break;
 
@@ -4594,7 +4686,7 @@ sm100_fp8_fp4_mega_moe_impl(void* y,
                             }
 
                             const auto smem_ptr = reinterpret_cast<uint8_t*>(shared_storage.smem_d.l2[epilogue_wg_idx]) +
-                                (lane_idx % 16 / 8) * STORE_BLOCK_M * kSwizzleCDMode +
+                                (lane_idx % 16 / 8) * STORE_BLOCK_M_L2 * kSwizzleCDMode +
                                 row_in_store * kSwizzleCDMode +
                                 (bank_group_idx ^ row_in_atom) * kNumBankGroupBytes;
                             const auto packed = ptx::ld_shared(reinterpret_cast<float4*>(smem_ptr));

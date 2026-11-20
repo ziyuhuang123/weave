@@ -138,6 +138,7 @@ public:
         const int d3_bn = get_weave_env<int>("WEAVE_BLOCK_N", "DG_TUNE_D3_BN", "DG_D3_BN", 0);
         const int d3_bk = get_weave_env<int>("WEAVE_BLOCK_K", "DG_TUNE_D3_BK", "DG_D3_BK", 0);
         const int d3_store_m = get_weave_env<int>("WEAVE_STORE_BLOCK_M", "DG_TUNE_D3_STORE_M", "DG_D3_STORE_M", 0);
+        const int d3_store_m_l2 = get_weave_env<int>("WEAVE_STORE_BLOCK_M_L2", "DG_TUNE_D3_STORE_M_L2", "DG_D3_STORE_M_L2", args.config.store_block_m_l2);
         const int d3_dyn_epi = get_weave_env<int>("WEAVE_DYN_EPILOGUE", "DG_TUNE_D3_DYN_EPI", "DG_D3_DYN_EPI", 0);
         const int d3_dyn_tma_a = get_weave_env<int>("WEAVE_DYN_TMA_A", "DG_TUNE_D3_DYN_TMA_A", "DG_D3_DYN_TMA_A", 0);
         const int d3_overlap_smem = get_weave_env<int>("WEAVE_OVERLAP_EXPERT_SMEM", "DG_TUNE_D3_OVERLAP_SMEM", "DG_D3_OVERLAP_EXPERT_SMEM", 0);
@@ -184,6 +185,7 @@ public:
 #define WEAVE_BLOCK_N {}
 #define WEAVE_BLOCK_K {}
 #define WEAVE_STORE_BLOCK_M {}
+#define WEAVE_STORE_BLOCK_M_L2 {}
 #define WEAVE_DYN_EPILOGUE {}
 #define WEAVE_DYN_TMA_A {}
 #define WEAVE_OVERLAP_EXPERT_SMEM {}
@@ -232,7 +234,7 @@ static void __instantiate_kernel() {{
             d2_mode,
             d2_reg_pull_bytes,
             d2_d8_sm_limit, d2_disp_regs, d2_epi_regs,
-            d3_bm, d3_bn, d3_bk, d3_store_m,
+            d3_bm, d3_bn, d3_bk, d3_store_m, d3_store_m_l2,
             d3_dyn_epi,
             d3_dyn_tma_a,
             d3_overlap_smem,
@@ -254,7 +256,7 @@ static void __instantiate_kernel() {{
             args.num_experts, args.num_shared_experts,
             args.num_topk,
             args.config.block_m, args.config.block_n, args.config.block_k,
-            args.config.store_block_m,
+            args.config.store_block_m_l1,
             args.config.sf_block_m, args.config.sf_block_n,
             args.config.num_ring_tokens,
             args.config.num_sf_ring_tokens,
@@ -409,7 +411,7 @@ static void sm100_fp8_fp4_mega_moe(
                                                            sf_smem_outer_dim);
     const auto tensor_map_l1_output = make_tma_2d_desc(l2_acts,
                                                        intermediate_hidden, config.num_ring_tokens,
-                                                       l1_out_subtile_n, config.store_block_m,
+                                                       l1_out_subtile_n, config.store_block_m_l1,
                                                        static_cast<int>(l2_acts.stride(-2)),
                                                        config.swizzle_acts_mode / 2);
     const auto tensor_map_l1_output_m16 = tensor_map_l1_output;
@@ -487,7 +489,7 @@ static void sm100_fp8_fp4_mega_moe(
     const auto tensor_map_shared_l1_output = num_shared_experts > 0 ? make_tma_2d_desc(
         shared_l2_acts,
         shared_intermediate_hidden, num_max_tokens_per_rank,
-        l1_out_subtile_n, config.store_block_m,
+        l1_out_subtile_n, config.store_block_m_l1,
         static_cast<int>(shared_l2_acts.stride(-2)),
         config.swizzle_acts_mode / 2) : tensor_map_l1_output;
     const auto tensor_map_shared_l2_acts = num_shared_experts > 0 ? make_tma_2d_desc(

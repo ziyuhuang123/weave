@@ -21,7 +21,7 @@ struct MegaMoEConfig {
     // Block tiling
     int block_m, block_n, block_k;
     int load_block_m, load_block_n;
-    int store_block_m;
+    int store_block_m_l1, store_block_m_l2;
 
     // SF block sizes (UTCCP 128-aligned)
     int sf_block_m, sf_block_n;
@@ -46,7 +46,8 @@ struct MegaMoEConfig {
         os << "MegaMoEConfig("
            << "block_m=" << config.block_m << ", block_n=" << config.block_n << ", block_k=" << config.block_k
            << ", load_block_m=" << config.load_block_m << ", load_block_n=" << config.load_block_n
-           << ", store_block_m=" << config.store_block_m
+           << ", store_block_m_l1=" << config.store_block_m_l1
+           << ", store_block_m_l2=" << config.store_block_m_l2
            << ", sf_block_m=" << config.sf_block_m << ", sf_block_n=" << config.sf_block_n
            << ", num_ring_tokens=" << config.num_ring_tokens
            << ", num_sf_ring_tokens=" << config.num_sf_ring_tokens
@@ -88,7 +89,7 @@ static bool is_d3_opt_enabled(const MmaKind& mma_kind) {
            get_weave_env<int>("WEAVE_OVERLAP_EXPERT_SMEM", "DG_TUNE_D3_OVERLAP_SMEM", "DG_D3_OVERLAP_EXPERT_SMEM", 0) > 0;
 }
 
-static std::tuple<int, int, int, int, int> get_block_config_for_mega_moe(
+static std::tuple<int, int, int, int, int, int> get_block_config_for_mega_moe(
     const int& num_ranks, const int& num_experts,
     const int& num_max_tokens_per_rank, const int& num_topk,
     const int& num_tokens,
@@ -97,8 +98,13 @@ static std::tuple<int, int, int, int, int> get_block_config_for_mega_moe(
     const int& intermediate_hidden = 0) {
     const bool d3_opt = is_d3_opt_enabled(mma_kind);
 
-    auto [cluster_size, block_m, store_block_m, block_k, num_epilogue_warpgroups] = [&]() -> std::tuple<int, int, int, int, int> {
-        float num_expected_tokens_per_expert = static_cast<float>(num_tokens) * num_ranks * num_topk / num_experts;
+    auto [cluster_size, block_m, store_block_m_l1, block_k, num_epilogue_warpgroups] = [&]() -> std::tuple<int, int, int, int, int> {
+        const float num_expected_tokens_per_expert = static_cast<float>(num_tokens) * num_ranks * num_topk / num_experts;
+        // Reference SM103 MegaMoE producer: one M block costs roughly 128 extra rows
+        // (each task re-reads its weight tiles). Use the fewest blocks per expert:
+        // one block up to 192 rows, then blocks of up to 240 rows. A single 240-row
+        // block only pays off with enough local experts (about 14 or more per rank).
+        const float num_covered_tokens = num_expected_tokens_per_expert + std::sqrt(num_expected_tokens_per_expert);
         if (not d3_opt) {
             if (num_expected_tokens_per_expert <= 8.5) {
                 return {2, 16, 8, 256, 2};
@@ -111,7 +117,18 @@ static std::tuple<int, int, int, int, int> get_block_config_for_mega_moe(
             } else if (num_expected_tokens_per_expert <= 96.5) {
                 return {2, 128, 32, 128, 2};
             } else {
-                return {2, 192, 32, 128, 2};
+                int num_blocks = static_cast<int>(std::ceil(num_covered_tokens / 240));
+                if (num_blocks == 1 and num_covered_tokens > 192 and num_experts / num_ranks < 14)
+                    num_blocks = 2;
+                int chosen = 240;
+                for (const int& candidate: {64, 128, 192, 240}) {
+                    chosen = candidate;
+                    if (num_blocks * candidate >= num_covered_tokens)
+                        break;
+                }
+                const int chosen_store_m = chosen <= 64 ? 16 : chosen <= 192 ? 32 :
+                                           mma_kind == MmaKind::MXFP8FP4 ? 24 : 40;
+                return {2, chosen, chosen_store_m, 128, 2};
             }
         } else {
             if (num_expected_tokens_per_expert <= 16.5f) {
@@ -128,29 +145,48 @@ static std::tuple<int, int, int, int, int> get_block_config_for_mega_moe(
     block_k /= get_num_mma_elem_bytes(mma_kind);
 
     block_m = get_weave_env<int>("WEAVE_BLOCK_M", "DG_MEGA_BLOCK_M", nullptr, block_m);
-    store_block_m = get_weave_env<int>("WEAVE_STORE_BLOCK_M", "DG_MEGA_STORE_BLOCK_M", nullptr, store_block_m);
+    store_block_m_l1 = get_weave_env<int>("WEAVE_STORE_BLOCK_M", "DG_MEGA_STORE_BLOCK_M", nullptr, store_block_m_l1);
     block_k = get_weave_env<int>("WEAVE_BLOCK_K", "DG_MEGA_BLOCK_K", nullptr, block_k);
     num_epilogue_warpgroups = get_weave_env<int>("WEAVE_EPILOGUE_WARPGROUPS", "DG_MEGA_EPILOGUE_WARPGROUPS", nullptr, num_epilogue_warpgroups);
 
+    // Asymmetric L1/L2 store split: BM=240 + FP8xFP4 uses 24/8 to keep six TMA
+    // pipeline stages inside 232,448B SMEM. All other tiles stay symmetric.
+    int store_block_m_l2 = (block_m == 240 and mma_kind == MmaKind::MXFP8FP4) ? 8 : store_block_m_l1;
+
     const int d3_bm = get_weave_env<int>("WEAVE_BLOCK_M", "DG_TUNE_D3_BM", "DG_D3_BM", 0);
     const int d3_store_m = get_weave_env<int>("WEAVE_STORE_BLOCK_M", "DG_TUNE_D3_STORE_M", "DG_D3_STORE_M", 0);
+    const int d3_store_m_l2 = get_weave_env<int>("WEAVE_STORE_BLOCK_M_L2", "DG_TUNE_D3_STORE_M_L2", "DG_D3_STORE_M_L2", 0);
     const int d3_bk = get_weave_env<int>("WEAVE_BLOCK_K", "DG_TUNE_D3_BK", "DG_D3_BK", 0);
     const int d3_epi_wg = get_weave_env<int>("WEAVE_EPILOGUE_WARPGROUPS", "DG_TUNE_D3_EPI_WG", "DG_D3_EPI_WG", 0);
     if (d3_bm > 0) block_m = d3_bm;
     if (d3_epi_wg > 0) num_epilogue_warpgroups = d3_epi_wg;
     if (d3_store_m > 0) {
-        store_block_m = d3_store_m;
-    } else if (store_block_m * num_epilogue_warpgroups > block_m) {
-        store_block_m = std::max(8, block_m / num_epilogue_warpgroups);
+        store_block_m_l1 = d3_store_m;
+    } else {
+        // Reference producer's FP8xFP4 BM=240 split: 24 rows for the L1
+        // (post-SwiGLU, 64-column) store and 8 rows for the L2 BF16 store.
+        if (block_m == 240 and mma_kind == MmaKind::MXFP8FP4)
+            store_block_m_l1 = 24;
+        if (store_block_m_l1 * num_epilogue_warpgroups > block_m)
+            store_block_m_l1 = std::max(8, block_m / num_epilogue_warpgroups);
     }
+    if (d3_store_m_l2 > 0) {
+        store_block_m_l2 = d3_store_m_l2;
+    } else if (d3_store_m > 0 or block_m != 240) {
+        store_block_m_l2 = store_block_m_l1;
+    }
+    if (store_block_m_l2 * num_epilogue_warpgroups > block_m)
+        store_block_m_l2 = std::max(8, block_m / num_epilogue_warpgroups);
     if (d3_bk > 0) block_k = d3_bk;
 
     // Axis 2 (D2): Modes 1..8 use 2 epilogue warpgroups (8E = 256 threads); Modes 11..15 keep default
     const int d2_mode = get_weave_env<int>("WEAVE_WARP_SPLIT_MODE", "DG_TUNE_D2_MODE", "DG_ISOLATED_D2_MODE", 0);
     if (1 <= d2_mode and d2_mode <= 8) {
         num_epilogue_warpgroups = 2;
-        if (store_block_m * num_epilogue_warpgroups > block_m)
-            store_block_m = std::max(8, block_m / num_epilogue_warpgroups);
+        if (store_block_m_l1 * num_epilogue_warpgroups > block_m)
+            store_block_m_l1 = std::max(8, block_m / num_epilogue_warpgroups);
+        if (store_block_m_l2 * num_epilogue_warpgroups > block_m)
+            store_block_m_l2 = std::max(8, block_m / num_epilogue_warpgroups);
     }
 
     DG_HOST_ASSERT(std::any_of(
@@ -158,14 +194,14 @@ static std::tuple<int, int, int, int, int> get_block_config_for_mega_moe(
         [=](const auto& candidate) { return candidate == block_m; })
     );
 
-    return {cluster_size, block_m, store_block_m, block_k, num_epilogue_warpgroups * 128};
+    return {cluster_size, block_m, store_block_m_l1, store_block_m_l2, block_k, num_epilogue_warpgroups * 128};
 }
 
 static std::pair<int, int> get_pipeline_config_for_mega_moe(
     const int& smem_capacity,
     const int& num_experts, const int& hidden,
     const int& block_m, const int& block_n, const int& block_k,
-    const int& num_bytes_per_pull, const int& store_block_m,
+    const int& num_bytes_per_pull, const int& store_block_m_l1, const int& store_block_m_l2,
     const int& sf_block_m, const int& sf_block_n, const int& gran_k,
     const int& num_dispatch_warps, const int& num_epilogue_warps,
     const MmaKind& mma_kind) {
@@ -218,14 +254,14 @@ static std::pair<int, int> get_pipeline_config_for_mega_moe(
 
     const int l1_out_block_n = is_mma_with_sf(mma_kind) ? 64 : (block_n / 2);
     const int l2_out_block_n = is_mma_with_sf(mma_kind) ? ((block_n == 64) ? 64 : 128) : block_n;
-    const int smem_cd_l1 = num_epilogue_warpgroups * store_block_m * l1_out_block_n * num_tma_store_stages * num_mma_elem_bytes;
-    const int smem_cd_l2 = num_epilogue_warpgroups * store_block_m * l2_out_block_n * static_cast<int>(sizeof(nv_bfloat16));
+    const int smem_cd_l1 = num_epilogue_warpgroups * store_block_m_l1 * l1_out_block_n * num_tma_store_stages * num_mma_elem_bytes;
+    const int smem_cd_l2 = num_epilogue_warpgroups * store_block_m_l2 * l2_out_block_n * static_cast<int>(sizeof(nv_bfloat16));
     const int smem_cd = align(std::max(smem_cd_l1, smem_cd_l2), kSmemAlignment);
 
     const int smem_task_info = kNumScheduleStages * static_cast<int>(sizeof(sched::TaskInfo<true>));
     const int smem_barriers = (num_dispatch_barrier_slots + num_epilogue_stages * 2 + num_epilogue_warps * 2 + kNumScheduleStages * 2) * 8;
     const int smem_amax_reduction = is_mma_with_sf(mma_kind) ?
-        store_block_m * num_epilogue_warps * static_cast<int>(sizeof(float)) : 0;
+        store_block_m_l1 * num_epilogue_warps * static_cast<int>(sizeof(float)) : 0;
 
     const int smem_d2_meta = (is_mma_with_sf(mma_kind) and d2_mode >= 1) ? 8 : 0;
     const int smem_d7_meta = d7_handoff_active ? 96 : 0;
@@ -264,7 +300,7 @@ static MegaMoEConfig get_mega_moe_config(
     const int& num_sf_ring_tokens,
     const MmaKind& mma_kind) {
 
-    const auto [cluster_size, block_m, store_block_m, block_k, num_epilogue_threads] =
+    const auto [cluster_size, block_m, store_block_m_l1, store_block_m_l2, block_k, num_epilogue_threads] =
         get_block_config_for_mega_moe(
             num_ranks, num_experts, num_max_tokens_per_rank, num_topk,
             num_tokens, mma_kind, hidden, intermediate_hidden);
@@ -318,14 +354,14 @@ static MegaMoEConfig get_mega_moe_config(
     auto [num_stages, smem_size] = get_pipeline_config_for_mega_moe(
         SM100ArchSpec::smem_capacity,
         num_experts, hidden,
-        block_m, block_n, block_k, num_bytes_per_pull, store_block_m,
+        block_m, block_n, block_k, num_bytes_per_pull, store_block_m_l1, store_block_m_l2,
         sf_block_m, sf_block_n, gran_k,
         num_dispatch_threads / 32, num_epilogue_threads / 32,
         mma_kind);
 
     const auto config = MegaMoEConfig {
         block_m, block_n, block_k,
-        load_block_m, load_block_n, store_block_m,
+        load_block_m, load_block_n, store_block_m_l1, store_block_m_l2,
         sf_block_m, sf_block_n,
         num_ring_tokens, is_mma_with_sf(mma_kind) ? num_sf_ring_tokens : 0,
         swizzle_acts_mode, swizzle_weights_mode,
