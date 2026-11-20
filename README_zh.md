@@ -103,9 +103,46 @@ Python 入口示意：
 
 ![AMD MI308X WeaveProfiler SW+HW 时间线](docs/figures/weaveprofiler_mi308x_timeline.png)
 
-三张图均为 `Qwen3.8-Max, EP8, S=1024` 负载下的软硬件对齐时间线（顶部硬件利用率曲
-线、中部全卡物理 SM/CU 泳道、底部代表性 CTA 内各角色流水线）。完整调优
-`WEAVE_*` 参数（按 **空间维度 / 时间维度 / 工程实现** 分类）及一键复现脚本位于
+三张图展示了 `Qwen3.8-Max, S=1024` 负载下的软硬件对齐时间线（顶部硬件利用率曲
+线、中部全卡物理 SM/CU 泳道、底部代表性 CTA 内各角色流水线）：
+
+- **NVIDIA SM103 (148-SM)，4x EP4（`num_shared_experts=0`，`BM=80, store=8/8, stages=8, WEAVE_EPI_REG_STAGES=2`）**：
+  同一次运行的 WeaveProfiler SW+HW 采集（热态插桩开销 `3.52%`，溢出 `0`，4 卡输出
+  逐 bit 一致）测得 **Active SMs `100.0%`**（中位/峰值）、**HBM3e `81.0%`** 中位 /
+  `94.0%` 峰值、**NVLink `43.0%`** 中位 / `100.0%` 峰值、**Tensor Active `38.0%`**
+  中位 / `42.0%` 峰值。
+- **NVIDIA H20 (78-SM)，4x EP4（`num_shared_experts=0`，`BM=64, adapt_bm=1, comm_only + XOR-swizzled smem`）**：
+  同一次运行的 WeaveProfiler SW+HW 采集打满 HBM3 屋顶线：**HBM3 均值 `91.5%`（p50
+  `96.1%`）**、**Active SMs 均值 `97.7%`（p50 `100.0%`）**，严格二元 Scatter 归属
+  （`epi_scatter_spans = 0`，`Math+Epi WG0..WG3` 零远程 Scatter）。
+- **AMD MI308X，8x EP8（`Qwen3.8-Max, S=1024`）**：全物理 CU 软硬件对齐时间线。
+
+### 已验证 EP4 同精度端到端结果（`num_shared_experts = 0`，CUDA Graph，256 MiB L2 flush，对称 ABBA）
+
+完整原始结果见
+[results/opus_sm103_ep4_verified.json](results/opus_sm103_ep4_verified.json)、
+[results/opus_h20_ep4_verified.json](results/opus_h20_ep4_verified.json) 与
+[results/gcmoe_same_precision_ep4.json](results/gcmoe_same_precision_ep4.json)。
+
+**NVIDIA SM103 (148-SM)，4x EP4（`FP8 x MXFP4`，`num_shared_experts = 0`）：**
+
+| 负载 | 路由分布 | 对比基线 | Weave（统一版） | 加速比 | 4 卡精度 |
+|---|---|---:|---:|---:|---|
+| `Qwen3.8-Max`, `S=1024` | 均衡路由 | `881.38 us` (`BM=240`) / `748.88 us` (auto `BM=128`) | **`710.53 us`** (`BM=80, st=8/8, epi2`) | **`1.2405x`** (`+24.05%`) / **`1.0540x`** (`+5.40%`) | `rel_l2=2.91e-5`, `stats_exact` |
+| `Qwen3.8-Max`, `S=1024` | 随机多项路由 | `824.7 us` (`GC-MoE BM=96`) | **`779.0 us`** (auto `BM=96, st=16/8, epi2`) | **`1.0553x`** (`+5.53%`, 5/5 轮全胜) | 与 GC-MoE 逐 bit 一致 (`dL2=0.00`) |
+| `416E`, `S=1024` | 均衡路由 | `450.26 us` (`BM=240`) / `411.66 us` (auto `BM=128`) | **`382.85 us`** (`BM=64, st=8/8, epi2`) | **`1.1761x`** (`+17.61%`) / **`1.0753x`** (`+7.53%`) | `rel_l2=5.37e-5`, `stats_exact` |
+| `416E`, `S=1024` | 随机多项路由 | `412.9 us` (`GC-MoE BM=96`) | **`393.8 us`** (auto `BM=80, st=8/8, epi2`) | **`1.0423x`** (`+4.23%`, 5/5 轮全胜) | 与 GC-MoE 逐 bit 一致 (`dL2=0.00`) |
+| `Qwen3.8-Max`, `S=8192` | 均衡路由 | `4276.50 us` (`BM=256`, `1.75`-stage TMEM, 4 级) | **`3779.42 us`** (`BM=240`, `2.0`-stage TMEM, `24/8`, 6 级) | **`1.1315x`**（两者均 100% PASS） | `rel_l2=5.67e-5`, `stats_exact` |
+
+**NVIDIA H20 (78-SM)，4x EP4（`FP8 x FP8`，`num_shared_experts = 0`，`Qwen3.8-Max`）：**
+
+| 序列长度 (`S_global`) | 官方基线 | 早期调优版 | GC-MoE 原生 FP8 | Weave（统一版） | 对比 官方 / 早期 / GC-MoE |
+|---|---:|---:|---:|---:|---|
+| `S=128` (`S_rank=32`) | `1477.84 us` | `1386.11 us` | `1956.7 us` *(同机 `Weave 1839.2 us`)* | **`1328.26 us`** (`bm16/bm32 smem`) | **`1.1126x`** / `+4.36%` / **`1.059x`** (`S_rank=128`: **`1.102x`**) |
+| `S=1024` (`S_rank=256`) | `3241.71 us` | `2341.92 us` | `3740.3 us` *(同机 `Weave 2216.8 us`)* | **`2177.54 us`** (`bm64 adapt comm_only+smem`) | **`1.4887x`** / **`+7.55%`** / **`1.679x`** |
+| `S=4096` (`S_rank=1024`) | `6210.22 us` | `5814.43 us` | `11794.3 us` *(同机 `Weave 5272.7 us`)* | **`5248.66 us`** (`bm64 adapt comm_only+smem`) | **`1.1832x`** / **`+10.78%`** / **`2.276x`** |
+
+完整调优 `WEAVE_*` 参数（按 **空间维度 / 时间维度 / 工程实现** 分类）及一键复现脚本位于
 [examples/](examples/README_zh.md)：
 
 - NVIDIA SM103 (148-SM)：[examples/sm103_qwen38max_ep8_s1024.sh](examples/sm103_qwen38max_ep8_s1024.sh)

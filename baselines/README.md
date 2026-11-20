@@ -118,3 +118,21 @@ cell contains:
 The aggregation rule is fixed: check all ranks first, then compute the
 cross-rank median and the slowest-rank median. Keep both. The paper reports the
 slowest-rank or cross-rank statistic explicitly wherever it is used.
+
+## 7. Strict same-precision GC-MoE EP4 evaluation (`num_shared_experts = 0`)
+
+To compare Weave against GC-MoE under matched numeric precision (`num_shared_experts = 0`,
+5-round palindromic ABBA/ABCCBA, CUDA Graph, 256 MiB L2 flush), the SM90 native
+FP8 weight patch is bundled at
+[patches/gc_moe_sm90_native_fp8.patch](patches/gc_moe_sm90_native_fp8.patch)
+and the full verified measurements live in
+[../results/gcmoe_same_precision_ep4.json](../results/gcmoe_same_precision_ep4.json):
+
+| Hardware & Precision | Workload (`num_shared_experts=0`) | GC-MoE | Weave (Unified) | Paired Weave / GC-MoE | Accuracy |
+|---|---|---:|---:|---:|---|
+| NVIDIA H20, `FP8 x FP8` | `Qwen3.8-Max`, `S_rank=32` (`S=128`) | `1956.7 us` | **`1839.2 us`** | **`1.059x`** | `cos >= 0.999988`, `stats_exact` |
+| NVIDIA H20, `FP8 x FP8` | `Qwen3.8-Max`, `S_rank=128` (`S=512`) | `2190.8 us` | **`1988.3 us`** | **`1.102x`** | `cos >= 0.999989`, `stats_exact` |
+| NVIDIA H20, `FP8 x FP8` | `Qwen3.8-Max`, `S_rank=256` (`S=1024`) | `3740.3 us` | **`2216.8 us`** | **`1.679x`** | `cos >= 0.999989`, `stats_exact` |
+| NVIDIA H20, `FP8 x FP8` | `Qwen3.8-Max`, `S_rank=1024` (`S=4096`) | `11794.3 us` | **`5272.7 us`** | **`2.276x`** | `cos >= 0.999989`, `stats_exact` |
+| NVIDIA SM103 (148-SM), `FP8 x MXFP4` | `Qwen3.8-Max`, `S_rank=1024` | `824.7 us` (`BM=96`) | **`779.0 us`** (auto `BM=96, st=16/8, epi2`) | **`1.0553x`** (5/5 rounds) | Bit-exact (`dL2=0.00`, `cos=1.000000`) |
+| NVIDIA SM103 (148-SM), `FP8 x MXFP4` | `416E`, `S_rank=1024` | `412.9 us` (`BM=96`) | **`393.8 us`** (auto `BM=80, st=8/8, epi2`) | **`1.0423x`** (5/5 rounds) | Bit-exact (`dL2=0.00`, `cos=1.000000`) |

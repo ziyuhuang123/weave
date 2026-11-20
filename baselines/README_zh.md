@@ -108,3 +108,20 @@ EP8 为单节点 8 卡；EP16 为双节点、每节点 8 卡、全局 16 rank。
 
 聚合顺序固定：先检查全部 rank，再计算跨 rank 中位数和最慢 rank 中位数，两者
 都保留。论文在具体位置会明确使用的是哪一种统计量。
+
+## 7. 严格同精度 GC-MoE EP4 对比（`num_shared_experts = 0`）
+
+为在严格相同数值精度下对比 Weave 与 GC-MoE（`num_shared_experts = 0`，5 轮对称
+ABBA/ABCCBA，CUDA Graph，256 MiB L2 flush），SM90 原生 FP8 权重补丁位于
+[patches/gc_moe_sm90_native_fp8.patch](patches/gc_moe_sm90_native_fp8.patch)，
+完整实测 JSON 位于
+[../results/gcmoe_same_precision_ep4.json](../results/gcmoe_same_precision_ep4.json)：
+
+| 硬件与精度 | 负载（`num_shared_experts=0`） | GC-MoE | Weave（统一版） | 配对加速比 (Weave / GC-MoE) | 精度 |
+|---|---|---:|---:|---:|---|
+| NVIDIA H20, `FP8 x FP8` | `Qwen3.8-Max`, `S_rank=32` (`S=128`) | `1956.7 us` | **`1839.2 us`** | **`1.059x`** | `cos >= 0.999988`, `stats_exact` |
+| NVIDIA H20, `FP8 x FP8` | `Qwen3.8-Max`, `S_rank=128` (`S=512`) | `2190.8 us` | **`1988.3 us`** | **`1.102x`** | `cos >= 0.999989`, `stats_exact` |
+| NVIDIA H20, `FP8 x FP8` | `Qwen3.8-Max`, `S_rank=256` (`S=1024`) | `3740.3 us` | **`2216.8 us`** | **`1.679x`** | `cos >= 0.999989`, `stats_exact` |
+| NVIDIA H20, `FP8 x FP8` | `Qwen3.8-Max`, `S_rank=1024` (`S=4096`) | `11794.3 us` | **`5272.7 us`** | **`2.276x`** | `cos >= 0.999989`, `stats_exact` |
+| NVIDIA SM103 (148-SM), `FP8 x MXFP4` | `Qwen3.8-Max`, `S_rank=1024` | `824.7 us` (`BM=96`) | **`779.0 us`** (auto `BM=96, st=16/8, epi2`) | **`1.0553x`**（5/5 轮全胜） | 逐 bit 一致 (`dL2=0.00`, `cos=1.000000`) |
+| NVIDIA SM103 (148-SM), `FP8 x MXFP4` | `416E`, `S_rank=1024` | `412.9 us` (`BM=96`) | **`393.8 us`** (auto `BM=80, st=8/8, epi2`) | **`1.0423x`**（5/5 轮全胜） | 逐 bit 一致 (`dL2=0.00`, `cos=1.000000`) |

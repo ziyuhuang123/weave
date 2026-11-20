@@ -118,11 +118,52 @@ activity below `58%`.
 
 ![AMD MI308X WeaveProfiler SW+HW Timeline](docs/figures/weaveprofiler_mi308x_timeline.png)
 
-All three figures show aligned software + hardware timelines on the matched
-`Qwen3.8-Max, EP8, S=1024` workload (hardware utilization curves, all physical
-SM/CU lanes, and representative CTA warp-role pipelines). Full tuned `WEAVE_*`
-presets (organized by **Spatial**, **Temporal**, and **Implementation**) and
-reproducible launch scripts live under [examples/](examples/README.md):
+Each figure shows aligned software + hardware timelines on `Qwen3.8-Max, S=1024`
+(hardware utilization curves, all physical SM/CU lanes, and representative CTA
+warp-role pipelines):
+
+- **NVIDIA SM103 (148-SM), 4x EP4 (`num_shared_experts=0`, `BM=80, store=8/8, stages=8, WEAVE_EPI_REG_STAGES=2`)**:
+  same-run WeaveProfiler SW+HW capture (`3.52%` warm instrumentation overhead,
+  `0` buffer overflow, bitwise-exact output across all 4 ranks) measures
+  **Active SMs `100.0%`** median / max, **HBM3e `81.0%`** median / `94.0%` max,
+  **NVLink `43.0%`** median / `100.0%` max, and **Tensor Active `38.0%`**
+  median / `42.0%` max.
+- **NVIDIA H20 (78-SM), 4x EP4 (`num_shared_experts=0`, `BM=64, adapt_bm=1, comm_only + XOR-swizzled smem`)**:
+  same-run WeaveProfiler SW+HW capture saturates the HBM3 roofline at
+  **HBM3 `91.5%` mean (`96.1%` p50)** and **Active SMs `97.7%` mean (`100.0%` p50)**
+  with strict binary scatter ownership (`epi_scatter_spans = 0`, zero remote
+  scatter on `Math+Epi WG0..WG3`).
+- **AMD MI308X, 8x EP8 (`Qwen3.8-Max, S=1024`)**: aligned per-wavefront software
+  events and hardware activity curves across all physical CUs.
+
+### Verified EP4 head-to-head results (`num_shared_experts = 0`, CUDA Graph, 256 MiB L2 flush, palindromic ABBA)
+
+Full raw receipts live in
+[results/opus_sm103_ep4_verified.json](results/opus_sm103_ep4_verified.json),
+[results/opus_h20_ep4_verified.json](results/opus_h20_ep4_verified.json), and
+[results/gcmoe_same_precision_ep4.json](results/gcmoe_same_precision_ep4.json).
+
+**NVIDIA SM103 (148-SM), 4x EP4 (`FP8 x MXFP4`, `num_shared_experts = 0`):**
+
+| Workload | Routing | Reference Baseline | Weave (Unified) | Speedup | Accuracy (all 4 ranks) |
+|---|---|---:|---:|---:|---|
+| `Qwen3.8-Max`, `S=1024` | Balanced | `881.38 us` (`BM=240`) / `748.88 us` (auto `BM=128`) | **`710.53 us`** (`BM=80, st=8/8, epi2`) | **`1.2405x`** (`+24.05%`) / **`1.0540x`** (`+5.40%`) | `rel_l2=2.91e-5`, `stats_exact` |
+| `Qwen3.8-Max`, `S=1024` | Random multinomial | `824.7 us` (`GC-MoE BM=96`) | **`779.0 us`** (auto `BM=96, st=16/8, epi2`) | **`1.0553x`** (`+5.53%`, 5/5 rounds) | Bit-exact vs GC-MoE (`dL2=0.00`) |
+| `416E`, `S=1024` | Balanced | `450.26 us` (`BM=240`) / `411.66 us` (auto `BM=128`) | **`382.85 us`** (`BM=64, st=8/8, epi2`) | **`1.1761x`** (`+17.61%`) / **`1.0753x`** (`+7.53%`) | `rel_l2=5.37e-5`, `stats_exact` |
+| `416E`, `S=1024` | Random multinomial | `412.9 us` (`GC-MoE BM=96`) | **`393.8 us`** (auto `BM=80, st=8/8, epi2`) | **`1.0423x`** (`+4.23%`, 5/5 rounds) | Bit-exact vs GC-MoE (`dL2=0.00`) |
+| `Qwen3.8-Max`, `S=8192` | Balanced | `4276.50 us` (`BM=256`, `1.75`-stage TMEM, 4 stages) | **`3779.42 us`** (`BM=240`, `2.0`-stage TMEM, `24/8`, 6 stages) | **`1.1315x`** (both 100% PASS) | `rel_l2=5.67e-5`, `stats_exact` |
+
+**NVIDIA H20 (78-SM), 4x EP4 (`FP8 x FP8`, `num_shared_experts = 0`, `Qwen3.8-Max`):**
+
+| Seqlen (`S_global`) | Official Baseline | Earlier Tuned | GC-MoE Native FP8 | Weave (Unified) | Speedup vs Official / Earlier / GC-MoE |
+|---|---:|---:|---:|---:|---|
+| `S=128` (`S_rank=32`) | `1477.84 us` | `1386.11 us` | `1956.7 us` *(same-host `Weave 1839.2 us`)* | **`1328.26 us`** (`bm16/bm32 smem`) | **`1.1126x`** / `+4.36%` / **`1.059x`** (`S_rank=128`: **`1.102x`**) |
+| `S=1024` (`S_rank=256`) | `3241.71 us` | `2341.92 us` | `3740.3 us` *(same-host `Weave 2216.8 us`)* | **`2177.54 us`** (`bm64 adapt comm_only+smem`) | **`1.4887x`** / **`+7.55%`** / **`1.679x`** |
+| `S=4096` (`S_rank=1024`) | `6210.22 us` | `5814.43 us` | `11794.3 us` *(same-host `Weave 5272.7 us`)* | **`5248.66 us`** (`bm64 adapt comm_only+smem`) | **`1.1832x`** / **`+10.78%`** / **`2.276x`** |
+
+Full tuned `WEAVE_*` presets (organized by **Spatial**, **Temporal**, and
+**Implementation**) and reproducible launch scripts live under
+[examples/](examples/README.md):
 
 - NVIDIA SM103 (148-SM): [examples/sm103_qwen38max_ep8_s1024.sh](examples/sm103_qwen38max_ep8_s1024.sh)
 - NVIDIA H20: [examples/h20_qwen38max_ep8_s1024.sh](examples/h20_qwen38max_ep8_s1024.sh)
