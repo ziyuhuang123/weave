@@ -293,8 +293,8 @@ MI308X fixed to `fp8`.
 
 | Hardware / scale | Precision (`mma_type`) | Full-output correctness | Measured latency (us) | Compile / ISA audit | Verdict |
 |---|---|---|---|---|---|
-| 8x NVIDIA L20D (B300/SM103 class); 4-GPU admissible window | `fp4xfp4 (NVFP4)` | EP4, S=16, H=6144, I=2048, E=128, K=8; per-rank `calc_diff` 4.672e-7..6.645e-7, `rel_l2` 9.666e-4..1.153e-3, `max_abs_err` 2..4; all 4 ranks PASS | median-of-rank-medians 143.552; worst rank 143.584; 65.757 TFLOPS/GPU nominal (range 62.571..72.148) | ptxas (current policy-wired EP4 template): 128 registers, 16 B spill stores / 136 B spill loads in the entry function, 248 B stack; the cold CTA-0 selector is out-of-line (52/56 B spills, 0 B stack). The retained pre-rail build audited 0/0 spills and 80 B stack | PASS |
-| same 8x B300 installation | `fp8xfp4` | EP1 and EP2 built the reference tensors, then the first `run_direct` call did not return; no kernel output or latency is claimed | not measured | compile + PTX PASS; ptxas (current policy-wired EP1 template): 0 spill stores, 0 spill loads, 128 registers, 176 B stack; `compute-sanitizer memcheck` found no invalid access before the hang | BLOCKED_RUNTIME_HANG |
+| 8x NVIDIA L20D (B300/SM103 class); 4-GPU admissible window | `fp4xfp4 (NVFP4)` | EP4, S=16, H=6144, I=2048, E=128, K=8; fresh policy-wired run: 4/4 ranks finite, unified-vs-direct bit-exact, 512 total routes; live CTA-0 readback magic `0x57415645`, version 4, `published_epoch=2`, `valid=1`; retained FP32 reference: per-rank `calc_diff` 4.672e-7..6.645e-7, `rel_l2` 9.666e-4..1.153e-3, `max_abs_err` 2..4 | median-of-rank-medians 172.384; worst rank 172.480; 54.418 TFLOPS/GPU nominal (range 52.088..60.001). Pre-rail reference: 143.552 us, 65.757 TFLOPS/GPU | ptxas (current policy-wired EP4 template): 128 registers, 60 B spill stores / 144 B spill loads, 256 B stack; pre-rail build: 0/0 spills, 80 B stack | PASS |
+| same 8x B300 installation | `fp8xfp4` | EP1 built the reference (`reference_done 1018 ms`) and printed the expected config, then the first kernel launch never returned; no kernel output or latency is claimed | not measured | compile + PTX PASS; ptxas (current policy-wired EP1 template): 0 spill stores, 0 spill loads, 128 registers, 176 B stack; a fresh clone of commit `fa3e98f` reproduced the hang under a 240 s timeout; `compute-sanitizer memcheck` found no invalid access before the hang | BLOCKED_RUNTIME_HANG |
 | 8x NVIDIA H20 (SM90) | `fp8` | EP8, Qwen3.8-Max, E=512, K=10, H=8192, I=2048; worst-rank `calc_diff` 5.924e-4..5.948e-4, worst `rel_l2` 0.034483, `cos_sim` 0.999405; all ranks PASS | S=128 AUTO=1 1452.512 (AUTO=0 1942.784; 25.24% gain); S=1024 AUTO=1 4977.584 (AUTO=0 4981.344) | `nvcc -ptx -arch=sm_90a` PASS | PASS |
 | 8x AMD Instinct MI308X (gfx942) | `fp8` | EP8: 4/4 full-output cells PASS across all 8 ranks; max `rel_l2` 0.001545..0.001908, max row `rel_l2` 0.001952..0.005731, `device_error=0` | qwen38max S=16 687.422 / 713.942; S=128 1539.625 / 1554.185; DeepSeek-V4-Flash S=16 378.761 / 395.421; S=128 699.642 / 709.743; single-GPU TFLOPS 1.595..9.219 | EP8 P.co `d5f977...`; `spill=0`, `scratch_load=0`, `scratch_store=0`, `s_barrier=1`, `co_passed=true` | PASS |
 | 16x AMD Instinct MI308X (2 nodes x 8, gfx942) | `fp8` | EP16 v33, 16/16 ranks full-element FP64 comparison PASS; qwen38max S=128 and dskv4_flash S=128; max `rel_l2` 0.012535 / 0.012292, max row `rel_l2` 0.019612 / 0.015528; all 96 launch-state records `device_error=0` | qwen38max metric1 1594.079 -> 1010.679 (1.5772x), metric2 1591.939 -> 1006.619 (1.5815x); dskv4_flash metric1 1387.055 -> 735.300 (1.8864x), metric2 1367.269 -> 732.679 (1.8661x) | EP16 P.co `b4b3b6e5...`; `vgpr_spill_count_max=0`, `scratch_load=0`, `scratch_store=0`, `s_barrier=1`, `vgpr_count_max=256`, `sgpr_count_max=106`, `group_segment_fixed_size_max=65536`, `co_passed=true` | PASS |
@@ -303,9 +303,10 @@ For the 8x MI308X EP8 cells, the two numbers are cross-rank median and
 slowest-rank median, respectively. EP16 metric1 is the median over samples of the
 slowest rank in that sample; metric2 is the maximum over ranks of each rank's
 median. The ptxas numbers in the two B300 rows are fresh audits of the current
-policy-wired sources. The 143.552 us NVFP4 row is the retained pre-rail runtime
-measurement; the fp4 entry-function spills come from the cold, out-of-line
-CTA-0 selection call and do not sit in the steady-state pull/GEMM loop.
+policy-wired sources. The 172.384 us NVFP4 row is a fresh policy-wired
+measurement; the pre-rail build measured 143.552 us, so the live CTA-0 selection
+adds 28.8 us (20.1%) at this shape. The FP4 entry-function spills sit in the
+inlined CTA-0 selection path, not in the steady-state pull/GEMM loop.
 
 EP16 timing uses 3 warmup iterations and 10 measured samples per arm in
 two ABBA orders (20 samples per rank), timed with same-stream HIP events at
@@ -317,15 +318,18 @@ per-rank measurements, TFLOPS, hashes, and gates are in
 `results/e2e_3hw_verified.json`.
 
 **B300 boundary.** The `fp8xfp4` path compiles, and both B300 kernels carry the
-CTA-0 policy rail, but `fp8xfp4` still waits forever in the GEMM pipeline's
+CTA-0 policy rail. The FP4 sibling on the same merge line passes end-to-end with
+live CTA-0 readback; `fp8xfp4` still waits forever in the FP8 GEMM pipeline's
 transaction-barrier protocol. Every sampled CTA thread 0 stops at the same
 `SYNCS.PHASECHK` instruction on the `full_barriers[0]` mbarrier
 (`smem + 0x29580`). The hang is independent of the CTA-0 rail: removing the rail,
 clamping the round-robin rank, adding the zero-active-rank guard, deleting the
-dispatch pull wait, and changing the block shape all reproduced it. The evidence
-and the exact failed gates are recorded in `results/e2e_3hw_verified.json`. No
-`fp8xfp4` latency or correctness number is claimed until that barrier protocol is
-fixed.
+dispatch pull wait, reordering the policy rendezvous, and changing the block
+shape all reproduced it. A fresh clone of commit `fa3e98f` reproduced it again:
+`reference_done` and the config print complete, then no `first_kernel_done`
+within 240 s. The evidence and the exact failed gates are recorded in
+`results/e2e_3hw_verified.json`. No `fp8xfp4` latency or correctness number is
+claimed until that barrier protocol is fixed.
 
 ## Tunable Parameters & Code Locations
 
@@ -387,13 +391,13 @@ The tables below are generated from the working tree and verified by `tests/veri
 | `DG_TUNE_D3_DYN_EPI` / `DG_D3_DYN_EPI` | 0/1/2 | 0 | Dynamic epilogue pass count; 2 expects STORE_BLOCK_M=16. | `csrc/jit_kernels/impls/sm100_fp8_fp4_mega_moe.hpp:141` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:109` |
 | `DG_TUNE_D3_DYN_TMA_A` / `DG_D3_DYN_TMA_A` | 0/1/2 | 0 | Dynamic TMA-A descriptor mode for small M. | `csrc/jit_kernels/impls/sm100_fp8_fp4_mega_moe.hpp:142` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:119` |
 | `DG_TUNE_D3_OVERLAP_SMEM` / `DG_D3_OVERLAP_EXPERT_SMEM` | 0/1 | 0 | Overlap expert metadata SMEM with the next expert tile. | `csrc/jit_kernels/impls/sm100_fp8_fp4_mega_moe.hpp:143` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:129` |
-| `DG_TUNE_D3_EXPERT_STEP_MODE` / `DG_D3_EXPERT_STEP_MODE` | 0/1/2 | 0 | Expert-step scheduling mode; non-zero raises scheduler register demand. | `csrc/jit_kernels/impls/sm100_fp8_fp4_mega_moe.hpp:144` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:841` |
+| `DG_TUNE_D3_EXPERT_STEP_MODE` / `DG_D3_EXPERT_STEP_MODE` | 0/1/2 | 0 | Expert-step scheduling mode; non-zero raises scheduler register demand. | `csrc/jit_kernels/impls/sm100_fp8_fp4_mega_moe.hpp:144` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:835` |
 | `DG_D3_ACCUM_STAGES` | 2/3/4 | 2 | TMEM accumulator stage count. | `csrc/jit_kernels/impls/sm100_fp8_fp4_mega_moe.hpp:145` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:139` |
 | `DG_D3_TMA_STORE_STAGES` | 2/3/4/5/6 | 2 | TMA-store ring depth. | `csrc/jit_kernels/impls/sm100_fp8_fp4_mega_moe.hpp:146` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:142` |
 | `DG_TUNE_D3_SCHED_STAGES` / `DG_D3_SCHED_STAGES` | 2/3 | 2 | Scheduler look-ahead depth. | `csrc/jit_kernels/impls/sm100_fp8_fp4_mega_moe.hpp:147` | `deep_gemm/include/deep_gemm/scheduler/mega_moe.cuh:25` |
 | `DG_TUNE_D4_EPW` / `DG_ISOLATED_D4_EPW` | 1/2/4/8/16/32/64 | 0 (heuristic) | Experts-per-wave override for the D4 dynamic queue. | `csrc/jit_kernels/impls/sm100_fp8_fp4_mega_moe.hpp:149` | `deep_gemm/include/deep_gemm/scheduler/mega_moe.cuh:73` |
 | `DG_TUNE_D4_STATIC` / `DG_ISOLATED_D4_STATIC` | 0/1 | 0 | Use a static expert-order table instead of the ready queue. | `csrc/jit_kernels/impls/sm100_fp8_fp4_mega_moe.hpp:150` | `deep_gemm/include/deep_gemm/scheduler/mega_moe.cuh:73` |
-| `DG_TUNE_D4_READYQ` / `DG_ISOLATED_D4_READYQ` | 0/1 | 0 | D4 ready-queue scheduling path. | `csrc/jit_kernels/impls/sm100_fp8_fp4_mega_moe.hpp:151` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:878` |
+| `DG_TUNE_D4_READYQ` / `DG_ISOLATED_D4_READYQ` | 0/1 | 0 | D4 ready-queue scheduling path. | `csrc/jit_kernels/impls/sm100_fp8_fp4_mega_moe.hpp:151` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:872` |
 | `DG_TUNE_D4_MODE` / `DG_ISOLATED_D4_MODE` | 0..3 | 0 | D4 scheduling mode selector. | `csrc/jit_kernels/impls/sm100_fp8_fp4_mega_moe.hpp:152` | `deep_gemm/include/deep_gemm/scheduler/mega_moe.cuh:664` |
 | `DG_TUNE_D5_DEDUP` / `DG_ISOLATED_D5_DEDUP` | 0/1/2 | 0 | D5 dedup mode: 0 off, 1 dedup, 2 local-dedup pre-reduce. | `csrc/jit_kernels/impls/sm100_fp8_fp4_mega_moe.hpp:155` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:261` |
 | `DG_TUNE_D5_SCHED` / `DG_ISOLATED_D5_SCHED` | 0/1 | 1 when dedup=2 | D5 dedup scheduler toggle. | `csrc/jit_kernels/impls/sm100_fp8_fp4_mega_moe.hpp:156` | `deep_gemm/include/deep_gemm/scheduler/mega_moe.cuh:88` |

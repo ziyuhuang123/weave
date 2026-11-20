@@ -1,6 +1,6 @@
 {
   "schema": "weave-3hw-verified/v1",
-  "generated_at_utc": "2026-11-20T01:55:20Z",
+  "generated_at_utc": "2026-11-20T02:51:54Z",
   "source": {
     "repository": "https://github.com/ziyuhuang123/weave.git",
     "base_commit": "d8ea8050a465d89e9eccb28257728eeb0fb6f2b9",
@@ -22,6 +22,33 @@
       "result_json_sha256": "4d358a7a6faa98060c26187d7fd48d29fae689e2b012d8f0bf113c83a610ddf6",
       "overlay": "amd_v33_overlay",
       "runtime_scope": "2 nodes x 8 MI308X (16 ranks), full-output per-rank receipts"
+    },
+    "phase5c_measurements": {
+      "b300_fp4xfp4": {
+        "commit": "12697d8",
+        "device": "mail-17-fa3f",
+        "gpus": [
+          4,
+          5,
+          6,
+          7
+        ],
+        "harness": "/root/weave_e2e_verify/harness/bench_nvfp4.py",
+        "run_dir": "/root/p5c_verify",
+        "warmup": 5,
+        "iterations": 20,
+        "status": "PASS",
+        "live_policy_readback": true
+      },
+      "b300_fp8xfp4": {
+        "commit": "fa3e98f",
+        "device": "mail-17-fa3f",
+        "gpu": 4,
+        "harness": "/root/weave_e2e_verify/harness/verify_fp8xfp4.py",
+        "run_dir": "/root/p5c_verify",
+        "status": "HANG_AT_FIRST_KERNEL_LAUNCH",
+        "live_policy_readback": false
+      }
     }
   },
   "verification_contract": {
@@ -56,6 +83,7 @@
         "fp4xfp4": {
           "world_size": 4,
           "status": "PASS",
+          "measurement_scope": "fresh policy-wired build, commit 12697d8, 4x NVIDIA L20D (B300/SM103 class), GPUs 4-7, mail-17-fa3f",
           "config": {
             "S": 16,
             "H": 6144,
@@ -63,81 +91,205 @@
             "E": 128,
             "K": 8,
             "max_tokens_per_rank": 16,
+            "num_ranks": 4,
+            "warmup": 5,
             "iterations": 20,
-            "warmup": 5
+            "epochs_per_run_note": "The harness runs 5 warmup + 20 measured kernel launches per rank."
           },
           "correctness": {
-            "inputs": "randn BF16 activations, randn scaled BF16 weights, full PyTorch FP32 split reference",
-            "per_rank_calc_diff": [
-              5.148e-07,
-              4.672e-07,
-              5.921e-07,
-              6.645e-07
-            ],
-            "calc_diff_range": [
-              4.672e-07,
-              6.645e-07
-            ],
-            "rel_l2_range": [
-              0.0009666,
-              0.001153
-            ],
-            "max_abs_err_range": [
-              2.0,
-              4.0
-            ],
-            "all_ranks_pass": true
+            "inputs": "torch.randn BF16 activations, randn*0.1 BF16 routed weights, topk softmax",
+            "fresh_policy_wired_outputs": {
+              "all_ranks_finite": true,
+              "all_ranks_unified_bitexact_vs_direct": true,
+              "routes_total": 512,
+              "per_rank": [
+                {
+                  "rank": 0,
+                  "routes_local": 124,
+                  "out_absmax": 237.0,
+                  "out_finite": true,
+                  "unified_bitexact_vs_direct": true,
+                  "median_us": 172.03199863433838,
+                  "tflops_per_gpu": 54.41828614628073,
+                  "policy": {
+                    "magic": 1463899717,
+                    "version": 4,
+                    "status": 1,
+                    "published_epoch": 2,
+                    "decision_epoch": 2,
+                    "valid": 1,
+                    "selected_candidate": 0,
+                    "selected_r_mask": 264196,
+                    "selected_scatter_mode": 0,
+                    "selected_v_head": 128,
+                    "selected_comm_units": 592,
+                    "selected_comp_units": 1184,
+                    "selected_block_m": 128,
+                    "selected_role_groups": 4,
+                    "predicted_total_us": 102.17523956298828,
+                    "input_total_tokens": 124
+                  }
+                },
+                {
+                  "rank": 1,
+                  "routes_local": 119,
+                  "out_absmax": 258.0,
+                  "out_finite": true,
+                  "unified_bitexact_vs_direct": true,
+                  "median_us": 172.4800020456314,
+                  "tflops_per_gpu": 52.08835262897976,
+                  "policy": {
+                    "magic": 1463899717,
+                    "version": 4,
+                    "status": 1,
+                    "published_epoch": 2,
+                    "decision_epoch": 2,
+                    "valid": 1,
+                    "selected_candidate": 0,
+                    "selected_r_mask": 264196,
+                    "selected_scatter_mode": 0,
+                    "selected_v_head": 128,
+                    "selected_comm_units": 592,
+                    "selected_comp_units": 1184,
+                    "selected_block_m": 128,
+                    "selected_role_groups": 4,
+                    "predicted_total_us": 107.48888397216797,
+                    "input_total_tokens": 119
+                  }
+                },
+                {
+                  "rank": 2,
+                  "routes_local": 132,
+                  "out_absmax": 249.0,
+                  "out_finite": true,
+                  "unified_bitexact_vs_direct": true,
+                  "median_us": 172.2240000963211,
+                  "tflops_per_gpu": 57.86456184054732,
+                  "policy": {
+                    "magic": 1463899717,
+                    "version": 4,
+                    "status": 1,
+                    "published_epoch": 2,
+                    "decision_epoch": 2,
+                    "valid": 1,
+                    "selected_candidate": 0,
+                    "selected_r_mask": 264196,
+                    "selected_scatter_mode": 0,
+                    "selected_v_head": 160,
+                    "selected_comm_units": 592,
+                    "selected_comp_units": 1184,
+                    "selected_block_m": 128,
+                    "selected_role_groups": 4,
+                    "predicted_total_us": 107.74199676513672,
+                    "input_total_tokens": 132
+                  }
+                },
+                {
+                  "rank": 3,
+                  "routes_local": 137,
+                  "out_absmax": 237.0,
+                  "out_finite": true,
+                  "unified_bitexact_vs_direct": true,
+                  "median_us": 172.38399386405945,
+                  "tflops_per_gpu": 60.000661500838206,
+                  "policy": {
+                    "magic": 1463899717,
+                    "version": 4,
+                    "status": 1,
+                    "published_epoch": 2,
+                    "decision_epoch": 2,
+                    "valid": 1,
+                    "selected_candidate": 0,
+                    "selected_r_mask": 264196,
+                    "selected_scatter_mode": 0,
+                    "selected_v_head": 160,
+                    "selected_comm_units": 592,
+                    "selected_comp_units": 1184,
+                    "selected_block_m": 128,
+                    "selected_role_groups": 4,
+                    "predicted_total_us": 108.0765609741211,
+                    "input_total_tokens": 137
+                  }
+                }
+              ]
+            },
+            "reference_fp32_pre_rail": {
+              "per_rank_calc_diff": [
+                5.148e-07,
+                4.672e-07,
+                5.921e-07,
+                6.645e-07
+              ],
+              "calc_diff_range": [
+                4.672e-07,
+                6.645e-07
+              ],
+              "rel_l2_range": [
+                0.0009666,
+                0.001153
+              ],
+              "max_abs_err_range": [
+                2.0,
+                4.0
+              ],
+              "all_ranks_pass": true,
+              "note": "Full PyTorch FP32 split reference retained from the pre-rail build. The policy-wired build is bit-exact against the direct fp4 path on all four ranks."
+            }
           },
           "latency_us": {
             "per_rank_median": [
-              142.36800372600555,
-              143.5839980840683,
-              143.5520052909851,
-              143.36000382900238
+              172.03199863433838,
+              172.4800020456314,
+              172.2240000963211,
+              172.38399386405945
             ],
-            "median_rank_median": 143.5520052909851,
-            "worst_rank_median": 143.5839980840683
+            "median_rank_median": 172.38399386405945,
+            "worst_rank_median": 172.4800020456314,
+            "pre_rail_median_rank_median": 143.5520052909851,
+            "pre_rail_worst_rank_median": 143.5839980840683,
+            "policy_rail_delta_us": 28.83198857307434
           },
           "tflops_per_gpu": {
             "per_rank": [
-              65.75695579757543,
-              62.57103359623514,
-              69.42199298295579,
-              72.14811235871029
+              54.41828614628073,
+              52.08835262897976,
+              57.86456184054732,
+              60.000661500838206
             ],
-            "nominal": 65.75695579757543,
-            "min": 62.57103359623514,
-            "max": 72.14811235871029
+            "nominal": 54.41828614628073,
+            "min": 52.08835262897976,
+            "max": 60.000661500838206,
+            "pre_rail_nominal": 65.75695579757543
           },
           "ptxas": {
             "status": "PASS",
             "audit_scope": "current policy-wired source; EP4 template H=6144, BM=16, BN=128, BK=512, 4 stages, pull=3072, 512 threads, 148 SMs",
-            "spill_stores": 16,
-            "spill_loads": 136,
+            "spill_stores": 60,
+            "spill_loads": 144,
             "registers": 128,
-            "stack_frame_bytes": 248,
+            "stack_frame_bytes": 256,
             "barriers": 16,
-            "cold_selector_out_of_line": {
-              "symbol": "weave_publish_or_copy_policy",
-              "spill_stores": 52,
-              "spill_loads": 56,
-              "stack_frame_bytes": 0
-            },
             "pre_rail_build": {
               "spill_stores": 0,
               "spill_loads": 0,
               "registers": 128,
               "stack_frame_bytes": 80,
-              "note": "Retained measurement of the pre-policy-rail source. The 143.552 us runtime result corresponds to that build."
+              "note": "Pre-policy-rail build; the 143.552 us reference corresponds to this build."
             }
           },
-          "jit_cubin_sha256": "6f2bd1220359e4933f93a0593c588decdec3728420dddf470c15d2baffe6cab7",
           "evidence": {
-            "ref_log": "/root/weave_e2e_verify/logs/p4_fp4_ref_ep4.log",
-            "bench_log": "/root/weave_e2e_verify/logs/p4_fp4_bench_ep4.log"
-          },
-          "phase5a_status": "NOT_RUN_THIS_SESSION",
-          "phase5a_note": "The verified EP4 NVFP4 result above is the retained Phase 4 measurement. Phase 5A did not re-run this case."
+            "run_json": "/root/p5c_verify/results/p5c_fp4_ep4_full.json",
+            "job_note": "Fresh clone of commit 12697d8 on mail-17-fa3f, CUDA_VISIBLE_DEVICES=4,5,6,7, DG_JIT_CACHE_DIR=/root/p5c_verify/jit_cache_fp4d",
+            "summary": {
+              "all_finite": true,
+              "all_unified_bitexact": true,
+              "routes_total": 512,
+              "latency_median_us_rank_median": 172.38399386405945,
+              "latency_worst_rank_median_us": 172.4800020456314,
+              "tflops_per_gpu": 54.41828614628073,
+              "gpu_name": "NVIDIA L20D        "
+            }
+          }
         },
         "fp8xfp4": {
           "world_sizes_attempted": [
@@ -178,7 +330,9 @@
             "Phase 5A (2026-11-20T08:20Z): all sampled CTAs stop in SYNCS.PHASECHK on full_barriers[0]",
             "Phase 5A: removing the dispatch pull wait, rank clamp, zero-active-rank guard, block-shape changes, and barrier-id remap all still hang",
             "Phase 5A: policy readback is null because the kernel never completes",
-            "Phase 5A patch: fp8 rendezvous barrier moved 8->14; fp4 user barriers moved 0..3->8..11; DeepJIT SM103 target forced to 100f; the archived run still hung"
+            "Phase 5A patch: fp8 rendezvous barrier moved 8->14; fp4 user barriers moved 0..3->8..11; DeepJIT SM103 target forced to 100f; the archived run still hung",
+            "Publication commit fa3e98f recheck: EP1 reference and config complete, first kernel launch never returned (timeout 240 s)",
+            "FP4 sibling on the same merge line passes with live CTA-0 readback; the FP8 hang is specific to the FP8xFP4 GEMM pipeline"
           ],
           "ptxas": {
             "spill_stores": 0,
@@ -204,6 +358,31 @@
               "changing block_m to 64/32, D2_REG_PULL_BYTES, and barrier ids 0..7 -> 8..15 still hangs",
               "forcing SM103 arch=100f still hangs"
             ]
+          },
+          "phase5c_recheck": {
+            "timestamp_utc": "2026-11-20T02:46:46Z",
+            "commit": "fa3e98f",
+            "device": "mail-17-fa3f",
+            "gpu": 4,
+            "shape": {
+              "S": 16,
+              "H": 4096,
+              "I": 2048,
+              "E": 128,
+              "K": 4,
+              "EP": 1
+            },
+            "stages_reached": [
+              "dist_init +12.4s",
+              "buffer_alloc nbytes=87725312 +14.3s",
+              "quantized_inputs +27.1s",
+              "reference_done 1018ms +28.1s",
+              "MegaMoEConfig printed: BM16 BN128 BK256 stages5 pull4096 threads 512"
+            ],
+            "first_kernel_done": false,
+            "timeout_s": 240,
+            "status": "HANG_AT_FIRST_KERNEL_LAUNCH",
+            "policy_readback": null
           }
         }
       },
@@ -264,7 +443,13 @@
         "fp8xfp4_status": "HANG",
         "fp4xfp4_status": "NOT_RUN_THIS_SESSION",
         "policy_rail": "source-wired in fp8 and fp4; fp8 JIT compile PASS; no live CTA-0 readback",
-        "patch_status": "full 32,959-byte diff recovered (sha256 bb41c12b...) and merged manually"
+        "patch_status": "full 32,959-byte diff recovered (sha256 bb41c12b...) and merged manually",
+        "phase5c_recheck": {
+          "fp4xfp4": "PASS on commit 12697d8 with live policy readback",
+          "fp8xfp4": "HANG at first kernel launch on commit fa3e98f",
+          "cta0_policy_readback_fp4": true,
+          "cta0_policy_readback_fp8": false
+        }
       }
     },
     {
@@ -698,10 +883,11 @@
   "honesty": {
     "all_included_gpu_numbers_from_measured_runs": true,
     "simulated_numbers_used": false,
+    "b300_fp4xfp4_fresh_policy_wired_pass": true,
+    "b300_fp4xfp4_live_cta0_readback": true,
     "b300_fp8xfp4_not_claimed_passed": true,
     "b300_fp8xfp4_still_hangs_after_phase5a": true,
-    "b300_cta0_live_readback": false,
-    "b300_fp4xfp4_phase4_pass_retained": true,
+    "b300_fp8xfp4_live_cta0_readback": false,
     "b300_ep8_not_claimed_measured": true,
     "h20_spill_zero_not_fabricated": true,
     "amd_ep16_compile_isa_pass": true,

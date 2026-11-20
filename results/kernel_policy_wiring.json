@@ -5,7 +5,7 @@
     "b300": {
       "exists": true,
       "path": "deep_gemm\\include\\deep_gemm\\impls\\sm100_fp8_fp4_mega_moe.cuh",
-      "bytes": 254061,
+      "bytes": 253573,
       "checks": {
         "scheduler_include": {
           "needle": "scheduler/mega_moe.cuh",
@@ -46,13 +46,13 @@
         "consume_scatter": {
           "needle": "selected_scatter_mode",
           "expected_count": 1,
-          "observed_count": 4,
+          "observed_count": 1,
           "ok": true
         },
         "consume_v_head": {
           "needle": "selected_v_head",
           "expected_count": 1,
-          "observed_count": 1,
+          "observed_count": 5,
           "ok": true
         },
         "all_cta_read": {
@@ -72,7 +72,7 @@
     "b300_nvfp4": {
       "exists": true,
       "path": "deep_gemm\\include\\deep_gemm\\impls\\sm100_fp4_fp4_mega_moe.cuh",
-      "bytes": 110309,
+      "bytes": 109450,
       "checks": {
         "scheduler_include": {
           "needle": "scheduler/nvfp4_mega_moe.cuh",
@@ -113,13 +113,13 @@
         "consume_scatter": {
           "needle": "selected_scatter_mode",
           "expected_count": 1,
-          "observed_count": 4,
+          "observed_count": 1,
           "ok": true
         },
         "consume_v_head": {
           "needle": "selected_v_head",
           "expected_count": 1,
-          "observed_count": 1,
+          "observed_count": 5,
           "ok": true
         },
         "all_cta_read": {
