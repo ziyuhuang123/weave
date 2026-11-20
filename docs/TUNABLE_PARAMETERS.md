@@ -1,6 +1,6 @@
 # Weave Tunable Parameters and Exact Code Locations
 
-Weave exposes one unified knob space across SM103, H20 and MI308X. Every parameter below changes real host dispatch or kernel execution; the 24 historical fields that had no reader in the runtime policy ABI are removed, and the historical hot/cold ordering switch is no longer part of the public surface. Pipeline depth is derived at launch time from the tile shape and the remaining SMEM budget, not frozen by a public knob.
+Weave exposes one unified knob space across SM103, H20 and MI308X. Every parameter below changes real host dispatch or kernel execution; the 24 historical fields that had no reader in the runtime policy ABI are removed, and the historical H20 ordering switch is no longer part of the public surface. Pipeline depth is derived at launch time from the tile shape and the remaining SMEM budget, not frozen by a public knob.
 
 The document has three sections: **Spatial**, **Temporal** and **Implementation**. Each row carries the host parse location and the kernel consumption location. `tests/verify_tunable_params_doc.py` resolves every citation against the working tree.
 

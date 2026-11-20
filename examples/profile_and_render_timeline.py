@@ -17,7 +17,7 @@ Axis taxonomy
   Spatial        : how work is partitioned across SMs/CUs and tiles
                    (block M/N/K, store granularity, wave roles, tier mode).
   Temporal       : when stages overlap and how readiness/order is managed
-                   (scatter mode, interleave, hot/cold, ready groups,
+                   (scatter mode, interleave, ready groups,
                    overlap pipeline, combine grouping).
   Implementation : code-path / precision choices that are neither a spatial
                    split nor a schedule (precision, dedup, register pull,

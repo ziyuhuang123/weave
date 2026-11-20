@@ -31,8 +31,8 @@
 #   They are reproduced exactly by the WEAVE_H20_CONFIG string itself.
 #   stages=0 means "runtime auto-selects the pipeline depth"; it does NOT mean
 #   a zero-stage pipeline.
-#   The archived hot/cold ordering key is internal to the H20 auto regime and is
-#   no longer a public knob.
+#   The archived ordering key is internal to the H20 auto regime and is no longer
+#   a public knob.
 #   The trace has dedup_disp=1 and dedup_tier=1 but no dedup_scat key, so
 #   scatter dedup is OFF (the WEAVE_DEDUP_SCATTER default is 0).
 #
