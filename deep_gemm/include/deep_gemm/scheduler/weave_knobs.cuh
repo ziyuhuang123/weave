@@ -312,6 +312,21 @@
 #ifndef WEAVE_AMD_8WAVE_MIN_TOK
 #define WEAVE_AMD_8WAVE_MIN_TOK WEAVE_DUALGROUP_MIN_TOKENS
 #endif
+// 0 = every SM runs the dispatch pull; D = only D SMs pull remote tokens and
+// the remaining SMs start GEMM work immediately.
+#ifndef WEAVE_DISPATCH_ACTIVE_SMS
+#define WEAVE_DISPATCH_ACTIVE_SMS 0u
+#endif
+// Strict binary scatter ownership (never mixed):
+//   0 = epilogue_only: epilogue warps issue the remote FC2 stores directly;
+//   1 = comm_only:     epilogue warps only stage locally and publish
+//                      descriptors; communication warps own every remote store.
+#ifndef WEAVE_SCATTER_OWNER
+#define WEAVE_SCATTER_OWNER 0u
+#endif
+#if WEAVE_SCATTER_OWNER > 1
+#error "WEAVE_SCATTER_OWNER must be 0 (epilogue_only) or 1 (comm_only)"
+#endif
 
 // --- Temporal --------------------------------------------------------------
 // 0 = default L1-first order; 1 = 64-bit XOR L2KBlockDependency bitmask with a
@@ -339,6 +354,26 @@
 // chunk, interleaving dispatch and the first GEMM waves.
 #ifndef WEAVE_HEAD_PULL_CHUNK
 #define WEAVE_HEAD_PULL_CHUNK 0u
+#endif
+// 0 = one global barrier before combine; G = chunked dedup combine sync: one
+// cross-GPU release per (source rank, G-token chunk) once every deduplicated
+// row of the chunk has been sent.  Requires local scatter dedup.
+#ifndef WEAVE_COMBINE_SYNC_CHUNK
+#define WEAVE_COMBINE_SYNC_CHUNK 0u
+#endif
+#if WEAVE_COMBINE_SYNC_CHUNK != 0 && WEAVE_COMBINE_SYNC_CHUNK != 16 && \
+    WEAVE_COMBINE_SYNC_CHUNK != 32 && WEAVE_COMBINE_SYNC_CHUNK != 64 && \
+    WEAVE_COMBINE_SYNC_CHUNK != 128
+#error "WEAVE_COMBINE_SYNC_CHUNK must be 0, 16, 32, 64 or 128"
+#endif
+// Epilogue TMEM -> register pipeline: 0 = auto (2 stages at BM>=240 with a
+// TMEM depth of at least 1.75, else 1); 1 = single buffer; 2 = two register
+// stages, prefetching store block s+1 while store block s is converted.
+#ifndef WEAVE_EPI_REG_STAGES
+#define WEAVE_EPI_REG_STAGES 0u
+#endif
+#if WEAVE_EPI_REG_STAGES > 2
+#error "WEAVE_EPI_REG_STAGES must be 0 (auto), 1 or 2"
 #endif
 
 // --- Implementation --------------------------------------------------------
@@ -369,6 +404,23 @@
 // before the NVLink/xGMI send.
 #ifndef WEAVE_LOCAL_SCATTER_DEDUP
 #define WEAVE_LOCAL_SCATTER_DEDUP 0u
+#endif
+// Scatter staging path (all three are kept selectable):
+//   0 = reg_2stage: double-buffered register transfer;
+//   1 = smem:       per-SM on-chip handoff to the same SM's dispatch warps;
+//   2 = hbm_dedup:  L2-resident HBM buffer with bf16x2 atomic dedup and a
+//                   global descriptor queue drained by the scatter SMs.
+#ifndef WEAVE_SCATTER_STAGING
+#define WEAVE_SCATTER_STAGING 0u
+#endif
+#if WEAVE_SCATTER_STAGING > 2
+#error "WEAVE_SCATTER_STAGING must be 0 (reg_2stage), 1 (smem) or 2 (hbm_dedup)"
+#endif
+#if WEAVE_SCATTER_STAGING != 0 && WEAVE_SCATTER_OWNER == 0
+#error "smem / hbm_dedup scatter staging requires WEAVE_SCATTER_OWNER=1 (comm_only)"
+#endif
+#if WEAVE_COMBINE_SYNC_CHUNK != 0 && WEAVE_SCATTER_STAGING != 2 && WEAVE_LOCAL_SCATTER_DEDUP == 0
+#error "WEAVE_COMBINE_SYNC_CHUNK > 0 must be paired with local scatter dedup"
 #endif
 
 namespace weave {
@@ -448,6 +500,8 @@ struct WeaveKnobs {
   uint32_t locality_domains;    // 0 = auto; 1, 2 (dual-die), 4 (XCD).
   uint32_t sm0_stream_sched;    // 0/1: SM 0 comm warps become scheduler lane.
   uint32_t amd_8wave_min_tok;   // MI308X 8-wave admission floor in tokens.
+  uint32_t dispatch_active_sms; // 0 = all; D = only D SMs run dispatch pull.
+  uint32_t scatter_owner;       // 0 = epilogue_only; 1 = comm_only.
 
   // --- Temporal ------------------------------------------------------------
   uint32_t l2_kblock_dep;       // 0/1: tight 1 L2 <-> 1 L1 wave schedule.
@@ -455,6 +509,8 @@ struct WeaveKnobs {
   uint32_t early_stream_reduce; // 0/1: barrier-free per-token early reduce.
   uint32_t tmem_pipeline_mode;  // 0 auto; 100, 175, 200 permille stages.
   uint32_t head_pull_chunk;     // 0 = one prefix; N = tokens per chunk.
+  uint32_t combine_sync_chunk;  // 0 = global barrier; G = chunked dedup sync.
+  uint32_t epi_reg_stages;      // 0 = auto; 1 or 2 register stages.
 
   // --- Implementation ------------------------------------------------------
   uint32_t adapt_bm;            // 0/1: per-expert dynamic BM ladder.
@@ -463,6 +519,7 @@ struct WeaveKnobs {
   uint32_t store_block_m_l1;    // 0 = auto; GEMM1 epilogue store height.
   uint32_t store_block_m_l2;    // 0 = auto; GEMM2 epilogue store height.
   uint32_t local_scatter_dedup; // 0/1: bf16x2 L2 atomic dedup before send.
+  uint32_t scatter_staging;     // 0 = reg_2stage; 1 = smem; 2 = hbm_dedup.
 };
 WEAVE_HOST_DEVICE constexpr uint32_t default_r_mask_for_arch(
     HardwareArch arch) {
@@ -496,17 +553,22 @@ WEAVE_HOST_DEVICE constexpr WeaveKnobs default_weave_knobs(
       WEAVE_LOCALITY_DOMAINS,
       WEAVE_SM0_STREAM_SCHED,
       WEAVE_AMD_8WAVE_MIN_TOK,
+      WEAVE_DISPATCH_ACTIVE_SMS,
+      WEAVE_SCATTER_OWNER,
       WEAVE_L2_KBLOCK_DEP,
       WEAVE_RING_BLOCKS,
       WEAVE_EARLY_STREAM_REDUCE,
       WEAVE_TMEM_PIPELINE_MODE,
       WEAVE_HEAD_PULL_CHUNK,
+      WEAVE_COMBINE_SYNC_CHUNK,
+      WEAVE_EPI_REG_STAGES,
       WEAVE_ADAPT_BM,
       WEAVE_BLOCK_M_L1,
       WEAVE_BLOCK_M_L2,
       WEAVE_STORE_BLOCK_M_L1,
       WEAVE_STORE_BLOCK_M_L2,
       WEAVE_LOCAL_SCATTER_DEDUP,
+      WEAVE_SCATTER_STAGING,
   };
 }
 
@@ -541,6 +603,19 @@ WEAVE_HOST_DEVICE constexpr uint32_t resolve_ring_blocks(
 WEAVE_HOST_DEVICE constexpr uint32_t resolve_tmem_pipeline_mode(
     const WeaveKnobs& knobs, uint32_t auto_mode) {
   return knobs.tmem_pipeline_mode == 0u ? auto_mode : knobs.tmem_pipeline_mode;
+}
+WEAVE_HOST_DEVICE constexpr uint32_t resolve_dispatch_active_sms(
+    const WeaveKnobs& knobs, uint32_t num_sms) {
+  return (knobs.dispatch_active_sms == 0u ||
+          knobs.dispatch_active_sms >= num_sms)
+      ? num_sms : knobs.dispatch_active_sms;
+}
+// Auto register pipeline: two stages exactly where the verified prefetch
+// pays off (BM >= 240 with a TMEM depth of at least 1.75), else one.
+WEAVE_HOST_DEVICE constexpr uint32_t resolve_epi_reg_stages(
+    const WeaveKnobs& knobs, uint32_t block_m, uint32_t tmem_mode) {
+  return knobs.epi_reg_stages != 0u ? knobs.epi_reg_stages
+      : ((block_m >= 240u && tmem_mode >= 175u) ? 2u : 1u);
 }
 WEAVE_HOST_DEVICE constexpr uint32_t resolve_block_m(
     const WeaveKnobs& knobs, uint32_t phase_l1, uint32_t phase_l2,

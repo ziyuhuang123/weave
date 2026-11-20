@@ -249,6 +249,29 @@ static AgySm90KnobSpec parse_agy_sm90_spec_string(const char* raw_str) {
     append_weave_env("early_stream", "WEAVE_EARLY_STREAM_REDUCE", "AGY_EARLY_STREAM_REDUCE");
     append_weave_env("head_pull_chunk", "WEAVE_HEAD_PULL_CHUNK", "AGY_HEAD_PULL_CHUNK");
     append_weave_env("local_dedup", "WEAVE_LOCAL_SCATTER_DEDUP", "AGY_LOCAL_SCATTER_DEDUP");
+    append_weave_env("dispatch_sms", "WEAVE_DISPATCH_ACTIVE_SMS");
+    append_weave_env("comb_sync_chunk", "WEAVE_COMBINE_SYNC_CHUNK");
+    append_weave_env("epi_reg_stages", "WEAVE_EPI_REG_STAGES");
+    // Named enum knobs: the spec carries the integer code.
+    auto append_named_env = [&](const char* key, const char* primary,
+                                std::initializer_list<const char*> names) {
+        const char* val = std::getenv(primary);
+        if (val == nullptr or *val == '\0')
+            return;
+        int code = 0;
+        for (const char* candidate : names) {
+            if (std::strcmp(val, candidate) == 0) {
+                const std::string code_str = std::to_string(code);
+                // Code 0 is the default and is never appended (see append_env_knob).
+                append_env_knob(key, code_str.c_str());
+                return;
+            }
+            ++code;
+        }
+        append_env_knob(key, val);
+    };
+    append_named_env("scatter_owner", "WEAVE_SCATTER_OWNER", {"epilogue_only", "comm_only"});
+    append_named_env("scatter_staging", "WEAVE_SCATTER_STAGING", {"reg_2stage", "smem", "hbm_dedup"});
     if (combined.empty())
         return spec;
     spec.enabled = true;
@@ -456,6 +479,40 @@ static std::string get_agy_sm90_jit_defines(const AgySm90KnobSpec& spec) {
     if (spec.get_int("local_dedup", 0) > 0) {
         defs += "#define WEAVE_LOCAL_SCATTER_DEDUP 1\n";
         defs += "#define WEAVE_HBM_SCATTER_QUEUE 1\n";
+    }
+    {
+        // Strict binary scatter ownership + staging (same rules as the
+        // unified host resolver): local dedup without an explicit staging
+        // selects hbm_dedup; any staged path or scatter SM throttle is
+        // comm-owned; hbm_dedup implies the bf16x2 dedup queue.
+        const bool local_dedup = spec.get_int("local_dedup", 0) > 0;
+        int staging = spec.get_int("scatter_staging", local_dedup ? 2 : 0);
+        DG_HOST_ASSERT(staging >= 0 and staging <= 2);
+        int owner = spec.get_int("scatter_owner",
+                                 (staging != 0 or scatter_sms > 0) ? 1 : 0);
+        DG_HOST_ASSERT(owner == 0 or owner == 1);
+        DG_HOST_ASSERT(staging == 0 or owner == 1);
+        DG_HOST_ASSERT(scatter_sms == 0 or owner == 1);
+        if (staging == 2 and not local_dedup) {
+            defs += "#define WEAVE_LOCAL_SCATTER_DEDUP 1\n";
+            defs += "#define WEAVE_HBM_SCATTER_QUEUE 1\n";
+        }
+        defs += std::format("#define WEAVE_SCATTER_OWNER {}\n", owner);
+        defs += std::format("#define WEAVE_SCATTER_STAGING {}\n", staging);
+        const int comb_sync_chunk = spec.get_int("comb_sync_chunk", 0);
+        DG_HOST_ASSERT(comb_sync_chunk == 0 or comb_sync_chunk == 16 or comb_sync_chunk == 32 or
+                       comb_sync_chunk == 64 or comb_sync_chunk == 128);
+        DG_HOST_ASSERT(comb_sync_chunk == 0 or local_dedup or staging == 2);
+        if (comb_sync_chunk > 0)
+            defs += std::format("#define WEAVE_COMBINE_SYNC_CHUNK {}\n", comb_sync_chunk);
+        const int dispatch_sms = spec.get_int("dispatch_sms", 0);
+        DG_HOST_ASSERT(dispatch_sms >= 0);
+        if (dispatch_sms > 0)
+            defs += std::format("#define WEAVE_DISPATCH_ACTIVE_SMS {}\n", dispatch_sms);
+        const int epi_reg_stages = spec.get_int("epi_reg_stages", 0);
+        DG_HOST_ASSERT(epi_reg_stages >= 0 and epi_reg_stages <= 2);
+        if (epi_reg_stages > 0)
+            defs += std::format("#define WEAVE_EPI_REG_STAGES {}\n", epi_reg_stages);
     }
     if (spec.get_int("adapt_bm", 0) > 0) {
         defs += "#define WEAVE_ADAPT_BM 1\n";

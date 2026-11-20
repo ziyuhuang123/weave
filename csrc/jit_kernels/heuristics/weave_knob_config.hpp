@@ -11,6 +11,9 @@
 
 #include <algorithm>
 #include <cstdint>
+#include <cstdlib>
+#include <cstring>
+#include <initializer_list>
 
 #include <deep_gemm/scheduler/weave_knobs.cuh>
 
@@ -34,6 +37,27 @@ static inline bool is_candidate_block_m(const uint32_t block_m) {
         if (block_m == candidate)
             return true;
     return false;
+}
+
+// Named enum knobs accept either the documented name or its integer code.
+// Returns `fallback` when the variable is unset or empty.
+static inline int named_env(const char* name,
+                            std::initializer_list<const char*> names,
+                            const int fallback) {
+    const char* raw = std::getenv(name);
+    if (raw == nullptr or *raw == '\0')
+        return fallback;
+    int code = 0;
+    for (const char* candidate : names) {
+        if (std::strcmp(raw, candidate) == 0)
+            return code;
+        ++code;
+    }
+    char* end = nullptr;
+    const long value = std::strtol(raw, &end, 10);
+    DG_HOST_ASSERT(end != raw and *end == '\0' and value >= 0 and
+                   value < static_cast<long>(names.size()));
+    return static_cast<int>(value);
 }
 
 static inline void validate(const weave::WeaveKnobs& knobs,
@@ -60,6 +84,9 @@ static inline weave::WeaveKnobs from_env(
     knobs.amd_8wave_min_tok = static_cast<uint32_t>(bounded_env(
         "WEAVE_AMD_8WAVE_MIN_TOK", "DG_AMD_8WAVE_MIN_TOK",
         static_cast<int>(knobs.amd_8wave_min_tok), 0, 65536));
+    knobs.dispatch_active_sms = static_cast<uint32_t>(bounded_env(
+        "WEAVE_DISPATCH_ACTIVE_SMS", nullptr,
+        static_cast<int>(knobs.dispatch_active_sms), 0, 1024));
 
     // Temporal
     knobs.l2_kblock_dep = static_cast<uint32_t>(bounded_env(
@@ -77,6 +104,12 @@ static inline weave::WeaveKnobs from_env(
     knobs.head_pull_chunk = static_cast<uint32_t>(bounded_env(
         "WEAVE_HEAD_PULL_CHUNK", "DG_HEAD_PULL_CHUNK",
         static_cast<int>(knobs.head_pull_chunk), 0, 65536));
+    knobs.combine_sync_chunk = static_cast<uint32_t>(bounded_env(
+        "WEAVE_COMBINE_SYNC_CHUNK", nullptr,
+        static_cast<int>(knobs.combine_sync_chunk), 0, 128));
+    knobs.epi_reg_stages = static_cast<uint32_t>(bounded_env(
+        "WEAVE_EPI_REG_STAGES", nullptr,
+        static_cast<int>(knobs.epi_reg_stages), 0, 2));
 
     // Implementation
     knobs.adapt_bm = static_cast<uint32_t>(bounded_env(
@@ -97,6 +130,24 @@ static inline weave::WeaveKnobs from_env(
     knobs.local_scatter_dedup = static_cast<uint32_t>(bounded_env(
         "WEAVE_LOCAL_SCATTER_DEDUP", "DG_LOCAL_SCATTER_DEDUP",
         static_cast<int>(knobs.local_scatter_dedup), 0, 1));
+
+    // Scatter ownership and staging.  Local dedup without an explicit staging
+    // request selects the HBM dedup path; HBM dedup always enables the bf16x2
+    // dedup; and any staged path is owned by the communication warps.
+    const bool staging_set = std::getenv("WEAVE_SCATTER_STAGING") != nullptr;
+    knobs.scatter_staging = static_cast<uint32_t>(named_env(
+        "WEAVE_SCATTER_STAGING", {"reg_2stage", "smem", "hbm_dedup"},
+        static_cast<int>(knobs.scatter_staging)));
+    if (not staging_set and knobs.local_scatter_dedup != 0u)
+        knobs.scatter_staging = 2u;
+    if (knobs.scatter_staging == 2u)
+        knobs.local_scatter_dedup = 1u;
+    const bool owner_set = std::getenv("WEAVE_SCATTER_OWNER") != nullptr;
+    knobs.scatter_owner = static_cast<uint32_t>(named_env(
+        "WEAVE_SCATTER_OWNER", {"epilogue_only", "comm_only"},
+        static_cast<int>(knobs.scatter_owner)));
+    if (not owner_set and (knobs.scatter_staging != 0u or knobs.scatter_active_sms != 0u))
+        knobs.scatter_owner = 1u;
 
     // Legacy primary spellings map onto the phase-specific fields.
     const int legacy_store_m = get_weave_env<int>(
@@ -137,6 +188,20 @@ static inline void validate(const weave::WeaveKnobs& knobs,
                    knobs.tmem_pipeline_mode == 200u);
     if (knobs.tmem_pipeline_mode == 175u)
         DG_HOST_ASSERT(arch == weave::HardwareArch::B300_SM100);
+    // Strict binary scatter ownership: staged paths need a comm owner, and a
+    // throttled scatter SM subset only exists when comm warps own the scatter.
+    DG_HOST_ASSERT(knobs.scatter_owner <= 1u);
+    DG_HOST_ASSERT(knobs.scatter_staging <= 2u);
+    if (knobs.scatter_staging != 0u)
+        DG_HOST_ASSERT(knobs.scatter_owner == 1u);
+    if (knobs.scatter_active_sms != 0u)
+        DG_HOST_ASSERT(knobs.scatter_owner == 1u);
+    DG_HOST_ASSERT(knobs.combine_sync_chunk == 0u or knobs.combine_sync_chunk == 16u or
+                   knobs.combine_sync_chunk == 32u or knobs.combine_sync_chunk == 64u or
+                   knobs.combine_sync_chunk == 128u);
+    if (knobs.combine_sync_chunk != 0u)
+        DG_HOST_ASSERT(knobs.local_scatter_dedup == 1u);
+    DG_HOST_ASSERT(knobs.epi_reg_stages <= 2u);
 }
 
 static inline uint32_t resolve_tmem_pipeline_mode(

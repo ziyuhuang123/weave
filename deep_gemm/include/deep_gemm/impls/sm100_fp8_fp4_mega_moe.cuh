@@ -43,6 +43,26 @@
 #ifndef WEAVE_STORE_BLOCK_M_L1
 #define WEAVE_STORE_BLOCK_M_L1 0
 #endif
+#ifndef WEAVE_DISPATCH_ACTIVE_SMS
+#define WEAVE_DISPATCH_ACTIVE_SMS 0
+#endif
+#ifndef WEAVE_SCATTER_OWNER
+#define WEAVE_SCATTER_OWNER 0
+#endif
+#ifndef WEAVE_SCATTER_STAGING
+#define WEAVE_SCATTER_STAGING 0
+#endif
+#ifndef WEAVE_COMBINE_SYNC_CHUNK
+#define WEAVE_COMBINE_SYNC_CHUNK 0
+#endif
+#ifndef WEAVE_EPI_REG_STAGES
+#define WEAVE_EPI_REG_STAGES 0
+#endif
+static_assert(WEAVE_SCATTER_OWNER <= 1, "WEAVE_SCATTER_OWNER: 0 = epilogue_only, 1 = comm_only");
+static_assert(WEAVE_SCATTER_STAGING <= 2, "WEAVE_SCATTER_STAGING: 0 = reg_2stage, 1 = smem, 2 = hbm_dedup");
+static_assert(WEAVE_SCATTER_STAGING == 0 or WEAVE_SCATTER_OWNER == 1,
+              "smem / hbm_dedup staging is owned by communication warps (comm_only)");
+static_assert(WEAVE_EPI_REG_STAGES <= 2, "WEAVE_EPI_REG_STAGES: 0 = auto, 1, 2");
 
 // Reset both per-domain queues even when the build does not use them; the cost
 // is four stores once per launch and keeps the workspace byte layout stable.
@@ -1376,6 +1396,17 @@ sm100_fp8_fp4_mega_moe_impl(void* y,
     // NVLink writer pool.  It is only legal for 128-column epilogue subtiles.
     static constexpr bool kD7QueueScatterActive =
         (DG_D7_QUEUE_SCATTER != 0) and (kD6GroupTiles == 0u) and (LAYOUT_AD_M == 128u);
+    // Strict binary ownership: epilogue_only never hands rows to the
+    // communication warps, and comm_only never leaves remote stores in the
+    // epilogue (SMEM handoff or HBM dedup queue must be selected).
+    static constexpr bool kScatterCommOwned = (WEAVE_SCATTER_OWNER == 1);
+    static constexpr bool kD7CommExecutor =
+        (DG_TUNE_D7_SCATTER_MODE == 1) or (DG_TUNE_D7_SCATTER_MODE == 3);
+    DG_STATIC_ASSERT(kScatterCommOwned == kD7CommExecutor,
+                     "WEAVE_SCATTER_OWNER must match the executor: epilogue_only = modes 0/2, "
+                     "comm_only = SMEM handoff (1) or HBM dedup queue (3)");
+    DG_STATIC_ASSERT(WEAVE_SCATTER_STAGING != 2 or DG_D7_QUEUE_SCATTER != 0,
+                     "WEAVE_SCATTER_STAGING=hbm_dedup selects the HBM scatter-queue path");
     static constexpr uint32_t kD7QueueActiveSms =
         (DG_D7_ACTIVE_SMS <= 0 or static_cast<uint32_t>(DG_D7_ACTIVE_SMS) >= kNumSMs)
             ? kNumSMs : static_cast<uint32_t>(DG_D7_ACTIVE_SMS);
@@ -3679,9 +3710,13 @@ sm100_fp8_fp4_mega_moe_impl(void* y,
                          "WEAVE_TMEM_PIPELINE_MODE must be auto, 1.0, 1.75 or 2.0");
         DG_STATIC_ASSERT(kTmemPipelineMode != 175u or BLOCK_M == 256u,
                          "The 1.75-stage TMEM pipeline requires BLOCK_M=256");
-        constexpr uint32_t kNumEpiPrefetchStages =
-            (kTmemPipelineMode >= 175u and BLOCK_M >= 240u and
-             kNumNSubtiles == 1u and DG_D3_DYN_EPI == 0) ? 1u : 0u;
+        constexpr bool kEpiRegPrefetchLegal =
+            (kNumNSubtiles == 1u and DG_D3_DYN_EPI == 0);
+        constexpr uint32_t kNumEpiPrefetchStages = (WEAVE_EPI_REG_STAGES == 0)
+            ? ((kTmemPipelineMode >= 175u and BLOCK_M >= 240u and kEpiRegPrefetchLegal) ? 1u : 0u)
+            : static_cast<uint32_t>(WEAVE_EPI_REG_STAGES) - 1u;
+        DG_STATIC_ASSERT(kNumEpiPrefetchStages == 0u or kEpiRegPrefetchLegal,
+                         "WEAVE_EPI_REG_STAGES=2 needs one N subtile and a static epilogue");
         constexpr uint32_t kNumAtomsPerStore = STORE_BLOCK_M / ATOM_M;
         constexpr uint32_t kMaxTotalAtoms = BLOCK_M / ATOM_M;
         constexpr uint32_t kMaxWgAtoms = (kMaxTotalAtoms + kNumEpilogueWarpgroups - 1) / kNumEpilogueWarpgroups;

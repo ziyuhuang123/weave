@@ -152,8 +152,11 @@ def write_docs(schema) -> None:
         "| Parameter group | SM103 fp8xfp4 | SM103 fp4xfp4 | H20 | MI308X EP8 | MI308X EP16 |\n"
         "|---|---|---|---|---|---|\n"
         "| Spatial: dispatch warps, scatter SMs, locality domains, SM 0 scheduler | yes | n/a | yes | yes | yes |\n"
+        "| Spatial: strict binary scatter ownership (`epilogue_only` / `comm_only`) | yes | n/a | yes | n/a | n/a |\n"
         "| Temporal: L2 K-block dependency, ring blocks, early reduce, TMEM pipeline, head pull | yes | ring only | yes | yes | yes |\n"
+        "| Temporal: epilogue register stages | yes | n/a | n/a | n/a | n/a |\n"
         "| Implementation: per-expert BM, asymmetric store, local dedup, precision | yes | fixed | yes | yes | yes |\n"
+        "| Implementation: scatter staging (`reg_2stage` / `smem` / `hbm_dedup`) | yes | n/a | yes | n/a | n/a |\n"
     )
     (ROOT / "docs" / "TUNABLE_PARAMETERS.md").write_text("\n".join(parts), encoding="utf-8")
 

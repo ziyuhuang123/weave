@@ -164,9 +164,23 @@ public:
         const int d6_rw = get_weave_env<int>("WEAVE_COMBINE_REDUCE_WARPS", "DG_TUNE_D6_REDUCE_WARPS", "DG_ISOLATED_D6_REDUCE_WARPS", 0);
         // Axis 7 (D7)
         const int d7_scatter_mode = get_weave_env<int>("WEAVE_SCATTER_MODE", "DG_TUNE_D7_SCATTER_MODE", nullptr, -1);
-        int d7_isolated_scatter = get_weave_env<int>("WEAVE_SCATTER_MODE", "DG_ISOLATED_D7_SCATTER", nullptr, (d7_scatter_mode >= 0) ? d7_scatter_mode : 0);
+        // Derived from the strict binary ownership + staging knobs unless an
+        // explicit WEAVE_SCATTER_MODE pins the executor:
+        //   epilogue_only            -> 0 (epilogue issues remote stores)
+        //   comm_only + smem         -> 1 (SMEM handoff to dispatch warps)
+        //   comm_only + hbm_dedup    -> 3 (bf16x2 dedup + HBM scatter queue)
+        const int derived_scatter_mode =
+            knobs.scatter_owner == 0u ? 0 : (knobs.scatter_staging == 2u ? 3 : 1);
+        int d7_isolated_scatter = get_weave_env<int>("WEAVE_SCATTER_MODE", "DG_ISOLATED_D7_SCATTER", nullptr,
+                                                     (d7_scatter_mode >= 0) ? d7_scatter_mode : derived_scatter_mode);
         if (knobs.local_scatter_dedup != 0u)
             d7_isolated_scatter = 3;  // local bf16x2 dedup + HBM scatter queue
+        DG_HOST_ASSERT(d7_isolated_scatter >= 0 and d7_isolated_scatter <= 3);
+        // The emitted ownership/staging always agree with the final executor,
+        // so an explicit WEAVE_SCATTER_MODE cannot produce a mixed owner.
+        const int emitted_scatter_owner = (d7_isolated_scatter == 1 or d7_isolated_scatter == 3) ? 1 : 0;
+        const int emitted_scatter_staging = d7_isolated_scatter == 3 ? 2 : (d7_isolated_scatter == 1 ? 1 : 0);
+        DG_HOST_ASSERT(knobs.scatter_owner == 0u or emitted_scatter_owner == 1);
         const int d7_smem_alias = get_weave_env<int>("WEAVE_SCATTER_SMEM_ALIAS", "DG_TUNE_D7_SMEM_ALIAS", nullptr, 1);
         const int d7_warps = get_weave_env<int>("WEAVE_SCATTER_WARPS", "DG_TUNE_D7_WARPS", "DG_TUNE_D7_SCATTER_WARPS", get_env<int>("DG_SCATTER_WARPS", 0));
         const int d7_handoff_wait = get_weave_env<int>("WEAVE_SCATTER_HANDOFF_WAIT", "DG_TUNE_D7_HANDOFF_WAIT", nullptr, 1);
@@ -216,6 +230,13 @@ public:
         knob_macros << "#define WEAVE_BLOCK_M_L2 " << knobs.block_m_l2 << "\n";
         knob_macros << "#define WEAVE_STORE_BLOCK_M_L1 " << args.config.store_block_m_l1 << "\n";
         knob_macros << "#define WEAVE_STORE_BLOCK_M_L2 " << args.config.store_block_m_l2 << "\n";
+        knob_macros << "#define WEAVE_DISPATCH_ACTIVE_SMS " << knobs.dispatch_active_sms << "\n";
+        knob_macros << "#define WEAVE_SCATTER_OWNER " << emitted_scatter_owner << "\n";
+        knob_macros << "#define WEAVE_SCATTER_STAGING " << emitted_scatter_staging << "\n";
+        knob_macros << "#define WEAVE_COMBINE_SYNC_CHUNK " << knobs.combine_sync_chunk << "\n";
+        knob_macros << "#define WEAVE_EPI_REG_STAGES " << weave::resolve_epi_reg_stages(
+            knobs, static_cast<uint32_t>(d3_bm > 0 ? d3_bm : args.config.block_m),
+            static_cast<uint32_t>(args.config.tmem_pipeline_mode)) << "\n";
 
         return fmt::format(R"(
 {}

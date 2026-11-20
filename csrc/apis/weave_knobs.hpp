@@ -2,7 +2,7 @@
 // =============================================================================
 // Python-visible schema and defaults for the unified Weave knob space.
 //
-// The same 23-field WeaveKnobs request is used by the CTA-0 policy rail and by
+// The same WeaveKnobs request is used by the CTA-0 policy rail and by
 // the host dispatchers.  This binding exposes the public names, their category
 // (Spatial / Temporal / Implementation) and the compiled defaults so tuning
 // scripts and the documentation generator share one source of truth.
@@ -47,6 +47,9 @@ static const std::vector<KnobSchemaEntry>& knob_schema_entries() {
         {"WEAVE_SM0_STREAM_SCHED", "Spatial",
          "0 = off; 1 = SM 0 communication warps become the scheduler lane",
          "Dedicated SM 0 streaming scheduler."},
+        {"WEAVE_SCATTER_OWNER", "Spatial",
+         "0 = epilogue_only; 1 = comm_only",
+         "Strict binary scatter ownership."},
         {"WEAVE_AMD_8WAVE_MIN_TOK", "Spatial",
          "N = minimum local tokens per CU-expert; 0 = dual-group default",
          "MI308X 8-wave schedule admission floor."},
@@ -72,12 +75,12 @@ static const std::vector<KnobSchemaEntry>& knob_schema_entries() {
         {"WEAVE_HEAD_PULL_CHUNK", "Temporal",
          "0 = one opening prefix; N = tokens per head-pull chunk",
          "Opening head-pull chunk budget."},
+        {"WEAVE_EPI_REG_STAGES", "Temporal",
+         "0 = auto; 1 = single register buffer; 2 = two register stages",
+         "Epilogue TMEM-to-register pipeline depth."},
         {"WEAVE_V_HEAD", "Temporal",
          "0 = automatic; N = opening head-pull budget in tokens",
          "Opening head-pull budget."},
-        {"WEAVE_SCATTER_MODE", "Temporal",
-         "0 = epilogue inline; 1 = async comm queue; 2 = local dedup first; 3 = local dedup + HBM queue",
-         "Scatter executor ownership."},
         {"WEAVE_OVERLAP_PIPELINE", "Temporal",
          "0 = serialized; 1 = compute-communication overlap",
          "Compute-communication overlap."},
@@ -121,6 +124,12 @@ static const std::vector<KnobSchemaEntry>& knob_schema_entries() {
         {"WEAVE_LOCAL_SCATTER_DEDUP", "Implementation",
          "0 = full-precision local accumulation; 1 = bf16x2 L2 atomic dedup",
          "Hardware L2 atomic scatter dedup."},
+        {"WEAVE_SCATTER_STAGING", "Implementation",
+         "0 = reg_2stage; 1 = smem; 2 = hbm_dedup",
+         "Scatter staging fast path."},
+        {"WEAVE_SCATTER_MODE", "Implementation",
+         "0 = epilogue inline; 1 = SMEM handoff; 2 = local dedup first; 3 = local dedup + HBM queue",
+         "Low-level scatter executor code (derived on SM103)."},
         {"WEAVE_REG_PULL_BYTES", "Implementation",
          "0 = SMEM staging; 1024, 2048, 4096 = register-direct pull width",
          "Register-direct pull width."},
@@ -181,6 +190,9 @@ static py::dict weave_knob_defaults(const std::string& mma_type) {
     out["WEAVE_STORE_BLOCK_M_L1"] = knobs.store_block_m_l1;
     out["WEAVE_STORE_BLOCK_M_L2"] = knobs.store_block_m_l2;
     out["WEAVE_LOCAL_SCATTER_DEDUP"] = knobs.local_scatter_dedup;
+    out["WEAVE_SCATTER_OWNER"] = knobs.scatter_owner;
+    out["WEAVE_SCATTER_STAGING"] = knobs.scatter_staging;
+    out["WEAVE_EPI_REG_STAGES"] = knobs.epi_reg_stages;
     out["WEAVE_ABLATION_PRESET"] = static_cast<uint32_t>(WEAVE_ABLATION_PRESET);
     out["WEAVE_ENABLE_COST_MODEL"] = knobs.enable_runtime_cost_model;
     out["WEAVE_V_HEAD"] = static_cast<uint32_t>(WEAVE_V_HEAD);
