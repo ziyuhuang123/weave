@@ -392,6 +392,10 @@ struct V1864Roles {
   unsigned comm_ctas;
 };
 
+// Public names used by the unified WEAVE_* documentation and launchers.
+using WeaveWaveRoles = V1864Roles;
+using WEAVE_WAVE_ROLES = WeaveWaveRoles;
+
 __device__ __forceinline__ bool v1864_decode_roles(unsigned config, V1864Roles& r) {
   switch(config) {
     case V1864_ROLE_64_16: r = {64u, 64u, 16u}; return true;
@@ -460,7 +464,7 @@ __device__ __forceinline__ bool v983_wait_ge(const unsigned* p, unsigned target,
                                               unsigned* error, unsigned code) {
   unsigned backoff = 1u, spins = 0u;
 #if WEAVE_OPT_RELAXED_SPIN
-  // relaxed 轮询：不�?acquire 语义，因此不会每圈作�?L1/L2�?  // 条件满足后在函数返回前补一�?acquire 栅栏，保证后续读到的 payload 是新的�?  while(__hip_atomic_load(p, __ATOMIC_RELAXED, __HIP_MEMORY_SCOPE_SYSTEM) < target) {
+  // relaxed 轮询：不�?acquire 语义，因此不会每圈作�?L1/L2�?  // 条件满足后在函数返回前补一�?acquire 栅栏，保证后续读到的 payload 是新的�?  while(__hip_atomic_load(p, __ATOMIC_RELAXED, __HIP_MEMORY_SCOPE_SYSTEM) < target) {
 #else
   while(v983_load_system(p) < target) {
 #endif
@@ -702,7 +706,7 @@ __device__ __forceinline__ void weave_v4_gemm1_direct(
   const int32_t* stage1_ids = reinterpret_cast<const int32_t*>(ck.ck_sorted_token_ids);
   const unsigned* recv_ready = reinterpret_cast<const unsigned*>(o.recv_payload_ready);
   volatile WeaveBk64LocalU32* sh_tile = reinterpret_cast<volatile WeaveBk64LocalU32*>(reinterpret_cast<uintptr_t>(g_v1262_phase_arena + 65472u + grp_sh));
-#if defined(WEAVE_KNOB_OVERLAP_PIPELINE) && (WEAVE_KNOB_OVERLAP_PIPELINE == 0)
+#if defined(WEAVE_OVERLAP_PIPELINE) && (WEAVE_OVERLAP_PIPELINE == 0)
   {
     // Bulk-synchronous stage serialization (-S-T / -S-T-C): all 256 threads wait in
     // parallel on uncached recv_ready (ZERO buffer_inv contention across 80 vs 48 CTAs).
@@ -893,16 +897,16 @@ __device__ __forceinline__ void weave_v4_gemm2_direct(
   volatile WeaveBk64LocalU32* sh_tile = reinterpret_cast<volatile WeaveBk64LocalU32*>(reinterpret_cast<uintptr_t>(g_v1262_phase_arena + 65472u + grp_sh));
 
   const unsigned init_m_tiles = __builtin_amdgcn_readfirstlane(plan->total_m_tiles);
-#if WEAVE_KNOB_BN2_MODE == 64
+#if WEAVE_BN2_MODE == 64
   const bool use_bn64 = true;
-#elif WEAVE_KNOB_BN2_MODE == 128
+#elif WEAVE_BN2_MODE == 128
   const bool use_bn64 = false;
 #else
   const unsigned n_large_tiles = __builtin_amdgcn_readfirstlane(plan->num_tiles[0] + plan->num_tiles[1]);
   const bool use_bn64 = (n_large_tiles == 0u) && (init_m_tiles >= 16u) && (init_m_tiles * n2_blocks <= 320u);
 #endif
-#if WEAVE_KNOB_S2_NGROUP_MODE >= 1
-  const unsigned n2_group = (!use_bn64 && ((n2_blocks % WEAVE_KNOB_S2_NGROUP_MODE) == 0u)) ? WEAVE_KNOB_S2_NGROUP_MODE : 1u;
+#if WEAVE_S2_NGROUP_MODE >= 1
+  const unsigned n2_group = (!use_bn64 && ((n2_blocks % WEAVE_S2_NGROUP_MODE) == 0u)) ? WEAVE_S2_NGROUP_MODE : 1u;
 #else
   const unsigned ng4_min_work = split_128 ? 256u : 160u;
   const unsigned ng2_min_work = split_128 ? 192u : 128u;
@@ -1141,7 +1145,7 @@ void stage_ep16_turbo_overlap(V983Envelope envelope,
   }
   auto* arena=g_v1262_phase_arena;
   auto* trace=(unsigned long long*)o.trace;
-  V1864Roles roles{80u,0u,80u};
+  WeaveWaveRoles roles{80u,0u,80u};
   if(tid==0u) trace[16u+cta*16u]=v983_clock();
   weave_4wave_barrier_reset_65440(arena);
   if(tid==0u) v1262_publish_wait_context((unsigned*)e.error,e.rank,1u);
@@ -1152,9 +1156,9 @@ void stage_ep16_turbo_overlap(V983Envelope envelope,
   // t_local >= 64 (S>=1024) AND wide-expert models like qwen38max at S=128
   // (t_local >= 4 && est_s1_tiles >= 192) where 2x occupancy hides HBM3 latency.
   const unsigned est_s1_tiles = (e.world > 0u) ? ((e.n_experts / e.world) * (env.ck.ck_intermediate >> 7u)) : 0u;
-  bool dual = (e.t_local >= WEAVE_KNOB_DUALGROUP_MIN_TOKENS) || (e.t_local >= 4u && est_s1_tiles >= 192u);
+  bool dual = (e.t_local >= WEAVE_DUALGROUP_MIN_TOKENS) || (e.t_local >= 4u && est_s1_tiles >= 192u);
 #else
-  bool dual = (e.t_local >= WEAVE_KNOB_DUALGROUP_MIN_TOKENS);
+  bool dual = (e.t_local >= WEAVE_DUALGROUP_MIN_TOKENS);
 #endif
   if(wave<4u) {
     FI_BG(V1988_FI_PHASE,V1988_EV_ROUTE_PLAN,cta);
@@ -1206,7 +1210,7 @@ void stage_ep16_turbo_overlap(V983Envelope envelope,
   if(!weave_v4_group_no_error((const unsigned*)e.error,arena)){FI_CLOSE();return;}
   weave_v4_gemm2_direct(env,o,arena,dual,(unsigned*)x.compute_done FI_CTX_ARG);
   if(tid==0u) trace[16u+cta*16u+10u]=v983_clock();
-#if (!defined(WEAVE_KNOB_ALL_WAVE_COMBINE) || (WEAVE_KNOB_ALL_WAVE_COMBINE != 0)) && (!defined(WEAVE_KNOB_OVERLAP_PIPELINE) || (WEAVE_KNOB_OVERLAP_PIPELINE != 0))
+#if (!defined(WEAVE_ALL_WAVE_COMBINE) || (WEAVE_ALL_WAVE_COMBINE != 0)) && (!defined(WEAVE_OVERLAP_PIPELINE) || (WEAVE_OVERLAP_PIPELINE != 0))
   // One-pass zero-poll post-GEMM Scatter_xGMI reclamation (up to 608 waves!)
   if(weave_v4_group_no_error((const unsigned*)e.error,arena)){
     const bool weave_scatter_dual =

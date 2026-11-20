@@ -886,15 +886,15 @@ __device__ __forceinline__ void weave_v4_gemm2_direct(
   volatile WeaveBk64LocalU32* sh_tile = reinterpret_cast<volatile WeaveBk64LocalU32*>(reinterpret_cast<uintptr_t>(g_v1262_phase_arena + 65472u + grp_sh));
 
   const unsigned init_m_tiles = __builtin_amdgcn_readfirstlane(plan->total_m_tiles);
-#if WEAVE_KNOB_BN2_MODE == 64
+#if WEAVE_BN2_MODE == 64
   const bool use_bn64 = true;
-#elif WEAVE_KNOB_BN2_MODE == 128
+#elif WEAVE_BN2_MODE == 128
   const bool use_bn64 = false;
 #else
   const bool use_bn64 = (init_m_tiles >= 16u) && (init_m_tiles * n2_blocks <= 320u);
 #endif
-#if WEAVE_KNOB_S2_NGROUP_MODE >= 1
-  const unsigned n2_group = (!use_bn64 && ((n2_blocks % WEAVE_KNOB_S2_NGROUP_MODE) == 0u)) ? WEAVE_KNOB_S2_NGROUP_MODE : 1u;
+#if WEAVE_S2_NGROUP_MODE >= 1
+  const unsigned n2_group = (!use_bn64 && ((n2_blocks % WEAVE_S2_NGROUP_MODE) == 0u)) ? WEAVE_S2_NGROUP_MODE : 1u;
 #else
   const unsigned n2_group = (!split_128 && !use_bn64 && (ck.ck_intermediate <= 1024u))
       ? ((((n2_blocks & 3u) == 0u) && (init_m_tiles * (n2_blocks >> 2u) >= 160u)) ? 4u
@@ -1180,7 +1180,7 @@ v1864_ov1_runtime_roles(V983Envelope envelope) {
   // __syncthreads() is issued; the two halves run concurrently and coordinate
   // only through fine-grained global flags and the 4-wave LDS barrier.
   // =========================================================================
-  const bool use_8wave = (e.t_local >= WEAVE_KNOB_DUALGROUP_MIN_TOKENS);
+  const bool use_8wave = (e.t_local >= WEAVE_DUALGROUP_MIN_TOKENS);
   if (wave < 4u) {
     // COMPUTE half (Group 0, waves 0..3): 80-CTA parallel route plan then direct-gather GEMM1 + GEMM2.
     FI_BG(V1988_FI_PHASE, V1988_EV_ROUTE_PLAN, cta);
@@ -1190,7 +1190,7 @@ v1864_ov1_runtime_roles(V983Envelope envelope) {
       FI_CLOSE();
       return;
     }
-#if WEAVE_KNOB_OVERLAP_PIPELINE == 0
+#if WEAVE_OVERLAP_PIPELINE == 0
     // Bulk-synchronous (-S-T ablation): wait for all local dispatch waves (320) across all 8 ranks
     // by waiting for all source slots in recv_payload_ready before starting GEMM1!
     {
@@ -1220,7 +1220,7 @@ v1864_ov1_runtime_roles(V983Envelope envelope) {
     }
     weave_v4_gemm2_direct(env, o, phase_arena, use_8wave FI_CTX_ARG);
     if (tid == 0u && trace != nullptr) trace[16u + cta * 16u + 8u] = v983_clock();
-#if WEAVE_KNOB_OVERLAP_PIPELINE == 0
+#if WEAVE_OVERLAP_PIPELINE == 0
     if (tid == 0u) {
       __threadfence();
       (void)__hip_atomic_fetch_add(reinterpret_cast<unsigned*>(o.plan_flags) + 7u, 1u,
@@ -1244,7 +1244,7 @@ v1864_ov1_runtime_roles(V983Envelope envelope) {
     }
   }
 
-#if WEAVE_KNOB_OVERLAP_PIPELINE == 0
+#if WEAVE_OVERLAP_PIPELINE == 0
   // Bulk-synchronous (-S-T ablation): wait for all 80 CTAs to complete GEMM2 before Combine
   if (!weave_comm_wave_wait_ge(reinterpret_cast<const unsigned*>(o.plan_flags) + 7u, 80u,
                                trace ? trace + 16u + cta * 16u + 14u : nullptr,

@@ -71,21 +71,21 @@ __host__ __device__ __forceinline__ WeaveGreedyTilePlan weave_greedy_plan_init(u
 #define WEAVE_ROUNDUP_SINGLE_TILE 2
 #endif
 
-#ifndef WEAVE_KNOB_BM_TIER_MODE
-#define WEAVE_KNOB_BM_TIER_MODE 2
+#ifndef WEAVE_BM_TIER_MODE
+#define WEAVE_BM_TIER_MODE 2
 #endif
 
 __host__ __device__ __forceinline__ uint32_t weave_greedy_next_tile(
     WeaveGreedyTilePlan& p, uint32_t& valid_rows) {
     uint32_t bm;
-#if WEAVE_KNOB_BM_TIER_MODE == 0
+#if WEAVE_BM_TIER_MODE == 0
     if (p.q16 == 0u) { valid_rows = 0u; return 0u; }
     bm = 64u;
     p.q16 = (p.q16 > 4u) ? (p.q16 - 4u) : 0u;
     valid_rows = p.rem_valid >= 64u ? 64u : p.rem_valid;
     p.rem_valid -= valid_rows;
     return bm;
-#elif WEAVE_KNOB_BM_TIER_MODE == 1
+#elif WEAVE_BM_TIER_MODE == 1
     if (p.q16 >= 4u)      { bm = 64u; p.q16 -= 4u; }
     else if (p.q16 == 3u) { bm = 64u; p.q16 = 0u; }
     else if (p.q16 == 2u) { bm = 32u; p.q16 = 0u; }
@@ -129,12 +129,12 @@ __host__ __device__ __forceinline__ uint32_t weave_greedy_next_tile(
 __host__ __device__ __forceinline__ void weave_compute_expert_tile_counts(
     uint32_t q, uint32_t* out5) {
     uint32_t rem = q;
-#if WEAVE_KNOB_BM_TIER_MODE == 0
+#if WEAVE_BM_TIER_MODE == 0
     out5[0] = 0u; out5[1] = 0u;
     out5[2] = (rem == 0u) ? 0u : ((rem + 3u) >> 2u);
     out5[3] = 0u; out5[4] = 0u;
     return;
-#elif WEAVE_KNOB_BM_TIER_MODE == 1
+#elif WEAVE_BM_TIER_MODE == 1
     out5[0] = 0u; out5[1] = 0u;
     uint32_t b2 = rem >> 2u; rem &= 3u;
     uint32_t b3 = 0u, b4 = 0u;
@@ -489,7 +489,7 @@ __device__ __forceinline__ bool v983_route_plan_parallel_80cta(
                 counts[lid] = c;
                 plan_counts[lid] = c;
                 const uint32_t q = (c + 15u) >> 4u;
-#if WEAVE_KNOB_BM_TIER_MODE == 0
+#if WEAVE_BM_TIER_MODE == 0
                 plan_padded[lid] = (q == 0u) ? 0u : (((q + 3u) >> 2u) << 6u);
 #else
                 plan_padded[lid] = q << 4u;
@@ -577,7 +577,7 @@ __device__ __forceinline__ bool v983_route_plan_parallel_80cta(
                         d.valid_rows = static_cast<uint16_t>(valid_rows);
                         d.tile_idx = out_idx;
                         descs[out_idx] = d;
-#if WEAVE_KNOB_BM_TIER_MODE == 0
+#if WEAVE_BM_TIER_MODE == 0
                         cur_row += 64u;
 #else
                         cur_row += ((valid_rows + 15u) & ~15u);

@@ -78,17 +78,40 @@ def run(cmd, log, timeout=900):
     return p.stdout
 
 
+def weave_env(name, legacy=None, default=None):
+    value = os.environ.get(name)
+    if (value is None or value == "") and legacy:
+        value = os.environ.get(legacy)
+    return default if value is None or value == "" else value
+
+
+def weave_int(name, legacy=None, default=0):
+    return int(weave_env(name, legacy, str(default)))
+
+
 report = {}
-ablation_preset = int(os.environ.get("WEAVE_ABLATION_PRESET", "0"))
+ablation_preset = weave_int("WEAVE_ABLATION_PRESET", default=0)
 if ablation_preset not in (0, 1, 2, 3):
     raise SystemExit("WEAVE_ABLATION_PRESET must be one of 0,1,2,3")
 
+profiler_level = weave_int("WEAVE_PROFILER_LEVEL", "FI_LEVEL", 0)
 fi_variants = [("fi0_mode2", 0)]
-if os.environ.get("BUILD_FI2_PROFILER", "0") == "1":
+if profiler_level == 2 or os.environ.get("BUILD_FI2_PROFILER", "0") == "1":
     fi_variants.append(("fi2_mode2", 2))
 
 for name, fi in fi_variants:
-    scatter_env = os.environ.get("WEAVE_SCATTER_ENV", "0" if ablation_preset == 3 else "2")
+    scatter_env = weave_int("WEAVE_SCATTER_MODE", "WEAVE_SCATTER_ENV",
+                            0 if ablation_preset == 3 else 2)
+    bm_tier = weave_int("WEAVE_BM_TIER_MODE", default=2)
+    selective = weave_int("WEAVE_SELECTIVE_DEDUP", default=1)
+    dualgroup = weave_int("WEAVE_DUALGROUP_MIN_TOKENS", default=64)
+    overlap = weave_int("WEAVE_OVERLAP_PIPELINE", default=1)
+    all_wave = weave_int("WEAVE_ALL_WAVE_COMBINE", default=1)
+    bn2 = weave_int("WEAVE_BN2_MODE", default=0)
+    s2_group = weave_int("WEAVE_S2_NGROUP_MODE", default=0)
+    route_plan = weave_int("WEAVE_PARALLEL_ROUTE_PLAN", default=1)
+    th_bm64 = weave_int("WEAVE_TH_BM64", default=16)
+    th_bm128 = weave_int("WEAVE_TH_BM128", default=96)
     out = R / "build" / (name + f"_p{ablation_preset}_m{scatter_env}"
                          + os.environ.get("BUILD_ATTEMPT", ""))
     out.mkdir(parents=True, exist_ok=False)
@@ -99,16 +122,24 @@ for name, fi in fi_variants:
     cmd = [
         CLANG, "-x", "hip", "--offload-arch=gfx942", "--cuda-device-only",
         "-O3", "-S", "-std=c++20", "-DKITTENS_CDNA3", "-DV1098_FORCE_M=0",
-        f"-DFI_LEVEL={fi}", "-DFI_TIMER=0", "-DFI_GRAN=0",
-        "-DWEAVE_PARALLEL_ROUTE_PLAN=1", "-DWEAVE_PAR_RP=1",
+        f"-DFI_LEVEL={fi}", f"-DWEAVE_PROFILER_LEVEL={fi}",
+        "-DFI_TIMER=0", "-DFI_GRAN=0",
+        f"-DWEAVE_PARALLEL_ROUTE_PLAN={route_plan}", "-DWEAVE_PAR_RP=1",
         "-DWEAVE_CK_G2_LDS_ONLY=0", "-DWEAVE_TILE_TRACE_ONLY=1",
         "-DWEAVE_ADAPTIVE_POST_TIMEOUT=1", "-DWEAVE_S16_PLAN_CAP=0",
         "-DWEAVE_S16_STATIC_DISPATCH=0", "-DWEAVE_OPT_RELAXED_SPIN=1",
         "-DWEAVE_OPT_LOCAL_SCOPE=1",
-        f"-DWEAVE_SCATTER_MODE={int(scatter_env)}",
-        "-DWEAVE_CO_PROFILE=0", "-DWEAVE_TH_BM64=16u", "-DWEAVE_TH_BM128=96u",
+        f"-DWEAVE_SCATTER_MODE={scatter_env}",
+        f"-DWEAVE_BM_TIER_MODE={bm_tier}",
+        f"-DWEAVE_SELECTIVE_DEDUP={selective}",
+        f"-DWEAVE_DUALGROUP_MIN_TOKENS={dualgroup}",
+        f"-DWEAVE_OVERLAP_PIPELINE={overlap}",
+        f"-DWEAVE_ALL_WAVE_COMBINE={all_wave}",
+        f"-DWEAVE_BN2_MODE={bn2}",
+        f"-DWEAVE_S2_NGROUP_MODE={s2_group}",
+        "-DWEAVE_CO_PROFILE=0",
+        f"-DWEAVE_TH_BM64={th_bm64}u", f"-DWEAVE_TH_BM128={th_bm128}u",
         f"-DWEAVE_ABLATION_PRESET={ablation_preset}",
-        "-DWEAVE_KNOB_BM_TIER_MODE=2", "-DWEAVE_KNOB_SELECTIVE_DEDUP=1",
         "-mllvm", "-amdgpu-opt-vgpr-liverange=true",
         "-mllvm", "-sink-insts-to-avoid-spills=true",
         "-w", "-fno-offload-uniform-block", "-fgpu-flush-denormals-to-zero",
@@ -138,9 +169,9 @@ for name, fi in fi_variants:
         out / "logs/isa_audit.json"))
     if fi == 0:
         if int(audit.get("vgpr_spill_count_max", -1)) != 0:
-            raise RuntimeError(f"{name}: production FI_LEVEL=0 requires zero VGPR spills")
+            raise RuntimeError(f"{name}: production WEAVE_PROFILER_LEVEL=0 requires zero VGPR spills")
         if int(audit.get("private_segment_fixed_size_max", -1)) != 0:
-            raise RuntimeError(f"{name}: production FI_LEVEL=0 requires scratch=0")
+            raise RuntimeError(f"{name}: production WEAVE_PROFILER_LEVEL=0 requires scratch=0")
         if int(audit.get("s_barrier", -1)) != 1:
             raise RuntimeError(f"{name}: production kernel must contain exactly one s_barrier")
     report[name] = {

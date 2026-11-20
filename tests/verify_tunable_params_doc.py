@@ -1,90 +1,104 @@
 #!/usr/bin/env python3
-"""Verify every file:line citation in the tunable-parameter documentation.
+"""Publication gate for tunable-parameter documentation.
 
-Each markdown table row has the form
+The gate verifies three independent properties:
 
-    | `KNOB` / `KERNEL_SYMBOL` | ... | `path:line` | `path:line` |
-
-The verifier resolves every `path:line` citation and requires the cited source
-line to contain at least one identifier named in the row's Knob column.  This
-keeps the documentation mechanically tied to the implementation instead of
-accepting stale or invented line numbers.
+1. Every path:line citation in README.md, README_zh.md and
+   docs/TUNABLE_PARAMETERS.md resolves to a line containing the parameter or
+   documented kernel-side symbol named by that table row.
+2. Public documentation contains no archived project codeword or BOM.
+3. Every required result figure is referenced by both READMEs, exists, and is a
+   structurally valid PNG.
 """
 from __future__ import annotations
 
 import re
+import struct
 import sys
 from pathlib import Path
 from typing import Dict, List, Tuple
 
 ROOT = Path(__file__).resolve().parents[1]
-DOCS = [ROOT / "README.md", ROOT / "docs" / "TUNABLE_PARAMETERS.md"]
-
-CITATION_RE = re.compile(r"`([^`\s]+):(\d+)`")
-IDENT_RE = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
-
-# Knobs that the Phase-2 contract requires to be documented.  The check is
-# intentionally name-based so a row can list a host macro and its kernel-side
-# alias together.
-REQUIRED = [
-    "WEAVE_ABLATION_PRESET", "WEAVE_KNOB_ENABLE_RUNTIME_COST_MODEL",
-    "WEAVE_KNOB_COMM_UNITS", "WEAVE_KNOB_COMP_UNITS",
-    "WEAVE_KNOB_DUALGROUP_MIN_TOKENS", "WEAVE_KNOB_BM_TIER_MODE",
-    "WEAVE_KNOB_BN1", "WEAVE_KNOB_BN2_MODE", "WEAVE_KNOB_BK",
-    "WEAVE_KNOB_S2_NGROUP_MODE", "WEAVE_KNOB_HETERO_SM_MASK",
-    "WEAVE_KNOB_OVERLAP_PIPELINE", "WEAVE_KNOB_SCATTER_MODE",
-    "WEAVE_KNOB_GEMM_STAGES", "WEAVE_KNOB_ALL_WAVE_COMBINE",
-    "WEAVE_KNOB_SPIN_BEFORE_SLEEP", "WEAVE_KNOB_SELECTIVE_DEDUP",
-    "WEAVE_KNOB_REGISTER_DIRECT_COMM", "WEAVE_KNOB_PARALLEL_ROUTE_PLAN",
-    "WEAVE_KNOB_LOCAL_FIRST_ORDER", "WEAVE_KNOB_FUSED_SWIGLU_REQUANT",
-    "WEAVE_KNOB_TAIL_FINE_GRAINED", "WEAVE_KNOB_V_HEAD",
-    "WEAVE_KNOB_PRECISION_MODE", "precision_mode", "mma_type",
-    "DG_TUNE_D1_G", "DG_TUNE_D2_MODE", "DG_TUNE_D2_REG_PULL_BYTES",
-    "DG_ISOLATED_D2_D8_SM_LIMIT", "DG_ISOLATED_D2_DISP_REGS",
-    "DG_ISOLATED_D2_EPI_REGS", "DG_TUNE_D3_BM", "DG_TUNE_D3_BN",
-    "DG_TUNE_D3_BK", "DG_TUNE_D3_STORE_M", "DG_TUNE_D3_DYN_EPI",
-    "DG_TUNE_D3_DYN_TMA_A", "DG_TUNE_D3_OVERLAP_SMEM",
-    "DG_D3_ACCUM_STAGES", "DG_D3_TMA_STORE_STAGES", "DG_D3_SCHED_STAGES",
-    "DG_TUNE_D4_EPW", "DG_TUNE_D4_STATIC", "DG_TUNE_D4_READYQ",
-    "DG_TUNE_D4_MODE", "DG_TUNE_D5_DEDUP", "DG_TUNE_D5_SCHED",
-    "DG_TUNE_D6_G", "DG_TUNE_D6_REDUCE_WARPS", "DG_TUNE_D7_SCATTER_MODE",
-    "DG_TUNE_D7_SMEM_ALIAS", "DG_TUNE_D7_WARPS", "DG_TUNE_D7_HANDOFF_WAIT",
-    "DG_SHARED_L2_EARLY_BLOCKS", "kEnableMulticast",
-    "DG_MOE_SWAPAB_AUTO", "DG_MOE_SWAPAB_EPI_WG", "DG_MOE_SWAPAB_MAX_LOAD",
-    "DG_MOE_SWAPAB_PAD_PCT", "DG_MOE_SWAPAB_MIN_LOAD", "kSwapSFSubBlocks",
-    "AGY_MCAST", "AGY_SWIZZLE_TILES", "AGY_HOT_COLD_L1",
-    "AGY_DEDUP_DISP", "AGY_DEDUP_SCAT", "AGY_REG_COMB",
-    "AGY_ALL_IDLE_COMB", "AGY_DYN_SCHED", "AGY_D_MASK_MODE",
-    "WEAVE_SCATTER_MODE", "WEAVE_KNOB_BN2_MODE",
-    "WEAVE_TH_BM64", "WEAVE_TH_BM128", "WEAVE_PARALLEL_ROUTE_PLAN",
-    "V1864Roles", "EP16_SLOT_CHUNK", "ep16t_ret_chunk",
-    "meta_chunk_slots", "FI_LEVEL",
+DOCS = [
+    ROOT / "README.md",
+    ROOT / "README_zh.md",
+    ROOT / "docs" / "TUNABLE_PARAMETERS.md",
 ]
+SCAN_DOCS = DOCS + [
+    ROOT / "baselines" / "README.md",
+    ROOT / "baselines" / "README_zh.md",
+    ROOT / "ablation" / "README.md",
+    ROOT / "ablation" / "README_zh.md",
+]
+README_DOCS = [ROOT / "README.md", ROOT / "README_zh.md"]
+REQUIRED_FIGURES = [
+    "docs/figures/weave_eval_3hw_speedup.png",
+    "docs/figures/weaveprofiler_b300_timeline.png",
+    "docs/figures/weaveprofiler_h20_timeline.png",
+    "docs/figures/weaveprofiler_mi308x_timeline.png",
+]
+
+CITATION_RE = re.compile(r"\`([^\`\s]+):(\d+)\`")
+IDENT_RE = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
+IMAGE_RE = re.compile(r"!\[[^\]]*\]\(([^)]+)\)")
+
+FORBIDDEN = [
+    "\ufeff", "v33", "v28", "v20", "r31", "V1864", "D1-D7", "D1–D7",
+    "DG_TUNE_D", "DG_ISOLATED_", "DG_MOE_", "AGY_", "kAgy",
+    "DELIVERY_20261116", "Phase-2", "Phase-3", "Phase-4", "Phase-5",
+    "Phase 2", "Phase 3", "Phase 4", "Phase 5", "3050", "RTX",
+]
+
+REQUIRED = """
+WEAVE_PRECISION_MODE WEAVE_ABLATION_PRESET WEAVE_ENABLE_COST_MODEL
+WEAVE_COMM_UNITS WEAVE_COMP_UNITS WEAVE_V_HEAD WEAVE_SCATTER_MODE
+WEAVE_OVERLAP_PIPELINE WEAVE_SELECTIVE_DEDUP WEAVE_ALL_WAVE_COMBINE
+WEAVE_TAIL_FINE_GRAINED WEAVE_READY_GROUP_SIZE WEAVE_WARP_SPLIT_MODE
+WEAVE_REG_PULL_BYTES WEAVE_HETERO_SM_LIMIT WEAVE_DISP_REGS WEAVE_EPI_REGS
+WEAVE_BLOCK_M WEAVE_BLOCK_N WEAVE_BLOCK_K WEAVE_STORE_BLOCK_M
+WEAVE_DYN_EPILOGUE WEAVE_DYN_TMA_A WEAVE_OVERLAP_EXPERT_SMEM
+WEAVE_EXPERT_STEP_MODE WEAVE_ACCUM_STAGES WEAVE_TMA_STORE_STAGES
+WEAVE_SCHED_STAGES WEAVE_EXPERTS_PER_WAVE WEAVE_STATIC_EXPERT_ORDER
+WEAVE_READY_QUEUE WEAVE_SCHED_MODE WEAVE_DEDUP_MODE WEAVE_DEDUP_SCHED
+WEAVE_COMBINE_GROUP_TILES WEAVE_COMBINE_REDUCE_WARPS
+WEAVE_SCATTER_SMEM_ALIAS WEAVE_SCATTER_WARPS WEAVE_SCATTER_HANDOFF_WAIT
+WEAVE_SHARED_L2_EARLY_BLOCKS WEAVE_ENABLE_MULTICAST WEAVE_SWAPAB_AUTO
+WEAVE_SWAPAB_EPI_WG WEAVE_SWAPAB_MAX_LOAD WEAVE_SWAPAB_PAD_PCT
+WEAVE_SWAPAB_MIN_LOAD WEAVE_MCAST WEAVE_SWIZZLE_TILES WEAVE_HOT_COLD_MODE
+WEAVE_DEDUP_DISPATCH WEAVE_DEDUP_SCATTER WEAVE_REG_COMBINE
+WEAVE_ALL_IDLE_COMBINE WEAVE_DYN_SCHED WEAVE_INTERLEAVE_L1_L2
+WEAVE_SCATTER_ROLE_DISP WEAVE_HETERO_MASK_MODE WEAVE_PIPE_WGMMA
+WEAVE_SWAP_PIPE WEAVE_FAST_PULL WEAVE_ADAPT_BM WEAVE_BM_TIER_MODE
+WEAVE_DUALGROUP_MIN_TOKENS WEAVE_BN2_MODE WEAVE_S2_NGROUP_MODE
+WEAVE_TH_BM64 WEAVE_TH_BM128 WEAVE_PARALLEL_ROUTE_PLAN WEAVE_WAVE_ROLES
+WEAVE_SLOT_CHUNK WEAVE_RET_CHUNK WEAVE_META_CHUNK_SLOTS
+WEAVE_PROFILER_LEVEL
+""".split()
 
 
 def knob_tokens(cell: str) -> List[str]:
-    tokens = IDENT_RE.findall(cell)
-    return [t for t in tokens if t not in {"struct", "field", "Python", "C"}]
+    return [t for t in IDENT_RE.findall(cell)
+            if t.startswith("WEAVE_") or t in {"mma_type", "precision_mode"}]
 
 
-def check_file(path: Path) -> Tuple[Dict, List[str]]:
+def check_citations(path: Path) -> Tuple[Dict[str, int], List[str]]:
     errors: List[str] = []
-    rows = 0
-    citations = 0
-    seen_knobs = set()
-    for lineno, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+    rows = citations = 0
+    seen = set()
+    text = path.read_text(encoding="utf-8")
+    for lineno, line in enumerate(text.splitlines(), 1):
         if not line.startswith("|") or line.startswith("|---"):
             continue
         cells = [c.strip() for c in line.strip().strip("|").split("|")]
         if len(cells) < 3:
             continue
         knob = cells[0]
-        if knob.lower() in {"knob", "hardware"}:
+        if knob.lower() in {"parameter", "knob", "hardware"}:
             continue
         tokens = knob_tokens(knob)
         if not tokens:
             continue
-        seen_knobs.update(tokens)
+        seen.update(tokens)
         refs = CITATION_RE.findall(line)
         if not refs:
             continue
@@ -103,39 +117,118 @@ def check_file(path: Path) -> Tuple[Dict, List[str]]:
             src_lines = target.read_text(encoding="utf-8", errors="replace").splitlines()
             n = int(line_s)
             if n < 1 or n > len(src_lines):
-                errors.append(f"{path.name}:{lineno}: {rel}:{n} out of range (1..{len(src_lines)})")
+                errors.append(
+                    f"{path.name}:{lineno}: {rel}:{n} out of range "
+                    f"(1..{len(src_lines)})")
                 continue
             src = src_lines[n - 1]
-            # Allow the common -D<MACRO> build-flag spelling.
             if not any(re.search(rf"{re.escape(t)}(?![A-Za-z0-9_])", src)
                        for t in tokens):
                 errors.append(
-                    f"{path.name}:{lineno}: {rel}:{n} does not contain any of {tokens}; "
-                    f"line={src.strip()[:120]!r}")
-    missing = [k for k in REQUIRED if k not in seen_knobs]
+                    f"{path.name}:{lineno}: {rel}:{n} does not contain "
+                    f"any expected symbol {tokens}; line={src.strip()[:160]!r}")
+    total_refs = len(CITATION_RE.findall(text))
+    if citations != total_refs:
+        errors.append(
+            f"{path.name}: {total_refs - citations} citation(s) are outside "
+            "parameter table rows and were not verified")
+    missing = [k for k in REQUIRED if k not in seen]
     for k in missing:
-        errors.append(f"{path.name}: required knob {k} is not documented")
-    return {"rows": rows, "citations": citations, "knobs": len(seen_knobs)}, errors
+        errors.append(f"{path.name}: required parameter {k} is not documented")
+    return {"rows": rows, "citations": citations, "parameters": len(seen)}, errors
+
+
+def check_forbidden(path: Path) -> List[str]:
+    raw = path.read_bytes()
+    errors: List[str] = []
+    if raw.startswith(b"\xef\xbb\xbf"):
+        errors.append(f"{path.name}: UTF-8 BOM at byte 0")
+    text = raw.decode("utf-8", errors="replace")
+    if "\ufeff" in text:
+        errors.append(f"{path.name}: UTF-8 BOM character present")
+    folded = text.casefold()
+    for token in FORBIDDEN:
+        if token == "﻿":
+            continue
+        if token.casefold() in folded:
+            errors.append(f"{path.name}: forbidden token {token!r}")
+    return errors
+
+
+def png_header(path: Path) -> Tuple[int, int]:
+    raw = path.read_bytes()
+    if len(raw) < 24 or raw[:8] != b"\x89PNG\r\n\x1a\n":
+        raise ValueError("invalid PNG signature")
+    length, chunk = struct.unpack(">I4s", raw[8:16])
+    if chunk != b"IHDR" or length != 13:
+        raise ValueError("missing IHDR")
+    width, height = struct.unpack(">II", raw[16:24])
+    if width <= 0 or height <= 0:
+        raise ValueError("invalid dimensions")
+    return width, height
+
+
+def check_figures() -> List[str]:
+    errors: List[str] = []
+    for readme in README_DOCS:
+        text = readme.read_text(encoding="utf-8")
+        refs = set(IMAGE_RE.findall(text))
+        for rel in REQUIRED_FIGURES:
+            if rel not in refs:
+                errors.append(f"{readme.name}: missing figure reference {rel}")
+            target = ROOT / rel
+            if not target.exists():
+                errors.append(f"{readme.name}: missing figure file {rel}")
+                continue
+            try:
+                png_header(target)
+            except Exception as exc:
+                errors.append(f"{readme.name}: invalid PNG {rel}: {exc}")
+    for rel in REQUIRED_FIGURES:
+        target = ROOT / rel
+        if target.exists():
+            try:
+                png_header(target)
+            except Exception as exc:
+                errors.append(f"invalid PNG {rel}: {exc}")
+    return errors
 
 
 def main() -> None:
-    all_errors: List[str] = []
-    report = {}
+    errors: List[str] = []
+    for path in SCAN_DOCS:
+        if not path.exists():
+            errors.append(f"missing documentation file: {path}")
+            continue
+        errors.extend(check_forbidden(path))
+
+    total_rows = total_citations = 0
     for path in DOCS:
         if not path.exists():
-            all_errors.append(f"missing documentation file: {path}")
+            errors.append(f"missing citation document: {path}")
             continue
-        stats, errors = check_file(path)
-        report[path.name] = stats
-        all_errors.extend(errors)
-        print(f"[{'PASS' if not errors else 'FAIL'}] {path.name}: "
-              f"rows={stats['rows']} citations={stats['citations']} knobs={stats['knobs']}")
-    if all_errors:
-        for e in all_errors:
-            print("  ERROR:", e)
-        print(f"TOTAL ERRORS: {len(all_errors)}")
+        stats, row_errors = check_citations(path)
+        total_rows += stats["rows"]
+        total_citations += stats["citations"]
+        errors.extend(row_errors)
+        print(f"[{'PASS' if not row_errors else 'FAIL'}] {path.name}: "
+              f"rows={stats['rows']} citations={stats['citations']} "
+              f"parameters={stats['parameters']}")
+
+    figure_errors = check_figures()
+    errors.extend(figure_errors)
+    print(f"[{'PASS' if not figure_errors else 'FAIL'}] figures="
+          f"{len(REQUIRED_FIGURES)} referenced by both READMEs")
+    print(f"[{'PASS' if not any('forbidden' in e for e in errors) else 'FAIL'}] "
+          f"forbidden-token/BOM scan: {len(SCAN_DOCS)} documents")
+    print(f"TOTAL rows={total_rows} citations={total_citations}")
+
+    if errors:
+        for error in errors:
+            print("  ERROR:", error)
+        print(f"TOTAL ERRORS: {len(errors)}")
         raise SystemExit(1)
-    print("ALL TUNABLE-PARAMETER file:line CITATIONS VERIFIED")
+    print("ALL TUNABLE-PARAMETER CITATIONS, BLACKLIST AND PNG GATES PASS")
 
 
 if __name__ == "__main__":

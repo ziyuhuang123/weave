@@ -61,6 +61,17 @@ def _project_paths() -> tuple[Path, Path]:
 
 
 PROJECT_ROOT, EP16_DIR = _project_paths()
+def weave_env(name: str, legacy: str | None = None, default: str | None = None) -> str | None:
+    value = os.environ.get(name)
+    if (value is None or value == "") and legacy:
+        value = os.environ.get(legacy)
+    return default if value is None or value == "" else value
+
+
+def weave_int(name: str, legacy: str | None = None, default: int = 0) -> int:
+    return int(weave_env(name, legacy, str(default)))
+
+
 
 import torch  # noqa: E402
 import torch.distributed as dist  # noqa: E402
@@ -88,7 +99,7 @@ import ep16_turbo_runner as T  # noqa: E402
 
 
 WORLD = 16
-TURBO_MODES = tuple(int(x) for x in os.environ.get("EP16_TURBO_MODES", "2").split(",") if x.strip())
+TURBO_MODES = tuple(int(x) for x in (weave_env("WEAVE_TURBO_MODES", "EP16_TURBO_MODES", "2") or "2").split(",") if x.strip())
 REL_L2_GATE = 0.02
 MAX_ROW_GATE = 0.05
 SEED_BASE = 20261104
@@ -156,7 +167,7 @@ def _adaptive_slot_chunk(t_local: int) -> int:
     first chunk of a bucket postable after ~1/8 of its rows are staged.  The
     host clamps it to `capacity` and the plan validates power-of-two 1..64.
     """
-    override = int(os.environ.get("EP16_SLOT_CHUNK", "0") or 0)
+    override = weave_int("WEAVE_SLOT_CHUNK", "EP16_SLOT_CHUNK", 0)
     if override:
         return max(1, min(64, override))
     k = 4
@@ -219,7 +230,9 @@ def _build_turbo_arm(*, name: str, mode: int, rank: int, ctx: Mapping[str, Any],
     shape.route_rows, shape.slot_chunk = route_rows, _adaptive_slot_chunk(t_local)
     # One metadata descriptor per peer keeps the per-QP WRITE budget flat
     # (cap*64 B <= 128 KiB for every point of the paper grid).
-    shape.meta_chunk_slots = max(256, t_local)
+    shape.meta_chunk_slots = max(
+        weave_int("WEAVE_META_CHUNK_SLOTS", "META_CHUNK_SLOTS", 256), t_local)
+    shape.reserved[0] = weave_int("WEAVE_RET_CHUNK", "EP16_RET_CHUNK", 0)
     shape.flags = 1 if include_self else 0
     shape.enable_dispatch_time = 0
     shape.enable_scatter_time = 0

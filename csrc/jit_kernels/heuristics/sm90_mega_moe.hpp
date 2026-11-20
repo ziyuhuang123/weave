@@ -14,6 +14,7 @@
 #include <vector>
 
 #include "../../utils/exception.hpp"
+#include "../../utils/system.hpp"
 
 #include <deep_jit/utils/env.hpp>
 #include <deep_gemm/common/types.cuh>
@@ -208,12 +209,38 @@ static AgySm90KnobSpec parse_agy_sm90_spec_string(const char* raw_str) {
             combined += ",";
         combined += needle + std::string(val);
     };
-    append_env_knob("meta_g", std::getenv("AGY_META_GROUP_G"));
-    append_env_knob("tile_sync", std::getenv("AGY_TILE_SYNC_G"));
-    append_env_knob("fine_comb_g", std::getenv("AGY_FINE_COMB_G"));
-    append_env_knob("early_comb", std::getenv("AGY_EARLY_COMB"));
-    append_env_knob("comb_warps", std::getenv("AGY_COMB_WARPS"));
-    append_env_knob("all_idle_comb", std::getenv("AGY_ALL_IDLE_COMB"));
+    auto append_weave_env = [&](const char* key, const char* primary,
+                                  const char* legacy1 = nullptr,
+                                  const char* legacy2 = nullptr) {
+        const char* val = std::getenv(primary);
+        if ((val == nullptr or *val == '\0') and legacy1 != nullptr)
+            val = std::getenv(legacy1);
+        if ((val == nullptr or *val == '\0') and legacy2 != nullptr)
+            val = std::getenv(legacy2);
+        append_env_knob(key, val);
+    };
+    append_weave_env("meta_g", "AGY_META_GROUP_G", "AGY_META_GROUP_G");
+    append_weave_env("tile_sync", "AGY_TILE_SYNC_G", "AGY_TILE_SYNC_G");
+    append_weave_env("fine_comb_g", "AGY_FINE_COMB_G", "AGY_FINE_COMB_G");
+    append_weave_env("early_comb", "AGY_EARLY_COMB", "AGY_EARLY_COMB");
+    append_weave_env("comb_warps", "AGY_COMB_WARPS", "AGY_COMB_WARPS");
+
+    // Public H20 knobs: WEAVE_* wins; archived AGY_* spellings are fallback.
+    append_weave_env("mcast", "WEAVE_MCAST", "AGY_MCAST");
+    append_weave_env("swizzle_tiles", "WEAVE_SWIZZLE_TILES", "AGY_SWIZZLE_TILES");
+    append_weave_env("hot_cold", "WEAVE_HOT_COLD_MODE", "WEAVE_HOT_COLD_MODE", "WEAVE_HOT_COLD_L2");
+    append_weave_env("dedup_disp", "WEAVE_DEDUP_DISPATCH", "AGY_DEDUP_DISP");
+    append_weave_env("dedup_scat", "WEAVE_DEDUP_SCATTER", "AGY_DEDUP_SCAT");
+    append_weave_env("reg_comb", "WEAVE_REG_COMBINE", "AGY_REG_COMB");
+    append_weave_env("all_idle_comb", "WEAVE_ALL_IDLE_COMBINE", "AGY_ALL_IDLE_COMB");
+    append_weave_env("dyn", "WEAVE_DYN_SCHED", "AGY_DYN_SCHED");
+    append_weave_env("interleave_l1_l2", "WEAVE_INTERLEAVE_L1_L2", "AGY_INTERLEAVE_L1_L2");
+    append_weave_env("scatter_role", "WEAVE_SCATTER_ROLE_DISP", "AGY_SCATTER_ROLE_DISP");
+    append_weave_env("d_mask_mode", "WEAVE_HETERO_MASK_MODE", "AGY_D_MASK_MODE");
+    append_weave_env("pipe_wgmma", "WEAVE_PIPE_WGMMA", "AGY_PIPE_WGMMA");
+    append_weave_env("swap_pipe", "WEAVE_SWAP_PIPE", "AGY_SWAP_PIPE");
+    append_weave_env("fast_pull", "WEAVE_FAST_PULL", "AGY_FAST_PULL");
+    append_weave_env("adapt_bm", "WEAVE_ADAPT_BM", "AGY_ADAPT_BM");
     if (combined.empty())
         return spec;
     spec.enabled = true;
@@ -353,10 +380,14 @@ static AgySm90KnobSpec make_agy_auto_sm90_spec(
 }
 
 static AgySm90KnobSpec get_agy_sm90_spec(const Sm90MoeHeuristicInput* input = nullptr) {
-    const char* force_off = std::getenv("AGY_FORCE_OFFICIAL");
+    const char* force_off = std::getenv("WEAVE_FORCE_OFFICIAL");
+    if (force_off == nullptr or *force_off == '\0')
+        force_off = std::getenv("AGY_FORCE_OFFICIAL");
     if (force_off != nullptr and *force_off != '\0' and *force_off != '0')
         return {};
-    const char* env_val = std::getenv("AGY_SM90_CFG");
+    const char* env_val = std::getenv("WEAVE_H20_CONFIG");
+    if (env_val == nullptr or *env_val == '\0')
+        env_val = std::getenv("AGY_SM90_CFG");
     if (env_val != nullptr and *env_val != '\0') {
         if (std::strcmp(env_val, "auto=1") == 0 or std::strcmp(env_val, "AUTO") == 0)
             return input != nullptr ? make_agy_auto_sm90_spec(*input, true) : AgySm90KnobSpec{};
@@ -391,7 +422,7 @@ static std::string get_agy_sm90_jit_defines(const AgySm90KnobSpec& spec) {
     if (spec.get_int("full_nswap", 0) > 0)
         defs += "#define AGY_FULL_NSWAP 1\n";
     if (spec.get_int("adapt_bm", 0) > 0) {
-        defs += "#define AGY_ADAPT_BM 1\n";
+        defs += "#define WEAVE_ADAPT_BM 1\n";
         if (spec.get_int("full_nswap", 0) == 0)
             defs += "#define AGY_FULL_NSWAP 1\n";
     }
@@ -400,22 +431,22 @@ static std::string get_agy_sm90_jit_defines(const AgySm90KnobSpec& spec) {
     if (spec.get_int("compact", 0) > 0)
         defs += "#define AGY_COMPACT_NOTIFY 1\n";
     if (spec.get_int("dyn", 0) > 0 or spec.get_int("adapt_bm", 0) > 0)
-        defs += "#define AGY_DYN_SCHED 1\n";
+        defs += "#define WEAVE_DYN_SCHED 1\n";
     if (spec.get_int("pipe_wgmma", 0) > 0)
-        defs += "#define AGY_PIPE_WGMMA 1\n";
+        defs += "#define WEAVE_PIPE_WGMMA 1\n";
     if (spec.get_int("swap_pipe", 0) > 0)
-        defs += "#define AGY_SWAP_PIPE 1\n";
+        defs += "#define WEAVE_SWAP_PIPE 1\n";
     if (spec.get_int("fast_pull", 0) > 0)
-        defs += "#define AGY_FAST_PULL 1\n";
+        defs += "#define WEAVE_FAST_PULL 1\n";
     if (spec.get_int("dedup_disp", 0) > 0)
-        defs += "#define AGY_DEDUP_DISP 1\n";
+        defs += "#define WEAVE_DEDUP_DISPATCH 1\n";
     if (spec.get_int("dedup_scat", 0) > 0)
-        defs += "#define AGY_DEDUP_SCAT 1\n";
+        defs += "#define WEAVE_DEDUP_SCATTER 1\n";
     if (spec.get_int("fast_comb", 0) > 0)
         defs += "#define AGY_FAST_COMB 1\n";
     const int reg_comb = spec.get_int("reg_comb", 0);
     if (reg_comb > 0)
-        defs += std::format("#define AGY_REG_COMB {}\n", reg_comb);
+        defs += std::format("#define WEAVE_REG_COMBINE {}\n", reg_comb);
     if (spec.get_int("fast_swap_epi", 0) > 0 or spec.get_int("swap_epi", 0) > 0)
         defs += "#define AGY_FAST_SWAP_EPI 1\n";
     if (spec.get_int("fast_swap_l2", 0) > 0)
@@ -426,7 +457,7 @@ static std::string get_agy_sm90_jit_defines(const AgySm90KnobSpec& spec) {
     const int l1_group_m = spec.get_int("l1_group_m", group_m_val);
     const int l2_group_m = spec.get_int("l2_group_m", group_m_val);
     if (swizzle_val > 0 or l1_group_m > 0 or l2_group_m > 0) {
-        defs += "#define AGY_SWIZZLE_TILES 1\n";
+        defs += "#define WEAVE_SWIZZLE_TILES 1\n";
         defs += std::format("#define AGY_GROUP_M {}\n", group_m_val > 0 ? group_m_val : 4);
         defs += std::format("#define AGY_L1_GROUP_M {}\n", l1_group_m);
         defs += std::format("#define AGY_L2_GROUP_M {}\n", l2_group_m);
@@ -439,9 +470,9 @@ static std::string get_agy_sm90_jit_defines(const AgySm90KnobSpec& spec) {
         defs += "#define AGY_STATIC_STRIDE 1\n";
     const int mcast_val = spec.get_int("mcast", 1);
     if (mcast_val == 2 and is_fused) {
-        defs += "#define AGY_MCAST 2\n";
+        defs += "#define WEAVE_MCAST 2\n";
         if (spec.get_int("dyn", 0) == 0 and spec.get_int("adapt_bm", 0) == 0)
-            defs += "#define AGY_DYN_SCHED 1\n";
+            defs += "#define WEAVE_DYN_SCHED 1\n";
     }
 
     // MD P1: meta_g + tile_sync
@@ -461,7 +492,7 @@ static std::string get_agy_sm90_jit_defines(const AgySm90KnobSpec& spec) {
     if (d_mask_mode == 0 and spec.get_int("md_p2_auto", 0) > 0 and not spec.has("d_mask_mode"))
         d_mask_mode = 1;
     if (d_mask_mode > 0)
-        defs += std::format("#define AGY_D_MASK_MODE {}\n", d_mask_mode);
+        defs += std::format("#define WEAVE_HETERO_MASK_MODE {}\n", d_mask_mode);
     const int front_regs = spec.get_int("front_regs", 0);
     if (front_regs > 0)
         defs += std::format("#define AGY_FRONT_REGS {}\n", front_regs);
@@ -478,9 +509,9 @@ static std::string get_agy_sm90_jit_defines(const AgySm90KnobSpec& spec) {
     const int hc_l2 = is_fused ? hc_l1 : spec.get_int("l2_hot_cold", hc_base);
     DG_HOST_ASSERT(hc_l1 >= 0 and hc_l1 <= 2 and hc_l2 >= 0 and hc_l2 <= 2);
     if (hc_l1 > 0)
-        defs += std::format("#define AGY_HOT_COLD_L1 {}\n", hc_l1);
+        defs += std::format("#define WEAVE_HOT_COLD_MODE {}\n", hc_l1);
     if (hc_l2 > 0)
-        defs += std::format("#define AGY_HOT_COLD_L2 {}\n", hc_l2);
+        defs += std::format("#define WEAVE_HOT_COLD_L2 {}\n", hc_l2);
     const int swz_base = spec.has("swizzle") ? spec.get_int("swizzle", 0) : spec.get_int("group_m", 0);
     const int swz_l1 = spec.get_int("l1_swizzle", swz_base);
     const int swz_l2 = spec.get_int("l2_swizzle", swz_base);
@@ -512,20 +543,20 @@ static std::string get_agy_sm90_jit_defines(const AgySm90KnobSpec& spec) {
     if (comb_warps > 0)
         defs += std::format("#define AGY_COMB_WARPS {}\n", comb_warps);
     if (all_idle_comb > 0)
-        defs += "#define AGY_ALL_IDLE_COMB 1\n";
+        defs += "#define WEAVE_ALL_IDLE_COMBINE 1\n";
 
     // Expert-Granularity / Expert-Per-Wave / B300 L2KBlockDependency Interleaved L1+L2 atomicAdd (1..6)
     const int interleave_mode = spec.get_int("interleave", spec.get_int("interleave_l1_l2", 0));
     if (interleave_mode > 0 and is_fused) {
         DG_HOST_ASSERT(interleave_mode >= 1 and interleave_mode <= 6);
-        defs += std::format("#define AGY_INTERLEAVE_L1_L2 {}\n", interleave_mode);
+        defs += std::format("#define WEAVE_INTERLEAVE_L1_L2 {}\n", interleave_mode);
         if (spec.get_int("dyn", 0) == 0 and spec.get_int("adapt_bm", 0) == 0)
-            defs += "#define AGY_DYN_SCHED 1\n";
+            defs += "#define WEAVE_DYN_SCHED 1\n";
     }
 
     // MD P7: scatter_role=disp / scat_disp=1 (unlocked to run simultaneously with interleave=1..6!)
     if (spec.is_scatter_role_disp())
-        defs += "#define AGY_SCATTER_ROLE_DISP 1\n";
+        defs += "#define WEAVE_SCATTER_ROLE_DISP 1\n";
 
     // Unified single-header kernel: NO AGY_ISO_Px multi-header split!
     return defs;
@@ -554,6 +585,13 @@ static Sm90MoeShapeFamily classify_sm90_moe_shape(
         intermediate_hidden >= 2560 and intermediate_hidden <= 4096)
         return Sm90MoeShapeFamily::Wide;
     return Sm90MoeShapeFamily::Generic;
+}
+
+static int get_sm90_moe_weave_int_env(const char* primary, const char* legacy,
+                                             const int default_value) {
+    const int value = get_weave_env<int>(primary, legacy, nullptr, default_value);
+    DG_HOST_ASSERT(value >= 0 and value <= 1000000);
+    return value;
 }
 
 static int get_sm90_moe_int_env(const char* name, const int default_value) {
@@ -598,8 +636,8 @@ static double get_sm90_moe_swapab_pad_frac(const Sm90MoeLoad& load, const int bl
 // is admissible.  Thresholds and the token floor come from the measured
 // 8-point sweep documented above.
 static bool get_sm90_moe_swapab_pad_ok(const Sm90MoeLoad& load, const int block_m) {
-    const int pad_pct = get_sm90_moe_int_env("DG_MOE_SWAPAB_PAD_PCT", 25);
-    const int min_load = get_sm90_moe_int_env("DG_MOE_SWAPAB_MIN_LOAD", 8);
+    const int pad_pct = get_sm90_moe_weave_int_env("WEAVE_SWAPAB_PAD_PCT", "DG_MOE_SWAPAB_PAD_PCT", 25);
+    const int min_load = get_sm90_moe_weave_int_env("WEAVE_SWAPAB_MIN_LOAD", "DG_MOE_SWAPAB_MIN_LOAD", 8);
     const double pad_frac = get_sm90_moe_swapab_pad_frac(load, block_m);
     return load.greater_equal(min_load) and
            pad_frac * 100.0 >= static_cast<double>(pad_pct);
@@ -609,11 +647,11 @@ static bool get_sm90_moe_swapab_pad_ok(const Sm90MoeLoad& load, const int block_
 // still has to pass the pad criterion; otherwise it falls back to 2 WGs (the
 // official BN=128 shape), so n<8 or low pad_frac remains bit-identical.
 static int get_sm90_moe_effective_swapab_epi_wg(const Sm90MoeLoad& load, const int block_m) {
-    const int req = get_sm90_moe_int_env("DG_MOE_SWAPAB_EPI_WG", 2);
+    const int req = get_sm90_moe_weave_int_env("WEAVE_SWAPAB_EPI_WG", "DG_MOE_SWAPAB_EPI_WG", 2);
     DG_HOST_ASSERT(req == 2 or req == 4);
     if (req != 4)
         return req;
-    if (get_sm90_moe_int_env("DG_MOE_SWAPAB_AUTO", 0) == 0)
+    if (get_sm90_moe_weave_int_env("WEAVE_SWAPAB_AUTO", "DG_MOE_SWAPAB_AUTO", 0) == 0)
         return 4;
     return get_sm90_moe_swapab_pad_ok(load, block_m) ? 4 : 2;
 }
@@ -628,7 +666,7 @@ static bool should_use_swap_ab_for_mega_moe_sm90(
     // Knob: swap-AB ceiling on tokens-per-expert.  The default reproduces the
     // official DeepGEMM decision exactly.
     const int max_load =
-        get_sm90_moe_int_env("DG_MOE_SWAPAB_MAX_LOAD", default_max_load);
+        get_sm90_moe_weave_int_env("WEAVE_SWAPAB_MAX_LOAD", "DG_MOE_SWAPAB_MAX_LOAD", default_max_load);
     // 4-warpgroup epilogue (512 threads) also satisfies the split-N shape:
     // each warpgroup still owns 64 columns of the weight N dimension, which is
     // what WGMMA's fixed M=64 requires after the A/B swap.
@@ -637,7 +675,7 @@ static bool should_use_swap_ab_for_mega_moe_sm90(
         (num_epilogue_threads == 256 or num_epilogue_threads == 512);
     // AUTO mode replaces the official fixed ceiling with the padding-waste
     // criterion.  0 = off (bit-identical to official), 1 = on.
-    const int swapab_auto = get_sm90_moe_int_env("DG_MOE_SWAPAB_AUTO", 0);
+    const int swapab_auto = get_sm90_moe_weave_int_env("WEAVE_SWAPAB_AUTO", "DG_MOE_SWAPAB_AUTO", 0);
     if (swapab_auto != 0) {
         // Real measured lesson (S=16 +56.08%, S=32 +58.24%): returning false
         // here does NOT mean "fall back to official".  The official path keeps
@@ -989,14 +1027,14 @@ static bool is_sm90_moe_phase_config_legal(
     // WG_BLOCK_N=64 is supported only by the swap-AB path.
     if (wg_block_n == 64 and not config.swap_ab)
         return false;
-    const int epi_wg_knob = get_sm90_moe_int_env("DG_MOE_SWAPAB_EPI_WG", 2);
+    const int epi_wg_knob = get_sm90_moe_weave_int_env("WEAVE_SWAPAB_EPI_WG", "DG_MOE_SWAPAB_EPI_WG", 2);
     const bool swap_ab_wide = config.swap_ab and epi_wg_knob == 4 and
                               config.block_n == 256 and
                               num_epilogue_warpgroups == 4;
     if (config.block_m == 64 and config.block_n == 256 and
         num_epilogue_warpgroups != 2 and not swap_ab_wide)
         return false;
-    const int bk_knob = get_sm90_moe_int_env("DG_MOE_BLOCK_K", 128);
+    const int bk_knob = get_sm90_moe_weave_int_env("WEAVE_BLOCK_K", "DG_MOE_BLOCK_K", 128);
     const bool bk_ok = config.block_k == 128 or config.block_k == bk_knob;
     if (config.swap_ab) {
         if (agy_enabled) {
@@ -1113,12 +1151,12 @@ static MegaMoESM90Config make_generic_mega_moe_config_sm90(
     DG_HOST_ASSERT(block_m != 64 or block_n != 256 or
                    num_epilogue_warpgroups == 2 or
                    (num_epilogue_warpgroups == 4 and
-                    get_sm90_moe_int_env("DG_MOE_SWAPAB_EPI_WG", 2) == 4));
+                    get_sm90_moe_weave_int_env("WEAVE_SWAPAB_EPI_WG", "DG_MOE_SWAPAB_EPI_WG", 2) == 4));
     const int num_epilogue_threads = num_epilogue_warpgroups * 128;
     const bool swap_ab =
         not conservative and
         (block_n == 128 or
-         get_sm90_moe_int_env("DG_MOE_SWAPAB_EPI_WG", 2) == 4) and
+         get_sm90_moe_weave_int_env("WEAVE_SWAPAB_EPI_WG", "DG_MOE_SWAPAB_EPI_WG", 2) == 4) and
         should_use_swap_ab_for_mega_moe_sm90(
             load, shape_family, block_m, num_epilogue_threads);
 

@@ -76,8 +76,8 @@ public:
         if (d4_static == 0)
             return "";
         const int el = args.num_experts / args.num_ranks;
-        const auto path = get_env<std::string>("DG_TUNE_D4_STATIC_FILE",
-                          get_env<std::string>("DG_ISOLATED_D4_STATIC_FILE", ""));
+        const auto path = get_weave_env<std::string>("WEAVE_STATIC_EXPERT_ORDER_FILE",
+                          "DG_TUNE_D4_STATIC_FILE", "DG_ISOLATED_D4_STATIC_FILE", "");
         if (path.empty())
             return "";
         std::ifstream fin(path);
@@ -126,98 +126,82 @@ public:
 
     static std::string generate_impl(const Args& args) {
         // Axis 1 (D1)
-        const int d1_g = get_tune_env("DG_TUNE_D1_G", "DG_ISOLATED_D1_G", 0);
+        const int d1_g = get_weave_env<int>("WEAVE_READY_GROUP_SIZE", "DG_TUNE_D1_G", "DG_ISOLATED_D1_G", 0);
         // Axis 2 (D2)
-        const int d2_mode = get_tune_env("DG_TUNE_D2_MODE", "DG_ISOLATED_D2_MODE", 0);
-        const int d2_reg_pull_bytes = get_tune_env("DG_TUNE_D2_REG_PULL_BYTES", "DG_ISOLATED_D2_REG_PULL_BYTES", 0);
-        const int d2_d8_sm_limit = get_env<int>("DG_ISOLATED_D2_D8_SM_LIMIT", 74);
-        const int d2_disp_regs = get_env<int>("DG_ISOLATED_D2_DISP_REGS", 0);
-        const int d2_epi_regs = get_env<int>("DG_ISOLATED_D2_EPI_REGS", 0);
+        const int d2_mode = get_weave_env<int>("WEAVE_WARP_SPLIT_MODE", "DG_TUNE_D2_MODE", "DG_ISOLATED_D2_MODE", 0);
+        const int d2_reg_pull_bytes = get_weave_env<int>("WEAVE_REG_PULL_BYTES", "DG_TUNE_D2_REG_PULL_BYTES", "DG_ISOLATED_D2_REG_PULL_BYTES", 0);
+        const int d2_d8_sm_limit = get_weave_env<int>("WEAVE_HETERO_SM_LIMIT", "DG_ISOLATED_D2_D8_SM_LIMIT", nullptr, 74);
+        const int d2_disp_regs = get_weave_env<int>("WEAVE_DISP_REGS", "DG_ISOLATED_D2_DISP_REGS", nullptr, 0);
+        const int d2_epi_regs = get_weave_env<int>("WEAVE_EPI_REGS", "DG_ISOLATED_D2_EPI_REGS", nullptr, 0);
         // Axis 3 (D3)
-        const int d3_bm = get_tune_env("DG_TUNE_D3_BM", "DG_D3_BM", 0);
-        const int d3_bn = get_tune_env("DG_TUNE_D3_BN", "DG_D3_BN", 0);
-        const int d3_bk = get_tune_env("DG_TUNE_D3_BK", "DG_D3_BK", 0);
-        const int d3_store_m = get_tune_env("DG_TUNE_D3_STORE_M", "DG_D3_STORE_M", 0);
-        const int d3_dyn_epi = get_tune_env("DG_TUNE_D3_DYN_EPI", "DG_D3_DYN_EPI", 0);
-        const int d3_dyn_tma_a = get_tune_env("DG_TUNE_D3_DYN_TMA_A", "DG_D3_DYN_TMA_A", 0);
-        const int d3_overlap_smem = get_tune_env("DG_TUNE_D3_OVERLAP_SMEM", "DG_D3_OVERLAP_EXPERT_SMEM", 0);
-        const int d3_expert_step_mode = get_tune_env("DG_TUNE_D3_EXPERT_STEP_MODE", "DG_D3_EXPERT_STEP_MODE", 0);
-        const int d3_accum_stages = get_tune_env("DG_D3_ACCUM_STAGES", "DG_MEGA_ACCUM_STAGES", 2);
-        const int d3_tma_store_stages = get_tune_env("DG_D3_TMA_STORE_STAGES", "DG_MEGA_TMA_STORE_STAGES", 2);
-        const int d3_sched_stages = get_tune_env("DG_TUNE_D3_SCHED_STAGES", "DG_D3_SCHED_STAGES", 2);
+        const int d3_bm = get_weave_env<int>("WEAVE_BLOCK_M", "DG_TUNE_D3_BM", "DG_D3_BM", 0);
+        const int d3_bn = get_weave_env<int>("WEAVE_BLOCK_N", "DG_TUNE_D3_BN", "DG_D3_BN", 0);
+        const int d3_bk = get_weave_env<int>("WEAVE_BLOCK_K", "DG_TUNE_D3_BK", "DG_D3_BK", 0);
+        const int d3_store_m = get_weave_env<int>("WEAVE_STORE_BLOCK_M", "DG_TUNE_D3_STORE_M", "DG_D3_STORE_M", 0);
+        const int d3_dyn_epi = get_weave_env<int>("WEAVE_DYN_EPILOGUE", "DG_TUNE_D3_DYN_EPI", "DG_D3_DYN_EPI", 0);
+        const int d3_dyn_tma_a = get_weave_env<int>("WEAVE_DYN_TMA_A", "DG_TUNE_D3_DYN_TMA_A", "DG_D3_DYN_TMA_A", 0);
+        const int d3_overlap_smem = get_weave_env<int>("WEAVE_OVERLAP_EXPERT_SMEM", "DG_TUNE_D3_OVERLAP_SMEM", "DG_D3_OVERLAP_EXPERT_SMEM", 0);
+        const int d3_expert_step_mode = get_weave_env<int>("WEAVE_EXPERT_STEP_MODE", "DG_TUNE_D3_EXPERT_STEP_MODE", "DG_D3_EXPERT_STEP_MODE", 0);
+        const int d3_accum_stages = get_weave_env<int>("WEAVE_ACCUM_STAGES", "DG_D3_ACCUM_STAGES", "DG_MEGA_ACCUM_STAGES", 2);
+        const int d3_tma_store_stages = get_weave_env<int>("WEAVE_TMA_STORE_STAGES", "DG_D3_TMA_STORE_STAGES", "DG_MEGA_TMA_STORE_STAGES", 2);
+        const int d3_sched_stages = get_weave_env<int>("WEAVE_SCHED_STAGES", "DG_TUNE_D3_SCHED_STAGES", "DG_D3_SCHED_STAGES", 2);
         // Axis 4 (D4)
-        const int d4_epw = get_tune_env("DG_TUNE_D4_EPW", "DG_ISOLATED_D4_EPW", 0);
-        const int d4_static = get_tune_env("DG_TUNE_D4_STATIC", "DG_ISOLATED_D4_STATIC", 0);
-        const int d4_readyq = get_tune_env("DG_TUNE_D4_READYQ", "DG_ISOLATED_D4_READYQ", 0);
-        const int d4_mode = get_tune_env("DG_TUNE_D4_MODE", "DG_ISOLATED_D4_MODE", 0);
+        const int d4_epw = get_weave_env<int>("WEAVE_EXPERTS_PER_WAVE", "DG_TUNE_D4_EPW", "DG_ISOLATED_D4_EPW", 0);
+        const int d4_static = get_weave_env<int>("WEAVE_STATIC_EXPERT_ORDER", "DG_TUNE_D4_STATIC", "DG_ISOLATED_D4_STATIC", 0);
+        const int d4_readyq = get_weave_env<int>("WEAVE_READY_QUEUE", "DG_TUNE_D4_READYQ", "DG_ISOLATED_D4_READYQ", 0);
+        const int d4_mode = get_weave_env<int>("WEAVE_SCHED_MODE", "DG_TUNE_D4_MODE", "DG_ISOLATED_D4_MODE", 0);
         const std::string d4_static_code = generate_d4_static_table(args, d4_static);
         // Axis 5 (D5)
-        const int d5_dedup = get_tune_env("DG_TUNE_D5_DEDUP", "DG_ISOLATED_D5_DEDUP", 0);
-        const int d5_sched = get_tune_env("DG_TUNE_D5_SCHED", "DG_ISOLATED_D5_SCHED", (d5_dedup == 2) ? 1 : 0);
+        const int d5_dedup = get_weave_env<int>("WEAVE_DEDUP_MODE", "DG_TUNE_D5_DEDUP", "DG_ISOLATED_D5_DEDUP", 0);
+        const int d5_sched = get_weave_env<int>("WEAVE_DEDUP_SCHED", "DG_TUNE_D5_SCHED", "DG_ISOLATED_D5_SCHED", (d5_dedup == 2) ? 1 : 0);
         // Axis 6 (D6)
-        const int d6_g = get_tune_env("DG_TUNE_D6_G", "DG_ISOLATED_D6_G", 0);
-        const int d6_rw = get_tune_env("DG_TUNE_D6_REDUCE_WARPS", "DG_ISOLATED_D6_REDUCE_WARPS", 0);
+        const int d6_g = get_weave_env<int>("WEAVE_COMBINE_GROUP_TILES", "DG_TUNE_D6_G", "DG_ISOLATED_D6_G", 0);
+        const int d6_rw = get_weave_env<int>("WEAVE_COMBINE_REDUCE_WARPS", "DG_TUNE_D6_REDUCE_WARPS", "DG_ISOLATED_D6_REDUCE_WARPS", 0);
         // Axis 7 (D7)
-        const int d7_scatter_mode = get_env<int>("DG_TUNE_D7_SCATTER_MODE", -1);
-        const int d7_isolated_scatter = get_env<int>("DG_ISOLATED_D7_SCATTER", 0);
-        const int d7_smem_alias = get_env<int>("DG_TUNE_D7_SMEM_ALIAS", 1);
-        const int d7_warps = get_tune_env("DG_TUNE_D7_WARPS", "DG_TUNE_D7_SCATTER_WARPS", get_env<int>("DG_SCATTER_WARPS", 0));
-        const int d7_handoff_wait = get_env<int>("DG_TUNE_D7_HANDOFF_WAIT", 1);
+        const int d7_scatter_mode = get_weave_env<int>("WEAVE_SCATTER_MODE", "DG_TUNE_D7_SCATTER_MODE", nullptr, -1);
+        const int d7_isolated_scatter = get_weave_env<int>("WEAVE_SCATTER_MODE", "DG_ISOLATED_D7_SCATTER", nullptr, (d7_scatter_mode >= 0) ? d7_scatter_mode : 0);
+        const int d7_smem_alias = get_weave_env<int>("WEAVE_SCATTER_SMEM_ALIAS", "DG_TUNE_D7_SMEM_ALIAS", nullptr, 1);
+        const int d7_warps = get_weave_env<int>("WEAVE_SCATTER_WARPS", "DG_TUNE_D7_WARPS", "DG_TUNE_D7_SCATTER_WARPS", get_env<int>("DG_SCATTER_WARPS", 0));
+        const int d7_handoff_wait = get_weave_env<int>("WEAVE_SCATTER_HANDOFF_WAIT", "DG_TUNE_D7_HANDOFF_WAIT", nullptr, 1);
+        const int enable_multicast = get_weave_env<int>("WEAVE_ENABLE_MULTICAST", nullptr, nullptr, 1);
 
         std::ostringstream d7_macros;
-        if (d7_scatter_mode >= 0) {
-            d7_macros << "#define DG_TUNE_D7_SCATTER_MODE " << d7_scatter_mode << "\n";
-        }
-        d7_macros << "#define DG_ISOLATED_D7_SCATTER " << d7_isolated_scatter << "\n";
-        d7_macros << "#define DG_TUNE_D7_SMEM_ALIAS " << d7_smem_alias << "\n";
-        d7_macros << "#define DG_TUNE_D7_WARPS " << d7_warps << "\n";
-        d7_macros << "#define DG_TUNE_D7_SCATTER_WARPS " << d7_warps << "\n";
-        d7_macros << "#define DG_TUNE_D7_HANDOFF_WAIT " << d7_handoff_wait << "\n";
+        d7_macros << "#define WEAVE_SCATTER_MODE " << d7_isolated_scatter << "\n";
+        d7_macros << "#define WEAVE_SCATTER_SMEM_ALIAS " << d7_smem_alias << "\n";
+        d7_macros << "#define WEAVE_SCATTER_WARPS " << d7_warps << "\n";
+        d7_macros << "#define WEAVE_SCATTER_HANDOFF_WAIT " << d7_handoff_wait << "\n";
 
         return fmt::format(R"(
-#define DG_TUNE_D1_G {}
-#define DG_ISOLATED_D1_G {}
-#define DG_TUNE_D2_MODE {}
-#define DG_ISOLATED_D2_MODE {}
-#define DG_TUNE_D2_REG_PULL_BYTES {}u
-#define DG_ISOLATED_D2_REG_PULL_BYTES {}u
-#define DG_ISOLATED_D2_D8_SM_LIMIT {}u
-#define DG_ISOLATED_D2_DISP_REGS {}u
-#define DG_ISOLATED_D2_EPI_REGS {}u
-#define DG_TUNE_D3_BM {}
-#define DG_TUNE_D3_BN {}
-#define DG_TUNE_D3_BK {}
-#define DG_TUNE_D3_STORE_M {}
-#define DG_TUNE_D3_DYN_EPI {}
-#define DG_D3_DYN_EPI {}
-#define DG_TUNE_D3_DYN_TMA_A {}
-#define DG_D3_DYN_TMA_A {}
-#define DG_TUNE_D3_OVERLAP_SMEM {}
-#define DG_D3_OVERLAP_EXPERT_SMEM {}
-#define DG_TUNE_D3_EXPERT_STEP_MODE {}
-#define DG_D3_EXPERT_STEP_MODE {}
-#define DG_D3_ACCUM_STAGES {}u
-#define DG_D3_TMA_STORE_STAGES {}u
-#define DG_D3_SCHED_STAGES {}u
+#define WEAVE_READY_GROUP_SIZE {}
+#define WEAVE_WARP_SPLIT_MODE {}
+#define WEAVE_REG_PULL_BYTES {}u
+#define WEAVE_HETERO_SM_LIMIT {}u
+#define WEAVE_DISP_REGS {}u
+#define WEAVE_EPI_REGS {}u
+#define WEAVE_BLOCK_M {}
+#define WEAVE_BLOCK_N {}
+#define WEAVE_BLOCK_K {}
+#define WEAVE_STORE_BLOCK_M {}
+#define WEAVE_DYN_EPILOGUE {}
+#define WEAVE_DYN_TMA_A {}
+#define WEAVE_OVERLAP_EXPERT_SMEM {}
+#define WEAVE_EXPERT_STEP_MODE {}
+#define WEAVE_ACCUM_STAGES {}u
+#define WEAVE_TMA_STORE_STAGES {}u
+#define WEAVE_SCHED_STAGES {}u
 #define DG_D3_HAS_EXTRA_TMAS {}
-#define DG_TUNE_D4_EPW {}
-#define DG_ISOLATED_D4_EPW {}
-#define DG_TUNE_D4_STATIC {}
-#define DG_ISOLATED_D4_STATIC {}
-#define DG_TUNE_D4_READYQ {}
-#define DG_ISOLATED_D4_READYQ {}
-#define DG_TUNE_D4_MODE {}
-#define DG_ISOLATED_D4_MODE {}
+#define WEAVE_EXPERTS_PER_WAVE {}
+#define WEAVE_STATIC_EXPERT_ORDER {}
+#define WEAVE_READY_QUEUE {}
+#define WEAVE_SCHED_MODE {}
 {}
-#define DG_TUNE_D5_DEDUP {}
-#define DG_ISOLATED_D5_DEDUP {}
-#define DG_TUNE_D5_SCHED {}
-#define DG_TUNE_D6_G {}u
-#define DG_ISOLATED_D6_G {}u
-#define DG_TUNE_D6_REDUCE_WARPS {}u
-#define DG_ISOLATED_D6_REDUCE_WARPS {}u
+#define WEAVE_DEDUP_MODE {}
+#define WEAVE_DEDUP_SCHED {}
+#define WEAVE_COMBINE_GROUP_TILES {}u
+#define WEAVE_COMBINE_REDUCE_WARPS {}u
 {}
-#define DG_SHARED_L2_EARLY_BLOCKS {}u
+#define WEAVE_SHARED_L2_EARLY_BLOCKS {}u
+#define WEAVE_ENABLE_MULTICAST {}
 #include <deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh>
 
 using namespace deep_gemm;
@@ -242,26 +226,27 @@ static void __instantiate_kernel() {{
     >);
 }};
 )",
-            d1_g, d1_g,
-            d2_mode, d2_mode,
-            d2_reg_pull_bytes, d2_reg_pull_bytes,
+            d1_g,
+            d2_mode,
+            d2_reg_pull_bytes,
             d2_d8_sm_limit, d2_disp_regs, d2_epi_regs,
             d3_bm, d3_bn, d3_bk, d3_store_m,
-            d3_dyn_epi, d3_dyn_epi,
-            d3_dyn_tma_a, d3_dyn_tma_a,
-            d3_overlap_smem, d3_overlap_smem,
-            d3_expert_step_mode, d3_expert_step_mode,
+            d3_dyn_epi,
+            d3_dyn_tma_a,
+            d3_overlap_smem,
+            d3_expert_step_mode,
             d3_accum_stages, d3_tma_store_stages, d3_sched_stages,
             args.d3_has_extra_tmas ? 1 : 0,
-            d4_epw, d4_epw,
-            d4_static, d4_static,
-            d4_readyq, d4_readyq,
-            d4_mode, d4_mode,
+            d4_epw,
+            d4_static,
+            d4_readyq,
+            d4_mode,
             d4_static_code,
-            d5_dedup, d5_dedup, d5_sched,
-            d6_g, d6_g, d6_rw, d6_rw,
+            d5_dedup, d5_sched,
+            d6_g, d6_rw,
             d7_macros.str(),
-            get_env<int>("DG_SHARED_L2_EARLY_BLOCKS", 10),
+            get_weave_env<int>("WEAVE_SHARED_L2_EARLY_BLOCKS", "DG_SHARED_L2_EARLY_BLOCKS", nullptr, 10),
+            enable_multicast,
             args.num_max_tokens_per_rank,
             args.hidden, args.intermediate_hidden,
             args.num_experts, args.num_shared_experts,
@@ -379,8 +364,8 @@ static void sm100_fp8_fp4_mega_moe(
     const auto shared_intermediate_hidden = intermediate_hidden * num_shared_experts;
     const auto num_sms = device_runtime->get_num_sms();
 
-    const int d3_dyn_epi = get_tune_env("DG_TUNE_D3_DYN_EPI", "DG_D3_DYN_EPI", 0);
-    const int d3_dyn_tma_a = get_tune_env("DG_TUNE_D3_DYN_TMA_A", "DG_D3_DYN_TMA_A", 0);
+    const int d3_dyn_epi = get_weave_env<int>("WEAVE_DYN_EPILOGUE", "DG_TUNE_D3_DYN_EPI", "DG_D3_DYN_EPI", 0);
+    const int d3_dyn_tma_a = get_weave_env<int>("WEAVE_DYN_TMA_A", "DG_TUNE_D3_DYN_TMA_A", "DG_D3_DYN_TMA_A", 0);
     const bool d3_has_extra_tmas = (d3_dyn_epi == 2) or (d3_dyn_tma_a > 0);
 
     const int selected_profile_mode = profile_mode.has_value()

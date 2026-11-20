@@ -39,6 +39,25 @@ static dtype_t get_env(const std::string& name, const dtype_t& default_value = d
     }
 }
 
+// Unified public environment binding.
+//
+// WEAVE_* is always probed first. Two legacy names may be supplied for
+// source-compatible execution of archived launch scripts; they are consulted
+// only when the public name is absent. New documentation and launchers must
+// use the WEAVE_* spelling.
+template <typename dtype_t>
+static dtype_t get_weave_env(const char* primary,
+                             const char* legacy1 = nullptr,
+                             const char* legacy2 = nullptr,
+                             const dtype_t& default_val = dtype_t()) {
+    for (const char* name : {primary, legacy1, legacy2}) {
+        if (name != nullptr and std::getenv(name) != nullptr)
+            return get_env<dtype_t>(name, default_val);
+    }
+    return default_val;
+}
+
+
 static std::tuple<int, std::string> call_external_command(std::string command) {
     command = command + " 2>&1";
     const auto deleter = [](FILE* f) { if (f) pclose(f); };

@@ -5,7 +5,7 @@
 // FI_CLOSE / FI_BG / FI_EG / FI_MG / FI_CTX_PARAM / FI_CTX_ARG，与 CUDA 版同名同参。
 //
 // 编译开关：
-//   FI_LEVEL  0=全空（正式构建） 1=只记 OPEN/CLOSE  2=完整事件
+//   WEAVE_PROFILER_LEVEL  0=production 1=open/close 2=full events (FI_LEVEL bridge)
 //   FI_TIMER  0=全卡墙钟计时器 s_memrealtime（固定频率，跨 CU 同一时基；转储 meta 写 timer_hz，解码按它换算成 ns）
 //             1=本地周期计数器 readcyclecounter（每泳道 OPEN/CLOSE 各记一对 (s_memrealtime, cycle) 锚点，解码线性换算）
 //   FI_GRAN   0=wave 粒度：每个 wave64 由 lane 0 记录（每个 wave 一条泳道）
@@ -28,8 +28,15 @@
 #include <vector>
 #include <hip/hip_runtime.h>
 
+#ifndef WEAVE_PROFILER_LEVEL
+#  ifdef FI_LEVEL
+#    define WEAVE_PROFILER_LEVEL FI_LEVEL
+#  else
+#    define WEAVE_PROFILER_LEVEL 0
+#  endif
+#endif
 #ifndef FI_LEVEL
-#define FI_LEVEL 0
+#define FI_LEVEL WEAVE_PROFILER_LEVEL
 #endif
 #ifndef FI_TIMER
 #define FI_TIMER 0

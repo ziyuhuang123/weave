@@ -51,8 +51,8 @@ struct Ep16TurboShape {
   uint32_t node_tokens;           // 40  GLOBALLY UNIFORM mode-2 plane capacity
   uint32_t mode;                  // 44  WEAVE_SCATTER_MODE: 0,1,2
   uint32_t route_rows;            // 48  ck_route_rows
-  uint32_t slot_chunk;            // 52  must be 1 (see note in builder)
-  uint32_t meta_chunk_slots;      // 56  slots per metadata WR descriptor
+  uint32_t slot_chunk;            // 52  WEAVE_SLOT_CHUNK
+  uint32_t meta_chunk_slots;      // 56  WEAVE_META_CHUNK_SLOTS
   uint32_t flags;                 // 60  bit0 include_self, bit1 FP16 weight bits
   uint32_t enable_dispatch_time;  // 64
   uint32_t enable_scatter_time;   // 68
@@ -299,8 +299,11 @@ static inline uint32_t ep16t_chunks_on_qp(const Ep16TurboShape& s, uint32_t c) {
   const uint32_t n = ep16t_nchunk(s);
   return (n > c) ? ((n - c + 3u) / 4u) : 0u;
 }
-// Mode-2 node-return fanout rides the same chunk granularity as the dispatch.
+// Mode-2 node-return fanout rides the dispatch chunk unless the public
+// WEAVE_RET_CHUNK override (stored in reserved[0] by the host runner) is set.
 static inline uint32_t ep16t_ret_chunk(const Ep16TurboShape& s) {
+  const uint32_t override = s.reserved[0];
+  if (override != 0u) return (override > 16u) ? 16u : override;
   const uint32_t k = ep16t_slot_chunk(s);
   return (k > 16u) ? 16u : k;
 }

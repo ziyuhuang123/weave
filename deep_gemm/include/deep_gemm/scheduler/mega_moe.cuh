@@ -1,5 +1,450 @@
 #pragma once
 
+// ============================================================================
+// Public B300 compile-time knobs. WEAVE_* is the primary spelling; archived
+// DG_* names are accepted only as source-level compatibility aliases.
+// ============================================================================
+#ifndef WEAVE_READY_GROUP_SIZE
+#  if defined(DG_TUNE_D1_G)
+#    define WEAVE_READY_GROUP_SIZE DG_TUNE_D1_G
+#  elif defined(DG_ISOLATED_D1_G)
+#    define WEAVE_READY_GROUP_SIZE DG_ISOLATED_D1_G
+#  else
+#    define WEAVE_READY_GROUP_SIZE 0
+#  endif
+#endif
+#ifndef DG_TUNE_D1_G
+#define DG_TUNE_D1_G WEAVE_READY_GROUP_SIZE
+#endif
+#ifndef DG_ISOLATED_D1_G
+#define DG_ISOLATED_D1_G WEAVE_READY_GROUP_SIZE
+#endif
+
+#ifndef WEAVE_WARP_SPLIT_MODE
+#  if defined(DG_TUNE_D2_MODE)
+#    define WEAVE_WARP_SPLIT_MODE DG_TUNE_D2_MODE
+#  elif defined(DG_ISOLATED_D2_MODE)
+#    define WEAVE_WARP_SPLIT_MODE DG_ISOLATED_D2_MODE
+#  else
+#    define WEAVE_WARP_SPLIT_MODE 0
+#  endif
+#endif
+#ifndef DG_TUNE_D2_MODE
+#define DG_TUNE_D2_MODE WEAVE_WARP_SPLIT_MODE
+#endif
+#ifndef DG_ISOLATED_D2_MODE
+#define DG_ISOLATED_D2_MODE WEAVE_WARP_SPLIT_MODE
+#endif
+
+#ifndef WEAVE_REG_PULL_BYTES
+#  if defined(DG_TUNE_D2_REG_PULL_BYTES)
+#    define WEAVE_REG_PULL_BYTES DG_TUNE_D2_REG_PULL_BYTES
+#  elif defined(DG_ISOLATED_D2_REG_PULL_BYTES)
+#    define WEAVE_REG_PULL_BYTES DG_ISOLATED_D2_REG_PULL_BYTES
+#  else
+#    define WEAVE_REG_PULL_BYTES 0u
+#  endif
+#endif
+#ifndef DG_TUNE_D2_REG_PULL_BYTES
+#define DG_TUNE_D2_REG_PULL_BYTES WEAVE_REG_PULL_BYTES
+#endif
+#ifndef DG_ISOLATED_D2_REG_PULL_BYTES
+#define DG_ISOLATED_D2_REG_PULL_BYTES WEAVE_REG_PULL_BYTES
+#endif
+
+#ifndef WEAVE_HETERO_SM_LIMIT
+#  if defined(DG_ISOLATED_D2_D8_SM_LIMIT)
+#    define WEAVE_HETERO_SM_LIMIT DG_ISOLATED_D2_D8_SM_LIMIT
+#  else
+#    define WEAVE_HETERO_SM_LIMIT 74u
+#  endif
+#endif
+#ifndef DG_ISOLATED_D2_D8_SM_LIMIT
+#define DG_ISOLATED_D2_D8_SM_LIMIT WEAVE_HETERO_SM_LIMIT
+#endif
+
+#ifndef WEAVE_DISP_REGS
+#  if defined(DG_ISOLATED_D2_DISP_REGS)
+#    define WEAVE_DISP_REGS DG_ISOLATED_D2_DISP_REGS
+#  else
+#    define WEAVE_DISP_REGS 0u
+#  endif
+#endif
+#ifndef DG_ISOLATED_D2_DISP_REGS
+#define DG_ISOLATED_D2_DISP_REGS WEAVE_DISP_REGS
+#endif
+
+#ifndef WEAVE_EPI_REGS
+#  if defined(DG_ISOLATED_D2_EPI_REGS)
+#    define WEAVE_EPI_REGS DG_ISOLATED_D2_EPI_REGS
+#  else
+#    define WEAVE_EPI_REGS 0u
+#  endif
+#endif
+#ifndef DG_ISOLATED_D2_EPI_REGS
+#define DG_ISOLATED_D2_EPI_REGS WEAVE_EPI_REGS
+#endif
+
+#ifndef WEAVE_BLOCK_M
+#  if defined(DG_TUNE_D3_BM)
+#    define WEAVE_BLOCK_M DG_TUNE_D3_BM
+#  elif defined(DG_D3_BM)
+#    define WEAVE_BLOCK_M DG_D3_BM
+#  else
+#    define WEAVE_BLOCK_M 0
+#  endif
+#endif
+#ifndef DG_TUNE_D3_BM
+#define DG_TUNE_D3_BM WEAVE_BLOCK_M
+#endif
+#ifndef DG_D3_BM
+#define DG_D3_BM WEAVE_BLOCK_M
+#endif
+
+#ifndef WEAVE_BLOCK_N
+#  if defined(DG_TUNE_D3_BN)
+#    define WEAVE_BLOCK_N DG_TUNE_D3_BN
+#  elif defined(DG_D3_BN)
+#    define WEAVE_BLOCK_N DG_D3_BN
+#  else
+#    define WEAVE_BLOCK_N 0
+#  endif
+#endif
+#ifndef DG_TUNE_D3_BN
+#define DG_TUNE_D3_BN WEAVE_BLOCK_N
+#endif
+#ifndef DG_D3_BN
+#define DG_D3_BN WEAVE_BLOCK_N
+#endif
+
+#ifndef WEAVE_BLOCK_K
+#  if defined(DG_TUNE_D3_BK)
+#    define WEAVE_BLOCK_K DG_TUNE_D3_BK
+#  elif defined(DG_D3_BK)
+#    define WEAVE_BLOCK_K DG_D3_BK
+#  else
+#    define WEAVE_BLOCK_K 0
+#  endif
+#endif
+#ifndef DG_TUNE_D3_BK
+#define DG_TUNE_D3_BK WEAVE_BLOCK_K
+#endif
+#ifndef DG_D3_BK
+#define DG_D3_BK WEAVE_BLOCK_K
+#endif
+
+#ifndef WEAVE_STORE_BLOCK_M
+#  if defined(DG_TUNE_D3_STORE_M)
+#    define WEAVE_STORE_BLOCK_M DG_TUNE_D3_STORE_M
+#  elif defined(DG_D3_STORE_M)
+#    define WEAVE_STORE_BLOCK_M DG_D3_STORE_M
+#  else
+#    define WEAVE_STORE_BLOCK_M 0
+#  endif
+#endif
+#ifndef DG_TUNE_D3_STORE_M
+#define DG_TUNE_D3_STORE_M WEAVE_STORE_BLOCK_M
+#endif
+#ifndef DG_D3_STORE_M
+#define DG_D3_STORE_M WEAVE_STORE_BLOCK_M
+#endif
+
+#ifndef WEAVE_DYN_EPILOGUE
+#  if defined(DG_TUNE_D3_DYN_EPI)
+#    define WEAVE_DYN_EPILOGUE DG_TUNE_D3_DYN_EPI
+#  elif defined(DG_D3_DYN_EPI)
+#    define WEAVE_DYN_EPILOGUE DG_D3_DYN_EPI
+#  else
+#    define WEAVE_DYN_EPILOGUE 0
+#  endif
+#endif
+#ifndef DG_TUNE_D3_DYN_EPI
+#define DG_TUNE_D3_DYN_EPI WEAVE_DYN_EPILOGUE
+#endif
+#ifndef DG_D3_DYN_EPI
+#define DG_D3_DYN_EPI WEAVE_DYN_EPILOGUE
+#endif
+
+#ifndef WEAVE_DYN_TMA_A
+#  if defined(DG_TUNE_D3_DYN_TMA_A)
+#    define WEAVE_DYN_TMA_A DG_TUNE_D3_DYN_TMA_A
+#  elif defined(DG_D3_DYN_TMA_A)
+#    define WEAVE_DYN_TMA_A DG_D3_DYN_TMA_A
+#  else
+#    define WEAVE_DYN_TMA_A 0
+#  endif
+#endif
+#ifndef DG_TUNE_D3_DYN_TMA_A
+#define DG_TUNE_D3_DYN_TMA_A WEAVE_DYN_TMA_A
+#endif
+#ifndef DG_D3_DYN_TMA_A
+#define DG_D3_DYN_TMA_A WEAVE_DYN_TMA_A
+#endif
+
+#ifndef WEAVE_OVERLAP_EXPERT_SMEM
+#  if defined(DG_TUNE_D3_OVERLAP_SMEM)
+#    define WEAVE_OVERLAP_EXPERT_SMEM DG_TUNE_D3_OVERLAP_SMEM
+#  elif defined(DG_D3_OVERLAP_EXPERT_SMEM)
+#    define WEAVE_OVERLAP_EXPERT_SMEM DG_D3_OVERLAP_EXPERT_SMEM
+#  else
+#    define WEAVE_OVERLAP_EXPERT_SMEM 0
+#  endif
+#endif
+#ifndef DG_TUNE_D3_OVERLAP_SMEM
+#define DG_TUNE_D3_OVERLAP_SMEM WEAVE_OVERLAP_EXPERT_SMEM
+#endif
+#ifndef DG_D3_OVERLAP_EXPERT_SMEM
+#define DG_D3_OVERLAP_EXPERT_SMEM WEAVE_OVERLAP_EXPERT_SMEM
+#endif
+
+#ifndef WEAVE_EXPERT_STEP_MODE
+#  if defined(DG_TUNE_D3_EXPERT_STEP_MODE)
+#    define WEAVE_EXPERT_STEP_MODE DG_TUNE_D3_EXPERT_STEP_MODE
+#  elif defined(DG_D3_EXPERT_STEP_MODE)
+#    define WEAVE_EXPERT_STEP_MODE DG_D3_EXPERT_STEP_MODE
+#  else
+#    define WEAVE_EXPERT_STEP_MODE 0
+#  endif
+#endif
+#ifndef DG_TUNE_D3_EXPERT_STEP_MODE
+#define DG_TUNE_D3_EXPERT_STEP_MODE WEAVE_EXPERT_STEP_MODE
+#endif
+#ifndef DG_D3_EXPERT_STEP_MODE
+#define DG_D3_EXPERT_STEP_MODE WEAVE_EXPERT_STEP_MODE
+#endif
+
+#ifndef WEAVE_ACCUM_STAGES
+#  if defined(DG_D3_ACCUM_STAGES)
+#    define WEAVE_ACCUM_STAGES DG_D3_ACCUM_STAGES
+#  else
+#    define WEAVE_ACCUM_STAGES 2u
+#  endif
+#endif
+#ifndef DG_D3_ACCUM_STAGES
+#define DG_D3_ACCUM_STAGES WEAVE_ACCUM_STAGES
+#endif
+
+#ifndef WEAVE_TMA_STORE_STAGES
+#  if defined(DG_D3_TMA_STORE_STAGES)
+#    define WEAVE_TMA_STORE_STAGES DG_D3_TMA_STORE_STAGES
+#  else
+#    define WEAVE_TMA_STORE_STAGES 2u
+#  endif
+#endif
+#ifndef DG_D3_TMA_STORE_STAGES
+#define DG_D3_TMA_STORE_STAGES WEAVE_TMA_STORE_STAGES
+#endif
+
+#ifndef WEAVE_SCHED_STAGES
+#  if defined(DG_TUNE_D3_SCHED_STAGES)
+#    define WEAVE_SCHED_STAGES DG_TUNE_D3_SCHED_STAGES
+#  elif defined(DG_D3_SCHED_STAGES)
+#    define WEAVE_SCHED_STAGES DG_D3_SCHED_STAGES
+#  else
+#    define WEAVE_SCHED_STAGES 2u
+#  endif
+#endif
+#ifndef DG_TUNE_D3_SCHED_STAGES
+#define DG_TUNE_D3_SCHED_STAGES WEAVE_SCHED_STAGES
+#endif
+#ifndef DG_D3_SCHED_STAGES
+#define DG_D3_SCHED_STAGES WEAVE_SCHED_STAGES
+#endif
+
+#ifndef WEAVE_EXPERTS_PER_WAVE
+#  if defined(DG_TUNE_D4_EPW)
+#    define WEAVE_EXPERTS_PER_WAVE DG_TUNE_D4_EPW
+#  elif defined(DG_ISOLATED_D4_EPW)
+#    define WEAVE_EXPERTS_PER_WAVE DG_ISOLATED_D4_EPW
+#  else
+#    define WEAVE_EXPERTS_PER_WAVE 0
+#  endif
+#endif
+#ifndef DG_TUNE_D4_EPW
+#define DG_TUNE_D4_EPW WEAVE_EXPERTS_PER_WAVE
+#endif
+#ifndef DG_ISOLATED_D4_EPW
+#define DG_ISOLATED_D4_EPW WEAVE_EXPERTS_PER_WAVE
+#endif
+
+#ifndef WEAVE_STATIC_EXPERT_ORDER
+#  if defined(DG_TUNE_D4_STATIC)
+#    define WEAVE_STATIC_EXPERT_ORDER DG_TUNE_D4_STATIC
+#  elif defined(DG_ISOLATED_D4_STATIC)
+#    define WEAVE_STATIC_EXPERT_ORDER DG_ISOLATED_D4_STATIC
+#  else
+#    define WEAVE_STATIC_EXPERT_ORDER 0
+#  endif
+#endif
+#ifndef DG_TUNE_D4_STATIC
+#define DG_TUNE_D4_STATIC WEAVE_STATIC_EXPERT_ORDER
+#endif
+#ifndef DG_ISOLATED_D4_STATIC
+#define DG_ISOLATED_D4_STATIC WEAVE_STATIC_EXPERT_ORDER
+#endif
+
+#ifndef WEAVE_READY_QUEUE
+#  if defined(DG_TUNE_D4_READYQ)
+#    define WEAVE_READY_QUEUE DG_TUNE_D4_READYQ
+#  elif defined(DG_ISOLATED_D4_READYQ)
+#    define WEAVE_READY_QUEUE DG_ISOLATED_D4_READYQ
+#  else
+#    define WEAVE_READY_QUEUE 0
+#  endif
+#endif
+#ifndef DG_TUNE_D4_READYQ
+#define DG_TUNE_D4_READYQ WEAVE_READY_QUEUE
+#endif
+#ifndef DG_ISOLATED_D4_READYQ
+#define DG_ISOLATED_D4_READYQ WEAVE_READY_QUEUE
+#endif
+
+#ifndef WEAVE_SCHED_MODE
+#  if defined(DG_TUNE_D4_MODE)
+#    define WEAVE_SCHED_MODE DG_TUNE_D4_MODE
+#  elif defined(DG_ISOLATED_D4_MODE)
+#    define WEAVE_SCHED_MODE DG_ISOLATED_D4_MODE
+#  else
+#    define WEAVE_SCHED_MODE 0
+#  endif
+#endif
+#ifndef DG_TUNE_D4_MODE
+#define DG_TUNE_D4_MODE WEAVE_SCHED_MODE
+#endif
+#ifndef DG_ISOLATED_D4_MODE
+#define DG_ISOLATED_D4_MODE WEAVE_SCHED_MODE
+#endif
+
+#ifndef WEAVE_DEDUP_MODE
+#  if defined(DG_TUNE_D5_DEDUP)
+#    define WEAVE_DEDUP_MODE DG_TUNE_D5_DEDUP
+#  elif defined(DG_ISOLATED_D5_DEDUP)
+#    define WEAVE_DEDUP_MODE DG_ISOLATED_D5_DEDUP
+#  else
+#    define WEAVE_DEDUP_MODE 0
+#  endif
+#endif
+#ifndef DG_TUNE_D5_DEDUP
+#define DG_TUNE_D5_DEDUP WEAVE_DEDUP_MODE
+#endif
+#ifndef DG_ISOLATED_D5_DEDUP
+#define DG_ISOLATED_D5_DEDUP WEAVE_DEDUP_MODE
+#endif
+
+#ifndef WEAVE_DEDUP_SCHED
+#  if defined(DG_TUNE_D5_SCHED)
+#    define WEAVE_DEDUP_SCHED DG_TUNE_D5_SCHED
+#  elif defined(DG_ISOLATED_D5_SCHED)
+#    define WEAVE_DEDUP_SCHED DG_ISOLATED_D5_SCHED
+#  else
+#    define WEAVE_DEDUP_SCHED 0
+#  endif
+#endif
+#ifndef DG_TUNE_D5_SCHED
+#define DG_TUNE_D5_SCHED WEAVE_DEDUP_SCHED
+#endif
+#ifndef DG_ISOLATED_D5_SCHED
+#define DG_ISOLATED_D5_SCHED WEAVE_DEDUP_SCHED
+#endif
+
+#ifndef WEAVE_COMBINE_GROUP_TILES
+#  if defined(DG_TUNE_D6_G)
+#    define WEAVE_COMBINE_GROUP_TILES DG_TUNE_D6_G
+#  elif defined(DG_ISOLATED_D6_G)
+#    define WEAVE_COMBINE_GROUP_TILES DG_ISOLATED_D6_G
+#  else
+#    define WEAVE_COMBINE_GROUP_TILES 0u
+#  endif
+#endif
+#ifndef DG_TUNE_D6_G
+#define DG_TUNE_D6_G WEAVE_COMBINE_GROUP_TILES
+#endif
+#ifndef DG_ISOLATED_D6_G
+#define DG_ISOLATED_D6_G WEAVE_COMBINE_GROUP_TILES
+#endif
+
+#ifndef WEAVE_COMBINE_REDUCE_WARPS
+#  if defined(DG_TUNE_D6_REDUCE_WARPS)
+#    define WEAVE_COMBINE_REDUCE_WARPS DG_TUNE_D6_REDUCE_WARPS
+#  elif defined(DG_ISOLATED_D6_REDUCE_WARPS)
+#    define WEAVE_COMBINE_REDUCE_WARPS DG_ISOLATED_D6_REDUCE_WARPS
+#  else
+#    define WEAVE_COMBINE_REDUCE_WARPS 0u
+#  endif
+#endif
+#ifndef DG_TUNE_D6_REDUCE_WARPS
+#define DG_TUNE_D6_REDUCE_WARPS WEAVE_COMBINE_REDUCE_WARPS
+#endif
+#ifndef DG_ISOLATED_D6_REDUCE_WARPS
+#define DG_ISOLATED_D6_REDUCE_WARPS WEAVE_COMBINE_REDUCE_WARPS
+#endif
+
+#ifndef WEAVE_SCATTER_MODE
+#  if defined(DG_TUNE_D7_SCATTER_MODE)
+#    define WEAVE_SCATTER_MODE DG_TUNE_D7_SCATTER_MODE
+#  else
+#    define WEAVE_SCATTER_MODE 0
+#  endif
+#endif
+#ifndef DG_TUNE_D7_SCATTER_MODE
+#define DG_TUNE_D7_SCATTER_MODE WEAVE_SCATTER_MODE
+#endif
+
+#ifndef WEAVE_SCATTER_SMEM_ALIAS
+#  if defined(DG_TUNE_D7_SMEM_ALIAS)
+#    define WEAVE_SCATTER_SMEM_ALIAS DG_TUNE_D7_SMEM_ALIAS
+#  else
+#    define WEAVE_SCATTER_SMEM_ALIAS 1
+#  endif
+#endif
+#ifndef DG_TUNE_D7_SMEM_ALIAS
+#define DG_TUNE_D7_SMEM_ALIAS WEAVE_SCATTER_SMEM_ALIAS
+#endif
+
+#ifndef WEAVE_SCATTER_WARPS
+#  if defined(DG_TUNE_D7_WARPS)
+#    define WEAVE_SCATTER_WARPS DG_TUNE_D7_WARPS
+#  elif defined(DG_TUNE_D7_SCATTER_WARPS)
+#    define WEAVE_SCATTER_WARPS DG_TUNE_D7_SCATTER_WARPS
+#  else
+#    define WEAVE_SCATTER_WARPS 0
+#  endif
+#endif
+#ifndef DG_TUNE_D7_WARPS
+#define DG_TUNE_D7_WARPS WEAVE_SCATTER_WARPS
+#endif
+#ifndef DG_TUNE_D7_SCATTER_WARPS
+#define DG_TUNE_D7_SCATTER_WARPS WEAVE_SCATTER_WARPS
+#endif
+
+#ifndef WEAVE_SCATTER_HANDOFF_WAIT
+#  if defined(DG_TUNE_D7_HANDOFF_WAIT)
+#    define WEAVE_SCATTER_HANDOFF_WAIT DG_TUNE_D7_HANDOFF_WAIT
+#  else
+#    define WEAVE_SCATTER_HANDOFF_WAIT 1
+#  endif
+#endif
+#ifndef DG_TUNE_D7_HANDOFF_WAIT
+#define DG_TUNE_D7_HANDOFF_WAIT WEAVE_SCATTER_HANDOFF_WAIT
+#endif
+
+#ifndef WEAVE_SHARED_L2_EARLY_BLOCKS
+#  if defined(DG_SHARED_L2_EARLY_BLOCKS)
+#    define WEAVE_SHARED_L2_EARLY_BLOCKS DG_SHARED_L2_EARLY_BLOCKS
+#  else
+#    define WEAVE_SHARED_L2_EARLY_BLOCKS 10u
+#  endif
+#endif
+#ifndef DG_SHARED_L2_EARLY_BLOCKS
+#define DG_SHARED_L2_EARLY_BLOCKS WEAVE_SHARED_L2_EARLY_BLOCKS
+#endif
+
+#ifndef WEAVE_ENABLE_MULTICAST
+#define WEAVE_ENABLE_MULTICAST 1
+#endif
+
+
+
 #include <cute/arch/cluster_sm90.hpp>
 #include <cutlass/arch/barrier.h>
 

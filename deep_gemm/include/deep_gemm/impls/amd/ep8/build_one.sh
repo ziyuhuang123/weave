@@ -7,6 +7,15 @@ TH64=${3:-16}
 TH128=${4:-96}
 EXTRA=${5:-""}
 ADVISORY=${6:-0}
+PRESET=${WEAVE_ABLATION_PRESET:-0}
+SCATTER=${WEAVE_SCATTER_MODE:-$([ "$PRESET" = "3" ] && echo 0 || echo 2)}
+BM_TIER=${WEAVE_BM_TIER_MODE:-2}
+SELECTIVE=${WEAVE_SELECTIVE_DEDUP:-1}
+DUALGROUP=${WEAVE_DUALGROUP_MIN_TOKENS:-64}
+OVERLAP=${WEAVE_OVERLAP_PIPELINE:-1}
+ALL_WAVE=${WEAVE_ALL_WAVE_COMBINE:-1}
+BN2=${WEAVE_BN2_MODE:-0}
+S2_GROUP=${WEAVE_S2_NGROUP_MODE:-0}
 
 WORK="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 AMD="$(cd "$WORK/.." && pwd)"
@@ -35,20 +44,21 @@ if [ "$ADVISORY" = "1" ]; then
   ADV_FLAG="--advisory"
 fi
 
+# EP8 keeps its validated communication headers in the local include tree.
 $CLANG -x hip --offload-arch=gfx942 --cuda-device-only -O3 -S \
-  -std=c++20 -DKITTENS_CDNA3 -DV1098_FORCE_M=0 -DFI_LEVEL=0 -DFI_TIMER=0 -DFI_GRAN=0 \
-  -DWEAVE_PARALLEL_ROUTE_PLAN=1 -DWEAVE_PAR_RP=1 -DWEAVE_CK_G2_LDS_ONLY=0 -DWEAVE_TILE_TRACE_ONLY=1 \
+  -std=c++20 -DKITTENS_CDNA3 -DV1098_FORCE_M=0 -DFI_LEVEL=$PROF -DWEAVE_PROFILER_LEVEL=$PROF -DFI_TIMER=0 -DFI_GRAN=0 \
+  -DWEAVE_PARALLEL_ROUTE_PLAN=${WEAVE_PARALLEL_ROUTE_PLAN:-1} -DWEAVE_PAR_RP=1 -DWEAVE_CK_G2_LDS_ONLY=0 -DWEAVE_TILE_TRACE_ONLY=1 \
   -DWEAVE_ADAPTIVE_POST_TIMEOUT=1 \
   -DWEAVE_S16_PLAN_CAP=0 -DWEAVE_S16_STATIC_DISPATCH=0 \
   -DWEAVE_OPT_RELAXED_SPIN=1 -DWEAVE_OPT_LOCAL_SCOPE=1 \
   -mllvm -amdgpu-opt-vgpr-liverange=true -mllvm -sink-insts-to-avoid-spills=true \
   $EXTRA -DWEAVE_CO_PROFILE=$PROF -DWEAVE_TH_BM64=${TH64}u -DWEAVE_TH_BM128=${TH128}u \
+  -DWEAVE_ABLATION_PRESET=$PRESET -DWEAVE_SCATTER_MODE=$SCATTER \
+  -DWEAVE_BM_TIER_MODE=$BM_TIER -DWEAVE_SELECTIVE_DEDUP=$SELECTIVE \
+  -DWEAVE_DUALGROUP_MIN_TOKENS=$DUALGROUP -DWEAVE_OVERLAP_PIPELINE=$OVERLAP \
+  -DWEAVE_ALL_WAVE_COMBINE=$ALL_WAVE -DWEAVE_BN2_MODE=$BN2 -DWEAVE_S2_NGROUP_MODE=$S2_GROUP \
   -w -fno-offload-uniform-block -fgpu-flush-denormals-to-zero \
   -mllvm -amdgpu-early-inline-all=true -mllvm -amdgpu-function-calls=false \
-  # EP8 uses the validated v20 comm/compute headers (v20_include/ takes -I
-  # priority over the shared include/).  The Phase 2 CTA-0 policy wiring in the
-  # shared include/ headers causes device_error=210 on real 8xMI308X EP8; EP16
-  # still uses the shared policy-wired headers (required for its zero-spill gate).
   -I"$WORK/v20_include" -I"$AMD/include" -I"$REPO/deep_gemm/include" -I"$SNAP/overlay_gemm2" -I"$SNAP" -I"$V3225" \
   -I"$SITE/3rdparty/ck_helper" -I"$SITE/3rdparty/composable_kernel/include" \
   -I"$SITE/3rdparty/composable_kernel/library/include" \

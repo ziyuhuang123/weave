@@ -1,3 +1,4 @@
+import os
 import torch
 import types
 import warnings
@@ -514,6 +515,20 @@ def fp8_mega_moe(y: torch.Tensor,
         fast_math
     )
 WEAVE_PRECISION_MODES = ("fp8xfp4", "fp4xfp4", "nvfp4", "fp8", "fp8xfp8", "bf16")
+_PRECISION_ENV_TO_NAME = {
+    "0": "fp8xfp4", "1": "fp4xfp4", "2": "fp8", "3": "bf16",
+}
+
+
+def _precision_mode_from_env() -> Optional[str]:
+    """Read the public precision selector before any legacy spelling."""
+    raw = os.environ.get("WEAVE_PRECISION_MODE")
+    if raw is None:
+        raw = os.environ.get("WEAVE_KNOB_PRECISION_MODE")
+    if raw is None or not str(raw).strip():
+        return None
+    value = str(raw).strip().lower()
+    return _PRECISION_ENV_TO_NAME.get(value, value)
 
 
 def _normalize_mma_type(mma_type: str) -> str:
@@ -557,9 +572,11 @@ def weave_mega_moe(y: torch.Tensor,
     """
     if mma_type is None:
         if precision_mode is None:
-            mma_type = getattr(sym_buffer, "mma_type", None)
+            mma_type = _precision_mode_from_env()
         else:
             mma_type = precision_mode
+    if mma_type is None:
+        mma_type = getattr(sym_buffer, "mma_type", None)
     elif precision_mode is not None and (
             _normalize_mma_type(mma_type) != _normalize_mma_type(precision_mode)):
         raise ValueError(

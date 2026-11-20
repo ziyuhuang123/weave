@@ -33,6 +33,12 @@ CUTLASS_DEVICE void sync_aligned(const uint32_t& num_threads, const uint32_t& ba
 CUTLASS_DEVICE void sync_unaligned(const uint32_t& num_threads, const uint32_t& barrier_idx) {
     asm volatile("barrier.sync %0, %1;" : : "r"(barrier_idx), "r"(num_threads));
 }
+// Non-blocking counterpart used by the D7 scatter drain. It keeps the same
+// (thread-count, named-barrier-id) argument order as sync_unaligned.
+CUTLASS_DEVICE void arrive_unaligned(const uint32_t& num_threads, const uint32_t& barrier_idx) {
+    asm volatile("barrier.arrive %0, %1;" : : "r"(barrier_idx), "r"(num_threads) : "memory");
+}
+
 
 template <typename dtype_t>
 CUTLASS_DEVICE dtype_t exchange(dtype_t ptr, const uint32_t& src_lane_idx) {

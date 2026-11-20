@@ -191,7 +191,7 @@ __device__ __forceinline__ void ep16_home(const V968DispatchExt& env,const V983O
 
 __device__ __forceinline__ void ep16_combine(const V968DispatchExt& env,const V983Ov1Ext& o,const Ep16TurboContext& x FI_CTX_PARAM){
  auto& e=env.base;unsigned lane=threadIdx.x&63u;
-#if defined(WEAVE_KNOB_ALL_WAVE_COMBINE) && (WEAVE_KNOB_ALL_WAVE_COMBINE == 0)
+#if defined(WEAVE_ALL_WAVE_COMBINE) && (WEAVE_ALL_WAVE_COMBINE == 0)
  if((threadIdx.x>>6u)==7u)return;
  const unsigned worker=blockIdx.x*2u+(threadIdx.x>>6u)-5u;
  constexpr unsigned kCombineWorkers=64u;
@@ -242,7 +242,7 @@ __device__ __forceinline__ void ep16_combine(const V968DispatchExt& env,const V9
   if(planned==2u)return;
   if(planned==1u){
    if(!seen_plan){asm volatile("buffer_inv sc1\ns_waitcnt vmcnt(0)\n" ::: "memory");seen_plan=true;}
-#if WEAVE_SCATTER_MODE == 0 || (defined(WEAVE_KNOB_OVERLAP_PIPELINE) && WEAVE_KNOB_OVERLAP_PIPELINE == 0)
+#if WEAVE_SCATTER_MODE == 0 || (defined(WEAVE_OVERLAP_PIPELINE) && WEAVE_OVERLAP_PIPELINE == 0)
    unsigned bulk_go=0u;
    if(lane==0u)bulk_go=(ep16_load_agent_relaxed((unsigned*)x.compute_done)>=((WeaveTilePlanTable*)env.ck.ck_a)->total_m_tiles*o.n2_blocks)?1u:0u;
    if(!__shfl(bulk_go,0u)){++pending;}

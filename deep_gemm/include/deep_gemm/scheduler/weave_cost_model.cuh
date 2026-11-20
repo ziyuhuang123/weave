@@ -19,6 +19,20 @@
 
 namespace weave {
 
+// Compile-time defaults consumed by the host-side golden tests and by
+// documentation tooling. Runtime selection uses WeaveKnobs fields, whose
+// values originate from these same public macros.
+static constexpr uint32_t kCompiledPrecisionMode = WEAVE_PRECISION_MODE;
+static constexpr uint32_t kCompiledAblationPreset = WEAVE_ABLATION_PRESET;
+static constexpr uint32_t kCompiledCostModelDefault = WEAVE_ENABLE_COST_MODEL;
+static constexpr uint32_t kCompiledCommUnitsDefault = WEAVE_COMM_UNITS;
+static constexpr uint32_t kCompiledCompUnitsDefault = WEAVE_COMP_UNITS;
+static constexpr uint32_t kCompiledVHeadDefault = WEAVE_V_HEAD;
+static constexpr uint32_t kCompiledScatterModeDefault = WEAVE_SCATTER_MODE;
+static constexpr uint32_t kCompiledOverlapPipelineDefault = WEAVE_OVERLAP_PIPELINE;
+static constexpr uint32_t kCompiledSelectiveDedupDefault = WEAVE_SELECTIVE_DEDUP;
+static constexpr uint32_t kCompiledAllWaveCombineDefault = WEAVE_ALL_WAVE_COMBINE;
+
 static constexpr int kMaxSpatialCandidates = 4;
 static constexpr uint32_t kPolicyMagic = 0x57415645u;  // "WEAVE"
 static constexpr uint32_t kPolicyVersion = 4u;
@@ -356,7 +370,7 @@ WEAVE_HOST_DEVICE EquationBreakdown evaluate_spatial_candidate(
       static_cast<float>(total_tokens) * h * hw.out_bytes * 2.0f /
       (b_tail_gbps * 1000.0f);
   out.t_total_us = hw.t_head_us + out.t_mid_us +
-      (WEAVE_KNOB_TAIL_FINE_GRAINED ? out.t_tail_reduce_us : hw.t_tail_us);
+      (WEAVE_TAIL_FINE_GRAINED ? out.t_tail_reduce_us : hw.t_tail_us);
   return out;
 }
 
@@ -496,7 +510,7 @@ WEAVE_HOST_DEVICE PolicyDecision cta0_select_policy(
     br_comm.t_mid_us = fmaxf(br_comm.t_pull_us + br_comm.t_scat_us,
                              br_comm.t_comp_us + hw.t_handoff_us);
     br_comm.t_total_us = hw.t_head_us + br_comm.t_mid_us +
-        (WEAVE_KNOB_TAIL_FINE_GRAINED ? br_comm.t_tail_reduce_us : hw.t_tail_us);
+        (WEAVE_TAIL_FINE_GRAINED ? br_comm.t_tail_reduce_us : hw.t_tail_us);
     consider(c, 1u, br_comm);
   }
   return best;

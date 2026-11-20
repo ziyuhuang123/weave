@@ -508,7 +508,7 @@ __device__ __forceinline__ void v983_dispatch_4wave(
           const unsigned slot = slot_list[i];
           auto* dstp = reinterpret_cast<unsigned char*>(peer_payload[dst]) +
                        static_cast<uint64_t>(slot) * e.payload_bytes;
-#if defined(WEAVE_KNOB_SELECTIVE_DEDUP) && (WEAVE_KNOB_SELECTIVE_DEDUP == 0)
+#if defined(WEAVE_SELECTIVE_DEDUP) && (WEAVE_SELECTIVE_DEDUP == 0)
           const auto* lm = reinterpret_cast<const V809Meta*>(
               reinterpret_cast<const uint64_t*>(e.local_meta_table)[dst] +
               V809_META_HEADER + static_cast<uint64_t>(slot) * V809_META_STRIDE);
@@ -833,7 +833,7 @@ __device__ __forceinline__ bool v1988_epilogue_finish_4wave(
   const unsigned worker_id = cta * 8u + (tid >> 6u);
   auto* trace = reinterpret_cast<unsigned long long*>(o.trace);
 
-#if defined(WEAVE_KNOB_ALL_WAVE_COMBINE) && (WEAVE_KNOB_ALL_WAVE_COMBINE == 0)
+#if defined(WEAVE_ALL_WAVE_COMBINE) && (WEAVE_ALL_WAVE_COMBINE == 0)
   if ((tid >> 6u) < 4u) return true;
 #endif
   FI_BG(V1988_FI_CORE, V1988_EV_POST_PLAN_WAIT, worker_id);
@@ -956,7 +956,7 @@ __device__ __forceinline__ bool v1988_epilogue_finish_4wave(
     __syncwarp();
   }
 
-#if defined(WEAVE_KNOB_ALL_WAVE_COMBINE) && (WEAVE_KNOB_ALL_WAVE_COMBINE == 0)
+#if defined(WEAVE_ALL_WAVE_COMBINE) && (WEAVE_ALL_WAVE_COMBINE == 0)
   const unsigned home_wid = cta * 4u + ((tid >> 6u) - 4u);
   for (unsigned tok = home_wid; tok < e.t_local; tok += gridDim.x * 4u) {
 #else

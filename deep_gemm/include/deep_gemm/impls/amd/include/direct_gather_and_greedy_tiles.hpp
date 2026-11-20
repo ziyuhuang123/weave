@@ -68,10 +68,10 @@ __host__ __device__ __forceinline__ WeaveGreedyTilePlan weave_greedy_plan_init(u
     return p;
 }
 
-#ifndef WEAVE_KNOB_BM_TIER_MODE
-#define WEAVE_KNOB_BM_TIER_MODE 2
+#ifndef WEAVE_BM_TIER_MODE
+#define WEAVE_BM_TIER_MODE 2
 #endif
-static_assert(WEAVE_KNOB_BM_TIER_MODE == 2,
+static_assert(WEAVE_BM_TIER_MODE == 2,
               "EP16 requires adaptive BM_e in {32,64,128,256} in every arm");
 
 __host__ __device__ __forceinline__ uint32_t weave_greedy_next_tile(
@@ -453,7 +453,7 @@ __device__ __forceinline__ bool v983_route_plan_parallel_80cta(
                 plan_counts[lid] = c;
                 const uint32_t q16 = (c + 15u) >> 4u;
                 const uint32_t q32 = (c + 31u) >> 5u;
-#if WEAVE_KNOB_BM_TIER_MODE == 0
+#if WEAVE_BM_TIER_MODE == 0
                 plan_padded[lid] = (q16 == 0u) ? 0u : (((q16 + 3u) >> 2u) << 6u);
 #else
                 plan_padded[lid] = q16 << 4u;
@@ -550,7 +550,7 @@ __device__ __forceinline__ bool v983_route_plan_parallel_80cta(
                         d.valid_rows = static_cast<uint16_t>(valid_rows);
                         d.tile_idx = out_idx;
                         descs[out_idx] = d;
-#if WEAVE_KNOB_BM_TIER_MODE == 0
+#if WEAVE_BM_TIER_MODE == 0
                         cur_row += 64u;
 #else
                         cur_row += ((valid_rows + 15u) & ~15u);

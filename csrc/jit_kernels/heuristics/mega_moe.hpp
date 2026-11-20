@@ -75,26 +75,17 @@ static bool is_mma_with_sf(const MmaKind& mma_kind) {
     return mma_kind == MmaKind::MXFP8FP4;
 }
 
-static int get_tune_env(const char* primary, const char* fallback, const int& default_val = 0) {
-    const int v = get_env<int>(primary, -999999);
-    if (v != -999999)
-        return v;
-    if (fallback != nullptr)
-        return get_env<int>(fallback, default_val);
-    return default_val;
-}
-
 static bool is_d3_opt_enabled(const MmaKind& mma_kind) {
     if (mma_kind != MmaKind::MXFP8FP4)
         return false;
-    return get_env<int>("DG_ISOLATED_D3_OPT", 0) != 0 or
-           get_tune_env("DG_TUNE_D3_BM", "DG_D3_BM", 0) > 0 or
-           get_tune_env("DG_TUNE_D3_BN", "DG_D3_BN", 0) > 0 or
-           get_tune_env("DG_TUNE_D3_BK", "DG_D3_BK", 0) > 0 or
-           get_tune_env("DG_TUNE_D3_STORE_M", "DG_D3_STORE_M", 0) > 0 or
-           get_tune_env("DG_TUNE_D3_DYN_EPI", "DG_D3_DYN_EPI", 0) > 0 or
-           get_tune_env("DG_TUNE_D3_DYN_TMA_A", "DG_D3_DYN_TMA_A", 0) > 0 or
-           get_tune_env("DG_TUNE_D3_OVERLAP_SMEM", "DG_D3_OVERLAP_EXPERT_SMEM", 0) > 0;
+    return get_weave_env<int>("WEAVE_ENABLE_BLOCK_TUNING", "DG_ISOLATED_D3_OPT", nullptr, 0) != 0 or
+           get_weave_env<int>("WEAVE_BLOCK_M", "DG_TUNE_D3_BM", "DG_D3_BM", 0) > 0 or
+           get_weave_env<int>("WEAVE_BLOCK_N", "DG_TUNE_D3_BN", "DG_D3_BN", 0) > 0 or
+           get_weave_env<int>("WEAVE_BLOCK_K", "DG_TUNE_D3_BK", "DG_D3_BK", 0) > 0 or
+           get_weave_env<int>("WEAVE_STORE_BLOCK_M", "DG_TUNE_D3_STORE_M", "DG_D3_STORE_M", 0) > 0 or
+           get_weave_env<int>("WEAVE_DYN_EPILOGUE", "DG_TUNE_D3_DYN_EPI", "DG_D3_DYN_EPI", 0) > 0 or
+           get_weave_env<int>("WEAVE_DYN_TMA_A", "DG_TUNE_D3_DYN_TMA_A", "DG_D3_DYN_TMA_A", 0) > 0 or
+           get_weave_env<int>("WEAVE_OVERLAP_EXPERT_SMEM", "DG_TUNE_D3_OVERLAP_SMEM", "DG_D3_OVERLAP_EXPERT_SMEM", 0) > 0;
 }
 
 static std::tuple<int, int, int, int, int> get_block_config_for_mega_moe(
@@ -136,15 +127,15 @@ static std::tuple<int, int, int, int, int> get_block_config_for_mega_moe(
     }();
     block_k /= get_num_mma_elem_bytes(mma_kind);
 
-    block_m = get_env<int>("DG_MEGA_BLOCK_M", block_m);
-    store_block_m = get_env<int>("DG_MEGA_STORE_BLOCK_M", store_block_m);
-    block_k = get_env<int>("DG_MEGA_BLOCK_K", block_k);
-    num_epilogue_warpgroups = get_env<int>("DG_MEGA_EPILOGUE_WARPGROUPS", num_epilogue_warpgroups);
+    block_m = get_weave_env<int>("WEAVE_BLOCK_M", "DG_MEGA_BLOCK_M", nullptr, block_m);
+    store_block_m = get_weave_env<int>("WEAVE_STORE_BLOCK_M", "DG_MEGA_STORE_BLOCK_M", nullptr, store_block_m);
+    block_k = get_weave_env<int>("WEAVE_BLOCK_K", "DG_MEGA_BLOCK_K", nullptr, block_k);
+    num_epilogue_warpgroups = get_weave_env<int>("WEAVE_EPILOGUE_WARPGROUPS", "DG_MEGA_EPILOGUE_WARPGROUPS", nullptr, num_epilogue_warpgroups);
 
-    const int d3_bm = get_tune_env("DG_TUNE_D3_BM", "DG_D3_BM", 0);
-    const int d3_store_m = get_tune_env("DG_TUNE_D3_STORE_M", "DG_D3_STORE_M", 0);
-    const int d3_bk = get_tune_env("DG_TUNE_D3_BK", "DG_D3_BK", 0);
-    const int d3_epi_wg = get_tune_env("DG_TUNE_D3_EPI_WG", "DG_D3_EPI_WG", 0);
+    const int d3_bm = get_weave_env<int>("WEAVE_BLOCK_M", "DG_TUNE_D3_BM", "DG_D3_BM", 0);
+    const int d3_store_m = get_weave_env<int>("WEAVE_STORE_BLOCK_M", "DG_TUNE_D3_STORE_M", "DG_D3_STORE_M", 0);
+    const int d3_bk = get_weave_env<int>("WEAVE_BLOCK_K", "DG_TUNE_D3_BK", "DG_D3_BK", 0);
+    const int d3_epi_wg = get_weave_env<int>("WEAVE_EPILOGUE_WARPGROUPS", "DG_TUNE_D3_EPI_WG", "DG_D3_EPI_WG", 0);
     if (d3_bm > 0) block_m = d3_bm;
     if (d3_epi_wg > 0) num_epilogue_warpgroups = d3_epi_wg;
     if (d3_store_m > 0) {
@@ -155,7 +146,7 @@ static std::tuple<int, int, int, int, int> get_block_config_for_mega_moe(
     if (d3_bk > 0) block_k = d3_bk;
 
     // Axis 2 (D2): Modes 1..8 use 2 epilogue warpgroups (8E = 256 threads); Modes 11..15 keep default
-    const int d2_mode = get_tune_env("DG_TUNE_D2_MODE", "DG_ISOLATED_D2_MODE", 0);
+    const int d2_mode = get_weave_env<int>("WEAVE_WARP_SPLIT_MODE", "DG_TUNE_D2_MODE", "DG_ISOLATED_D2_MODE", 0);
     if (1 <= d2_mode and d2_mode <= 8) {
         num_epilogue_warpgroups = 2;
         if (store_block_m * num_epilogue_warpgroups > block_m)
@@ -182,14 +173,14 @@ static std::pair<int, int> get_pipeline_config_for_mega_moe(
     const int num_mma_elem_bytes = get_num_mma_elem_bytes(mma_kind);
 
     const int default_accum_stages = ((block_n / 128) * block_m >= 256) ? 1 : 2;
-    const int num_epilogue_stages = get_tune_env("DG_D3_ACCUM_STAGES", "DG_MEGA_ACCUM_STAGES", default_accum_stages);
+    const int num_epilogue_stages = get_weave_env<int>("WEAVE_ACCUM_STAGES", "DG_D3_ACCUM_STAGES", "DG_MEGA_ACCUM_STAGES", default_accum_stages);
     DG_HOST_ASSERT(1 <= num_epilogue_stages and num_epilogue_stages <= 4);
-    const int num_tma_store_stages = get_tune_env("DG_D3_TMA_STORE_STAGES", "DG_MEGA_TMA_STORE_STAGES", 2);
+    const int num_tma_store_stages = get_weave_env<int>("WEAVE_TMA_STORE_STAGES", "DG_D3_TMA_STORE_STAGES", "DG_MEGA_TMA_STORE_STAGES", 2);
     DG_HOST_ASSERT(1 <= num_tma_store_stages and num_tma_store_stages <= 8);
-    const int kNumScheduleStages = get_tune_env("DG_TUNE_D3_SCHED_STAGES", "DG_D3_SCHED_STAGES", 2);
+    const int kNumScheduleStages = get_weave_env<int>("WEAVE_SCHED_STAGES", "DG_TUNE_D3_SCHED_STAGES", "DG_D3_SCHED_STAGES", 2);
 
-    const int d2_mode = get_tune_env("DG_TUNE_D2_MODE", "DG_ISOLATED_D2_MODE", 0);
-    const int d2_reg_pull_bytes = get_tune_env("DG_TUNE_D2_REG_PULL_BYTES", "DG_ISOLATED_D2_REG_PULL_BYTES", 0);
+    const int d2_mode = get_weave_env<int>("WEAVE_WARP_SPLIT_MODE", "DG_TUNE_D2_MODE", "DG_ISOLATED_D2_MODE", 0);
+    const int d2_reg_pull_bytes = get_weave_env<int>("WEAVE_REG_PULL_BYTES", "DG_TUNE_D2_REG_PULL_BYTES", "DG_ISOLATED_D2_REG_PULL_BYTES", 0);
     const bool d2_all_reg_pull = is_mma_with_sf(mma_kind) and (d2_reg_pull_bytes > 0);
     const bool d2_split_hybrid = is_mma_with_sf(mma_kind) and (not d2_all_reg_pull) and
         ((5 <= d2_mode and d2_mode <= 8) or d2_mode == 14);
@@ -198,11 +189,11 @@ static std::pair<int, int> get_pipeline_config_for_mega_moe(
     const int num_dispatch_barrier_slots =
         d2_all_reg_pull ? 1 : num_tma_dispatch_warps;
 
-    const int d3_overlap_smem = get_tune_env("DG_TUNE_D3_OVERLAP_SMEM", "DG_D3_OVERLAP_EXPERT_SMEM", 0);
-    const int d7_scatter_mode = get_tune_env("DG_TUNE_D7_SCATTER_MODE", "DG_ISOLATED_D7_SCATTER", 0);
-    const int d7_smem_alias = get_env<int>("DG_TUNE_D7_SMEM_ALIAS", 1);
+    const int d3_overlap_smem = get_weave_env<int>("WEAVE_OVERLAP_EXPERT_SMEM", "DG_TUNE_D3_OVERLAP_SMEM", "DG_D3_OVERLAP_EXPERT_SMEM", 0);
+    const int d7_scatter_mode = get_weave_env<int>("WEAVE_SCATTER_MODE", "DG_TUNE_D7_SCATTER_MODE", "DG_ISOLATED_D7_SCATTER", 0);
+    const int d7_smem_alias = get_weave_env<int>("WEAVE_SCATTER_SMEM_ALIAS", "DG_TUNE_D7_SMEM_ALIAS", nullptr, 1);
     const bool d7_handoff_active = is_mma_with_sf(mma_kind) and (d7_scatter_mode == 1 or
-        (get_env<int>("DG_TUNE_D7_SCATTER_MODE", -1) == -1 and d7_scatter_mode != 0));
+        (get_weave_env<int>("WEAVE_SCATTER_MODE", "DG_TUNE_D7_SCATTER_MODE", nullptr, -1) == -1 and d7_scatter_mode != 0));
 
     const int load_block_m = block_m / 2;
     const int smem_expert_count_size = align(
@@ -257,8 +248,8 @@ static std::pair<int, int> get_pipeline_config_for_mega_moe(
 
     const int max_num_stages = (smem_capacity - smem_fixed) / smem_size_per_stage;
     DG_HOST_ASSERT(max_num_stages >= 2);
-    const int d3_stages = get_tune_env("DG_TUNE_D3_STAGES", "DG_D3_STAGES", 0);
-    const int num_stages = (d3_stages > 0) ? std::min(d3_stages, max_num_stages) : get_env<int>("DG_MEGA_STAGES", max_num_stages);
+    const int d3_stages = get_weave_env<int>("WEAVE_GEMM_STAGES", "DG_TUNE_D3_STAGES", "DG_D3_STAGES", 0);
+    const int num_stages = (d3_stages > 0) ? std::min(d3_stages, max_num_stages) : get_weave_env<int>("WEAVE_GEMM_STAGES", "DG_MEGA_STAGES", nullptr, max_num_stages);
     DG_HOST_ASSERT(num_stages >= 2);
     DG_HOST_ASSERT(smem_fixed + num_stages * smem_size_per_stage <= smem_capacity);
 
@@ -279,7 +270,7 @@ static MegaMoEConfig get_mega_moe_config(
             num_tokens, mma_kind, hidden, intermediate_hidden);
 
     int block_n = 128;
-    const int d3_bn = get_tune_env("DG_TUNE_D3_BN", "DG_D3_BN", 0);
+    const int d3_bn = get_weave_env<int>("WEAVE_BLOCK_N", "DG_TUNE_D3_BN", "DG_D3_BN", 0);
     if (d3_bn > 0) {
         block_n = d3_bn;
         DG_HOST_ASSERT(block_n == 64 or block_n == 128 or block_n == 256);
@@ -294,16 +285,16 @@ static MegaMoEConfig get_mega_moe_config(
     const int gran_k = 32;
 
     // Thread layout (Axis 2 D2 & Axis 7 D7)
-    const int d2_mode = get_tune_env("DG_TUNE_D2_MODE", "DG_ISOLATED_D2_MODE", 0);
-    const int d7_warps = get_tune_env("DG_TUNE_D7_WARPS", "DG_TUNE_D7_SCATTER_WARPS", get_env<int>("DG_SCATTER_WARPS", 0));
-    int num_dispatch_threads = get_env<int>("DG_MEGA_DISPATCH_THREADS", 128);
+    const int d2_mode = get_weave_env<int>("WEAVE_WARP_SPLIT_MODE", "DG_TUNE_D2_MODE", "DG_ISOLATED_D2_MODE", 0);
+    const int d7_warps = get_weave_env<int>("WEAVE_SCATTER_WARPS", "DG_TUNE_D7_WARPS", "DG_TUNE_D7_SCATTER_WARPS", get_env<int>("DG_SCATTER_WARPS", 0));
+    int num_dispatch_threads = get_weave_env<int>("WEAVE_DISPATCH_THREADS", "DG_MEGA_DISPATCH_THREADS", nullptr, 128);
     if (d7_warps > 0)
         num_dispatch_threads = d7_warps * 32;
     if ((2 <= d2_mode and d2_mode <= 8) or (11 <= d2_mode and d2_mode <= 15))
         num_dispatch_threads = 256;
     DG_HOST_ASSERT(num_dispatch_threads != 192 and
                    (num_dispatch_threads == 128 or num_dispatch_threads == 256));
-    const int num_non_epilogue_threads = get_env<int>("DG_MEGA_NON_EPILOGUE_THREADS", 128);
+    const int num_non_epilogue_threads = get_weave_env<int>("WEAVE_NON_EPILOGUE_THREADS", "DG_MEGA_NON_EPILOGUE_THREADS", nullptr, 128);
 
     // Pull bytes (Axis 2 D2 & Axis 3 D3)
     constexpr int kPullThreshold = 4096;
@@ -315,11 +306,11 @@ static MegaMoEConfig get_mega_moe_config(
     if ((2 <= d2_mode and d2_mode <= 4) or (11 <= d2_mode and d2_mode <= 13)) {
         num_bytes_per_pull = 2048;
     }
-    const int d2_reg_pull_bytes = get_tune_env("DG_TUNE_D2_REG_PULL_BYTES", "DG_ISOLATED_D2_REG_PULL_BYTES", 0);
+    const int d2_reg_pull_bytes = get_weave_env<int>("WEAVE_REG_PULL_BYTES", "DG_TUNE_D2_REG_PULL_BYTES", "DG_ISOLATED_D2_REG_PULL_BYTES", 0);
     if (d2_reg_pull_bytes > 0) {
         num_bytes_per_pull = d2_reg_pull_bytes;
     }
-    num_bytes_per_pull = get_env<int>("DG_MEGA_NUM_BYTES_PER_PULL", num_bytes_per_pull);
+    num_bytes_per_pull = get_weave_env<int>("WEAVE_NUM_BYTES_PER_PULL", "DG_MEGA_NUM_BYTES_PER_PULL", nullptr, num_bytes_per_pull);
     DG_HOST_ASSERT(num_bytes_per_pull > 0);
     DG_HOST_ASSERT(hidden * get_num_mma_elem_bytes(mma_kind) % num_bytes_per_pull == 0);
 

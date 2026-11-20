@@ -1,5 +1,187 @@
 #pragma once
 
+// ============================================================================
+// Public H20 compile-time knobs. WEAVE_* is primary; archived AGY_* spellings
+// remain source-level aliases for byte-compatible old launch scripts.
+// ============================================================================
+#ifndef WEAVE_MCAST
+#  ifdef AGY_MCAST
+#    define WEAVE_MCAST AGY_MCAST
+#  else
+#    define WEAVE_MCAST 0
+#  endif
+#endif
+#ifndef AGY_MCAST
+#define AGY_MCAST WEAVE_MCAST
+#endif
+
+#ifndef WEAVE_SWIZZLE_TILES
+#  ifdef AGY_SWIZZLE_TILES
+#    define WEAVE_SWIZZLE_TILES AGY_SWIZZLE_TILES
+#  else
+#    define WEAVE_SWIZZLE_TILES 0
+#  endif
+#endif
+#ifndef AGY_SWIZZLE_TILES
+#define AGY_SWIZZLE_TILES WEAVE_SWIZZLE_TILES
+#endif
+
+#ifndef WEAVE_HOT_COLD_MODE
+#  ifdef AGY_HOT_COLD_L1
+#    define WEAVE_HOT_COLD_MODE AGY_HOT_COLD_L1
+#  else
+#    define WEAVE_HOT_COLD_MODE 0
+#  endif
+#endif
+#ifndef AGY_HOT_COLD_L1
+#define AGY_HOT_COLD_L1 WEAVE_HOT_COLD_MODE
+#endif
+
+#ifndef WEAVE_DEDUP_DISPATCH
+#  ifdef AGY_DEDUP_DISP
+#    define WEAVE_DEDUP_DISPATCH AGY_DEDUP_DISP
+#  else
+#    define WEAVE_DEDUP_DISPATCH 0
+#  endif
+#endif
+#ifndef AGY_DEDUP_DISP
+#define AGY_DEDUP_DISP WEAVE_DEDUP_DISPATCH
+#endif
+
+#ifndef WEAVE_DEDUP_SCATTER
+#  ifdef AGY_DEDUP_SCAT
+#    define WEAVE_DEDUP_SCATTER AGY_DEDUP_SCAT
+#  else
+#    define WEAVE_DEDUP_SCATTER 0
+#  endif
+#endif
+#ifndef AGY_DEDUP_SCAT
+#define AGY_DEDUP_SCAT WEAVE_DEDUP_SCATTER
+#endif
+
+#ifndef WEAVE_REG_COMBINE
+#  ifdef AGY_REG_COMB
+#    define WEAVE_REG_COMBINE AGY_REG_COMB
+#  else
+#    define WEAVE_REG_COMBINE 0
+#  endif
+#endif
+#ifndef AGY_REG_COMB
+#define AGY_REG_COMB WEAVE_REG_COMBINE
+#endif
+
+#ifndef WEAVE_ALL_IDLE_COMBINE
+#  ifdef AGY_ALL_IDLE_COMB
+#    define WEAVE_ALL_IDLE_COMBINE AGY_ALL_IDLE_COMB
+#  else
+#    define WEAVE_ALL_IDLE_COMBINE 0
+#  endif
+#endif
+#ifndef AGY_ALL_IDLE_COMB
+#define AGY_ALL_IDLE_COMB WEAVE_ALL_IDLE_COMBINE
+#endif
+
+#ifndef WEAVE_DYN_SCHED
+#  ifdef AGY_DYN_SCHED
+#    define WEAVE_DYN_SCHED AGY_DYN_SCHED
+#  else
+#    define WEAVE_DYN_SCHED 0
+#  endif
+#endif
+#ifndef AGY_DYN_SCHED
+#define AGY_DYN_SCHED WEAVE_DYN_SCHED
+#endif
+
+#ifndef WEAVE_INTERLEAVE_L1_L2
+#  ifdef AGY_INTERLEAVE_L1_L2
+#    define WEAVE_INTERLEAVE_L1_L2 AGY_INTERLEAVE_L1_L2
+#  else
+#    define WEAVE_INTERLEAVE_L1_L2 0
+#  endif
+#endif
+#ifndef AGY_INTERLEAVE_L1_L2
+#define AGY_INTERLEAVE_L1_L2 WEAVE_INTERLEAVE_L1_L2
+#endif
+
+#ifndef WEAVE_SCATTER_ROLE_DISP
+#  ifdef AGY_SCATTER_ROLE_DISP
+#    define WEAVE_SCATTER_ROLE_DISP AGY_SCATTER_ROLE_DISP
+#  else
+#    define WEAVE_SCATTER_ROLE_DISP 0
+#  endif
+#endif
+#ifndef AGY_SCATTER_ROLE_DISP
+#define AGY_SCATTER_ROLE_DISP WEAVE_SCATTER_ROLE_DISP
+#endif
+
+#ifndef WEAVE_HETERO_MASK_MODE
+#  ifdef AGY_D_MASK_MODE
+#    define WEAVE_HETERO_MASK_MODE AGY_D_MASK_MODE
+#  else
+#    define WEAVE_HETERO_MASK_MODE 0
+#  endif
+#endif
+#ifndef AGY_D_MASK_MODE
+#define AGY_D_MASK_MODE WEAVE_HETERO_MASK_MODE
+#endif
+
+#ifndef WEAVE_PIPE_WGMMA
+#  ifdef AGY_PIPE_WGMMA
+#    define WEAVE_PIPE_WGMMA AGY_PIPE_WGMMA
+#  else
+#    define WEAVE_PIPE_WGMMA 0
+#  endif
+#endif
+#ifndef AGY_PIPE_WGMMA
+#define AGY_PIPE_WGMMA WEAVE_PIPE_WGMMA
+#endif
+
+#ifndef WEAVE_SWAP_PIPE
+#  ifdef AGY_SWAP_PIPE
+#    define WEAVE_SWAP_PIPE AGY_SWAP_PIPE
+#  else
+#    define WEAVE_SWAP_PIPE 0
+#  endif
+#endif
+#ifndef AGY_SWAP_PIPE
+#define AGY_SWAP_PIPE WEAVE_SWAP_PIPE
+#endif
+
+#ifndef WEAVE_FAST_PULL
+#  ifdef AGY_FAST_PULL
+#    define WEAVE_FAST_PULL AGY_FAST_PULL
+#  else
+#    define WEAVE_FAST_PULL 0
+#  endif
+#endif
+#ifndef AGY_FAST_PULL
+#define AGY_FAST_PULL WEAVE_FAST_PULL
+#endif
+
+#ifndef WEAVE_ADAPT_BM
+#  ifdef AGY_ADAPT_BM
+#    define WEAVE_ADAPT_BM AGY_ADAPT_BM
+#  else
+#    define WEAVE_ADAPT_BM 0
+#  endif
+#endif
+#ifndef AGY_ADAPT_BM
+#define AGY_ADAPT_BM WEAVE_ADAPT_BM
+#endif
+
+#ifndef WEAVE_HOT_COLD_L2
+#  ifdef AGY_HOT_COLD_L2
+#    define WEAVE_HOT_COLD_L2 AGY_HOT_COLD_L2
+#  else
+#    define WEAVE_HOT_COLD_L2 WEAVE_HOT_COLD_MODE
+#  endif
+#endif
+#ifndef AGY_HOT_COLD_L2
+#define AGY_HOT_COLD_L2 WEAVE_HOT_COLD_L2
+#endif
+
+
+
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wunknown-attributes"
 

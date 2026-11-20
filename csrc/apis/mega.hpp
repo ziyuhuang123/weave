@@ -24,7 +24,7 @@ enum class Backend : uint32_t {
 };
 
 // First-class precision selector.  This is the C++ mirror of the Python
-// mma_type argument and of WEAVE_KNOB_PRECISION_MODE.
+// mma_type argument and of WEAVE_PRECISION_MODE.
 enum class MmaType : uint32_t {
   kFP8xFP4 = 0,
   kNVFP4 = 1,
