@@ -175,7 +175,7 @@ struct AgySm90KnobSpec {
         return def_val;
     }
 
-    bool is_scatter_role_disp() const {
+    bool legacy_scatter_role_disp() const {
         if (not enabled) return false;
         for (const auto& p : kv) {
             if (p.first == "scat_disp") {
@@ -193,6 +193,36 @@ struct AgySm90KnobSpec {
             }
         }
         return false;
+    }
+
+    int resolved_scatter_staging() const {
+        if (not enabled) return 0;
+        const bool local_dedup = get_int("local_dedup", 0) > 0;
+        const bool hbm_scat = get_int("hbm_scat", get_int("hbm_scatter_queue", 0)) > 0;
+        const int scatter_sms = get_int("scatter_sms", get_int("scatter_active_sms", 0));
+        const bool legacy_disp = legacy_scatter_role_disp();
+        const int def_staging = (local_dedup or hbm_scat or (scatter_sms > 0 and not legacy_disp))
+            ? 2 : (legacy_disp ? 1 : 0);
+        const int staging = get_int("scatter_staging", def_staging);
+        DG_HOST_ASSERT(staging >= 0 and staging <= 2);
+        return staging;
+    }
+
+    int resolved_scatter_owner() const {
+        if (not enabled) return 0;
+        const int staging = resolved_scatter_staging();
+        const int scatter_sms = get_int("scatter_sms", get_int("scatter_active_sms", 0));
+        const bool legacy_disp = legacy_scatter_role_disp();
+        const int def_owner = (staging != 0 or legacy_disp or scatter_sms > 0) ? 1 : 0;
+        const int owner = get_int("scatter_owner", def_owner);
+        DG_HOST_ASSERT(owner == 0 or owner == 1);
+        DG_HOST_ASSERT(staging == 0 or owner == 1);
+        DG_HOST_ASSERT(scatter_sms == 0 or owner == 1);
+        return owner;
+    }
+
+    bool is_scatter_role_disp() const {
+        return enabled and resolved_scatter_owner() == 1;
     }
 };
 
@@ -452,8 +482,7 @@ static std::string get_agy_sm90_jit_defines(const AgySm90KnobSpec& spec) {
         defs += "#define AGY_L2_OMIT_DISPATCH_SMEM 1\n";
     if (spec.get_int("full_nswap", 0) > 0)
         defs += "#define AGY_FULL_NSWAP 1\n";
-    if (spec.get_int("hbm_scat", spec.get_int("hbm_scatter_queue", 0)) > 0)
-        defs += "#define WEAVE_HBM_SCATTER_QUEUE 1\n";
+    const bool hbm_scat = spec.get_int("hbm_scat", spec.get_int("hbm_scatter_queue", 0)) > 0;
     const int scatter_sms = spec.get_int(
         "scatter_sms", spec.get_int("scatter_active_sms", 0));
     if (scatter_sms > 0)
@@ -476,44 +505,30 @@ static std::string get_agy_sm90_jit_defines(const AgySm90KnobSpec& spec) {
     const int head_pull_chunk = spec.get_int("head_pull_chunk", 0);
     if (head_pull_chunk > 0)
         defs += std::format("#define WEAVE_HEAD_PULL_CHUNK {}\n", head_pull_chunk);
-    if (spec.get_int("local_dedup", 0) > 0) {
+    const bool local_dedup = spec.get_int("local_dedup", 0) > 0;
+    const int staging = spec.resolved_scatter_staging();
+    const int owner = spec.resolved_scatter_owner();
+    const bool use_hbm_dedup = local_dedup or staging == 2;
+    if (use_hbm_dedup)
         defs += "#define WEAVE_LOCAL_SCATTER_DEDUP 1\n";
+    if (hbm_scat or use_hbm_dedup)
         defs += "#define WEAVE_HBM_SCATTER_QUEUE 1\n";
-    }
-    {
-        // Strict binary scatter ownership + staging (same rules as the
-        // unified host resolver): local dedup without an explicit staging
-        // selects hbm_dedup; any staged path or scatter SM throttle is
-        // comm-owned; hbm_dedup implies the bf16x2 dedup queue.
-        const bool local_dedup = spec.get_int("local_dedup", 0) > 0;
-        int staging = spec.get_int("scatter_staging", local_dedup ? 2 : 0);
-        DG_HOST_ASSERT(staging >= 0 and staging <= 2);
-        int owner = spec.get_int("scatter_owner",
-                                 (staging != 0 or scatter_sms > 0) ? 1 : 0);
-        DG_HOST_ASSERT(owner == 0 or owner == 1);
-        DG_HOST_ASSERT(staging == 0 or owner == 1);
-        DG_HOST_ASSERT(scatter_sms == 0 or owner == 1);
-        if (staging == 2 and not local_dedup) {
-            defs += "#define WEAVE_LOCAL_SCATTER_DEDUP 1\n";
-            defs += "#define WEAVE_HBM_SCATTER_QUEUE 1\n";
-        }
-        defs += std::format("#define WEAVE_SCATTER_OWNER {}\n", owner);
-        defs += std::format("#define WEAVE_SCATTER_STAGING {}\n", staging);
-        const int comb_sync_chunk = spec.get_int("comb_sync_chunk", 0);
-        DG_HOST_ASSERT(comb_sync_chunk == 0 or comb_sync_chunk == 16 or comb_sync_chunk == 32 or
-                       comb_sync_chunk == 64 or comb_sync_chunk == 128);
-        DG_HOST_ASSERT(comb_sync_chunk == 0 or local_dedup or staging == 2);
-        if (comb_sync_chunk > 0)
-            defs += std::format("#define WEAVE_COMBINE_SYNC_CHUNK {}\n", comb_sync_chunk);
-        const int dispatch_sms = spec.get_int("dispatch_sms", 0);
-        DG_HOST_ASSERT(dispatch_sms >= 0);
-        if (dispatch_sms > 0)
-            defs += std::format("#define WEAVE_DISPATCH_ACTIVE_SMS {}\n", dispatch_sms);
-        const int epi_reg_stages = spec.get_int("epi_reg_stages", 0);
-        DG_HOST_ASSERT(epi_reg_stages >= 0 and epi_reg_stages <= 2);
-        if (epi_reg_stages > 0)
-            defs += std::format("#define WEAVE_EPI_REG_STAGES {}\n", epi_reg_stages);
-    }
+    defs += std::format("#define WEAVE_SCATTER_OWNER {}\n", owner);
+    defs += std::format("#define WEAVE_SCATTER_STAGING {}\n", staging);
+    const int comb_sync_chunk = spec.get_int("comb_sync_chunk", 0);
+    DG_HOST_ASSERT(comb_sync_chunk == 0 or comb_sync_chunk == 16 or comb_sync_chunk == 32 or
+                   comb_sync_chunk == 64 or comb_sync_chunk == 128);
+    DG_HOST_ASSERT(comb_sync_chunk == 0 or use_hbm_dedup);
+    if (comb_sync_chunk > 0)
+        defs += std::format("#define WEAVE_COMBINE_SYNC_CHUNK {}\n", comb_sync_chunk);
+    const int dispatch_sms = spec.get_int("dispatch_sms", 0);
+    DG_HOST_ASSERT(dispatch_sms >= 0);
+    if (dispatch_sms > 0)
+        defs += std::format("#define WEAVE_DISPATCH_ACTIVE_SMS {}\n", dispatch_sms);
+    const int epi_reg_stages = spec.get_int("epi_reg_stages", 0);
+    DG_HOST_ASSERT(epi_reg_stages >= 0 and epi_reg_stages <= 2);
+    if (epi_reg_stages > 0)
+        defs += std::format("#define WEAVE_EPI_REG_STAGES {}\n", epi_reg_stages);
     if (spec.get_int("adapt_bm", 0) > 0) {
         defs += "#define WEAVE_ADAPT_BM 1\n";
         if (spec.get_int("full_nswap", 0) == 0)
@@ -533,7 +548,7 @@ static std::string get_agy_sm90_jit_defines(const AgySm90KnobSpec& spec) {
         defs += "#define WEAVE_FAST_PULL 1\n";
     if (spec.get_int("dedup_disp", 0) > 0)
         defs += "#define WEAVE_DEDUP_DISPATCH 1\n";
-    if (spec.get_int("dedup_scat", 0) > 0)
+    if (spec.get_int("dedup_scat", 0) > 0 or use_hbm_dedup or scatter_sms > 0)
         defs += "#define WEAVE_DEDUP_SCATTER 1\n";
     if (spec.get_int("fast_comb", 0) > 0)
         defs += "#define AGY_FAST_COMB 1\n";

@@ -53,7 +53,7 @@ static void sm100_bf16_mega_moe(
                                                         config.swizzle_weights_mode);
     const auto tensor_map_l1_output = make_tma_2d_desc(l2_acts,
                                                        intermediate_hidden, config.num_ring_tokens,
-                                                       config.block_n / 2, config.store_block_m,
+                                                       config.block_n / 2, config.store_block_m_l1,
                                                        static_cast<int>(l2_acts.stride(-2)),
                                                        config.swizzle_acts_mode);
     const auto tensor_map_l2_acts = make_tma_2d_desc(l2_acts,
@@ -82,7 +82,7 @@ static void sm100_bf16_mega_moe(
     const auto tensor_map_shared_l1_output = num_shared_experts > 0 ? make_tma_2d_desc(
         shared_l2_acts,
         shared_intermediate_hidden, num_max_tokens_per_rank,
-        config.block_n / 2, config.store_block_m,
+        config.block_n / 2, config.store_block_m_l1,
         static_cast<int>(shared_l2_acts.stride(-2)),
         config.swizzle_acts_mode) : tensor_map_l1_output;
     const auto tensor_map_shared_l2_acts = num_shared_experts > 0 ? make_tma_2d_desc(
@@ -133,7 +133,7 @@ static void __instantiate_kernel() {{
         num_experts, num_shared_experts,
         num_topk,
         config.block_m, config.block_n, config.block_k,
-        config.store_block_m,
+        config.store_block_m_l1,
         config.num_ring_tokens,
         config.num_stages,
         config.num_bytes_per_pull,
