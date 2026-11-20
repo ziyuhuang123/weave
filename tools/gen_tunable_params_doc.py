@@ -95,6 +95,17 @@ def parameter_section(schema, lang: str) -> str:
         parts.append(headings[category] + "\n")
         parts.append(table(groups[category], lang))
         parts.append("")
+    if lang == "zh":
+        parts.append(
+            "`num_shared_experts` ? Python/C++ API ??????????????????? "
+            "`0`?????????????????????\n"
+        )
+    else:
+        parts.append(
+            "`num_shared_experts` is a Python/C++ API argument rather than an "
+            "environment knob. Its default is `0` on every entry point; shared-expert "
+            "buffers are allocated only when it is explicitly non-zero.\n"
+        )
     return "\n".join(parts)
 
 
@@ -120,7 +131,15 @@ def write_docs(schema) -> None:
         parts.append(f"## {title}\n")
         parts.append(table(groups[category], "en"))
         parts.append("")
-    parts.append("## 4. Values derived at launch time (not knobs)\n")
+    parts.append("## 4. API argument: shared experts\n")
+    parts.append(
+        "`num_shared_experts` is a Python/C++ API argument, not an environment "
+        "knob. Every entry point defaults it to `0`; the shared-expert buffers are "
+        "allocated only when it is explicitly non-zero. The unified surface keeps "
+        "`0` as the default so routed-only workloads do not pay the shared-expert "
+        "workspace or scheduling cost.\n"
+    )
+    parts.append("## 5. Values derived at launch time (not knobs)\n")
     parts.append(
         "The GEMM stage count, accumulator ring depth, TMA-store ring depth and "
         "scheduler look-ahead are computed from the live tile shape and the SMEM "
@@ -128,7 +147,7 @@ def write_docs(schema) -> None:
         "BM ladder is selected inside the scheduler when `WEAVE_ADAPT_BM=1`. "
         "These are derivations, not configuration inputs.\n"
     )
-    parts.append("## 5. Architecture coverage\n")
+    parts.append("## 6. Architecture coverage\n")
     parts.append(
         "| Parameter group | SM103 fp8xfp4 | SM103 fp4xfp4 | H20 | MI308X EP8 | MI308X EP16 |\n"
         "|---|---|---|---|---|---|\n"

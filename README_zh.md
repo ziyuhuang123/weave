@@ -195,6 +195,8 @@ Weave 的调度与内核参数按职责分为三类：
 | `WEAVE_DEDUP_MODE` | ?? | `0 = off`; `1 = unique (token, destination) buckets`; `2 = local pre-reduce plus 32-lane fanout` | 0 | Selective input deduplication of duplicate routed reads. | `csrc/jit_kernels/impls/sm100_fp8_fp4_mega_moe.hpp:246` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:383` |
 | `WEAVE_PROFILER_LEVEL` | ?? | `0 = production`; `1 = phase open/close events`; `2 = full per-stage events` | 0 | WeaveProfiler instrumentation level for the AMD port. | `deep_gemm/include/deep_gemm/impls/amd/ep16/build_port.py:97` | `deep_gemm/include/deep_gemm/impls/amd/third_party_overlay/fi_lite_hip.h:8` |
 
+`num_shared_experts` ? Python/C++ API ??????????????????? `0`?????????????????????
+
 ## 基线对比
 
 官方 DeepGEMM、DeepEP + DeepGEMM、FlashInfer、SGLang、vLLM、RCCL + AITER

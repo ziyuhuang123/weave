@@ -1,6 +1,6 @@
 # Weave Tunable Parameters and Exact Code Locations
 
-Weave exposes one unified knob space across SM103, H20 and MI308X. Every parameter below changes real host dispatch or kernel execution; the 24 historical fields that had no reader in the runtime policy ABI are removed, and the historical hot/cold ordering switch is no longer part of the public surface. Pipeline depth is derived at launch time from the tile shape and the remaining SMEM budget, not frozen by a public knob.
+Weave exposes one unified knob space across SM103, H20 and MI308X. Every parameter below changes real host dispatch or kernel execution; the 24 historical fields that had no reader in the runtime policy ABI are removed, and `WEAVE_HOT_COLD_MODE` is no longer part of the public surface. Pipeline depth is derived at launch time from the tile shape and the remaining SMEM budget, not frozen by a public knob.
 
 The document has three sections: **Spatial**, **Temporal** and **Implementation**. Each row carries the host parse location and the kernel consumption location. `tests/verify_tunable_params_doc.py` resolves every citation against the working tree.
 
@@ -53,11 +53,15 @@ The document has three sections: **Spatial**, **Temporal** and **Implementation*
 | `WEAVE_DEDUP_MODE` | Implementation | `0 = off`; `1 = unique (token, destination) buckets`; `2 = local pre-reduce plus 32-lane fanout` | 0 | Selective input deduplication of duplicate routed reads. | `csrc/jit_kernels/impls/sm100_fp8_fp4_mega_moe.hpp:246` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:383` |
 | `WEAVE_PROFILER_LEVEL` | Implementation | `0 = production`; `1 = phase open/close events`; `2 = full per-stage events` | 0 | WeaveProfiler instrumentation level for the AMD port. | `deep_gemm/include/deep_gemm/impls/amd/ep16/build_port.py:97` | `deep_gemm/include/deep_gemm/impls/amd/third_party_overlay/fi_lite_hip.h:8` |
 
-## 4. Values derived at launch time (not knobs)
+## 4. API argument: shared experts
+
+`num_shared_experts` is a Python/C++ API argument, not an environment knob. Every entry point defaults it to `0`; the shared-expert buffers are allocated only when it is explicitly non-zero. The unified surface keeps `0` as the default so routed-only workloads do not pay the shared-expert workspace or scheduling cost.
+
+## 5. Values derived at launch time (not knobs)
 
 The GEMM stage count, accumulator ring depth, TMA-store ring depth and scheduler look-ahead are computed from the live tile shape and the SMEM budget in `csrc/jit_kernels/heuristics/mega_moe.hpp`. The per-expert BM ladder is selected inside the scheduler when `WEAVE_ADAPT_BM=1`. These are derivations, not configuration inputs.
 
-## 5. Architecture coverage
+## 6. Architecture coverage
 
 | Parameter group | SM103 fp8xfp4 | SM103 fp4xfp4 | H20 | MI308X EP8 | MI308X EP16 |
 |---|---|---|---|---|---|
