@@ -13,6 +13,7 @@
 #include "../jit_kernels/impls/sm100_fp8_fp4_mega_moe.hpp"
 #include "locality_domain.hpp"
 #include "nvfp4_mega_moe.hpp"
+#include "../jit_kernels/heuristics/weave_knob_config.hpp"
 
 namespace deep_gemm::mega {
 
@@ -63,12 +64,27 @@ get_symm_buffer_size_for_mega_moe(
     // Shared
     const int shared_intermediate_hidden = intermediate_hidden * num_shared_experts;
 
+    // Verified ring-reuse knob: 0 keeps the auto live-pool derivation, N caps
+    // the live pool of the heuristic block-M candidate at N blocks.
+    const auto knobs = weave_knobs::from_env(
+        weave::HardwareArch::B300_SM100,
+        mma_type == "bf16xbf16" ? weave::PrecisionMode::BF16 : weave::PrecisionMode::FP8xFP4);
+    const auto [ring_cluster_size, heuristic_block_m, ring_store_l1, ring_store_l2,
+                ring_block_k, ring_epilogue_threads] = get_block_config_for_mega_moe(
+        num_ranks, num_experts, num_max_tokens_per_rank, num_topk,
+        num_max_tokens_per_rank, parse_mma_kind(mma_type));
+    (void) ring_cluster_size; (void) ring_store_l1; (void) ring_store_l2;
+    (void) ring_block_k; (void) ring_epilogue_threads;
+
     // Iterate all block candidates to get the maximum ring size
     int num_ring_tokens = 0;
     for (const auto& block_m: layout::kCandidateBlockM) {
         const auto num_pool_blocks = ceil_div(num_max_routed_tokens, block_m) + num_experts_per_rank;
-        const auto num_live_pool_blocks = sched::get_num_max_live_pool_blocks(
+        auto num_live_pool_blocks = sched::get_num_max_live_pool_blocks(
             num_pool_blocks, num_sms, hidden, intermediate_hidden);
+        if (knobs.ring_blocks != 0u and block_m == heuristic_block_m)
+            num_live_pool_blocks = std::min(num_live_pool_blocks,
+                                            static_cast<int>(knobs.ring_blocks));
         num_ring_tokens = std::max(num_ring_tokens, num_live_pool_blocks * block_m);
     }
     num_ring_tokens = math::align(num_ring_tokens, layout::kLCMCandidateBlockM);

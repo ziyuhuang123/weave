@@ -126,6 +126,7 @@ public:
     }
 
     static std::string generate_impl(const Args& args) {
+        const auto& knobs = args.config.knobs;
         // Axis 1 (D1)
         const int d1_g = get_weave_env<int>("WEAVE_READY_GROUP_SIZE", "DG_TUNE_D1_G", "DG_ISOLATED_D1_G", 0);
         // Axis 2 (D2)
@@ -138,12 +139,13 @@ public:
         const int d3_bm = get_weave_env<int>("WEAVE_BLOCK_M", "DG_TUNE_D3_BM", "DG_D3_BM", 0);
         const int d3_bn = get_weave_env<int>("WEAVE_BLOCK_N", "DG_TUNE_D3_BN", "DG_D3_BN", 0);
         const int d3_bk = get_weave_env<int>("WEAVE_BLOCK_K", "DG_TUNE_D3_BK", "DG_D3_BK", 0);
-        const int d3_store_m = get_weave_env<int>("WEAVE_STORE_BLOCK_M", "DG_TUNE_D3_STORE_M", "DG_D3_STORE_M", 0);
+        const int d3_store_m = get_weave_env<int>("WEAVE_STORE_BLOCK_M", "DG_TUNE_D3_STORE_M", "DG_D3_STORE_M", args.config.store_block_m_l1);
         const int d3_store_m_l2 = get_weave_env<int>("WEAVE_STORE_BLOCK_M_L2", "DG_TUNE_D3_STORE_M_L2", "DG_D3_STORE_M_L2", args.config.store_block_m_l2);
         const int d3_dyn_epi = get_weave_env<int>("WEAVE_DYN_EPILOGUE", "DG_TUNE_D3_DYN_EPI", "DG_D3_DYN_EPI", 0);
         const int d3_dyn_tma_a = get_weave_env<int>("WEAVE_DYN_TMA_A", "DG_TUNE_D3_DYN_TMA_A", "DG_D3_DYN_TMA_A", 0);
         const int d3_overlap_smem = get_weave_env<int>("WEAVE_OVERLAP_EXPERT_SMEM", "DG_TUNE_D3_OVERLAP_SMEM", "DG_D3_OVERLAP_EXPERT_SMEM", 0);
-        const int d3_expert_step_mode = get_weave_env<int>("WEAVE_EXPERT_STEP_MODE", "DG_TUNE_D3_EXPERT_STEP_MODE", "DG_D3_EXPERT_STEP_MODE", 0);
+        const int d3_expert_step_mode = get_weave_env<int>("WEAVE_EXPERT_STEP_MODE", "DG_TUNE_D3_EXPERT_STEP_MODE", "DG_D3_EXPERT_STEP_MODE",
+                                                          (knobs.adapt_bm != 0u) ? 1 : 0);
         const int d3_accum_stages = get_weave_env<int>("WEAVE_ACCUM_STAGES", "DG_D3_ACCUM_STAGES", "DG_MEGA_ACCUM_STAGES", 2);
         const int d3_tma_store_stages = get_weave_env<int>("WEAVE_TMA_STORE_STAGES", "DG_D3_TMA_STORE_STAGES", "DG_MEGA_TMA_STORE_STAGES", 2);
         const int d3_sched_stages = get_weave_env<int>("WEAVE_SCHED_STAGES", "DG_TUNE_D3_SCHED_STAGES", "DG_D3_SCHED_STAGES", 2);
@@ -157,15 +159,19 @@ public:
         const int d5_dedup = get_weave_env<int>("WEAVE_DEDUP_MODE", "DG_TUNE_D5_DEDUP", "DG_ISOLATED_D5_DEDUP", 0);
         const int d5_sched = get_weave_env<int>("WEAVE_DEDUP_SCHED", "DG_TUNE_D5_SCHED", "DG_ISOLATED_D5_SCHED", (d5_dedup == 2) ? 1 : 0);
         // Axis 6 (D6)
-        const int d6_g = get_weave_env<int>("WEAVE_COMBINE_GROUP_TILES", "DG_TUNE_D6_G", "DG_ISOLATED_D6_G", 0);
+        const int d6_g = get_weave_env<int>("WEAVE_COMBINE_GROUP_TILES", "DG_TUNE_D6_G", "DG_ISOLATED_D6_G",
+                                           (knobs.early_stream_reduce != 0u) ? 2 : 0);
         const int d6_rw = get_weave_env<int>("WEAVE_COMBINE_REDUCE_WARPS", "DG_TUNE_D6_REDUCE_WARPS", "DG_ISOLATED_D6_REDUCE_WARPS", 0);
         // Axis 7 (D7)
         const int d7_scatter_mode = get_weave_env<int>("WEAVE_SCATTER_MODE", "DG_TUNE_D7_SCATTER_MODE", nullptr, -1);
-        const int d7_isolated_scatter = get_weave_env<int>("WEAVE_SCATTER_MODE", "DG_ISOLATED_D7_SCATTER", nullptr, (d7_scatter_mode >= 0) ? d7_scatter_mode : 0);
+        int d7_isolated_scatter = get_weave_env<int>("WEAVE_SCATTER_MODE", "DG_ISOLATED_D7_SCATTER", nullptr, (d7_scatter_mode >= 0) ? d7_scatter_mode : 0);
+        if (knobs.local_scatter_dedup != 0u)
+            d7_isolated_scatter = 3;  // local bf16x2 dedup + HBM scatter queue
         const int d7_smem_alias = get_weave_env<int>("WEAVE_SCATTER_SMEM_ALIAS", "DG_TUNE_D7_SMEM_ALIAS", nullptr, 1);
         const int d7_warps = get_weave_env<int>("WEAVE_SCATTER_WARPS", "DG_TUNE_D7_WARPS", "DG_TUNE_D7_SCATTER_WARPS", get_env<int>("DG_SCATTER_WARPS", 0));
         const int d7_handoff_wait = get_weave_env<int>("WEAVE_SCATTER_HANDOFF_WAIT", "DG_TUNE_D7_HANDOFF_WAIT", nullptr, 1);
-        const int d7_active_sms = get_weave_env<int>("WEAVE_SCATTER_ACTIVE_SMS", "DG_D7_ACTIVE_SMS", nullptr, 0);
+        const int d7_active_sms = get_weave_env<int>("WEAVE_SCATTER_ACTIVE_SMS", "DG_D7_ACTIVE_SMS", nullptr,
+                                                    static_cast<int>(knobs.scatter_active_sms));
         const int enable_multicast = get_weave_env<int>("WEAVE_ENABLE_MULTICAST", nullptr, nullptr, 1);
 
         // Locality-domain routing is only valid when every queue can be split
@@ -183,14 +189,36 @@ public:
                    num_l1_clusters, num_l2_clusters);
 
         std::ostringstream d7_macros;
-        d7_macros << "#define WEAVE_LOCALITY_DOMAINS " << (use_locality_domains ? 1 : 0) << "\n";
         d7_macros << "#define WEAVE_SCATTER_MODE " << d7_isolated_scatter << "\n";
         d7_macros << "#define WEAVE_SCATTER_SMEM_ALIAS " << d7_smem_alias << "\n";
         d7_macros << "#define WEAVE_SCATTER_WARPS " << d7_warps << "\n";
         d7_macros << "#define WEAVE_SCATTER_HANDOFF_WAIT " << d7_handoff_wait << "\n";
         d7_macros << "#define WEAVE_SCATTER_ACTIVE_SMS " << d7_active_sms << "\n";
 
+        // Unified knob mirror.  The host resolver already validated these; the
+        // defines below are what the kernel translation unit consumes.
+        const int knobs_locality_domains = use_locality_domains
+            ? static_cast<int>(weave::resolve_locality_domains(
+                  knobs, weave::HardwareArch::B300_SM100))
+            : 1;
+        std::ostringstream knob_macros;
+        knob_macros << "#define WEAVE_LOCALITY_DOMAINS " << knobs_locality_domains << "\n";
+        knob_macros << "#define WEAVE_DISPATCH_WARPS " << (args.config.num_dispatch_threads / 32) << "\n";
+        knob_macros << "#define WEAVE_SM0_STREAM_SCHED " << knobs.sm0_stream_sched << "\n";
+        knob_macros << "#define WEAVE_L2_KBLOCK_DEP " << knobs.l2_kblock_dep << "\n";
+        knob_macros << "#define WEAVE_RING_BLOCKS " << knobs.ring_blocks << "\n";
+        knob_macros << "#define WEAVE_EARLY_STREAM_REDUCE " << knobs.early_stream_reduce << "\n";
+        knob_macros << "#define WEAVE_TMEM_PIPELINE_MODE " << args.config.tmem_pipeline_mode << "\n";
+        knob_macros << "#define WEAVE_HEAD_PULL_CHUNK " << knobs.head_pull_chunk << "\n";
+        knob_macros << "#define WEAVE_LOCAL_SCATTER_DEDUP " << knobs.local_scatter_dedup << "\n";
+        knob_macros << "#define WEAVE_ADAPT_BM " << knobs.adapt_bm << "\n";
+        knob_macros << "#define WEAVE_BLOCK_M_L1 " << knobs.block_m_l1 << "\n";
+        knob_macros << "#define WEAVE_BLOCK_M_L2 " << knobs.block_m_l2 << "\n";
+        knob_macros << "#define WEAVE_STORE_BLOCK_M_L1 " << args.config.store_block_m_l1 << "\n";
+        knob_macros << "#define WEAVE_STORE_BLOCK_M_L2 " << args.config.store_block_m_l2 << "\n";
+
         return fmt::format(R"(
+{}
 #define WEAVE_READY_GROUP_SIZE {}
 #define WEAVE_WARP_SPLIT_MODE {}
 #define WEAVE_REG_PULL_BYTES {}u
@@ -246,6 +274,7 @@ static void __instantiate_kernel() {{
     >);
 }};
 )",
+            knob_macros.str(),
             d1_g,
             d2_mode,
             d2_reg_pull_bytes,

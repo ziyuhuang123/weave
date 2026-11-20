@@ -9,14 +9,13 @@
 # 3-axis summary
 #   Spatial        : bm=32, bn=256, bk=128, wgs=4, swap=1; 78 SMs;
 #                    4 epilogue warp groups.
-#   Temporal       : interleave=5, hot_cold=2, dyn=1, stages=0 (runtime
+#   Temporal       : interleave=5, dyn=1, stages=0 (runtime
 #                    auto-selected pipeline depth), swap_pipe=1.
 #   Implementation : dispatch dedup on, dedup tier on, scatter dedup OFF,
 #                    register combine on, idle-warp combine on, fast pull on.
 #
 # Unified-name mapping of every active key
 #   interleave=5      -> WEAVE_INTERLEAVE_L1_L2=5
-#   hot_cold=2        -> WEAVE_HOT_COLD_MODE=2
 #   dyn=1             -> WEAVE_DYN_SCHED=1
 #   scat_disp=1       -> WEAVE_SCATTER_ROLE_DISP=1
 #   d_mask_mode=1     -> WEAVE_HETERO_MASK_MODE=1
@@ -32,6 +31,8 @@
 #   They are reproduced exactly by the WEAVE_H20_CONFIG string itself.
 #   stages=0 means "runtime auto-selects the pipeline depth"; it does NOT mean
 #   a zero-stage pipeline.
+#   The archived hot/cold ordering key is internal to the H20 auto regime and is
+#   no longer a public knob.
 #   The trace has dedup_disp=1 and dedup_tier=1 but no dedup_scat key, so
 #   scatter dedup is OFF (the WEAVE_DEDUP_SCATTER default is 0).
 #
@@ -62,7 +63,7 @@ fail() {
 command -v "$PYTHON" >/dev/null 2>&1 || fail "Python interpreter not found: $PYTHON"
 
 # Exact selected_cfg from the archived trace metadata. Do not add dedup_scat=1.
-export WEAVE_H20_CONFIG='fast_host=1,fused=1,interleave=5,epw=8,hot_cold=2,compact=1,dyn=1,alias=1,scat_disp=1,d_mask_mode=1,bm=32,bn=256,bk=128,wgs=4,swap=1,stages=0,swap_pipe=1,fast_swap_epi=1,rank_cache=1,fast_clean=1,fast_pull=1,dedup_disp=1,dedup_tier=1,reg_comb=1,fast_comb=1,all_idle_comb=1'
+export WEAVE_H20_CONFIG='fast_host=1,fused=1,interleave=5,epw=8,compact=1,dyn=1,alias=1,scat_disp=1,d_mask_mode=1,bm=32,bn=256,bk=128,wgs=4,swap=1,stages=0,swap_pipe=1,fast_swap_epi=1,rank_cache=1,fast_clean=1,fast_pull=1,dedup_disp=1,dedup_tier=1,reg_comb=1,fast_comb=1,all_idle_comb=1'
 
 echo "==============================================================================="
 echo " H20 / Qwen3.8-Max / EP8 / S=1024"
@@ -70,7 +71,6 @@ echo " exact WEAVE_H20_CONFIG:"
 echo "   $WEAVE_H20_CONFIG"
 echo "------------------------------------------------------------------------------"
 echo " WEAVE_INTERLEAVE_L1_L2    = 5   (interleave)"
-echo " WEAVE_HOT_COLD_MODE       = 2   (hot_cold)"
 echo " WEAVE_DYN_SCHED           = 1   (dyn)"
 echo " WEAVE_SCATTER_ROLE_DISP   = 1   (scat_disp)"
 echo " WEAVE_HETERO_MASK_MODE    = 1   (d_mask_mode)"

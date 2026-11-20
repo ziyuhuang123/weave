@@ -1,0 +1,19 @@
+// Compile-only check for the unified knob surface on the H20 SM90 path.
+#define WEAVE_PRECISION_MODE 2
+#define WEAVE_ABLATION_PRESET 0
+#define WEAVE_DISPATCH_WARPS 4
+#define WEAVE_SCATTER_ACTIVE_SMS 16
+#define WEAVE_SM0_STREAM_SCHED 1
+#define WEAVE_L2_KBLOCK_DEP 1
+#define WEAVE_RING_BLOCKS 0
+#define WEAVE_EARLY_STREAM_REDUCE 1
+#define WEAVE_HEAD_PULL_CHUNK 64
+#define WEAVE_LOCAL_SCATTER_DEDUP 1
+#define WEAVE_HBM_SCATTER_QUEUE 1
+#define WEAVE_ADAPT_BM 1
+#define WEAVE_BLOCK_M_L1 64
+#define WEAVE_BLOCK_M_L2 64
+#define WEAVE_STORE_BLOCK_M_L1 64
+#define WEAVE_SCATTER_MODE 2
+#define WEAVE_INTERLEAVE_L1_L2 5
+#include <deep_gemm/impls/sm90_fp8_mega_moe.cuh>

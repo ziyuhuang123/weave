@@ -4,6 +4,46 @@
 #define WEAVE_LOCALITY_DOMAINS 0
 #endif
 
+// Verified architectural knobs consumed by this translation unit.  Host
+// dispatchers always define them explicitly; the defaults keep direct header
+// users on the historical behavior.
+#ifndef WEAVE_DISPATCH_WARPS
+#define WEAVE_DISPATCH_WARPS 0
+#endif
+#ifndef WEAVE_SM0_STREAM_SCHED
+#define WEAVE_SM0_STREAM_SCHED 0
+#endif
+#ifndef WEAVE_L2_KBLOCK_DEP
+#define WEAVE_L2_KBLOCK_DEP 0
+#endif
+#ifndef WEAVE_RING_BLOCKS
+#define WEAVE_RING_BLOCKS 0
+#endif
+#ifndef WEAVE_EARLY_STREAM_REDUCE
+#define WEAVE_EARLY_STREAM_REDUCE 0
+#endif
+#ifndef WEAVE_TMEM_PIPELINE_MODE
+#define WEAVE_TMEM_PIPELINE_MODE 0
+#endif
+#ifndef WEAVE_HEAD_PULL_CHUNK
+#define WEAVE_HEAD_PULL_CHUNK 0
+#endif
+#ifndef WEAVE_LOCAL_SCATTER_DEDUP
+#define WEAVE_LOCAL_SCATTER_DEDUP 0
+#endif
+#ifndef WEAVE_ADAPT_BM
+#define WEAVE_ADAPT_BM 0
+#endif
+#ifndef WEAVE_BLOCK_M_L1
+#define WEAVE_BLOCK_M_L1 0
+#endif
+#ifndef WEAVE_BLOCK_M_L2
+#define WEAVE_BLOCK_M_L2 0
+#endif
+#ifndef WEAVE_STORE_BLOCK_M_L1
+#define WEAVE_STORE_BLOCK_M_L1 0
+#endif
+
 // Reset both per-domain queues even when the build does not use them; the cost
 // is four stores once per launch and keeps the workspace byte layout stable.
 static constexpr unsigned int kNumTaskCountDomains = (WEAVE_LOCALITY_DOMAINS ? 2u : 1u);
@@ -893,6 +933,9 @@ sm100_fp8_fp4_mega_moe_impl(void* y,
     DG_STATIC_ASSERT(T_kNumDispatchThreads != 192 and kNumDispatchWarps != 6 and
                      (kNumDispatchWarps == 4 or kNumDispatchWarps == 8),
                      "6D is illegal; kNumDispatchWarps must be 4 or 8");
+    DG_STATIC_ASSERT(WEAVE_DISPATCH_WARPS == 0 or
+                     WEAVE_DISPATCH_WARPS == kNumDispatchWarps,
+                     "WEAVE_DISPATCH_WARPS disagrees with the launch thread layout");
     DG_STATIC_ASSERT(kNumDispatchThreads % 128 == 0, "Invalid number of dispatch threads");
     DG_STATIC_ASSERT(kNumNonEpilogueThreads == 128, "Invalid number of MMA non-epilogue threads");
     DG_STATIC_ASSERT(kNumEpilogueThreads % 128 == 0, "Invalid number of MMA epilogue and combine threads");
@@ -1008,6 +1051,16 @@ sm100_fp8_fp4_mega_moe_impl(void* y,
     DG_STATIC_ASSERT(BLOCK_M % 16 == 0, "Invalid block M");
     DG_STATIC_ASSERT(BLOCK_N == 64 or BLOCK_N == 128 or BLOCK_N == 256, "Invalid block N");
     DG_STATIC_ASSERT(BLOCK_K == 128 or BLOCK_K == 256, "Invalid block K");
+    DG_STATIC_ASSERT(WEAVE_RING_BLOCKS == 0 or WEAVE_RING_BLOCKS == kNumRingBlocks,
+                     "WEAVE_RING_BLOCKS must match the allocated ring");
+    DG_STATIC_ASSERT(WEAVE_BLOCK_M_L1 == 0 or WEAVE_BLOCK_M_L1 == BLOCK_M,
+                     "SM103 has one static BLOCK_M; L1/L2 envelopes must match");
+    DG_STATIC_ASSERT(WEAVE_BLOCK_M_L2 == 0 or WEAVE_BLOCK_M_L2 == BLOCK_M,
+                     "SM103 has one static BLOCK_M; L1/L2 envelopes must match");
+    DG_STATIC_ASSERT(WEAVE_STORE_BLOCK_M_L1 == 0 or WEAVE_STORE_BLOCK_M_L1 == STORE_BLOCK_M,
+                     "WEAVE_STORE_BLOCK_M_L1 disagrees with the compiled store tile");
+    DG_STATIC_ASSERT(WEAVE_ADAPT_BM == 0 or DG_D3_EXPERT_STEP_MODE > 0,
+                     "WEAVE_ADAPT_BM requires the per-expert BM ladder");
 
     // Swizzle configs
     constexpr uint32_t kSwizzleAMode = 128;
@@ -1309,7 +1362,13 @@ sm100_fp8_fp4_mega_moe_impl(void* y,
         (kD6RawGroupTiles > (L2_SHAPE_N / BLOCK_N)) ? (L2_SHAPE_N / BLOCK_N) : kD6RawGroupTiles;
     constexpr uint32_t kD6SafeDiv = (kD6GroupTiles > 0u) ? kD6GroupTiles : 1u;
     constexpr uint32_t kD6ReduceWarps = DG_ISOLATED_D6_REDUCE_WARPS;
-    static constexpr bool kD7LocalDedupActive = (DG_D7_LOCAL_DEDUP != 0) and (kD6GroupTiles == 0u);
+    DG_STATIC_ASSERT(WEAVE_EARLY_STREAM_REDUCE == 0 or kD6GroupTiles > 0u,
+                     "WEAVE_EARLY_STREAM_REDUCE requires the fine-grained D6 combine");
+    static constexpr bool kD7LocalDedupActive =
+        ((DG_D7_LOCAL_DEDUP != 0) or (WEAVE_LOCAL_SCATTER_DEDUP != 0)) and
+        (kD6GroupTiles == 0u);
+    DG_STATIC_ASSERT(WEAVE_LOCAL_SCATTER_DEDUP == 0 or DG_D7_QUEUE_SCATTER != 0,
+                     "WEAVE_LOCAL_SCATTER_DEDUP requires the HBM scatter-queue path");
     // Queue scatter is an epilogue-local-dedup path with a single dispatch-side
     // NVLink writer pool.  It is only legal for 128-column epilogue subtiles.
     static constexpr bool kD7QueueScatterActive =
@@ -2122,7 +2181,9 @@ sm100_fp8_fp4_mega_moe_impl(void* y,
         }
         const uint32_t total_recv_tokens = running_tok;
 
-        constexpr uint32_t kNumGlobalWarps = kNumSMs * kNumDispatchWarps;
+        constexpr uint32_t kPullNumSms =
+            WEAVE_SM0_STREAM_SCHED ? (kNumSMs - 1u) : kNumSMs;
+        constexpr uint32_t kNumGlobalWarps = kPullNumSms * kNumDispatchWarps;
         for (uint32_t token_idx = sm_idx * kNumDispatchWarps + warp_idx;
              token_idx < total_recv_tokens;
              token_idx += kNumGlobalWarps) {
@@ -2273,8 +2334,7 @@ sm100_fp8_fp4_mega_moe_impl(void* y,
                     static_cast<uint32_t>(kHidden),
                     static_cast<uint32_t>(kIntermediateHidden)};
                 const weave::WeaveKnobs knobs =
-                    weave::default_weave_knobs(weave::HardwareArch::B300_SM100, 0u,
-                                               weave::PrecisionMode::FP8xFP4);
+                    weave::default_weave_knobs(weave::HardwareArch::B300_SM100, weave::PrecisionMode::FP8xFP4);
                 const uint32_t m_out = weave::count_remote_expert_sends(
                     workspace, kNumExperts, kNumExpertsPerRank,
                     static_cast<uint32_t>(sym_buffer.rank_idx));
@@ -2354,7 +2414,9 @@ sm100_fp8_fp4_mega_moe_impl(void* y,
         constexpr uint32_t kPanelsPerChunk = kNumBytesPerPull / kPanelBytes;
         constexpr uint32_t kNumL1BlockNs = L1_SHAPE_N / BLOCK_N;
 
-        const uint32_t warp_gid = sm_idx * kNumDispatchWarps + warp_idx;
+        const uint32_t warp_gid = (WEAVE_SM0_STREAM_SCHED and sm_idx == 0u)
+            ? 0xffffffffu
+            : ((WEAVE_SM0_STREAM_SCHED ? (sm_idx - 1u) : sm_idx) * kNumDispatchWarps + warp_idx);
         const uint32_t disp_tid = sm_idx * kNumDispatchThreads + thread_idx;
         const bool use_three_tier_queue =
             (scheduler.num_total_m_blocks > 0u and scheduler.num_total_m_blocks <= kNumRingBlocks);
@@ -2703,9 +2765,17 @@ sm100_fp8_fp4_mega_moe_impl(void* y,
         #endif
         uint32_t expert_start_idx = 0, expert_end_idx = 0;
 
-        uint32_t initial_pull_warp_idx = sm_idx * kNumDispatchWarps + warp_idx;
+        // SM 0 streaming scheduler: SM 0's communication warps leave the pull
+        // queue and the remaining SMs evenly own the full token range.
+        constexpr bool kSm0StreamSchedActive = WEAVE_SM0_STREAM_SCHED != 0;
+        const uint32_t pull_sm_idx = kSm0StreamSchedActive
+            ? (sm_idx == 0u ? kNumSMs : sm_idx - 1u) : sm_idx;
+        const uint32_t pull_num_sms = kSm0StreamSchedActive ? (kNumSMs - 1u) : kNumSMs;
+        uint32_t initial_pull_warp_idx = (kSm0StreamSchedActive and sm_idx == 0u)
+            ? 0xffffffffu : pull_sm_idx * kNumDispatchWarps + warp_idx;
         #if DG_P1_HEAD_HELPER_K > 0
-        initial_pull_warp_idx += p1_head_end;
+        if (initial_pull_warp_idx != 0xffffffffu)
+            initial_pull_warp_idx += p1_head_end;
         #endif
         #if DG_ISOLATED_D2_MODE >= 1
         if constexpr (kD2SmidMasked) {
@@ -2718,7 +2788,7 @@ sm100_fp8_fp4_mega_moe_impl(void* y,
                 return ptx::ld_shared(&shared_storage.d2_total_warps);
             }
         #endif
-            return kNumSMs * kNumDispatchWarps;
+            return pull_num_sms * kNumDispatchWarps;
         };
 
         for (uint32_t token_idx = initial_pull_warp_idx; ; token_idx += get_pull_warp_stride()) {
@@ -2734,9 +2804,13 @@ sm100_fp8_fp4_mega_moe_impl(void* y,
             if (current_expert_idx >= kNumExpertsPerRank)
                 break;
 
-            // Temporal head/middle split: after the head window only
-            // active_pull_warps warps per SM continue pulling.
-            if (token_idx >= head_pull_end and warp_idx >= active_pull_warps)
+            // Temporal head/middle split: after the opening head chunk only
+            // active_pull_warps warps per SM continue pulling.  A non-zero
+            // WEAVE_HEAD_PULL_CHUNK bounds the all-warp prefix.
+            constexpr uint32_t kHeadPullChunk = WEAVE_HEAD_PULL_CHUNK;
+            const uint32_t effective_head_pull_end = kHeadPullChunk == 0u
+                ? head_pull_end : cute::min(head_pull_end, kHeadPullChunk);
+            if (token_idx >= effective_head_pull_end and warp_idx >= active_pull_warps)
                 continue;
 
             #if DG_ISOLATED_D5_DEDUP == 1
@@ -3591,8 +3665,20 @@ sm100_fp8_fp4_mega_moe_impl(void* y,
         // BM=240's 120-row warpgroup slice is the first tile where a one-store-block
         // register prefetch of the TMEM accumulator pays off: it hides the TMEM read
         // latency behind SwiGLU / cast work while keeping the same 2-stage TMEM pool.
+        // TMEM epilogue pipeline depth: 1.0 / 1.75 / 2.0 stages.  The auto
+        // value is 2.0 below the 256-row tile and 1.75 at 256 rows, exactly the
+        // verified producer configuration.
+        constexpr uint32_t kTmemPipelineMode = WEAVE_TMEM_PIPELINE_MODE == 0
+            ? (BLOCK_M >= 256u ? 175u : 200u)
+            : static_cast<uint32_t>(WEAVE_TMEM_PIPELINE_MODE);
+        DG_STATIC_ASSERT(kTmemPipelineMode == 100u or kTmemPipelineMode == 175u or
+                         kTmemPipelineMode == 200u,
+                         "WEAVE_TMEM_PIPELINE_MODE must be auto, 1.0, 1.75 or 2.0");
+        DG_STATIC_ASSERT(kTmemPipelineMode != 175u or BLOCK_M == 256u,
+                         "The 1.75-stage TMEM pipeline requires BLOCK_M=256");
         constexpr uint32_t kNumEpiPrefetchStages =
-            (BLOCK_M == 240u and kNumNSubtiles == 1u and DG_D3_DYN_EPI == 0) ? 1u : 0u;
+            (kTmemPipelineMode >= 175u and BLOCK_M >= 240u and
+             kNumNSubtiles == 1u and DG_D3_DYN_EPI == 0) ? 1u : 0u;
         constexpr uint32_t kNumAtomsPerStore = STORE_BLOCK_M / ATOM_M;
         constexpr uint32_t kMaxTotalAtoms = BLOCK_M / ATOM_M;
         constexpr uint32_t kMaxWgAtoms = (kMaxTotalAtoms + kNumEpilogueWarpgroups - 1) / kNumEpilogueWarpgroups;

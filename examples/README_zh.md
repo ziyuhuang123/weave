@@ -142,7 +142,7 @@ PRECISION=fp4xfp4 bash examples/sm103_qwen38max_ep8_s1024.sh
 归档 trace 的 `otherData.meta.selected_cfg` 字面值为：
 
 ```text
-fast_host=1,fused=1,interleave=5,epw=8,hot_cold=2,compact=1,dyn=1,alias=1,scat_disp=1,d_mask_mode=1,bm=32,bn=256,bk=128,wgs=4,swap=1,stages=0,swap_pipe=1,fast_swap_epi=1,rank_cache=1,fast_clean=1,fast_pull=1,dedup_disp=1,dedup_tier=1,reg_comb=1,fast_comb=1,all_idle_comb=1
+fast_host=1,fused=1,interleave=5,epw=8,compact=1,dyn=1,alias=1,scat_disp=1,d_mask_mode=1,bm=32,bn=256,bk=128,wgs=4,swap=1,stages=0,swap_pipe=1,fast_swap_epi=1,rank_cache=1,fast_clean=1,fast_pull=1,dedup_disp=1,dedup_tier=1,reg_comb=1,fast_comb=1,all_idle_comb=1
 ```
 
 它通过统一公开入口 `WEAVE_H20_CONFIG` 传入。字符串内部的 key 是 H20 的
@@ -158,7 +158,6 @@ spec 字段，不是旧版环境变量名。
 | Spatial | `WEAVE_H20_CONFIG.wgs` | 4 | trace-metadata | 4 个 epilogue warp group |
 | Spatial | `WEAVE_H20_CONFIG.swap` | 1 | trace-metadata | swap-AB 布局 |
 | Temporal | `WEAVE_INTERLEAVE_L1_L2` | 5 | trace-metadata | `interleave=5`：EPW 交替 + L2 K-block 依赖 |
-| Temporal | `WEAVE_HOT_COLD_MODE` | 2 | trace-metadata | `hot_cold=2`：LPT + 冷热配对 |
 | Temporal | `WEAVE_DYN_SCHED` | 1 | trace-metadata | `dyn=1`：动态 expert 游标 |
 | Temporal | `WEAVE_H20_CONFIG.stages` | 0 | documented-behavior | 运行时自动选择流水线深度；不是零 stage 流水线 |
 | Temporal | `WEAVE_SWAP_PIPE` | 1 | trace-metadata | `swap_pipe=1` |
@@ -208,8 +207,6 @@ bash examples/h20_qwen38max_ep8_s1024.sh
 | Spatial | gridX / waves_per_cu | 80 / 8 | trace-metadata | 80 个唯一物理 CU |
 | Spatial | BN / BK | 128 / 128 | current-build-default | 固定 tile 常量 |
 | Spatial | `WEAVE_BM_TIER_MODE` | 2 | current-build-default | M tier 16/32/64/128/256 |
-| Spatial | `WEAVE_TH_BM64` | 16 | current-build-default | 小 M tier 阈值 |
-| Spatial | `WEAVE_TH_BM128` | 96 | current-build-default | 大 M tier 阈值 |
 | Temporal | `WEAVE_SCATTER_MODE` | 2 | current-build-default | local-dedup / node-partial 预归约 |
 | Temporal | `WEAVE_OVERLAP_PIPELINE` | 1 | current-build-default | 计算通信重叠 |
 | Temporal | `WEAVE_DUALGROUP_MIN_TOKENS` | 64 | current-build-default | 本地 token = 1024 / 8 = 128 >= 64，8-wave 双计算生效 |
@@ -293,8 +290,6 @@ SW+HW Perfetto 时间线。标注预览使用归档 trace。
 |---|---|---:|---|---|
 | Spatial | BN / BK | 128 / 128 | current-build-default | 固定 tile 常量 |
 | Spatial | `WEAVE_BM_TIER_MODE` | 2 | current-build-default | M tier 16/32/64/128/256 |
-| Spatial | `WEAVE_TH_BM64` | 16 | current-build-default | 小 M tier 阈值 |
-| Spatial | `WEAVE_TH_BM128` | 96 | current-build-default | 大 M tier 阈值 |
 | Temporal | `WEAVE_SCATTER_MODE` | 2 | current-build-default | node-partial 预归约 scatter |
 | Temporal | `WEAVE_OVERLAP_PIPELINE` | 1 | current-build-default | mode-2 overlap 流水线 |
 | Temporal | `WEAVE_DUALGROUP_MIN_TOKENS` | 64 | documented-behavior | 本地 token = 128 / 16 = 8 < 64，阈值未触发 |

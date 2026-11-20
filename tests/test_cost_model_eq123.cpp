@@ -234,8 +234,7 @@ void test_precision_modes() {
         weave::HardwareArch::B300_SM100, mode);
     const auto candidates = weave::get_candidate_set(
         weave::HardwareArch::B300_SM100, mode);
-    const auto knobs = weave::default_weave_knobs(
-        weave::HardwareArch::B300_SM100, 0u, mode);
+    const auto knobs = weave::default_weave_knobs(weave::HardwareArch::B300_SM100, mode);
     check(knobs.precision_mode == static_cast<uint32_t>(mode),
           "precision knob propagation");
     const auto decision = weave::cta0_select_policy(

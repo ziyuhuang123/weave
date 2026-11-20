@@ -88,8 +88,7 @@ inline WeaveMegaMoEDispatch weave_mega_moe_dispatch(
 
 inline weave::WeaveKnobs weave_knobs_for(MmaType mma_type) {
   const auto dispatch = weave_mega_moe_dispatch(mma_type_name(mma_type));
-  return weave::default_weave_knobs(
-      to_hardware_arch(dispatch.backend), 0u, dispatch.precision_mode);
+  return weave::default_weave_knobs(to_hardware_arch(dispatch.backend), dispatch.precision_mode);
 }
 
 struct PolicyRequest {

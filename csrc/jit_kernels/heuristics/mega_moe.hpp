@@ -14,6 +14,7 @@
 #include "../../utils/math.hpp"
 #include "../../utils/system.hpp"
 #include "sm100.hpp"
+#include "weave_knob_config.hpp"
 
 namespace deep_gemm {
 
@@ -42,6 +43,10 @@ struct MegaMoEConfig {
     // Dispatch pull config
     int num_bytes_per_pull;
 
+    // Unified Weave knob request resolved for this launch.
+    weave::WeaveKnobs knobs;
+    uint32_t tmem_pipeline_mode;
+
     friend std::ostream& operator << (std::ostream& os, const MegaMoEConfig& config) {
         os << "MegaMoEConfig("
            << "block_m=" << config.block_m << ", block_n=" << config.block_n << ", block_k=" << config.block_k
@@ -56,7 +61,11 @@ struct MegaMoEConfig {
            << ", num_dispatch_threads=" << config.num_dispatch_threads
            << ", num_non_epilogue_threads=" << config.num_non_epilogue_threads
            << ", num_epilogue_threads=" << config.num_epilogue_threads
-           << ", num_bytes_per_pull=" << config.num_bytes_per_pull << ")";
+           << ", num_bytes_per_pull=" << config.num_bytes_per_pull
+           << ", tmem_pipeline_mode=" << config.tmem_pipeline_mode
+           << ", dispatch_warps=" << config.knobs.dispatch_warps
+           << ", locality_domains=" << config.knobs.locality_domains
+           << ", ring_blocks=" << config.knobs.ring_blocks << ")";
         return os;
     }
 };
@@ -300,10 +309,31 @@ static MegaMoEConfig get_mega_moe_config(
     const int& num_sf_ring_tokens,
     const MmaKind& mma_kind) {
 
-    const auto [cluster_size, block_m, store_block_m_l1, store_block_m_l2, block_k, num_epilogue_threads] =
+    auto [cluster_size, block_m_auto, store_block_m_l1_auto, store_block_m_l2_auto,
+          block_k, num_epilogue_threads] =
         get_block_config_for_mega_moe(
             num_ranks, num_experts, num_max_tokens_per_rank, num_topk,
             num_tokens, mma_kind, hidden, intermediate_hidden);
+    int block_m = block_m_auto;
+    int store_block_m_l1 = store_block_m_l1_auto;
+    int store_block_m_l2 = store_block_m_l2_auto;
+
+    const auto arch = weave::HardwareArch::B300_SM100;
+    const auto precision = mma_kind == MmaKind::BF16
+        ? weave::PrecisionMode::BF16 : weave::PrecisionMode::FP8xFP4;
+    const auto knobs = weave_knobs::from_env(arch, precision);
+    // Per-GEMM envelopes are independent on the dynamic-scheduler backends.
+    // The SM103 fp8xfp4 kernel has one static BLOCK_M template parameter, so a
+    // launch may only request distinct L1/L2 values when they are equal.
+    DG_HOST_ASSERT(knobs.block_m_l1 == 0u or knobs.block_m_l2 == 0u or
+                   knobs.block_m_l1 == knobs.block_m_l2);
+    int block_m_resolved = static_cast<int>(weave::resolve_block_m(
+        knobs, knobs.block_m_l1, knobs.block_m_l2, static_cast<uint32_t>(block_m)));
+    block_m = block_m_resolved;
+    if (knobs.store_block_m_l1 != 0u)
+        store_block_m_l1 = static_cast<int>(knobs.store_block_m_l1);
+    if (knobs.store_block_m_l2 != 0u)
+        store_block_m_l2 = static_cast<int>(knobs.store_block_m_l2);
 
     int block_n = 128;
     const int d3_bn = get_weave_env<int>("WEAVE_BLOCK_N", "DG_TUNE_D3_BN", "DG_D3_BN", 0);
@@ -323,7 +353,11 @@ static MegaMoEConfig get_mega_moe_config(
     // Thread layout (Axis 2 D2 & Axis 7 D7)
     const int d2_mode = get_weave_env<int>("WEAVE_WARP_SPLIT_MODE", "DG_TUNE_D2_MODE", "DG_ISOLATED_D2_MODE", 0);
     const int d7_warps = get_weave_env<int>("WEAVE_SCATTER_WARPS", "DG_TUNE_D7_WARPS", "DG_TUNE_D7_SCATTER_WARPS", get_env<int>("DG_SCATTER_WARPS", 0));
-    int num_dispatch_threads = get_weave_env<int>("WEAVE_DISPATCH_THREADS", "DG_MEGA_DISPATCH_THREADS", nullptr, 128);
+    const uint32_t dispatch_warps = weave::resolve_dispatch_warps(knobs, 4u);
+    DG_HOST_ASSERT(dispatch_warps == 4u or dispatch_warps == 8u);
+    int num_dispatch_threads = static_cast<int>(dispatch_warps) * 32;
+    if (knobs.dispatch_warps == 0u)
+        num_dispatch_threads = get_weave_env<int>("WEAVE_DISPATCH_THREADS", "DG_MEGA_DISPATCH_THREADS", nullptr, num_dispatch_threads);
     if (d7_warps > 0)
         num_dispatch_threads = d7_warps * 32;
     if ((2 <= d2_mode and d2_mode <= 8) or (11 <= d2_mode and d2_mode <= 15))
@@ -367,7 +401,9 @@ static MegaMoEConfig get_mega_moe_config(
         swizzle_acts_mode, swizzle_weights_mode,
         num_stages, smem_size,
         num_dispatch_threads, num_non_epilogue_threads, num_epilogue_threads,
-        num_bytes_per_pull
+        num_bytes_per_pull,
+        knobs,
+        weave_knobs::resolve_tmem_pipeline_mode(knobs, static_cast<uint32_t>(block_m))
     };
 
     if (get_env<int>("DG_JIT_DEBUG") or get_env<int>("DG_PRINT_CONFIGS")) {

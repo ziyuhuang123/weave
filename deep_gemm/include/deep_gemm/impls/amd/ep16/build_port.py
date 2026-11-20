@@ -105,6 +105,14 @@ for name, fi in fi_variants:
     bm_tier = weave_int("WEAVE_BM_TIER_MODE", default=2)
     selective = weave_int("WEAVE_SELECTIVE_DEDUP", default=1)
     dualgroup = weave_int("WEAVE_DUALGROUP_MIN_TOKENS", default=64)
+    amd_8wave = weave_int("WEAVE_AMD_8WAVE_MIN_TOK", default=dualgroup)
+    scatter_sms = weave_int("WEAVE_SCATTER_ACTIVE_SMS", default=0)
+    locality = weave_int("WEAVE_LOCALITY_DOMAINS", default=4)
+    sm0_sched = weave_int("WEAVE_SM0_STREAM_SCHED", default=0)
+    l2kdep = weave_int("WEAVE_L2_KBLOCK_DEP", default=0)
+    ring_blocks = weave_int("WEAVE_RING_BLOCKS", default=0)
+    early_stream = weave_int("WEAVE_EARLY_STREAM_REDUCE", default=0)
+    local_dedup = weave_int("WEAVE_LOCAL_SCATTER_DEDUP", default=0)
     overlap = weave_int("WEAVE_OVERLAP_PIPELINE", default=1)
     all_wave = weave_int("WEAVE_ALL_WAVE_COMBINE", default=1)
     bn2 = weave_int("WEAVE_BN2_MODE", default=0)
@@ -133,6 +141,14 @@ for name, fi in fi_variants:
         f"-DWEAVE_BM_TIER_MODE={bm_tier}",
         f"-DWEAVE_SELECTIVE_DEDUP={selective}",
         f"-DWEAVE_DUALGROUP_MIN_TOKENS={dualgroup}",
+        f"-DWEAVE_AMD_8WAVE_MIN_TOK={amd_8wave}",
+        f"-DWEAVE_SCATTER_ACTIVE_SMS={scatter_sms}",
+        f"-DWEAVE_LOCALITY_DOMAINS={locality}",
+        f"-DWEAVE_SM0_STREAM_SCHED={sm0_sched}",
+        f"-DWEAVE_L2_KBLOCK_DEP={l2kdep}",
+        f"-DWEAVE_RING_BLOCKS={ring_blocks}",
+        f"-DWEAVE_EARLY_STREAM_REDUCE={early_stream}",
+        f"-DWEAVE_LOCAL_SCATTER_DEDUP={local_dedup}",
         f"-DWEAVE_OVERLAP_PIPELINE={overlap}",
         f"-DWEAVE_ALL_WAVE_COMBINE={all_wave}",
         f"-DWEAVE_BN2_MODE={bn2}",

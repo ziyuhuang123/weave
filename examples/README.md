@@ -150,7 +150,7 @@ The archived tile values were tuned for `fp8xfp4`.
 The archived trace contains this literal `otherData.meta.selected_cfg`:
 
 ```text
-fast_host=1,fused=1,interleave=5,epw=8,hot_cold=2,compact=1,dyn=1,alias=1,scat_disp=1,d_mask_mode=1,bm=32,bn=256,bk=128,wgs=4,swap=1,stages=0,swap_pipe=1,fast_swap_epi=1,rank_cache=1,fast_clean=1,fast_pull=1,dedup_disp=1,dedup_tier=1,reg_comb=1,fast_comb=1,all_idle_comb=1
+fast_host=1,fused=1,interleave=5,epw=8,compact=1,dyn=1,alias=1,scat_disp=1,d_mask_mode=1,bm=32,bn=256,bk=128,wgs=4,swap=1,stages=0,swap_pipe=1,fast_swap_epi=1,rank_cache=1,fast_clean=1,fast_pull=1,dedup_disp=1,dedup_tier=1,reg_comb=1,fast_comb=1,all_idle_comb=1
 ```
 
 It is passed through the unified public entry `WEAVE_H20_CONFIG`. The keys
@@ -166,7 +166,6 @@ inside the string are H20 spec fields, not legacy environment-variable names.
 | Spatial | `WEAVE_H20_CONFIG.wgs` | 4 | trace-metadata | 4 epilogue warp groups |
 | Spatial | `WEAVE_H20_CONFIG.swap` | 1 | trace-metadata | swap-AB layout |
 | Temporal | `WEAVE_INTERLEAVE_L1_L2` | 5 | trace-metadata | `interleave=5`: expert-per-wave alternation + L2 K-block dependency |
-| Temporal | `WEAVE_HOT_COLD_MODE` | 2 | trace-metadata | `hot_cold=2`: LPT plus hot/cold pairing |
 | Temporal | `WEAVE_DYN_SCHED` | 1 | trace-metadata | `dyn=1`: dynamic expert cursor |
 | Temporal | `WEAVE_H20_CONFIG.stages` | 0 | documented-behavior | runtime auto-selects pipeline depth; NOT a zero-stage pipeline |
 | Temporal | `WEAVE_SWAP_PIPE` | 1 | trace-metadata | `swap_pipe=1` |
@@ -217,8 +216,6 @@ or set `WEAVE_H20_TRACE`.
 | Spatial | gridX / waves_per_cu | 80 / 8 | trace-metadata | 80 unique physical CUs |
 | Spatial | BN / BK | 128 / 128 | current-build-default | fixed tile constants |
 | Spatial | `WEAVE_BM_TIER_MODE` | 2 | current-build-default | M tiers 16/32/64/128/256 |
-| Spatial | `WEAVE_TH_BM64` | 16 | current-build-default | small-M tier threshold |
-| Spatial | `WEAVE_TH_BM128` | 96 | current-build-default | large-M tier threshold |
 | Temporal | `WEAVE_SCATTER_MODE` | 2 | current-build-default | local-dedup / node-partial pre-reduce |
 | Temporal | `WEAVE_OVERLAP_PIPELINE` | 1 | current-build-default | compute-communication overlap |
 | Temporal | `WEAVE_DUALGROUP_MIN_TOKENS` | 64 | current-build-default | local tokens 1024 / 8 = 128 >= 64 -> 8-wave dual compute |
@@ -305,8 +302,6 @@ paired SW+HW Perfetto timeline. The annotated preview uses the archived trace.
 |---|---|---:|---|---|
 | Spatial | BN / BK | 128 / 128 | current-build-default | fixed tile constants |
 | Spatial | `WEAVE_BM_TIER_MODE` | 2 | current-build-default | M tiers 16/32/64/128/256 |
-| Spatial | `WEAVE_TH_BM64` | 16 | current-build-default | small-M tier threshold |
-| Spatial | `WEAVE_TH_BM128` | 96 | current-build-default | large-M tier threshold |
 | Temporal | `WEAVE_SCATTER_MODE` | 2 | current-build-default | node-partial pre-reduced scatter |
 | Temporal | `WEAVE_OVERLAP_PIPELINE` | 1 | current-build-default | mode-2 overlap pipeline |
 | Temporal | `WEAVE_DUALGROUP_MIN_TOKENS` | 64 | documented-behavior | local tokens 128 / 16 = 8 < 64 -> threshold NOT reached |

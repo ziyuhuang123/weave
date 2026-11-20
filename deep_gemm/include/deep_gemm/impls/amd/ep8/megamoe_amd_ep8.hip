@@ -1,4 +1,36 @@
 #include <deep_gemm/scheduler/weave_knobs.cuh>
+
+// MI308X 8-wave admission floor.  Defaults to the historical dual-group
+// threshold; build scripts may override it through the public knob space.
+#ifndef WEAVE_AMD_8WAVE_MIN_TOK
+#define WEAVE_AMD_8WAVE_MIN_TOK WEAVE_DUALGROUP_MIN_TOKENS
+#endif
+
+// Unified AMD knob subset.  Locality domains are XCDs on gfx942 (4 x 20 CUs).
+#ifndef WEAVE_LOCALITY_DOMAINS
+#define WEAVE_LOCALITY_DOMAINS 0
+#endif
+#ifndef WEAVE_SCATTER_ACTIVE_SMS
+#define WEAVE_SCATTER_ACTIVE_SMS 0
+#endif
+#ifndef WEAVE_SM0_STREAM_SCHED
+#define WEAVE_SM0_STREAM_SCHED 0
+#endif
+#ifndef WEAVE_L2_KBLOCK_DEP
+#define WEAVE_L2_KBLOCK_DEP 0
+#endif
+#ifndef WEAVE_RING_BLOCKS
+#define WEAVE_RING_BLOCKS 0
+#endif
+#ifndef WEAVE_EARLY_STREAM_REDUCE
+#define WEAVE_EARLY_STREAM_REDUCE 0
+#endif
+#ifndef WEAVE_LOCAL_SCATTER_DEDUP
+#define WEAVE_LOCAL_SCATTER_DEDUP 0
+#endif
+#if WEAVE_LOCALITY_DOMAINS != 0 && WEAVE_LOCALITY_DOMAINS != 1 && WEAVE_LOCALITY_DOMAINS != 4
+#error "MI308X WEAVE_LOCALITY_DOMAINS must be 0, 1 or 4"
+#endif
 // MEGA_OPT_OPTIONS_BEGIN
 #ifndef WEAVE_OPT_RELAXED_SPIN
 #define WEAVE_OPT_RELAXED_SPIN 0
@@ -1180,7 +1212,7 @@ v1864_ov1_runtime_roles(V983Envelope envelope) {
   // __syncthreads() is issued; the two halves run concurrently and coordinate
   // only through fine-grained global flags and the 4-wave LDS barrier.
   // =========================================================================
-  const bool use_8wave = (e.t_local >= WEAVE_DUALGROUP_MIN_TOKENS);
+  const bool use_8wave = (e.t_local >= WEAVE_AMD_8WAVE_MIN_TOK);
   if (wave < 4u) {
     // COMPUTE half (Group 0, waves 0..3): 80-CTA parallel route plan then direct-gather GEMM1 + GEMM2.
     FI_BG(V1988_FI_PHASE, V1988_EV_ROUTE_PLAN, cta);

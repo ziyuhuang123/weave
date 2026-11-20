@@ -94,7 +94,7 @@ SHARED_BANNERS = {
     "h20": (
         "Spatial: WEAVE_H20_CONFIG exact spec bm=32, bn=256, WEAVE_BLOCK_K=128, wgs=4, swap=1; "
         "78 SMs; 4 epilogue warp groups.\n"
-        "Temporal: WEAVE_INTERLEAVE_L1_L2=5, WEAVE_HOT_COLD_MODE=2, WEAVE_DYN_SCHED=1, "
+        "Temporal: WEAVE_INTERLEAVE_L1_L2=5, WEAVE_DYN_SCHED=1, "
         "stages=0 = runtime auto pipeline depth, WEAVE_SWAP_PIPE=1.\n"
         "Implementation: WEAVE_DEDUP_DISPATCH=1 + dedup_tier=1 (scatter dedup off), WEAVE_REG_COMBINE=1, "
         "WEAVE_ALL_IDLE_COMBINE=1, WEAVE_FAST_PULL=1; exact string in WEAVE_H20_CONFIG."

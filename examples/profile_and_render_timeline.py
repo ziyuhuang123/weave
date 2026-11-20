@@ -63,7 +63,7 @@ BANNERS = {
     "h20": (
         "Spatial: WEAVE_H20_CONFIG exact spec bm=32, bn=256, WEAVE_BLOCK_K=128, "
         "wgs=4, swap=1; 78 SMs; 4 epilogue warp groups.\n"
-        "Temporal: WEAVE_INTERLEAVE_L1_L2=5, WEAVE_HOT_COLD_MODE=2, "
+        "Temporal: WEAVE_INTERLEAVE_L1_L2=5, "
         "WEAVE_DYN_SCHED=1, stages=0 = runtime auto pipeline depth, "
         "WEAVE_SWAP_PIPE=1.\n"
         "Implementation: WEAVE_DEDUP_DISPATCH=1 + dedup_tier=1 (scatter dedup off), "
@@ -120,7 +120,6 @@ PRESETS = {
             ("Spatial", "WEAVE_H20_CONFIG.wgs", "4", "trace-metadata", "4 epilogue warp groups"),
             ("Spatial", "WEAVE_H20_CONFIG.swap", "1", "trace-metadata", "swap-AB layout"),
             ("Temporal", "WEAVE_INTERLEAVE_L1_L2", "5", "trace-metadata", "interleave=5: EPW + L2 K-dependency"),
-            ("Temporal", "WEAVE_HOT_COLD_MODE", "2", "trace-metadata", "hot_cold=2: LPT + hot/cold pairing"),
             ("Temporal", "WEAVE_DYN_SCHED", "1", "trace-metadata", "dyn=1: dynamic expert cursor"),
             ("Temporal", "WEAVE_H20_CONFIG.stages", "0", "documented-behavior", "0 = runtime auto pipeline depth"),
             ("Temporal", "WEAVE_SWAP_PIPE", "1", "trace-metadata", "swap_pipe=1"),

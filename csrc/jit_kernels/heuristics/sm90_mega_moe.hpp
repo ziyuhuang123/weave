@@ -228,7 +228,6 @@ static AgySm90KnobSpec parse_agy_sm90_spec_string(const char* raw_str) {
     // Public H20 knobs: WEAVE_* wins; archived AGY_* spellings are fallback.
     append_weave_env("mcast", "WEAVE_MCAST", "AGY_MCAST");
     append_weave_env("swizzle_tiles", "WEAVE_SWIZZLE_TILES", "AGY_SWIZZLE_TILES");
-    append_weave_env("hot_cold", "WEAVE_HOT_COLD_MODE", "WEAVE_HOT_COLD_MODE", "WEAVE_HOT_COLD_L2");
     append_weave_env("dedup_disp", "WEAVE_DEDUP_DISPATCH", "AGY_DEDUP_DISP");
     append_weave_env("dedup_scat", "WEAVE_DEDUP_SCATTER", "AGY_DEDUP_SCAT");
     append_weave_env("reg_comb", "WEAVE_REG_COMBINE", "AGY_REG_COMB");
@@ -243,6 +242,13 @@ static AgySm90KnobSpec parse_agy_sm90_spec_string(const char* raw_str) {
     append_weave_env("adapt_bm", "WEAVE_ADAPT_BM", "AGY_ADAPT_BM");
     append_weave_env("hbm_scat", "WEAVE_HBM_SCATTER_QUEUE", "AGY_HBM_SCAT");
     append_weave_env("scatter_sms", "WEAVE_SCATTER_ACTIVE_SMS", "AGY_SCATTER_ACTIVE_SMS");
+    append_weave_env("dispatch_warps", "WEAVE_DISPATCH_WARPS", "AGY_DISPATCH_WARPS");
+    append_weave_env("sm0_sched", "WEAVE_SM0_STREAM_SCHED", "AGY_SM0_STREAM_SCHED");
+    append_weave_env("l2_kblock_dep", "WEAVE_L2_KBLOCK_DEP", "AGY_L2_KBLOCK_DEP");
+    append_weave_env("ring_blocks", "WEAVE_RING_BLOCKS", "AGY_RING_BLOCKS");
+    append_weave_env("early_stream", "WEAVE_EARLY_STREAM_REDUCE", "AGY_EARLY_STREAM_REDUCE");
+    append_weave_env("head_pull_chunk", "WEAVE_HEAD_PULL_CHUNK", "AGY_HEAD_PULL_CHUNK");
+    append_weave_env("local_dedup", "WEAVE_LOCAL_SCATTER_DEDUP", "AGY_LOCAL_SCATTER_DEDUP");
     if (combined.empty())
         return spec;
     spec.enabled = true;
@@ -429,6 +435,28 @@ static std::string get_agy_sm90_jit_defines(const AgySm90KnobSpec& spec) {
         "scatter_sms", spec.get_int("scatter_active_sms", 0));
     if (scatter_sms > 0)
         defs += std::format("#define WEAVE_SCATTER_ACTIVE_SMS {}\n", scatter_sms);
+    const int dispatch_warps = spec.get_int("dispatch_warps", 0);
+    if (dispatch_warps > 0) {
+        DG_HOST_ASSERT(dispatch_warps == 4 or dispatch_warps == 8);
+        defs += std::format("#define WEAVE_DISPATCH_WARPS {}\n", dispatch_warps);
+    }
+    if (spec.get_int("sm0_sched", 0) > 0)
+        defs += "#define WEAVE_SM0_STREAM_SCHED 1\n";
+    const int l2_kblock_dep = spec.get_int("l2_kblock_dep", 0);
+    if (l2_kblock_dep > 0)
+        defs += "#define WEAVE_L2_KBLOCK_DEP 1\n";
+    const int ring_blocks = spec.get_int("ring_blocks", 0);
+    if (ring_blocks > 0)
+        defs += std::format("#define WEAVE_RING_BLOCKS {}\n", ring_blocks);
+    if (spec.get_int("early_stream", 0) > 0)
+        defs += "#define WEAVE_EARLY_STREAM_REDUCE 1\n";
+    const int head_pull_chunk = spec.get_int("head_pull_chunk", 0);
+    if (head_pull_chunk > 0)
+        defs += std::format("#define WEAVE_HEAD_PULL_CHUNK {}\n", head_pull_chunk);
+    if (spec.get_int("local_dedup", 0) > 0) {
+        defs += "#define WEAVE_LOCAL_SCATTER_DEDUP 1\n";
+        defs += "#define WEAVE_HBM_SCATTER_QUEUE 1\n";
+    }
     if (spec.get_int("adapt_bm", 0) > 0) {
         defs += "#define WEAVE_ADAPT_BM 1\n";
         if (spec.get_int("full_nswap", 0) == 0)
@@ -536,7 +564,7 @@ static std::string get_agy_sm90_jit_defines(const AgySm90KnobSpec& spec) {
 
     // MD P6: fine_comb_g + early_comb + comb_warps + all_idle_comb
     int fine_comb_g = spec.get_int("fine_comb_g", spec.get_int("comb_g", 0));
-    const int early_comb = spec.get_int("early_comb", 0);
+    const int early_comb = spec.get_int("early_comb", spec.get_int("early_stream", 0));
     const int comb_warps = spec.get_int("comb_warps", 0);
     const int all_idle_comb = spec.get_int("all_idle_comb", 0);
     if (early_comb > 0 and fine_comb_g == 0)
@@ -554,7 +582,9 @@ static std::string get_agy_sm90_jit_defines(const AgySm90KnobSpec& spec) {
         defs += "#define WEAVE_ALL_IDLE_COMBINE 1\n";
 
     // Expert-Granularity / Expert-Per-Wave / B300 L2KBlockDependency Interleaved L1+L2 atomicAdd (1..6)
-    const int interleave_mode = spec.get_int("interleave", spec.get_int("interleave_l1_l2", 0));
+    int interleave_mode = spec.get_int("interleave", spec.get_int("interleave_l1_l2", 0));
+    if (interleave_mode == 0 and spec.get_int("l2_kblock_dep", 0) > 0)
+        interleave_mode = 5;
     if (interleave_mode > 0 and is_fused) {
         DG_HOST_ASSERT(interleave_mode >= 1 and interleave_mode <= 6);
         defs += std::format("#define WEAVE_INTERLEAVE_L1_L2 {}\n", interleave_mode);

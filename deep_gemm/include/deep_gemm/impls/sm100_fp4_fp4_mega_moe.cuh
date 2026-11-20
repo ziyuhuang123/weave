@@ -515,8 +515,7 @@ sm100_fp4_fp4_mega_moe_impl(void* y,
                     static_cast<uint32_t>(kHidden),
                     static_cast<uint32_t>(kIntermediateHidden)};
                 const weave::WeaveKnobs knobs =
-                    weave::default_weave_knobs(weave::HardwareArch::B300_SM100, 0u,
-                                               weave::PrecisionMode::NVFP4);
+                    weave::default_weave_knobs(weave::HardwareArch::B300_SM100, weave::PrecisionMode::NVFP4);
                 const uint32_t m_out = weave::count_remote_expert_sends(
                     workspace, kNumExperts, kNumExpertsPerRank,
                     static_cast<uint32_t>(sym_buffer.rank_idx));

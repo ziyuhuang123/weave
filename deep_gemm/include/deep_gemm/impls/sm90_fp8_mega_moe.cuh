@@ -33,6 +33,38 @@
 #    define WEAVE_HOT_COLD_MODE 0
 #  endif
 #endif
+
+// Verified architectural knobs consumed by the SM90 translation unit.
+#ifndef WEAVE_DISPATCH_WARPS
+#define WEAVE_DISPATCH_WARPS 0
+#endif
+#ifndef WEAVE_SM0_STREAM_SCHED
+#define WEAVE_SM0_STREAM_SCHED 0
+#endif
+#ifndef WEAVE_L2_KBLOCK_DEP
+#define WEAVE_L2_KBLOCK_DEP 0
+#endif
+#ifndef WEAVE_RING_BLOCKS
+#define WEAVE_RING_BLOCKS 0
+#endif
+#ifndef WEAVE_EARLY_STREAM_REDUCE
+#define WEAVE_EARLY_STREAM_REDUCE 0
+#endif
+#ifndef WEAVE_HEAD_PULL_CHUNK
+#define WEAVE_HEAD_PULL_CHUNK 0
+#endif
+#ifndef WEAVE_LOCAL_SCATTER_DEDUP
+#define WEAVE_LOCAL_SCATTER_DEDUP 0
+#endif
+#ifndef WEAVE_BLOCK_M_L1
+#define WEAVE_BLOCK_M_L1 0
+#endif
+#ifndef WEAVE_BLOCK_M_L2
+#define WEAVE_BLOCK_M_L2 0
+#endif
+#ifndef WEAVE_STORE_BLOCK_M_L1
+#define WEAVE_STORE_BLOCK_M_L1 0
+#endif
 #ifndef AGY_HOT_COLD_L1
 #define AGY_HOT_COLD_L1 WEAVE_HOT_COLD_MODE
 #endif
@@ -472,6 +504,17 @@ struct SM90MegaMoECoreRunner {
     // Template checks
     DG_STATIC_ASSERT(kNumDispatchThreads == 64 or kNumDispatchThreads == 192 or kNumDispatchThreads % 128 == 0,
                      "Invalid number of dispatch threads");
+    DG_STATIC_ASSERT(WEAVE_BLOCK_M_L1 == 0 or WEAVE_BLOCK_M_L1 == BLOCK_M,
+                     "H20 has one static BLOCK_M; L1/L2 envelopes must match");
+    DG_STATIC_ASSERT(WEAVE_BLOCK_M_L2 == 0 or WEAVE_BLOCK_M_L2 == BLOCK_M,
+                     "H20 has one static BLOCK_M; L1/L2 envelopes must match");
+    DG_STATIC_ASSERT(WEAVE_STORE_BLOCK_M_L1 == 0 or WEAVE_STORE_BLOCK_M_L1 == BLOCK_M,
+                     "H20 stores the full block M in one pass");
+    DG_STATIC_ASSERT(WEAVE_ADAPT_BM <= 1, "WEAVE_ADAPT_BM must be 0 or 1");
+    DG_STATIC_ASSERT(WEAVE_LOCAL_SCATTER_DEDUP == 0 or WEAVE_HBM_SCATTER_QUEUE != 0,
+                     "WEAVE_LOCAL_SCATTER_DEDUP requires the HBM scatter queue");
+    DG_STATIC_ASSERT(WEAVE_DISPATCH_WARPS == 0 or WEAVE_DISPATCH_WARPS == kNumDispatchWarps,
+                     "WEAVE_DISPATCH_WARPS disagrees with the launch thread layout");
     DG_STATIC_ASSERT(kNumNonEpilogueThreads == 64 or kNumNonEpilogueThreads == 128,
                      "Invalid number of GEMM TMA warps (2 or 4 warps expected)");
     DG_STATIC_ASSERT(kNumEpilogueThreads % 128 == 0, "Invalid number of math/epilogue threads");
@@ -578,6 +621,10 @@ struct SM90MegaMoECoreRunner {
                      "swapAB epilogue token chunks assume BLOCK_M is a multiple of 8");
 #if defined(AGY_INTERLEAVE_L1_L2) && (AGY_INTERLEAVE_L1_L2 > 0)
     constexpr int kAgyInterleaveMode = AGY_INTERLEAVE_L1_L2;
+#elif WEAVE_L2_KBLOCK_DEP
+    // Mode 5 is the 64-bit XOR L2KBlockDependency schedule with a tight
+    // 1 L2 <-> 1 L1 alternating wave order.
+    constexpr int kAgyInterleaveMode = 5;
 #else
     constexpr int kAgyInterleaveMode = 0;
 #endif
@@ -844,6 +891,12 @@ struct SM90MegaMoECoreRunner {
         (7u * kNumExpertsPerRank + 19u) * static_cast<uint32_t>(sizeof(uint32_t));
     constexpr uint32_t kNumExpertWaves =
         math::constexpr_ceil_div(kNumExpertsPerRank, kNumExpertsPerWave);
+    // Verified ring-reuse knob: 0 keeps the pool-derived ring, N must match it.
+    constexpr uint32_t kNumRingBlocks = kNumMaxPoolTokens / BLOCK_M;
+    DG_STATIC_ASSERT(WEAVE_RING_BLOCKS == 0 or WEAVE_RING_BLOCKS == kNumRingBlocks,
+                     "WEAVE_RING_BLOCKS must match the allocated pool ring");
+    constexpr bool kEarlyStreamReduceActive = WEAVE_EARLY_STREAM_REDUCE != 0;
+
     constexpr uint32_t kInterleaveDoneCapWords =
         (kAgyInterleaveMode == 3 or ((kAgyInterleaveMode == 5 or kAgyInterleaveMode == 6) and (2u * L1_OUT_BLOCK_N == BLOCK_K)))
             ? (kNumMaxPoolTokens / BLOCK_M)
@@ -3082,18 +3135,29 @@ struct SM90MegaMoECoreRunner {
             ? total_recv_tokens
             : (selected_v_head < total_recv_tokens ? selected_v_head : total_recv_tokens);
 
-        const uint32_t pull_token_start = kAgyHeteroD8D4
+        constexpr bool kSm0StreamSchedActive = WEAVE_SM0_STREAM_SCHED != 0;
+        const uint32_t pull_sm_idx = kSm0StreamSchedActive
+            ? (sm_idx == 0u ? kNumSMs : sm_idx - 1u) : sm_idx;
+        const uint32_t pull_num_sms = kSm0StreamSchedActive ? (kNumSMs - 1u) : kNumSMs;
+        uint32_t pull_token_start = kAgyHeteroD8D4
             ? hetero_pull_start
-            : (sm_idx * kNumDispatchWarps + warp_idx);
+            : (pull_sm_idx * kNumDispatchWarps + warp_idx);
+        if constexpr (kSm0StreamSchedActive) {
+            if (sm_idx == 0u)
+                pull_token_start = 0xffffffffu;
+        }
         const uint32_t pull_token_stride = kAgyHeteroD8D4
             ? hetero_pull_stride
-            : (kNumSMs * kNumDispatchWarps);
+            : (pull_num_sms * kNumDispatchWarps);
         if (warp_idx == 0u or ((not (kAgyHeteroD8D4 and MegaMoEPhase::is_fused) or warp_idx < active_d_warps) and pull_token_stride > 0u)) {
             AGY_PROF_BEFORE_PULL(MegaMoEPhase, sm_idx, warp_idx, lane_idx, kNumDispatchWarps);
         }
         if ((not (kAgyHeteroD8D4 and MegaMoEPhase::is_fused) or warp_idx < active_d_warps) and pull_token_stride > 0u) {
         for (uint32_t token_idx = pull_token_start; ; token_idx += pull_token_stride) {
-            if (token_idx >= head_pull_end and warp_idx >= active_pull_warps) break;
+            constexpr uint32_t kHeadPullChunk = WEAVE_HEAD_PULL_CHUNK;
+            const uint32_t effective_head_pull_end = kHeadPullChunk == 0u
+                ? head_pull_end : cute::min(head_pull_end, kHeadPullChunk);
+            if (token_idx >= effective_head_pull_end and warp_idx >= active_pull_warps) break;
             int old_expert_idx = current_expert_idx;
             while (token_idx >= expert_end_idx) {
                 if (++ current_expert_idx >= kNumExpertsPerRank)
@@ -6722,7 +6786,7 @@ struct SM90MegaMoECoreRunner {
             run_all_idle_reg_combine(
                 sm_idx * kTotalCombWarpsPerSM + kNumDispatchWarps + epilogue_warp_idx,
                 kNumSMs * kTotalCombWarpsPerSM);
-        } else if constexpr (kAgyFastComb) {
+        } else if constexpr (kAgyFastComb or kEarlyStreamReduceActive) {
             constexpr uint32_t kTotalEpiWarps = kNumSMs * kNumEpilogueWarps;
             constexpr uint32_t kFineChunks = kHidden / 256u;
             if constexpr (kAgyRegComb) {

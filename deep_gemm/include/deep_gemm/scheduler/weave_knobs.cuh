@@ -280,6 +280,97 @@
 #error "WEAVE_PRECISION_MODE must be in [0, 3]"
 #endif
 
+// =============================================================================
+// Verified architectural knob space (Spatial / Temporal / Implementation).
+//
+// These macros are the compile-time defaults carried into JIT configuration.
+// Host dispatchers override them per launch through WeaveKnobs and the
+// per-backend JIT define blocks.  Every macro below is part of the public
+// surface and is documented in docs/TUNABLE_PARAMETERS.md.
+// =============================================================================
+
+// --- Spatial ---------------------------------------------------------------
+// 0 = auto (4 warps on SM103/H20, 4 on MI308X); 4 or 8 = fixed dispatch warps.
+#ifndef WEAVE_DISPATCH_WARPS
+#define WEAVE_DISPATCH_WARPS 0u
+#endif
+// 0 = every SM/CU participates in scatter; K = only K SMs/CUs drain the queue.
+#ifndef WEAVE_SCATTER_ACTIVE_SMS
+#define WEAVE_SCATTER_ACTIVE_SMS 0u
+#endif
+// 0 = auto; 1 = single domain; 2 = dual-die SM103; 4 = XCD MI308X.
+#ifndef WEAVE_LOCALITY_DOMAINS
+#define WEAVE_LOCALITY_DOMAINS 0u
+#endif
+// 0 = SM 0 communication warps pull like every other SM; 1 = they become the
+// dedicated streaming scheduler lane and the remaining SMs own the pull.
+#ifndef WEAVE_SM0_STREAM_SCHED
+#define WEAVE_SM0_STREAM_SCHED 0u
+#endif
+// Minimum local tokens per CU-expert before the MI308X 8-wave schedule is
+// admitted.  Defaults to the historical dual-group threshold.
+#ifndef WEAVE_AMD_8WAVE_MIN_TOK
+#define WEAVE_AMD_8WAVE_MIN_TOK WEAVE_DUALGROUP_MIN_TOKENS
+#endif
+
+// --- Temporal --------------------------------------------------------------
+// 0 = default L1-first order; 1 = 64-bit XOR L2KBlockDependency bitmask with a
+// tight 1 L2 <-> 1 L1 alternating wave schedule.
+#ifndef WEAVE_L2_KBLOCK_DEP
+#define WEAVE_L2_KBLOCK_DEP 0u
+#endif
+// 0 = auto ring capacity from get_num_max_live_pool_blocks; N = forced ring
+// block count (validated against the workspace capacity).
+#ifndef WEAVE_RING_BLOCKS
+#define WEAVE_RING_BLOCKS 0u
+#endif
+// 0 = global barrier before combine; 1 = barrier-free per-token cnt==topk
+// tail-interleaved early reduce.
+#ifndef WEAVE_EARLY_STREAM_REDUCE
+#define WEAVE_EARLY_STREAM_REDUCE 0u
+#endif
+// Integer permille encoding of the TMEM epilogue pipeline depth:
+//   0 = auto (2.0 at BM<=240 with one prefetch stage; 1.75 at BM=256),
+//   100 = 1.0 single stage, 175 = 1.75 overlapping, 200 = 2.0 two stages.
+#ifndef WEAVE_TMEM_PIPELINE_MODE
+#define WEAVE_TMEM_PIPELINE_MODE 0u
+#endif
+// 0 = pull the opening head budget as one prefix; N = tokens per head-pull
+// chunk, interleaving dispatch and the first GEMM waves.
+#ifndef WEAVE_HEAD_PULL_CHUNK
+#define WEAVE_HEAD_PULL_CHUNK 0u
+#endif
+
+// --- Implementation --------------------------------------------------------
+// 0 = fixed per-expert BM; 1 = per-expert dynamic BM ladder.
+#ifndef WEAVE_ADAPT_BM
+#define WEAVE_ADAPT_BM 0u
+#endif
+// 0 = auto; per-GEMM per-expert block-M envelopes.
+#ifndef WEAVE_BLOCK_M_L1
+#define WEAVE_BLOCK_M_L1 0u
+#endif
+#ifndef WEAVE_BLOCK_M_L2
+#define WEAVE_BLOCK_M_L2 0u
+#endif
+// 0 = auto; asymmetric epilogue store heights for GEMM1 and GEMM2.
+#ifndef WEAVE_STORE_BLOCK_M_L1
+#define WEAVE_STORE_BLOCK_M_L1 0u
+#endif
+#ifndef WEAVE_STORE_BLOCK_M_L2
+#define WEAVE_STORE_BLOCK_M_L2 0u
+#endif
+// Historical primary spelling: WEAVE_STORE_BLOCK_M now aliases the GEMM1
+// store height so existing launch scripts keep working.
+#ifndef WEAVE_STORE_BLOCK_M
+#define WEAVE_STORE_BLOCK_M WEAVE_STORE_BLOCK_M_L1
+#endif
+// 0 = full-precision local accumulation; 1 = hardware bf16x2 L2 atomic dedup
+// before the NVLink/xGMI send.
+#ifndef WEAVE_LOCAL_SCATTER_DEDUP
+#define WEAVE_LOCAL_SCATTER_DEDUP 0u
+#endif
+
 namespace weave {
 
 enum class HardwareArch : uint32_t {
@@ -342,47 +433,37 @@ WEAVE_HOST_DEVICE constexpr bool r_heterogeneous(uint32_t r_mask) {
 }
 
 struct WeaveKnobs {
+  // --- CTA-0 policy ABI: every field below is read by weave_cost_model.cuh.
   uint32_t enable_runtime_cost_model;
-  uint32_t ablation_preset;
-
-  // Explicit overrides for progressive ablation and manual tuning.
   uint32_t override_mask;
   uint32_t override_r_mask;
   uint32_t override_scatter_mode;
   uint32_t override_v_head;
+  uint32_t block_m_fixed;   // Spatial fallback when the override r_mask is bad.
+  uint32_t precision_mode;  // Implementation: numeric precision and MMA family.
 
-  // Spatial defaults.
-  uint32_t comm_units;
-  uint32_t comp_units;
-  uint32_t dualgroup_min_tokens;
-  uint32_t bm_tier_mode;
-  uint32_t block_m_fixed;
-  uint32_t block_n1;
-  uint32_t block_n2;
-  uint32_t block_k;
-  uint32_t stage2_n_group;
-  uint32_t heterogeneous_sm_mask;
+  // --- Spatial -------------------------------------------------------------
+  uint32_t dispatch_warps;      // 0 = auto; 4 or 8 warps per CTA.
+  uint32_t scatter_active_sms;  // 0 = auto/all; K = throttled scatter SMs.
+  uint32_t locality_domains;    // 0 = auto; 1, 2 (dual-die), 4 (XCD).
+  uint32_t sm0_stream_sched;    // 0/1: SM 0 comm warps become scheduler lane.
+  uint32_t amd_8wave_min_tok;   // MI308X 8-wave admission floor in tokens.
 
-  // Temporal defaults.
-  uint32_t overlap_pipeline;
-  uint32_t scatter_mode;
-  uint32_t gemm_stages;
-  uint32_t all_wave_combine;
-  uint32_t spin_before_sleep;
-  uint32_t tail_fine_grained;
-  uint32_t v_head;
+  // --- Temporal ------------------------------------------------------------
+  uint32_t l2_kblock_dep;       // 0/1: tight 1 L2 <-> 1 L1 wave schedule.
+  uint32_t ring_blocks;         // 0 = auto live-pool ring; N = forced blocks.
+  uint32_t early_stream_reduce; // 0/1: barrier-free per-token early reduce.
+  uint32_t tmem_pipeline_mode;  // 0 auto; 100, 175, 200 permille stages.
+  uint32_t head_pull_chunk;     // 0 = one prefix; N = tokens per chunk.
 
-  // Dataflow defaults.
-  uint32_t selective_dedup;
-  uint32_t register_direct_comm;
-  uint32_t parallel_route_plan;
-  uint32_t local_first_order;
-  uint32_t fused_input_quant;
-  uint32_t fused_swiglu_requant;
-  uint32_t profiler_mode;
-  uint32_t precision_mode;
+  // --- Implementation ------------------------------------------------------
+  uint32_t adapt_bm;            // 0/1: per-expert dynamic BM ladder.
+  uint32_t block_m_l1;          // 0 = auto; GEMM1 per-expert BM envelope.
+  uint32_t block_m_l2;          // 0 = auto; GEMM2 per-expert BM envelope.
+  uint32_t store_block_m_l1;    // 0 = auto; GEMM1 epilogue store height.
+  uint32_t store_block_m_l2;    // 0 = auto; GEMM2 epilogue store height.
+  uint32_t local_scatter_dedup; // 0/1: bf16x2 L2 atomic dedup before send.
 };
-
 WEAVE_HOST_DEVICE constexpr uint32_t default_r_mask_for_arch(
     HardwareArch arch) {
   return arch == HardwareArch::B300_SM100
@@ -393,7 +474,7 @@ WEAVE_HOST_DEVICE constexpr uint32_t default_r_mask_for_arch(
 }
 
 WEAVE_HOST_DEVICE constexpr WeaveKnobs default_weave_knobs(
-    HardwareArch arch, uint32_t fused_input_quant = 0u,
+    HardwareArch arch,
     PrecisionMode precision =
         static_cast<PrecisionMode>(WEAVE_PRECISION_MODE)) {
   // Presets 1/2/3 correspond to the -S, -S-T and -S-T-C ablations: the
@@ -407,33 +488,70 @@ WEAVE_HOST_DEVICE constexpr WeaveKnobs default_weave_knobs(
       (WEAVE_ABLATION_PRESET == 0) ? kAutoU32 : WEAVE_SCATTER_MODE;
   return WeaveKnobs{
       WEAVE_ENABLE_COST_MODEL,
-      WEAVE_ABLATION_PRESET,
       ablation_override_mask, ablation_r_mask, ablation_scatter, kAutoU32,
-      WEAVE_COMM_UNITS,
-      WEAVE_COMP_UNITS,
-      WEAVE_DUALGROUP_MIN_TOKENS,
-      WEAVE_BM_TIER_MODE,
       64u,
-      WEAVE_BN1,
-      WEAVE_BN2_MODE,
-      WEAVE_BK,
-      WEAVE_S2_NGROUP_MODE,
-      WEAVE_HETERO_SM_MASK,
-      WEAVE_OVERLAP_PIPELINE,
-      WEAVE_SCATTER_MODE,
-      WEAVE_GEMM_STAGES,
-      WEAVE_ALL_WAVE_COMBINE,
-      WEAVE_SPIN_BEFORE_SLEEP,
-      WEAVE_TAIL_FINE_GRAINED,
-      WEAVE_V_HEAD,
-      WEAVE_SELECTIVE_DEDUP,
-      WEAVE_REGISTER_DIRECT_COMM,
-      WEAVE_PARALLEL_ROUTE_PLAN,
-      WEAVE_LOCAL_FIRST_ORDER,
-      fused_input_quant,
-      WEAVE_FUSED_SWIGLU_REQUANT,
-      0u,
-      static_cast<uint32_t>(precision)};
+      static_cast<uint32_t>(precision),
+      WEAVE_DISPATCH_WARPS,
+      WEAVE_SCATTER_ACTIVE_SMS,
+      WEAVE_LOCALITY_DOMAINS,
+      WEAVE_SM0_STREAM_SCHED,
+      WEAVE_AMD_8WAVE_MIN_TOK,
+      WEAVE_L2_KBLOCK_DEP,
+      WEAVE_RING_BLOCKS,
+      WEAVE_EARLY_STREAM_REDUCE,
+      WEAVE_TMEM_PIPELINE_MODE,
+      WEAVE_HEAD_PULL_CHUNK,
+      WEAVE_ADAPT_BM,
+      WEAVE_BLOCK_M_L1,
+      WEAVE_BLOCK_M_L2,
+      WEAVE_STORE_BLOCK_M_L1,
+      WEAVE_STORE_BLOCK_M_L2,
+      WEAVE_LOCAL_SCATTER_DEDUP,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Host-side resolvers.  A zero value means "auto" and resolves to the
+// architecture-specific default; a non-zero value is a validated override.
+// ---------------------------------------------------------------------------
+WEAVE_HOST_DEVICE constexpr uint32_t resolve_dispatch_warps(
+    const WeaveKnobs& knobs, uint32_t auto_warps) {
+  return knobs.dispatch_warps == 0u ? auto_warps : knobs.dispatch_warps;
+}
+WEAVE_HOST_DEVICE constexpr uint32_t resolve_scatter_active_sms(
+    const WeaveKnobs& knobs, uint32_t num_sms) {
+  return (knobs.scatter_active_sms == 0u ||
+          knobs.scatter_active_sms >= num_sms)
+      ? num_sms : knobs.scatter_active_sms;
+}
+WEAVE_HOST_DEVICE constexpr uint32_t resolve_locality_domains(
+    const WeaveKnobs& knobs, HardwareArch arch) {
+  if (knobs.locality_domains != 0u) return knobs.locality_domains;
+  return arch == HardwareArch::MI308X_GFX942 ? 4u :
+         (arch == HardwareArch::B300_SM100 ? 2u : 1u);
+}
+WEAVE_HOST_DEVICE constexpr uint32_t resolve_amd_8wave_min_tok(
+    const WeaveKnobs& knobs, uint32_t auto_tokens = WEAVE_DUALGROUP_MIN_TOKENS) {
+  return knobs.amd_8wave_min_tok == 0u ? auto_tokens : knobs.amd_8wave_min_tok;
+}
+WEAVE_HOST_DEVICE constexpr uint32_t resolve_ring_blocks(
+    const WeaveKnobs& knobs, uint32_t auto_blocks) {
+  return knobs.ring_blocks == 0u ? auto_blocks : knobs.ring_blocks;
+}
+WEAVE_HOST_DEVICE constexpr uint32_t resolve_tmem_pipeline_mode(
+    const WeaveKnobs& knobs, uint32_t auto_mode) {
+  return knobs.tmem_pipeline_mode == 0u ? auto_mode : knobs.tmem_pipeline_mode;
+}
+WEAVE_HOST_DEVICE constexpr uint32_t resolve_block_m(
+    const WeaveKnobs& knobs, uint32_t phase_l1, uint32_t phase_l2,
+    uint32_t auto_block_m) {
+  const uint32_t requested = phase_l2 != 0u ? phase_l2 : phase_l1;
+  return requested == 0u ? auto_block_m : requested;
+}
+WEAVE_HOST_DEVICE constexpr uint32_t resolve_store_block_m(
+    const WeaveKnobs& knobs, uint32_t phase_l1, uint32_t phase_l2,
+    uint32_t auto_l1, uint32_t auto_l2) {
+  return phase_l2 != 0u ? phase_l2 : (phase_l1 != 0u ? phase_l1 : auto_l2);
 }
 
 WEAVE_HOST_DEVICE constexpr bool has_override(

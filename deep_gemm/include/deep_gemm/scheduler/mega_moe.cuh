@@ -6,6 +6,12 @@
 #define WEAVE_LOCALITY_DOMAINS 0
 #endif
 
+// 1 = 64-bit XOR L2KBlockDependency order with a tight 1 L2 <-> 1 L1
+// alternating wave schedule; 0 = the default L1-first order.
+#ifndef WEAVE_L2_KBLOCK_DEP
+#define WEAVE_L2_KBLOCK_DEP 0
+#endif
+
 // ============================================================================
 // Public B300 compile-time knobs. WEAVE_* is the primary spelling; archived
 // DG_* names are accepted only as source-level compatibility aliases.
@@ -824,6 +830,7 @@ template <
     uint32_t kNumRingBlocks,
     uint32_t kNumSharedExperts = 0,
     uint32_t kNumLocalityDomains = (WEAVE_LOCALITY_DOMAINS ? 2u : 1u),
+    uint32_t kL2KBlockDep = (WEAVE_L2_KBLOCK_DEP ? 1u : 0u),
     uint32_t kNumExpertsPerLane = math::constexpr_ceil_div(kNumExpertsPerRank, 32u),
     uint32_t kNumL1BlockNs = L1_SHAPE_N / BLOCK_N,
     uint32_t kNumL2BlockNs = L2_SHAPE_N / BLOCK_N,
@@ -877,7 +884,7 @@ struct MegaMoEScheduler {
     // is drained we steal from the peer domain, but only if at least
     // kNumMinStealWaves full CTA-pair waves of work exist (avoid cross-die latency
     // on small problems).
-    static constexpr uint32_t kNumMinStealWaves = 2;
+    static constexpr uint32_t kNumMinStealWaves = kL2KBlockDep ? 1u : 2u;
     uint32_t sm_locality_domain_idx = 0;
 
     CUTLASS_DEVICE
@@ -1447,9 +1454,17 @@ struct MegaMoEScheduler {
     CUTLASS_DEVICE void wait_l1_tasks(const uint32_t& num_m_blocks_done) const {
         constexpr uint32_t kNumLocalL1Clusters = kNumL1Clusters / kNumLocalityDomains;
         const uint32_t num_required_l1_tasks = num_m_blocks_done * kNumLocalL1Clusters;
-        #pragma unroll
-        for (uint32_t d = 0; d < kNumLocalityDomains; ++ d)
-            while (ptx::ld_volatile(workspace.get_l1_task_count_ptr(d)) < num_required_l1_tasks) {}
+        if constexpr (kL2KBlockDep != 0u) {
+            // Tight 1 L2 <-> 1 L1 alternation: an L2 K block waits only for
+            // the L1 N subtiles of its own locality domain.
+            while (ptx::ld_volatile(
+                       workspace.get_l1_task_count_ptr(sm_locality_domain_idx)) <
+                   num_required_l1_tasks) {}
+        } else {
+            #pragma unroll
+            for (uint32_t d = 0; d < kNumLocalityDomains; ++ d)
+                while (ptx::ld_volatile(workspace.get_l1_task_count_ptr(d)) < num_required_l1_tasks) {}
+        }
     }
 
 #if DG_ISOLATED_D5_DEDUP && DG_TUNE_D5_SCHED

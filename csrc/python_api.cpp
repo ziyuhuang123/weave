@@ -15,6 +15,7 @@
 #include "apis/sm90_mega.hpp"
 #include "apis/mega_mhc.hpp"
 #include "apis/mega_gate.hpp"
+#include "apis/weave_knobs.hpp"
 
 #ifndef TORCH_EXTENSION_NAME
 #define TORCH_EXTENSION_NAME _C
@@ -42,4 +43,5 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
     deep_gemm::mega::register_sm90_apis(m);
     deep_gemm::mega_mhc::register_apis(m);
     deep_gemm::mega_gate::register_apis(m);
+    deep_gemm::weave_api::register_apis(m);
 }

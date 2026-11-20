@@ -622,3 +622,35 @@ from .cost_model import (  # noqa: E402
     evaluate as weave_evaluate_policy,
     select_policy as weave_select_policy,
 )
+
+
+# ---------------------------------------------------------------------------
+# Unified Spatial / Temporal / Implementation knob space.
+# ---------------------------------------------------------------------------
+from .knobs import (  # noqa: E402
+    KNOBS as WEAVE_KNOBS,
+    REQUIRED as WEAVE_KNOB_REQUIRED,
+    by_name as weave_knob_by_name,
+    as_dicts as weave_knob_dicts,
+)
+
+
+def get_weave_knob_schema():
+    """Return the public knob schema (name, category, values, mechanism)."""
+    try:
+        return _C.weave_knobs.schema()
+    except AttributeError:
+        return weave_knob_dicts()
+
+
+def get_weave_knob_names():
+    """Return the public knob names in schema order."""
+    return [entry["name"] for entry in get_weave_knob_schema()]
+
+
+def get_weave_knob_defaults(mma_type: str = "fp8xfp4"):
+    """Return the compiled defaults for one backend/precision selection."""
+    try:
+        return dict(_C.weave_knobs.defaults(mma_type))
+    except AttributeError:
+        return {k.name: k.default for k in WEAVE_KNOBS}
