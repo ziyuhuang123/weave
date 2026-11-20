@@ -16,8 +16,8 @@ organized into three categories:
   TMA-A `m8/m16/BM` and dynamic epilogue `store_m8/m16`).
 - **Temporal dimension:** compute-communication overlap, scatter
   executor ownership (epilogue inline / async comm queue / local pre-reduce
-  dedup), opening head-pull prefetch budget, ready-queue and hot-cold /
-  L2-swizzled ordering, L1/L2 interleaving, cooperative all-wave tail combine,
+  dedup), opening head-pull prefetch budget, ready-queue and L2-swizzled
+  ordering, L1/L2 interleaving, cooperative all-wave tail combine,
   and runtime-derived pipeline stage depth (`num_stages` is derived at launch
   from tile shape and remaining SMEM budget rather than fixed at compile time).
 - **Implementation & prior work:** standard GPU/MoE implementation techniques
@@ -44,7 +44,7 @@ queue:
   compute tiles. As remote tokens land in local buffers, communication warps
   atomically increment per-expert (or per-group) arrival counters; compute CTAs
   claim ready tiles directly via prefix-summed expert offsets in a preset expert
-  order (hot-cold pairing / L2 tile-swizzle), or pop ready tile IDs from a
+  order (descending load / L2 tile-swizzle), or pop ready tile IDs from a
   global FIFO when `WEAVE_READY_QUEUE=1`. With `WEAVE_SCATTER_MODE=0`, epilogue
   warps issue Scatter inline inside the compute partition.
 - **Communication Ready Queue** (consumed by `N_c`): holds cross-GPU Pull and

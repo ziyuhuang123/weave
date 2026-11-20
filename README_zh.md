@@ -44,7 +44,7 @@ for Compute-Communication Overlap](https://arxiv.org/abs/2609.21483)），支持
 - **GEMM Ready Queue（计算分区 `N_e` 消费）**：存放待计算的 `(expert_id, m_tile_idx)`
   tile 任务。远端 token 陆续写入本卡缓冲时，通信 warp 只对相应专家（或专家内分组）的
   到达计数器做原子累加；无需在运行时额外构造并排序整张 tile 列表，计算 CTA 直接按
-  预设专家顺序（热冷配对 / L2 tile-swizzle）和专家前缀和定位已到齐的 tile，或在
+  预设专家顺序（如按负载降序或 L2 tile-swizzle）和专家前缀和定位已到齐的 tile，或在
   `WEAVE_READY_QUEUE=1` 时从全局 FIFO 队列弹出刚到齐的 tile。若
   `WEAVE_SCATTER_MODE=0`，epilogue warp 算完 FC2 后直接在计算分区内把输出发往目标卡。
 - **Communication Ready Queue（通信分区 `N_c` 消费）**：存放跨卡拉取（Pull）与异步
@@ -140,7 +140,7 @@ Weave 的调度与内核参数按职责分为三类：
   `store_m8/m16` 及逐专家 tile 阶梯）。
 - **时间维度（Temporal）**：控制执行顺序、通算重叠与阶段衔接，
   包括首部全 warp 预拉取 token 数、Scatter 执行归属（Epilogue 内联 / 通信队列
-  异步 / 本地预归约去重后异步）、就绪队列与冷热/L2-swizzle 顺序、L1/L2 交错、
+  异步 / 本地预归约去重后异步）、就绪队列与 L2 tile-swizzle 顺序、L1/L2 交错、
   尾部逐 token 就绪与全 warp 协作归约，以及**运行时自适应流水深度**（GEMM 流水
   级数 `num_stages` 按当前 tile 形状与剩余 SMEM 预算在启动时动态推导，而非编译
   期写死）。

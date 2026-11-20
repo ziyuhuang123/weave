@@ -54,7 +54,7 @@ queue:
   atomically increment per-expert (or per-group) arrival counters; instead of
   materializing and sorting a full per-tile array at runtime, compute CTAs claim
   ready tiles directly via prefix-summed expert offsets in a preset expert order
-  (hot-cold pairing / L2 tile-swizzle), or pop ready tile IDs from a global FIFO
+  (descending load / L2 tile-swizzle), or pop ready tile IDs from a global FIFO
   when `WEAVE_READY_QUEUE=1`. When `WEAVE_SCATTER_MODE=0`, epilogue warps send
   FC2 outputs directly over NVLink/xGMI inside the compute partition.
 - **Communication Ready Queue** (consumed by `N_c`): holds cross-GPU Pull and
@@ -160,8 +160,8 @@ Weave's scheduling and kernel parameters fall into three categories:
   ladders).
 - **Temporal dimension:** execution order, compute-communication
   overlap, opening all-warp prefetch token count, scatter ownership (epilogue
-  inline vs. async comm queue vs. local pre-reduce dedup), ready-queue /
-  hot-cold / L2-swizzled ordering, L1/L2 interleaving, per-token ready &
+  inline vs. async comm queue vs. local pre-reduce dedup), ready-queue &
+  L2-swizzled ordering, L1/L2 interleaving, per-token ready &
   cooperative all-warp tail reduction, and **runtime-derived pipeline stage
   depth** (`num_stages` is computed at launch from the tile shape and remaining
   SMEM budget rather than hardcoded at compile time).
