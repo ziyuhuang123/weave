@@ -30,10 +30,12 @@ MI308X 实际执行需要指定独立 kernel driver：
 每个预设使用独立的 DG_JIT_CACHE_DIR，位于 results/ablation 下。预设会改变生成
 宏，共享缓存可能掩盖实际执行的实验臂。
 
-### 已验证的 48 格汇总
+### 已验证的 48 格汇总（论文 Table IV）
 
 下表是各平台相对官方基线的 measured 几何平均加速比，属于参考证据，不是
-dry-run 脚本重新生成的数字。
+dry-run 脚本重新生成的数字。B300 数字来自论文的 fp8xfp4 实测 campaign；当前仓库
+中 B300 fp8xfp4 仍为 BLOCKED_RUNTIME_HANG，因此新跑的消融应通过 --runner 指向
+NVFP4 测试入口 tests/test_nvfp4_mega_moe.py。
 
 | 平台 | S 范围 | Weave | -S | -S-T | -S-T-C |
 |---|---|---:|---:|---:|---:|
@@ -99,7 +101,7 @@ Zipf(0.9) 代理生成 m_e，并把预测候选中的最小值称为 model oracl
 解释必须明确：绝对时延预测并不完美，但共享开销项在 argmin 中相互抵消，因此
 候选排序仍然准确。
 
-## 3. EPLB 兼容性
+## 3. EPLB 兼容性（论文 Table V）
 
 EPLB 研究使用 24 格：六个模型乘以 S in {128, 1024, 4096, 16384}，增加 32 个
 冗余专家。先启动启用 EPLB 的部署，再用 EPLB 路由表通过正常 runner 回放同一

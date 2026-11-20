@@ -152,6 +152,9 @@ tests/verify_tunable_params_doc.py 机械校验。完整参数文档见
 
 ## NVIDIA H20 WEAVE_* 参数
 
+下表中 Tier 2 的主机侧行，Kernel consumption 列引用的是固定编译期内核模板
+的主机决策点；内核头消费的是该决策选出的配置，而不是运行时环境变量本身。
+
 | 参数 | 层级 | 取值 | 默认值 | 机制 | 主机解析 | 内核消费 |
 |---|---|---|---|---|---|---|
 | `WEAVE_SWAPAB_AUTO` | 2 | 0/1 | 0 | 启用带 padding 感知的自动 swap-AB 选择。 | `csrc/jit_kernels/heuristics/sm90_mega_moe.hpp:654` | `csrc/jit_kernels/heuristics/sm90_mega_moe.hpp:654` |
@@ -190,7 +193,7 @@ tests/verify_tunable_params_doc.py 机械校验。完整参数文档见
 | `WEAVE_SLOT_CHUNK` | 2 | 1/2/4/8/16/32/64 | 自适应 | Dispatch 描述符 slot 粒度。 | `deep_gemm/include/deep_gemm/impls/amd/ep16/host/run_turbo512_vs_rccl.py:170` | `deep_gemm/include/deep_gemm/impls/amd/ep16/host/ep16_turbo_layout.hpp:54` |
 | `WEAVE_RET_CHUNK` | 2 | 1/2/4/8/16 | 派生 | Return 描述符 slot 粒度。 | `deep_gemm/include/deep_gemm/impls/amd/ep16/host/run_turbo512_vs_rccl.py:235` | `deep_gemm/include/deep_gemm/impls/amd/ep16/host/ep16_turbo_layout.hpp:303` |
 | `WEAVE_META_CHUNK_SLOTS` | 2 | >=1 | max(256,t_local) | 每个 RDMA 写描述符的元数据 slot 数。 | `deep_gemm/include/deep_gemm/impls/amd/ep16/host/run_turbo512_vs_rccl.py:234` | `deep_gemm/include/deep_gemm/impls/amd/ep16/host/ep16_turbo_layout.hpp:55` |
-| `WEAVE_PROFILER_LEVEL` | 1 | 0/1/2 | 0 | 插桩级别；在 HIP profiler 内桥接到 FI_LEVEL。 | `deep_gemm/include/deep_gemm/impls/amd/ep16/build_port.py:97` | `deep_gemm/include/deep_gemm/impls/amd/third_party_overlay/fi_lite_hip.h:8` |
+| `WEAVE_PROFILER_LEVEL` | 1 | 0/1/2 | 0 | 插桩级别；在 HIP profiler 内桥接到 FI_LEVEL。 | `deep_gemm/include/deep_gemm/impls/amd/ep16/build_port.py:97` | `deep_gemm/include/deep_gemm/impls/amd/third_party_overlay/fi_lite_hip.h:31` |
 | `WEAVE_ABLATION_PRESET` | 1 | 0/1/2/3 | 0 | EP16 构建期消融选择器；preset 3 同时强制 scatter mode 0。 | `deep_gemm/include/deep_gemm/impls/amd/ep16/build_port.py:93` | `deep_gemm/include/deep_gemm/impls/amd/megamoe_amd.hip:1154` |
 | `WEAVE_SCATTER_MODE` | 3 | 0/1/2 | 2（preset 3 时为 0） | EP16 scatter/return 模式；mode 2 启用节点部分和路径。 | `deep_gemm/include/deep_gemm/impls/amd/ep16/build_port.py:103` | `deep_gemm/include/deep_gemm/impls/amd/ep16/ep16_combine.hpp:50` |
 | `WEAVE_SELECTIVE_DEDUP` | 2 | 1 | 1 | EP16 路径所需的选择性输入去重。 | `deep_gemm/include/deep_gemm/impls/amd/ep16/build_port.py:106` | `deep_gemm/include/deep_gemm/impls/amd/include/weave_comm_4wave_turbo.hpp:511` |
@@ -218,7 +221,7 @@ Oracle 对比、EPLB 兼容性以及 WeaveProfiler 捕获流程。
     python ablation/eval_cost_model_vs_oracle.py
     python ablation/capture_weaveprofiler_timeline.py         --trace result.sw_hw.perfetto.json.gz --out-png result.png
 
-相对各平台官方基线的已验证 48 格几何平均加速比：
+相对各平台官方基线的已验证 48 格几何平均加速比（论文 Table IV）：
 
 | 平台 | Weave | -S | -S-T | -S-T-C |
 |---|---:|---:|---:|---:|
@@ -226,7 +229,7 @@ Oracle 对比、EPLB 兼容性以及 WeaveProfiler 捕获流程。
 | H20 | 1.162 | 1.137 | 1.053 | 0.947 |
 | MI308X EP16 | 2.147 | 1.808 | 1.537 | 1.362 |
 
-EPLB 与 Weave 正交：原始路由下相对基线 1.274x，启用 EPLB 后 1.128x，相对启用
+EPLB 与 Weave 正交（论文 Table V）：原始路由下相对基线 1.274x，启用 EPLB 后 1.128x，相对启用
 EPLB 的基线为 1.144x。
 
 ## 构建
@@ -235,6 +238,9 @@ EPLB 的基线为 1.144x。
 CUTLASS。AMD 构建还需要通过 WEAVE_AITER_SITE 指定外部 AITER site tree。
 
     python -m pip install -e .
+
+Windows 上，g++ 主机门禁在 WSL 中运行；nvcc 需在已加载 `vcvars64.bat` 的
+shell 中运行，并加 `-Xcompiler /Zc:preprocessor`，否则 CCCL 头文件预处理失败。
 
 NVIDIA 设备前端检查：
 

@@ -39,24 +39,23 @@ class Baseline:
     command: Callable[[argparse.Namespace], List[str]]
 
 
-def _torchrun(nproc: int, module: str, extra: List[str]) -> List[str]:
-    return [sys.executable, "-m", "torch.distributed.run", "--standalone",
-            f"--nproc_per_node={nproc}", module, *extra]
-
-
 def _official_deepgemm(args: argparse.Namespace) -> List[str]:
     spec = MODELS[args.model]
-    return _torchrun(args.num_processes, "tests/test_mega_moe.py", [
-        "--num-processes", str(args.num_processes),
-        "--num-max-tokens-per-rank", str(args.seqlen),
-        "--num-tokens", str(args.seqlen),
-        "--hidden", str(spec["hidden"]),
-        "--intermediate-hidden", str(spec["intermediate"]),
-        "--num-experts", str(spec["experts"]),
-        "--num-topk", str(spec["topk"]),
-        "--num-shared-experts", "0",
-        "--mma-type", args.precision,
-    ])
+    # Both repository harnesses spawn their own worker processes.
+    script = ("tests/test_nvfp4_mega_moe.py"
+              if args.precision == "fp4xfp4" else "tests/test_mega_moe.py")
+    cmd = [sys.executable, script,
+           "--num-processes", str(args.num_processes),
+           "--num-max-tokens-per-rank", str(args.seqlen),
+           "--num-tokens", str(args.seqlen),
+           "--hidden", str(spec["hidden"]),
+           "--intermediate-hidden", str(spec["intermediate"]),
+           "--num-experts", str(spec["experts"]),
+           "--num-topk", str(spec["topk"]),
+           "--num-shared-experts", "0"]
+    if args.precision == "fp8xfp4":
+        cmd += ["--mma-type", "fp8xfp4"]
+    return cmd
 
 
 def _deepep_deepgemm(args: argparse.Namespace) -> List[str]:

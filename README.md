@@ -166,6 +166,11 @@ tests/verify_tunable_params_doc.py. The expanded document is
 
 ## NVIDIA H20 WEAVE_* parameters
 
+For the Tier 2 host-side rows below, the Kernel consumption column cites the
+host decision site of the fixed compile-time kernel template. The kernel
+header consumes that selected configuration, not the runtime environment
+variable itself.
+
 | Parameter | Tier | Values | Default | Mechanism | Host parse | Kernel consumption |
 |---|---|---|---|---|---|---|
 | `WEAVE_SWAPAB_AUTO` | 2 | 0/1 | 0 | Enable padding-aware automatic swap-AB selection. | `csrc/jit_kernels/heuristics/sm90_mega_moe.hpp:654` | `csrc/jit_kernels/heuristics/sm90_mega_moe.hpp:654` |
@@ -204,7 +209,7 @@ tests/verify_tunable_params_doc.py. The expanded document is
 | `WEAVE_SLOT_CHUNK` | 2 | 1/2/4/8/16/32/64 | adaptive | Dispatch descriptor slot granularity. | `deep_gemm/include/deep_gemm/impls/amd/ep16/host/run_turbo512_vs_rccl.py:170` | `deep_gemm/include/deep_gemm/impls/amd/ep16/host/ep16_turbo_layout.hpp:54` |
 | `WEAVE_RET_CHUNK` | 2 | 1/2/4/8/16 | derived | Return descriptor slot granularity. | `deep_gemm/include/deep_gemm/impls/amd/ep16/host/run_turbo512_vs_rccl.py:235` | `deep_gemm/include/deep_gemm/impls/amd/ep16/host/ep16_turbo_layout.hpp:303` |
 | `WEAVE_META_CHUNK_SLOTS` | 2 | >=1 | max(256,t_local) | Metadata slots per RDMA write descriptor. | `deep_gemm/include/deep_gemm/impls/amd/ep16/host/run_turbo512_vs_rccl.py:234` | `deep_gemm/include/deep_gemm/impls/amd/ep16/host/ep16_turbo_layout.hpp:55` |
-| `WEAVE_PROFILER_LEVEL` | 1 | 0/1/2 | 0 | Instrumentation level; bridged to FI_LEVEL for the HIP profiler. | `deep_gemm/include/deep_gemm/impls/amd/ep16/build_port.py:97` | `deep_gemm/include/deep_gemm/impls/amd/third_party_overlay/fi_lite_hip.h:8` |
+| `WEAVE_PROFILER_LEVEL` | 1 | 0/1/2 | 0 | Instrumentation level; bridged to FI_LEVEL for the HIP profiler. | `deep_gemm/include/deep_gemm/impls/amd/ep16/build_port.py:97` | `deep_gemm/include/deep_gemm/impls/amd/third_party_overlay/fi_lite_hip.h:31` |
 | `WEAVE_ABLATION_PRESET` | 1 | 0/1/2/3 | 0 | EP16 build-time ablation selector; preset 3 also forces scatter mode 0. | `deep_gemm/include/deep_gemm/impls/amd/ep16/build_port.py:93` | `deep_gemm/include/deep_gemm/impls/amd/megamoe_amd.hip:1154` |
 | `WEAVE_SCATTER_MODE` | 3 | 0/1/2 | 2 (0 at preset 3) | EP16 scatter and return mode; mode 2 enables the node-partial path. | `deep_gemm/include/deep_gemm/impls/amd/ep16/build_port.py:103` | `deep_gemm/include/deep_gemm/impls/amd/ep16/ep16_combine.hpp:50` |
 | `WEAVE_SELECTIVE_DEDUP` | 2 | 1 | 1 | Selective input dedup required by the EP16 path. | `deep_gemm/include/deep_gemm/impls/amd/ep16/build_port.py:106` | `deep_gemm/include/deep_gemm/impls/amd/include/weave_comm_4wave_turbo.hpp:511` |
@@ -234,7 +239,7 @@ and WeaveProfiler capture.
     python ablation/eval_cost_model_vs_oracle.py
     python ablation/capture_weaveprofiler_timeline.py         --trace result.sw_hw.perfetto.json.gz --out-png result.png
 
-Verified 48-cell geomean speedups over each official baseline:
+Verified 48-cell geomean speedups over each official baseline (paper Table IV):
 
 | Platform | Weave | -S | -S-T | -S-T-C |
 |---|---:|---:|---:|---:|
@@ -242,7 +247,7 @@ Verified 48-cell geomean speedups over each official baseline:
 | H20 | 1.162 | 1.137 | 1.053 | 0.947 |
 | MI308X EP16 | 2.147 | 1.808 | 1.537 | 1.362 |
 
-EPLB leaves Weave orthogonal to placement: 1.274x over the baseline with
+EPLB leaves Weave orthogonal to placement (paper Table V): 1.274x over the baseline with
 original routing, 1.128x with EPLB, and 1.144x over the baseline with EPLB.
 
 ## Build
@@ -252,6 +257,10 @@ and the vendored CUTLASS tree. AMD builds additionally need the external AITER
 site tree selected by WEAVE_AITER_SITE.
 
     python -m pip install -e .
+
+On Windows, run the g++ host gates inside WSL. Run nvcc from a shell that has
+`vcvars64.bat` loaded and add `-Xcompiler /Zc:preprocessor`; otherwise CCCL
+headers fail to preprocess.
 
 NVIDIA device front-end checks:
 

@@ -58,7 +58,9 @@ DeepEP 分离式基线必须与 Weave 使用同一份真实路由张量。第一
 | vLLM | python baselines/run_h20_baselines.py --baseline vllm --model-path /absolute/path/to/checkpoint |
 
 官方臂使用 SM90 FP8 MegaMoE 及其对称缓冲区分配器，不是把 B300 调度器改编译
-到旧架构。H20 数据应使用与论文一致的 S 网格和六个模型形状。
+到旧架构。仓库自带的官方 wrapper 运行固定的 SM90 形状覆盖套件；若要复现论文的
+六模型 x S 网格，请向外部官方 DeepGEMM 驱动，或向分离式与推理引擎 runner，
+传入对应的形状。
 
 ## 4. AMD MI308X：8x EP8 与 16x EP16
 

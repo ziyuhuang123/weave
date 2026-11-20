@@ -33,23 +33,15 @@ class Baseline:
     command: Callable[[argparse.Namespace], List[str]]
 
 
-def _torchrun(nproc: int, module: str, extra: List[str]) -> List[str]:
-    return [sys.executable, "-m", "torch.distributed.run", "--standalone",
-            f"--nproc_per_node={nproc}", module, *extra]
-
-
 def _official_deepgemm(args: argparse.Namespace) -> List[str]:
-    spec = MODELS[args.model]
-    return _torchrun(args.num_processes, "tests/test_mega_moe_sm90.py", [
-        "--num-processes", str(args.num_processes),
-        "--num-max-tokens-per-rank", str(args.seqlen),
-        "--num-tokens", str(args.seqlen),
-        "--hidden", str(spec["hidden"]),
-        "--intermediate-hidden", str(spec["intermediate"]),
-        "--num-experts", str(spec["experts"]),
-        "--num-topk", str(spec["topk"]),
-        "--num-shared-experts", "0",
-    ])
+    # The repository SM90 wrapper spawns the ranks itself and owns the
+    # fixed shape-coverage suite; --model/--seqlen apply to the external
+    # split and serving baselines.
+    cmd = [sys.executable, "tests/bench_h20_ep8.py",
+           "--num-processes", str(args.num_processes)]
+    if args.allow_other_gpu:
+        cmd.append("--allow-other-gpu")
+    return cmd
 
 
 def _deepep_deepgemm(args: argparse.Namespace) -> List[str]:

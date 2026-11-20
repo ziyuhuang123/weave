@@ -62,8 +62,10 @@ the first timed iteration. Do not replace it with an all-to-all timing alone.
 
 The official arm uses the SM90 FP8 MegaMoE implementation and its own symmetric
 buffer allocator. It is not the B300 scheduler compiled for an older
-architecture. H20 results should be collected with the same S values and the
-same six model shapes used by the paper.
+architecture. The bundled official wrapper runs the repository's fixed SM90
+shape-coverage suite; to reproduce the paper's six-model x S grid, pass the
+matching shapes to an external official DeepGEMM driver or to the split and
+serving runners.
 
 ## 4. AMD MI308X: 8x EP8 and 16x EP16
 
