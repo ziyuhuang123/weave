@@ -38,6 +38,9 @@ static const std::vector<KnobSchemaEntry>& knob_schema_entries() {
         {"WEAVE_SCATTER_ACTIVE_SMS", "Spatial",
          "0 = auto/all SMs; K = only K SMs drain the scatter queue",
          "SM-level scatter allocation (independent from dispatch SMs)."},
+        {"WEAVE_SM0_STREAM_SCHED", "Spatial",
+         "0 = CTA 0 comm warps pull/scatter normally; 1 = allocate CTA 0 comm warps as dedicated scheduler",
+         "CTA-0 communication-warp scheduler allocation."},
         {"WEAVE_DISPATCH_WARPS", "Spatial",
          "0 = auto; 4 or 8 = dispatch warps per CTA",
          "Per-SM dispatch communication warp ratio."},
@@ -123,6 +126,7 @@ static py::dict weave_knob_defaults(const std::string& mma_type) {
     out["WEAVE_PRECISION_MODE"] = knobs.precision_mode;
     out["WEAVE_DISPATCH_ACTIVE_SMS"] = knobs.dispatch_active_sms;
     out["WEAVE_SCATTER_ACTIVE_SMS"] = knobs.scatter_active_sms;
+    out["WEAVE_SM0_STREAM_SCHED"] = knobs.sm0_stream_sched;
     out["WEAVE_DISPATCH_WARPS"] = knobs.dispatch_warps;
     out["WEAVE_SCATTER_WARPS"] = 0u;
     out["WEAVE_CU_WAVE_SPLIT"] = knobs.cu_wave_split;

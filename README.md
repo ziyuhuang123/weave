@@ -29,8 +29,10 @@ independently tuned **single-operator and data-path implementations**:
 
 - **Spatial partitioning (SM-level and Warp-level hardware ratios):**
   - **Across SMs/CUs:** independently assigns active SMs for Dispatch pulling
-    (`D`) and active SMs for async Scatter draining (`K`, $D \neq K$), while
-    recruiting all SMs for tail Combine reduction.
+    (`D`), active SMs for async Scatter draining (`K`, $D \neq K$), and whether
+    CTA 0's communication warps are dedicated as the streaming scheduler
+    (`WEAVE_SM0_STREAM_SCHED`), while recruiting all SMs for tail Combine
+    reduction.
   - **Within each SM/CU:** configures the warp/wave split between the
     communication partition (`N_c`: Dispatch / Scatter warps) and the compute
     partition (`N_e`: TMA/MMA + Epilogue warps)—including `4D+4N+8E` vs.
@@ -160,15 +162,15 @@ total across all ranks:
   **NVLink `43.0%`** median / `100.0%` max, and **Tensor Active `38.0%`**
   median / `42.0%` max (141 same-run `nsys` samples per curve, recorded in
   `weaveprofiler_optimal_s1024.hw_curves_same_run_nsys`).
-- **NVIDIA H20 (78-SM), 4x EP4, `S_global=1024` (`S_rank=256`, `num_shared_experts=0`, `BM=64, adapt_bm=1, comm_only + XOR-swizzled smem`)**:
-  same-run WeaveProfiler SW+HW capture saturates the HBM3 roofline at
-  **HBM3 `91.5%` mean (`96.1%` p50)** and **Active SMs `97.7%` mean (`100.0%` p50)**
-  with strict binary scatter ownership (`epi_scatter_spans = 0`, zero remote
-  scatter on `Math+Epi WG0..WG3`).
+- **NVIDIA H20 (78-SM), 8x EP8, `S_global=1024` (`Qwen3.8-Max`, `num_shared_experts=0`)**:
+  aligned software + hardware timeline across all 78 physical SMs showing
+  multi-wave `L1 GEMM <-> L2 GEMM <-> Scatter` interleaving and dedicated
+  communication-warp scatter draining (`epi_scatter_spans = 0` on `Math+Epi
+  WG0..WG3`).
 - **AMD MI308X, 8x EP8 (`Qwen3.8-Max, S=1024`)**: aligned per-wavefront software
   events and hardware activity curves across all physical CUs.
 
-### Verified EP4 head-to-head results (`num_shared_experts = 0`, CUDA Graph, 256 MiB L2 flush, palindromic ABBA)
+### Same-precision EP4 comparison vs. upstream official DeepGEMM MegaMoE (`num_shared_experts = 0`)
 
 Full raw receipts live in
 [results/opus_sm103_ep4_verified.json](results/opus_sm103_ep4_verified.json),
@@ -177,32 +179,23 @@ Full raw receipts live in
 
 **NVIDIA SM103 (148-SM), 4x EP4 (`FP8 x MXFP4`, `num_shared_experts = 0`):**
 
-| Workload | Routing | Reference Baseline | Weave (Unified) | Speedup | Accuracy (all 4 ranks) |
-|---|---|---:|---:|---:|---|
-| `Qwen3.8-Max`, `S_rank=1024` (`S_global=4096`) | Balanced | `881.38 us` (`BM=240`) / `748.88 us` (auto `BM=128`) | **`710.53 us`** (`BM=80, st=8/8, epi2`) | **`1.2405x`** (`+24.05%`) / **`1.0540x`** (`+5.40%`) | `rel_l2=2.91e-5`, `stats_exact` |
-| `Qwen3.8-Max`, `S_rank=1024` (`S_global=4096`) | Random multinomial | `824.7 us` (`GC-MoE BM=96`) | **`779.0 us`** (auto `BM=96, st=16/8, epi2`) | **`1.0553x`** (`+5.53%`, 5/5 rounds) | Bit-exact vs GC-MoE (`dL2=0.00`) |
-| `416E`, `S_rank=1024` (`S_global=4096`) | Balanced | `450.26 us` (`BM=240`) / `411.66 us` (auto `BM=128`) | **`382.85 us`** (`BM=64, st=8/8, epi2`) | **`1.1761x`** (`+17.61%`) / **`1.0753x`** (`+7.53%`) | `rel_l2=5.37e-5`, `stats_exact` |
-| `416E`, `S_rank=1024` (`S_global=4096`) | Random multinomial | `412.9 us` (`GC-MoE BM=96`) | **`393.8 us`** (auto `BM=80, st=8/8, epi2`) | **`1.0423x`** (`+4.23%`, 5/5 rounds) | Bit-exact vs GC-MoE (`dL2=0.00`) |
+| Workload | Upstream Official DeepGEMM MegaMoE | Weave | Speedup vs. Official | 4-GPU Accuracy |
+|---|---:|---:|---:|---|
+| `Qwen3.8-Max`, `S_rank=1024` (`S_global=4096`) | `881.38 us` (`BM=240`) / `748.88 us` (`BM=128`) | **`710.53 us`** | **`1.241x`** (`+24.1%`) / **`1.054x`** (`+5.4%`) | `rel_l2=2.91e-5`, `stats_exact` |
+| `416E`, `S_rank=1024` (`S_global=4096`) | `450.26 us` (`BM=240`) / `411.66 us` (`BM=128`) | **`382.85 us`** | **`1.176x`** (`+17.6%`) / **`1.075x`** (`+7.5%`) | `rel_l2=5.37e-5`, `stats_exact` |
 
-TMEM pipeline study at `Qwen3.8-Max`, `S_rank=8192` (balanced, both arms 100%
-PASS, `rel_l2=5.67e-5`, recorded in `s8192_tmem_pipeline_study`): the default
-`BM=240` with the `2.0`-stage TMEM pipeline (`24/8` stores, 6 stages) runs at
-`3779.42 us`, while the fractional `1.75`-stage overlapping TMEM pipeline at
-`BM=256` (`32/32` stores, 4 stages) runs at `4276.50 us` (`0.8838x`), so `BM=240`
-stays the default prefill tile and `1.75` remains an opt-in variant.
+Under random multinomial routing against the same-precision `GC-MoE` baseline,
+Weave also achieves **`1.055x`** (`779.0 us` vs. `824.7 us`) on `Qwen3.8-Max` and
+**`1.042x`** (`393.8 us` vs. `412.9 us`) on `416E`, matching `GC-MoE` bit-for-bit
+across all 4 ranks.
 
 **NVIDIA H20 (78-SM), 4x EP4 (`FP8 x FP8`, `num_shared_experts = 0`, `Qwen3.8-Max`):**
 
-| Seqlen (`S_global`) | Official Baseline | Earlier Tuned | GC-MoE Native FP8 | Weave (Unified) | Speedup vs Official / Earlier / GC-MoE |
-|---|---:|---:|---:|---:|---|
-| `S=128` (`S_rank=32`) | `1477.84 us` | `1386.11 us` | `1956.7 us` *(same-host `Weave 1839.2 us`)* | **`1328.26 us`** (`bm16/bm32 smem`) | **`1.1126x`** / `+4.36%` / **`1.059x`** (`S_rank=128`: **`1.102x`**) |
-| `S=1024` (`S_rank=256`) | `3241.71 us` | `2341.92 us` | `3740.3 us` *(same-host `Weave 2216.8 us`)* | **`2177.54 us`** (`bm64 adapt comm_only+smem`) | **`1.4887x`** / **`+7.55%`** / **`1.679x`** |
-| `S=4096` (`S_rank=1024`) | `6210.22 us` | `5814.43 us` | `11794.3 us` *(same-host `Weave 5272.7 us`)* | **`5248.66 us`** (`bm64 adapt comm_only+smem`) | **`1.1832x`** / **`+10.78%`** / **`2.276x`** |
-
-The GC-MoE columns compare both operators on the same host; the winning Weave
-arms use `reg_2stage` / `smem` staging, which combine in FP32. The optional
-`hbm_dedup` staging merges duplicate top-k rows with local `bf16x2` atomics before
-the send, so it rounds once more than the FP32 combine paths.
+| Global Sequence Length (`S_global`) | Upstream Official DeepGEMM MegaMoE | Weave | Speedup vs. Official |
+|---|---:|---:|---:|
+| `S=128` (`S_rank=32`) | `1477.84 us` | **`1328.26 us`** | **`1.113x`** (`+11.3%`) |
+| `S=1024` (`S_rank=256`) | `3241.71 us` | **`2177.54 us`** | **`1.489x`** (`+48.9%`) |
+| `S=4096` (`S_rank=1024`) | `6210.22 us` | **`5248.66 us`** | **`1.183x`** (`+18.3%`) |
 
 Full tuned `WEAVE_*` presets (organized by **Spatial**, **Temporal**, and
 **Implementation**) and reproducible launch scripts live under
@@ -220,9 +213,11 @@ Weave's tunable surface is partitioned strictly across three axes:
 - **Spatial dimension:** strictly **SM-level and per-SM/CU Warp/Wave-level
   hardware resource ratios**—active SMs for Dispatch
   (`WEAVE_DISPATCH_ACTIVE_SMS`), active SMs for Scatter
-  (`WEAVE_SCATTER_ACTIVE_SMS`), per-SM/CU communication vs. compute warp/wave
-  ratios (`WEAVE_DISPATCH_WARPS`, `WEAVE_SCATTER_WARPS`, and MI308X's 3-mode
-  `0-8 / 4-4 / 8-0` `WEAVE_CU_WAVE_SPLIT`), and per-role register file ratios
+  (`WEAVE_SCATTER_ACTIVE_SMS`), whether CTA 0's communication warps are
+  allocated as the streaming scheduler (`WEAVE_SM0_STREAM_SCHED`), per-SM/CU
+  communication vs. compute warp/wave ratios (`WEAVE_DISPATCH_WARPS`,
+  `WEAVE_SCATTER_WARPS`, and MI308X's 3-mode `0-8 / 4-4 / 8-0`
+  `WEAVE_CU_WAVE_SPLIT`), and per-role register file ratios
   (`WEAVE_REG_BALANCE`).
 - **Temporal dimension:** **cross-stage role switching, dynamic task dispatch,
   compute-communication overlap, and synchronization granularity**—how many
@@ -262,6 +257,7 @@ The parameter surface is organized strictly as **Spatial / Temporal / Implementa
 |---|---|---|---|---|---|---|
 | `WEAVE_DISPATCH_ACTIVE_SMS` | Spatial | `0 = auto` (all SMs run dispatch pull); `D = 1..num_sms`: only D SMs pull remote tokens | 0 | SM-level dispatch allocation: assigns D SMs to remote token pulling while remaining SMs enter prefetch/GEMM immediately. | `csrc/jit_kernels/heuristics/weave_knob_config.hpp:97` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:46` |
 | `WEAVE_SCATTER_ACTIVE_SMS` | Spatial | `0 = auto` (all SMs/CUs participate); `K = 1..num_sms`: only K SMs drain the scatter queue | 0 | SM-level scatter allocation (independent from dispatch SMs): bounds async NVLink/xGMI scatter draining to K SMs while Combine uses all SMs. | `csrc/jit_kernels/impls/sm100_fp8_fp4_mega_moe.hpp:193` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:528` |
+| `WEAVE_SM0_STREAM_SCHED` | Spatial | `0 = CTA 0 communication warps run normal pull/scatter`; `1 = allocate CTA 0 communication warps as a dedicated streaming scheduler` | 0 | CTA-0 warp allocation: decides whether CTA 0's communication warps are dedicated to streaming tile scheduling while remaining SMs split the pull range. | `csrc/jit_kernels/heuristics/weave_knob_config.hpp:83` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:2856` |
 | `WEAVE_DISPATCH_WARPS` | Spatial | `0 = auto` (4 warps); `4`; `8` | 0 | Per-SM dispatch warp ratio: sets the CTA communication warp count dedicated to remote token/SF pulling (`4D+4N+8E` vs `8D+4N+8E`). | `csrc/jit_kernels/heuristics/weave_knob_config.hpp:73` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:969` |
 | `WEAVE_SCATTER_WARPS` | Spatial | `0 = automatic`; `4`; `8` | 0 | Per-SM scatter warp ratio: sets the CTA communication warp budget dedicated to async FC2 scatter (independent from dispatch pull parameters). | `csrc/jit_kernels/impls/sm100_fp8_fp4_mega_moe.hpp:214` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:501` |
 | `WEAVE_CU_WAVE_SPLIT` | Spatial | `0 = auto` (cost-model selection); `1 = 0-8` (0 comm + 8 compute waves); `2 = 4-4` (4 comm + 4 compute waves); `3 = 8-0` (8 comm + 0 compute waves on dedicated comm CUs; names or codes accepted) | 0 | Per-CU wavefront ratio on MI308X: selects `(comm_waves - compute_waves)` across `0-8`, `4-4`, and `8-0` out of 8 waves per CU. | `csrc/jit_kernels/heuristics/weave_knob_config.hpp:91` | `deep_gemm/include/deep_gemm/impls/amd/ep8/megamoe_amd_ep8.hip:4` |

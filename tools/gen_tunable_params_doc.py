@@ -158,7 +158,7 @@ def write_docs(schema) -> None:
     parts.append(
         "| Parameter group | SM103 fp8xfp4 | SM103 fp4xfp4 | H20 | MI308X EP8 | MI308X EP16 |\n"
         "|---|---|---|---|---|---|\n"
-        "| Spatial: SM subsets (`DISPATCH_ACTIVE_SMS`, `SCATTER_ACTIVE_SMS`) | yes | n/a | yes | yes | yes |\n"
+        "| Spatial: SM subsets (`DISPATCH_ACTIVE_SMS`, `SCATTER_ACTIVE_SMS`) and CTA-0 scheduler allocation (`SM0_STREAM_SCHED`) | yes | n/a | yes | yes | yes |\n"
         "| Spatial: per-SM/CU warp/wave & register ratios (`DISPATCH_WARPS`, `SCATTER_WARPS`, `CU_WAVE_SPLIT` `0-8/4-4/8-0`, `REG_BALANCE`) | yes | n/a | yes | yes | yes |\n"
         "| Temporal: Head (`V_HEAD`, `READY_GROUP_SIZE`), task dispatch (`READY_QUEUE`: `formula` vs `sm0_fifo`), Middle `SCATTER_OWNER`, Tail `COMBINE_SYNC_CHUNK` | yes | overlap | yes | yes | yes |\n"
         "| Implementation: independent GEMM1/GEMM2 `M -> blockM` coupled profiles (`PRECISION_MODE`, `ADAPT_BM`, `BLOCK_M_L1`, `BLOCK_M_L2`) | yes | fixed | yes | yes | yes |\n"
