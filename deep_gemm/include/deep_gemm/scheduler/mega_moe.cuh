@@ -924,6 +924,8 @@ struct MegaMoEScheduler {
     }
 
     CUTLASS_DEVICE void release_task_info() const {
+        // Complete metadata reads before the scheduler can overwrite this slot.
+        ptx::fence_acq_rel_cta();
         if constexpr (kNumScheduleStages == 2) {
             task_info_empty_barriers[sched_stage_idx ^ 1].arrive(0u);
         } else {
@@ -1419,13 +1421,14 @@ struct MegaMoEScheduler {
         return ptx::exchange(result, 0);
     }
 
-    // Claim one task from the queue of `locality_domain_idx`. The counter is
-    // private to that domain, and the decoded N clusters stay in its half.
+    // Claim one task from the queue of `locality_domain_idx`. Domain counters
+    // are spaced by 24 bytes (6 uint32 words) in layout::Workspace so domain 1
+    // sits past the D2/D4 control words at [44..51].
     static CUTLASS_DEVICE uint32_t get_next_local_task_idx(
             const uint32_t* task_count_ptr, const uint32_t& locality_domain_idx) {
         uint32_t result = 0;
         if (cute::elect_one_sync())
-            result = ptx::atomic_add(task_count_ptr + locality_domain_idx, 1u);
+            result = ptx::atomic_add(task_count_ptr + 6u * locality_domain_idx, 1u);
         return ptx::exchange(result, 0);
     }
 
@@ -1735,15 +1738,10 @@ struct MegaMoEScheduler {
                 num_tokens, lane_idx, workspace.get_shared_l2_task_count_ptr());
         }
 
-        #pragma unroll
-        for (uint32_t i = 0; i < kNumScheduleStages; ++ i) {
-            task_info_empty_barriers[sched_stage_idx].wait(sched_phase ^ 1);
-            publish_task(task_info_t(BlockPhase::None, 0, 0, 0, 0, 0, 0, 0), lane_idx);
-        }
-
-        #pragma unroll
-        for (uint32_t i = 0; i < kNumScheduleStages; ++ i)
-            task_info_empty_barriers[i].wait((sched_phase + i >= kNumScheduleStages) ^ 1);
+        // Sentinel: consumers exit `get_next_task()` on the first None without
+        // calling `release_task_info()`, so publish one sentinel and return.
+        task_info_empty_barriers[sched_stage_idx].wait(sched_phase ^ 1);
+        publish_task(task_info_t(BlockPhase::None, 0, 0, 0, 0, 0, 0, 0), lane_idx);
     }
 };
 

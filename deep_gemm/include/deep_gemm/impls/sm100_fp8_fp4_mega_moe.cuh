@@ -2330,6 +2330,20 @@ sm100_fp8_fp4_mega_moe_impl(void* y,
             *sym_buffer.map(dst_ptr, dst_rank_idx) = token_topk_idx;
         });
 
+#if DG_D7_QUEUE_SCATTER != 0
+        if constexpr (kD7QueueScatterActive) {
+            if (sm_idx == 0u and thread_idx == 0u) {
+                auto* const queue_epoch_ptr = buffer.get_d7_queue_epoch_ptr();
+                uint32_t next_epoch = *reinterpret_cast<volatile uint32_t*>(queue_epoch_ptr);
+                next_epoch = (next_epoch == 0xffffffffu) ? 1u : (next_epoch + 1u);
+                *queue_epoch_ptr = next_epoch;
+                *buffer.get_d7_queue_tail_ptr() = 0u;
+                *buffer.get_d7_queue_head_ptr() = 0u;
+                *buffer.get_d7_queue_producer_done_ptr() = 0u;
+                *buffer.get_d7_queue_consumer_done_ptr() = 0u;
+            }
+        }
+#endif
 #if DG_P1_HEAD_HELPER_K > 0
         // The existing dispatch grid rendezvous publishes the reset to all SMs.
         if (sm_idx == 0u and thread_idx == 0u) {
@@ -2867,7 +2881,14 @@ sm100_fp8_fp4_mega_moe_impl(void* y,
             return pull_num_sms * kNumDispatchWarps;
         };
 
-        for (uint32_t token_idx = initial_pull_warp_idx; ; token_idx += get_pull_warp_stride()) {
+        constexpr uint32_t kHeadPullChunk = WEAVE_HEAD_PULL_CHUNK;
+        const uint32_t effective_head_pull_end = kHeadPullChunk == 0u
+            ? head_pull_end : cute::min(head_pull_end, kHeadPullChunk);
+        const bool split_middle_pull = (not kD2SmidMasked) and (active_pull_warps < kNumDispatchWarps);
+        const uint32_t head_end_limit = split_middle_pull ? effective_head_pull_end : 0xffffffffu;
+        const uint32_t pull_stride = get_pull_warp_stride();
+
+        const auto run_pull_token = [&](const uint32_t token_idx) -> bool {
             int old_expert_idx = current_expert_idx;
             while (token_idx >= expert_end_idx) {
                 if (++ current_expert_idx >= kNumExpertsPerRank)
@@ -2878,16 +2899,7 @@ sm100_fp8_fp4_mega_moe_impl(void* y,
             }
 
             if (current_expert_idx >= kNumExpertsPerRank)
-                break;
-
-            // Temporal head/middle split: after the opening head chunk only
-            // active_pull_warps warps per SM continue pulling.  A non-zero
-            // WEAVE_HEAD_PULL_CHUNK bounds the all-warp prefix.
-            constexpr uint32_t kHeadPullChunk = WEAVE_HEAD_PULL_CHUNK;
-            const uint32_t effective_head_pull_end = kHeadPullChunk == 0u
-                ? head_pull_end : cute::min(head_pull_end, kHeadPullChunk);
-            if (token_idx >= effective_head_pull_end and warp_idx >= active_pull_warps)
-                continue;
+                return false;
 
             #if DG_ISOLATED_D5_DEDUP == 1
             if (old_expert_idx != current_expert_idx) {
@@ -2943,6 +2955,24 @@ sm100_fp8_fp4_mega_moe_impl(void* y,
                 src_token_topk_idx, src_token_idx, src_topk_idx,
                 token_idx_in_expert, expert_end_idx, pool_token_idx, pool_block_idx,
                 pull_mbarrier_phase);
+            return true;
+        };
+
+        for (uint32_t token_idx = initial_pull_warp_idx; token_idx < head_end_limit; token_idx += pull_stride) {
+            if (not run_pull_token(token_idx))
+                break;
+        }
+        if (split_middle_pull and initial_pull_warp_idx != 0xffffffffu and warp_idx < active_pull_warps) {
+            uint32_t mid_base = effective_head_pull_end;
+            #if DG_P1_HEAD_HELPER_K > 0
+            mid_base = cute::max(mid_base, p1_head_end);
+            #endif
+            const uint32_t mid_stride = pull_num_sms * active_pull_warps;
+            for (uint32_t token_idx = mid_base + pull_sm_idx * active_pull_warps + warp_idx;
+                 ; token_idx += mid_stride) {
+                if (not run_pull_token(token_idx))
+                    break;
+            }
         }
     #endif
 #endif
@@ -3884,7 +3914,7 @@ sm100_fp8_fp4_mega_moe_impl(void* y,
                 const uint32_t topk_bm = is_shared ? 0u : ((raw_topk_meta >> 8) & 0x3ffu);
                 const uint32_t hit_count = is_shared ? 1u : static_cast<uint32_t>(__popc(topk_bm));
                 const uint32_t leader_topk_idx = is_shared ? kNumTopk : static_cast<uint32_t>(__ffs(topk_bm) - 1);
-                const uint32_t half_mask = __activemask();
+                const uint32_t half_mask = (lane_idx < 16u) ? 0x0000ffffu : 0xffff0000u;
                 const uint32_t half_base = lane_idx & 16u;
                 float4* const local_ptr =
                     buffer.get_d7_local_row_ptr(dst_rank_idx, dst_token_idx, n_idx) + lane_in_half;
@@ -3976,7 +4006,7 @@ sm100_fp8_fp4_mega_moe_impl(void* y,
                         lane_in_half * static_cast<uint32_t>(sizeof(float4)));
                     *sym_buffer.map(dst_ptr, dst_rank_idx) = packed;
                 } else {
-                    const uint32_t half_mask = __activemask();
+                    const uint32_t half_mask = (lane_idx < 16u) ? 0x0000ffffu : 0xffff0000u;
                     const uint32_t half_base = lane_idx & 16u;
                     const uint32_t leader_topk_idx = static_cast<uint32_t>(__ffs(topk_bm) - 1);
                     const uint32_t sub_n_idx = n_idx / 128u;
@@ -5095,7 +5125,8 @@ if constexpr (kAccumOverlapCols > 0u) { if (accum_stage_idx == 0u ? (epilogue_wg
                         ? (static_cast<uint32_t>(stored_topk_slot_idx) / kNumExpertsPerRank)
                         : (0xffff0000u | lane_idx);
                     const uint32_t same_r_mask = __match_any_sync(0xffffffffu, exp_rank);
-                    if (lane_idx < kNumTopk and stored_topk_slot_idx >= 0 and exp_rank != sym_buffer.rank_idx) {
+                    if (lane_idx < kNumTopk and stored_topk_slot_idx >= 0 and
+                        (kD7QueueScatterActive or exp_rank != sym_buffer.rank_idx)) {
                         is_active_combine_slot = (lane_idx == static_cast<uint32_t>(__ffs(same_r_mask) - 1));
                     }
                 }
@@ -5384,7 +5415,8 @@ if constexpr (kAccumOverlapCols > 0u) { if (accum_stage_idx == 0u ? (epilogue_wg
                     ? (static_cast<uint32_t>(stored_topk_slot_idx) / kNumExpertsPerRank)
                     : (0xffff0000u | lane_idx);
                 const uint32_t same_r_mask = __match_any_sync(0xffffffffu, exp_rank);
-                if (lane_idx < kNumTopk and stored_topk_slot_idx >= 0 and exp_rank != sym_buffer.rank_idx) {
+                if (lane_idx < kNumTopk and stored_topk_slot_idx >= 0 and
+                    (kD7QueueScatterActive or exp_rank != sym_buffer.rank_idx)) {
                     is_active_combine_slot = (lane_idx == static_cast<uint32_t>(__ffs(same_r_mask) - 1));
                 }
             }
