@@ -38,11 +38,11 @@ independently tuned **single-operator and data-path implementations**:
     wavefront splits on AMD MI308X CUs—together with per-role register file
     budgets (e.g., `96/72/168` vs. `64/56/192`).
 - **Temporal scheduling (eliminating head, middle, and tail bubbles):**
-  - **Head:** before the first GEMM tiles arrive, otherwise-waiting
-    compute/TMA/epilogue warps join remote token pulling up to the opening
-    `V_head` window to saturate link bandwidth, and fine-grained group readiness
-    starts GEMM1 as soon as a group of tiles arrives without waiting for full
-    experts;
+  - **Head:** at layer start all warps help pull remote tokens by default to
+    saturate link bandwidth; `WEAVE_V_HEAD` sets how many pull tasks (tokens)
+    those helping warps complete before exiting back to GEMM, while fine-grained
+    group readiness (`WEAVE_READY_GROUP_SIZE`) starts GEMM1 without waiting for
+    full experts;
   - **Task dispatch & Middle:** tile claiming switches between a **static
     heuristic formula** over prefix-summed offsets (`formula`) and **SM 0
     dynamic global-FIFO scheduling** (`sm0_fifo`, where SM 0's communication
@@ -224,13 +224,14 @@ Weave's tunable surface is partitioned strictly across three axes:
   `0-8 / 4-4 / 8-0` `WEAVE_CU_WAVE_SPLIT`), and per-role register file ratios
   (`WEAVE_REG_BALANCE`).
 - **Temporal dimension:** **cross-stage role switching, dynamic task dispatch,
-  compute-communication overlap, and synchronization granularity**—opening
-  all-warp prefetch budget (`WEAVE_V_HEAD`) and fine-grained group arrival
-  readiness (`WEAVE_READY_GROUP_SIZE`), static heuristic formula vs. SM 0
-  dynamic global-FIFO tile preemption (`WEAVE_READY_QUEUE`), strict binary
-  Scatter role ownership (`WEAVE_SCATTER_OWNER`), and tail chunked `G`-token
-  cross-GPU Combine readiness (`WEAVE_COMBINE_SYNC_CHUNK`, with all idle warps
-  joining Combine by default).
+  compute-communication overlap, and synchronization granularity**—how many
+  opening pull tasks helping warps complete before switching to GEMM
+  (`WEAVE_V_HEAD`) and fine-grained group arrival readiness
+  (`WEAVE_READY_GROUP_SIZE`), static heuristic formula vs. SM 0 dynamic
+  global-FIFO tile preemption (`WEAVE_READY_QUEUE`), strict binary Scatter role
+  ownership (`WEAVE_SCATTER_OWNER`), and tail chunked `G`-token cross-GPU
+  Combine readiness (`WEAVE_COMBINE_SYNC_CHUNK`, with all idle warps joining
+  Combine by default).
 - **Single-op optimizations & prior work (Implementation):** **independent
   GEMM1, GEMM2, Dispatch, and Scatter single-operator configurations**—numeric
   precision (`WEAVE_PRECISION_MODE`), runtime per-expert `M -> blockM` profile
@@ -269,7 +270,7 @@ The parameter surface is organized strictly as **Spatial / Temporal / Implementa
 
 | Parameter | Category | Values (every accepted value is named) | Default | Mechanism | Host parse | Kernel consumption |
 |---|---|---|---|---|---|---|
-| `WEAVE_V_HEAD` | Temporal | `0 = automatic`; `N = opening head-pull budget in tokens` | automatic | Head schedule: all roles cooperatively pull the first N remote tokens at peak link bandwidth before non-comm warps switch to GEMM. | `deep_gemm/include/deep_gemm/scheduler/weave_knobs.cuh:263` | `deep_gemm/include/deep_gemm/scheduler/weave_cost_model.cuh:30` |
+| `WEAVE_V_HEAD` | Temporal | `0 = automatic`; `N = head-pull task quota (tokens) before helping warps exit back to GEMM` | automatic | Head schedule: all warps help pull by default at layer start; controls how many pull tasks (tokens) helping non-comm warps complete before finishing and switching to GEMM. | `deep_gemm/include/deep_gemm/scheduler/weave_knobs.cuh:263` | `deep_gemm/include/deep_gemm/scheduler/weave_cost_model.cuh:30` |
 | `WEAVE_READY_GROUP_SIZE` | Temporal | `0 = full-expert readiness`; `N = group-granularity readiness publication (in BLOCK_M tiles)` | 0 | Head schedule: fine-grained arrival readiness group size so GEMM1 starts as soon as N tiles arrive without waiting for full experts. | `csrc/jit_kernels/impls/sm100_fp8_fp4_mega_moe.hpp:252` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:87` |
 | `WEAVE_READY_QUEUE` | Temporal | `0 = formula`: static heuristic formula over prefix-summed offsets; `1 = sm0_fifo`: SM 0 streaming scheduler dynamically pushes ready tiles across all regions into the global FIFO queue for CTA preemption (names or codes accepted) | 0 | Head/Middle task dispatch: selects static heuristic formula addressing vs SM 0 dedicated dynamic global FIFO work-stealing queue. | `csrc/jit_kernels/heuristics/weave_knob_config.hpp:82` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:383` |
 | `WEAVE_SCATTER_OWNER` | Temporal | `0 = epilogue_only`: epilogue warps issue every remote FC2 store; `1 = comm_only`: epilogue warps only stage locally and communication warps own every remote store (names or codes accepted) | 0 (auto `comm_only` when a staged path or a scatter SM throttle is requested) | Middle schedule: strict binary scatter role ownership (never mixes inline epilogue scatter with comm-warp scatter) to overlap FC2 scatter with ongoing GEMM. | `csrc/jit_kernels/heuristics/weave_knob_config.hpp:162` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:1431` |

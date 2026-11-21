@@ -52,8 +52,8 @@ static const std::vector<KnobSchemaEntry>& knob_schema_entries() {
          "Per-SM register file ratio across comm, MMA/TMA, and epilogue warps."},
         // Temporal (Head / Middle / Tail overlap, task-queue dispatch & sync granularity)
         {"WEAVE_V_HEAD", "Temporal",
-         "0 = automatic; N = opening head-pull budget in tokens",
-         "Head schedule: cooperative all-warp opening pull budget."},
+         "0 = automatic; N = pull tasks (tokens) completed by helping warps before exiting to GEMM",
+         "Head schedule: quota of opening pull tasks that helping warps complete before switching to GEMM."},
         {"WEAVE_READY_GROUP_SIZE", "Temporal",
          "0 = full-expert readiness; N = group-granularity publication",
          "Head schedule: fine-grained readiness publication granularity."},

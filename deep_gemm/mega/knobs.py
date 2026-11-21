@@ -80,8 +80,8 @@ KNOBS: Tuple[Knob, ...] = (
     # ----------------------------------------------------------------- Temporal
     # Head / Middle / Tail bubble elimination, task-queue dispatch & sync granularity
     Knob("WEAVE_V_HEAD", "Temporal",
-         "`0 = automatic`; `N = opening head-pull budget in tokens`",
-         "automatic", "Head schedule: all roles cooperatively pull the first N remote tokens at peak link bandwidth before non-comm warps switch to GEMM.",
+         "`0 = automatic`; `N = head-pull task quota (tokens) before helping warps exit back to GEMM`",
+         "automatic", "Head schedule: all warps help pull by default at layer start; controls how many pull tasks (tokens) helping non-comm warps complete before finishing and switching to GEMM.",
          "SM103, H20, MI308X",
          "deep_gemm/include/deep_gemm/scheduler/weave_knobs.cuh",
          "#define WEAVE_V_HEAD 0xffffffffu",
