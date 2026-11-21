@@ -157,8 +157,12 @@ public:
             get_weave_env<int>("DG_TUNE_D4_READYQ", "DG_ISOLATED_D4_READYQ", nullptr, 0));
         const int d4_mode = get_weave_env<int>("WEAVE_SCHED_MODE", "DG_TUNE_D4_MODE", "DG_ISOLATED_D4_MODE", 0);
         const std::string d4_static_code = generate_d4_static_table(args, d4_static);
-        // Axis 5 (D5)
-        const int d5_dedup = get_weave_env<int>("WEAVE_DEDUP_MODE", "DG_TUNE_D5_DEDUP", "DG_ISOLATED_D5_DEDUP", 0);
+        // Axis 5 (D5): public WEAVE_DEDUP_MODE is binary (0 = off, 1 = remote pull dedup + local fanout).
+        const int public_dedup = get_env<int>("WEAVE_DEDUP_MODE", -1);
+        DG_HOST_ASSERT(public_dedup == -1 or public_dedup == 0 or public_dedup == 1);
+        const int d5_dedup = (public_dedup >= 0)
+            ? (public_dedup == 1 ? 2 : 0)
+            : get_weave_env<int>("DG_TUNE_D5_DEDUP", "DG_ISOLATED_D5_DEDUP", nullptr, 0);
         const int d5_sched = get_weave_env<int>("WEAVE_DEDUP_SCHED", "DG_TUNE_D5_SCHED", "DG_ISOLATED_D5_SCHED", (d5_dedup == 2) ? 1 : 0);
         // Axis 6 (D6)
         const int d6_g = get_weave_env<int>("WEAVE_COMBINE_GROUP_TILES", "DG_TUNE_D6_G", "DG_ISOLATED_D6_G",

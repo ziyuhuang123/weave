@@ -266,7 +266,7 @@ static AgySm90KnobSpec parse_agy_sm90_spec_string(const char* raw_str) {
     // Public H20 knobs: WEAVE_* wins; archived AGY_* spellings are fallback.
     append_weave_env("mcast", "WEAVE_MCAST", "AGY_MCAST");
     append_weave_env("swizzle_tiles", "WEAVE_SWIZZLE_TILES", "AGY_SWIZZLE_TILES");
-    append_weave_env("dedup_disp", "WEAVE_DEDUP_DISPATCH", "AGY_DEDUP_DISP");
+    append_weave_env("dedup_disp", "WEAVE_DEDUP_MODE", "WEAVE_DEDUP_DISPATCH", "AGY_DEDUP_DISP");
     append_weave_env("dedup_scat", "WEAVE_DEDUP_SCATTER", "AGY_DEDUP_SCAT");
     append_weave_env("reg_comb", "WEAVE_REG_COMBINE", "AGY_REG_COMB");
     append_weave_env("all_idle_comb", "WEAVE_ALL_IDLE_COMBINE", "AGY_ALL_IDLE_COMB");
