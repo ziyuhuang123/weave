@@ -154,7 +154,7 @@ def write_docs(schema) -> None:
     parts.append(
         "| Parameter group | SM103 fp8xfp4 | SM103 fp4xfp4 | H20 | MI308X EP8 | MI308X EP16 |\n"
         "|---|---|---|---|---|---|\n"
-        "| Spatial: SM subsets (`DISPATCH_ACTIVE_SMS`, `SCATTER_ACTIVE_SMS`), locality domains, SM 0 scheduler | yes | n/a | yes | yes | yes |\n"
+        "| Spatial: SM subsets (`DISPATCH_ACTIVE_SMS`, `SCATTER_ACTIVE_SMS`) and dedicated SM 0 scheduler | yes | n/a | yes | yes | yes |\n"
         "| Spatial: per-SM warp/wave & register ratios (`DISPATCH_WARPS`, `SCATTER_WARPS`, `REG_BALANCE`, `AMD_8WAVE_MIN_TOK`) | yes | n/a | yes | yes | yes |\n"
         "| Temporal: Head prefetch/group readiness, Middle `L2_KBLOCK_DEP` & binary `SCATTER_OWNER`, Tail `COMBINE_SYNC_CHUNK` & all-wave combine | yes | overlap | yes | yes | yes |\n"
         "| Implementation: independent GEMM1/GEMM2/Dispatch/Scatter params & per-expert M-profile lookup (`ADAPT_BM`, `BM_TIER_MODE`) | yes | fixed | yes | yes | yes |\n"

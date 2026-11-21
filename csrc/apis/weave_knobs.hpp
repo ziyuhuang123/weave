@@ -41,9 +41,6 @@ static const std::vector<KnobSchemaEntry>& knob_schema_entries() {
         {"WEAVE_SM0_STREAM_SCHED", "Spatial",
          "0 = off; 1 = SM 0 communication warps become the scheduler lane",
          "Dedicated SM 0 streaming scheduler."},
-        {"WEAVE_LOCALITY_DOMAINS", "Spatial",
-         "0 = auto; 1 = single; 2 = dual-die; 4 = XCD",
-         "Physical die/XCD locality-domain SM partitioning with work stealing."},
         {"WEAVE_DISPATCH_WARPS", "Spatial",
          "0 = auto; 4 or 8 = dispatch warps per CTA",
          "Per-SM dispatch communication warp ratio."},
@@ -189,7 +186,6 @@ static py::dict weave_knob_defaults(const std::string& mma_type) {
     out["WEAVE_PRECISION_MODE"] = knobs.precision_mode;
     out["WEAVE_DISPATCH_WARPS"] = knobs.dispatch_warps;
     out["WEAVE_SCATTER_ACTIVE_SMS"] = knobs.scatter_active_sms;
-    out["WEAVE_LOCALITY_DOMAINS"] = knobs.locality_domains;
     out["WEAVE_SM0_STREAM_SCHED"] = knobs.sm0_stream_sched;
     out["WEAVE_AMD_8WAVE_MIN_TOK"] = knobs.amd_8wave_min_tok;
     out["WEAVE_L2_KBLOCK_DEP"] = knobs.l2_kblock_dep;

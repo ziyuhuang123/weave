@@ -29,10 +29,9 @@ independently tuned **single-operator and data-path implementations**:
 
 - **Spatial partitioning (SM-level and Warp-level hardware ratios):**
   - **Across SMs/CUs:** independently assigns active SMs for Dispatch pulling
-    (`D`), active SMs for async Scatter draining (`K`, $D \neq K$), an optional
-    streaming scheduler SM (SM 0), and physical dual-die / multi-XCD locality
-    domains with tail cross-domain work stealing, while recruiting all SMs for
-    tail Combine reduction.
+    (`D`), active SMs for async Scatter draining (`K`, $D \neq K$), and an
+    optional streaming scheduler SM (SM 0), while recruiting all SMs for tail
+    Combine reduction.
   - **Within each SM/CU:** configures the warp/wave split between the
     communication partition (`N_c`: Dispatch / Scatter warps) and the compute
     partition (`N_e`: TMA/MMA + Epilogue warps), together with per-role register
@@ -214,9 +213,8 @@ Weave's tunable surface is partitioned strictly across three axes:
 - **Spatial dimension:** strictly **SM-level and per-SM Warp/Wave-level hardware
   resource ratios**—active SMs for Dispatch (`WEAVE_DISPATCH_ACTIVE_SMS`),
   active SMs for Scatter (`WEAVE_SCATTER_ACTIVE_SMS`), dedicated SM 0 streaming
-  scheduler (`WEAVE_SM0_STREAM_SCHED`), physical dual-die / multi-XCD locality
-  domains (`WEAVE_LOCALITY_DOMAINS`), per-SM communication vs. compute warp/wave
-  ratios (`WEAVE_DISPATCH_WARPS`, `WEAVE_SCATTER_WARPS`,
+  scheduler (`WEAVE_SM0_STREAM_SCHED`), per-SM communication vs. compute
+  warp/wave ratios (`WEAVE_DISPATCH_WARPS`, `WEAVE_SCATTER_WARPS`,
   `WEAVE_AMD_8WAVE_MIN_TOK`), and per-role register file ratios
   (`WEAVE_REG_BALANCE`).
 - **Temporal dimension:** **cross-stage execution order, role switching,
@@ -263,7 +261,6 @@ The parameter surface is organized strictly as **Spatial / Temporal / Implementa
 | `WEAVE_DISPATCH_ACTIVE_SMS` | Spatial | `0 = auto` (all SMs run dispatch pull); `D = 1..num_sms`: only D SMs pull remote tokens | 0 | SM-level dispatch allocation: assigns D SMs to remote token pulling while remaining SMs enter prefetch/GEMM immediately. | `csrc/jit_kernels/heuristics/weave_knob_config.hpp:88` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:46` |
 | `WEAVE_SCATTER_ACTIVE_SMS` | Spatial | `0 = auto` (all SMs/CUs participate); `K = 1..num_sms`: only K SMs drain the scatter queue | 0 | SM-level scatter allocation (independent from dispatch SMs): bounds async NVLink/xGMI scatter draining to K SMs while Combine uses all SMs. | `csrc/jit_kernels/impls/sm100_fp8_fp4_mega_moe.hpp:187` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:528` |
 | `WEAVE_SM0_STREAM_SCHED` | Spatial | `0 = SM 0 communication warps pull`; `1 = SM 0 communication warps become the streaming scheduler lane` | 0 | SM-level scheduler dedication: assigns SM 0/CU 0 communication warps to streaming tile scheduling while remaining SMs split the pull range. | `csrc/jit_kernels/heuristics/weave_knob_config.hpp:82` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:2856` |
-| `WEAVE_LOCALITY_DOMAINS` | Spatial | `0 = auto`; `1 = single domain`; `2 = dual-die SM103`; `4 = XCD MI308X` | 0 | Die/XCD SM domain partitioning: splits L1/L2 N-cluster queues across physical locality domains with tail cross-domain work stealing. | `csrc/jit_kernels/impls/sm100_fp8_fp4_mega_moe.hpp:198` | `deep_gemm/include/deep_gemm/scheduler/mega_moe.cuh:837` |
 | `WEAVE_DISPATCH_WARPS` | Spatial | `0 = auto` (4 warps); `4`; `8` | 0 | Per-SM dispatch warp ratio: sets the CTA communication warp count dedicated to remote token/SF pulling (`4D+4N+8E` vs `8D+4N+8E`). | `csrc/jit_kernels/heuristics/weave_knob_config.hpp:73` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:969` |
 | `WEAVE_SCATTER_WARPS` | Spatial | `0 = automatic`; `4`; `8` | 0 | Per-SM scatter warp ratio: sets the CTA communication warp budget dedicated to async FC2 scatter (independent from dispatch pull parameters). | `csrc/jit_kernels/impls/sm100_fp8_fp4_mega_moe.hpp:208` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:501` |
 | `WEAVE_REG_BALANCE` | Spatial | `0 = default (96/72/168)`; `1 = rebalanced (64/56/192) at E/rank > 64` | 0 | Per-SM register file ratio across warp roles: shifts spare dispatch/non-epilogue registers to epilogue warps (`64/56/192` vs `96/72/168`). | `csrc/jit_kernels/heuristics/weave_knob_config.hpp:137` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:1503` |
