@@ -72,6 +72,9 @@ static inline weave::WeaveKnobs from_env(
     knobs.dispatch_warps = static_cast<uint32_t>(bounded_env(
         "WEAVE_DISPATCH_WARPS", "DG_DISPATCH_WARPS",
         static_cast<int>(knobs.dispatch_warps), 0, 8));
+    knobs.reduce_warps = static_cast<uint32_t>(bounded_env(
+        "WEAVE_REDUCE_WARPS", "DG_REDUCE_WARPS",
+        static_cast<int>(knobs.reduce_warps), 0, 8));
     knobs.scatter_active_sms = static_cast<uint32_t>(bounded_env(
         "WEAVE_SCATTER_ACTIVE_SMS", "DG_SCATTER_ACTIVE_SMS",
         static_cast<int>(knobs.scatter_active_sms), 0, 1024));
@@ -98,6 +101,15 @@ static inline weave::WeaveKnobs from_env(
         static_cast<int>(knobs.dispatch_active_sms), 0, 1024));
 
     // Temporal
+    const int v_head_env = get_weave_env<int>("WEAVE_V_HEAD", "DG_V_HEAD", nullptr, -1);
+    DG_HOST_ASSERT(v_head_env >= -1 and v_head_env <= 65536);
+    if (v_head_env > 0) {
+        knobs.override_v_head = static_cast<uint32_t>(v_head_env);
+        knobs.override_mask |= weave::kOverrideVHead;
+    } else if (v_head_env == 0) {
+        knobs.override_v_head = weave::kAutoU32;
+        knobs.override_mask &= ~static_cast<uint32_t>(weave::kOverrideVHead);
+    }
     knobs.l2_kblock_dep = static_cast<uint32_t>(bounded_env(
         "WEAVE_L2_KBLOCK_DEP", "DG_L2_KBLOCK_DEP",
         static_cast<int>(knobs.l2_kblock_dep), 0, 1));
@@ -124,6 +136,9 @@ static inline weave::WeaveKnobs from_env(
         static_cast<int>(knobs.sched_l2_ratio), 1, 4));
 
     // Implementation
+    knobs.precision_mode = static_cast<uint32_t>(named_env(
+        "WEAVE_PRECISION_MODE", {"fp8xfp4", "fp4xfp4", "fp8xfp8", "bf16"},
+        static_cast<int>(knobs.precision_mode)));
     knobs.adapt_bm = static_cast<uint32_t>(bounded_env(
         "WEAVE_ADAPT_BM", "DG_ADAPT_BM",
         static_cast<int>(knobs.adapt_bm), 0, 1));
@@ -182,6 +197,9 @@ static inline void validate(const weave::WeaveKnobs& knobs,
                             const weave::HardwareArch arch) {
     DG_HOST_ASSERT(knobs.dispatch_warps == 0u or
                    knobs.dispatch_warps == 4u or knobs.dispatch_warps == 8u);
+    DG_HOST_ASSERT(knobs.reduce_warps == 0u or knobs.reduce_warps == 1u or
+                   knobs.reduce_warps == 2u or knobs.reduce_warps == 4u or
+                   knobs.reduce_warps == 8u);
     DG_HOST_ASSERT(knobs.sm0_stream_sched <= 1u);
     DG_HOST_ASSERT(knobs.cu_wave_split <= 3u);
     DG_HOST_ASSERT(knobs.l2_kblock_dep <= 1u);
@@ -215,7 +233,7 @@ static inline void validate(const weave::WeaveKnobs& knobs,
     DG_HOST_ASSERT(knobs.combine_sync_chunk == 0u or knobs.combine_sync_chunk == 16u or
                    knobs.combine_sync_chunk == 32u or knobs.combine_sync_chunk == 64u or
                    knobs.combine_sync_chunk == 128u);
-    if (knobs.combine_sync_chunk != 0u)
+    if (knobs.combine_sync_chunk != 0u and arch != weave::HardwareArch::B300_SM100)
         DG_HOST_ASSERT(knobs.local_scatter_dedup == 1u);
     DG_HOST_ASSERT(knobs.epi_reg_stages <= 2u);
     DG_HOST_ASSERT(knobs.sched_l2_ratio >= 1u and knobs.sched_l2_ratio <= 4u);

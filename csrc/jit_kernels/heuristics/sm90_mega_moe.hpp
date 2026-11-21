@@ -257,11 +257,14 @@ static AgySm90KnobSpec parse_agy_sm90_spec_string(const char* raw_str) {
             val = std::getenv(legacy2);
         append_env_knob(key, val);
     };
-    append_weave_env("meta_g", "AGY_META_GROUP_G", "AGY_META_GROUP_G");
+    append_weave_env("meta_g", "WEAVE_READY_GROUP_SIZE", "AGY_META_GROUP_G");
     append_weave_env("tile_sync", "AGY_TILE_SYNC_G", "AGY_TILE_SYNC_G");
     append_weave_env("fine_comb_g", "AGY_FINE_COMB_G", "AGY_FINE_COMB_G");
     append_weave_env("early_comb", "AGY_EARLY_COMB", "AGY_EARLY_COMB");
-    append_weave_env("comb_warps", "AGY_COMB_WARPS", "AGY_COMB_WARPS");
+    append_weave_env("comb_warps", "WEAVE_REDUCE_WARPS", "AGY_COMB_WARPS");
+    append_weave_env("v_head", "WEAVE_V_HEAD");
+    append_weave_env("reg_balance", "WEAVE_REG_BALANCE");
+    append_weave_env("scatter_warps", "WEAVE_SCATTER_WARPS");
 
     // Public H20 knobs: WEAVE_* wins; archived AGY_* spellings are fallback.
     append_weave_env("mcast", "WEAVE_MCAST", "AGY_MCAST");
@@ -317,6 +320,11 @@ static AgySm90KnobSpec parse_agy_sm90_spec_string(const char* raw_str) {
     };
     append_named_env("scatter_owner", "WEAVE_SCATTER_OWNER", {"epilogue_only", "comm_only"});
     append_named_env("scatter_staging", "WEAVE_SCATTER_STAGING", {"reg_2stage", "smem", "hbm_dedup"});
+    append_named_env("ready_queue", "WEAVE_READY_QUEUE", {"formula", "sm0_fifo"});
+    if (const char* rq = std::getenv("WEAVE_READY_QUEUE");
+        rq != nullptr and (std::strcmp(rq, "0") == 0 or std::strcmp(rq, "formula") == 0)) {
+        append_env_knob("ready_queue_formula", "1");
+    }
     if (combined.empty())
         return spec;
     spec.enabled = true;
@@ -455,6 +463,22 @@ static AgySm90KnobSpec make_agy_auto_sm90_spec(
     return parse_agy_sm90_spec_string(selected_cfg);
 }
 
+static bool has_any_public_weave_sm90_env() {
+    for (const char* name : {
+            "WEAVE_DISPATCH_ACTIVE_SMS", "WEAVE_SCATTER_ACTIVE_SMS",
+            "WEAVE_SM0_STREAM_SCHED", "WEAVE_DISPATCH_WARPS",
+            "WEAVE_SCATTER_WARPS", "WEAVE_REDUCE_WARPS", "WEAVE_REG_BALANCE",
+            "WEAVE_V_HEAD", "WEAVE_READY_GROUP_SIZE", "WEAVE_READY_QUEUE",
+            "WEAVE_SCATTER_OWNER", "WEAVE_COMBINE_SYNC_CHUNK",
+            "WEAVE_ADAPT_BM", "WEAVE_BLOCK_M_L1", "WEAVE_BLOCK_M_L2",
+            "WEAVE_DEDUP_MODE", "WEAVE_SCATTER_STAGING", "WEAVE_LOCAL_SCATTER_DEDUP"}) {
+        const char* v = std::getenv(name);
+        if (v != nullptr and *v != '\0')
+            return true;
+    }
+    return false;
+}
+
 static AgySm90KnobSpec get_agy_sm90_spec(const Sm90MoeHeuristicInput* input = nullptr) {
     const char* force_off = std::getenv("WEAVE_FORCE_OFFICIAL");
     if (force_off == nullptr or *force_off == '\0')
@@ -468,6 +492,16 @@ static AgySm90KnobSpec get_agy_sm90_spec(const Sm90MoeHeuristicInput* input = nu
         if (std::strcmp(env_val, "auto=1") == 0 or std::strcmp(env_val, "AUTO") == 0)
             return input != nullptr ? make_agy_auto_sm90_spec(*input, true) : AgySm90KnobSpec{};
         return parse_agy_sm90_spec_string(env_val);
+    }
+    if (has_any_public_weave_sm90_env()) {
+        // Pure unified WEAVE_* tuning path: start from the neutral fused SM90
+        // MegaMoE skeleton (no forced dedup/scatter/bm opinion) and apply the
+        // explicit WEAVE_* environment variables directly.
+        static constexpr const char* kUnifiedWeaveSm90Skeleton =
+            "fast_host=1,fused=1,interleave=5,epw=8,compact=1,dyn=1,alias=1,"
+            "stages=0,swap_pipe=1,fast_swap_epi=1,rank_cache=1,fast_clean=1,"
+            "fast_pull=1,dedup_tier=1,reg_comb=1,fast_comb=1,all_idle_comb=1";
+        return parse_agy_sm90_spec_string(kUnifiedWeaveSm90Skeleton);
     }
     if (input != nullptr)
         return make_agy_auto_sm90_spec(*input, false);
@@ -507,8 +541,11 @@ static std::string get_agy_sm90_jit_defines(const AgySm90KnobSpec& spec) {
         DG_HOST_ASSERT(dispatch_warps == 4 or dispatch_warps == 8);
         defs += std::format("#define WEAVE_DISPATCH_WARPS {}\n", dispatch_warps);
     }
-    if (spec.get_int("sm0_sched", 0) > 0)
+    if (spec.get_int("sm0_sched", 0) > 0 or spec.get_int("ready_queue", 0) > 0)
         defs += "#define WEAVE_SM0_STREAM_SCHED 1\n";
+    const int v_head = spec.get_int("v_head", 0);
+    if (v_head > 0)
+        defs += std::format("#define WEAVE_V_HEAD {}u\n", v_head);
     const int l2_kblock_dep = spec.get_int("l2_kblock_dep", 0);
     if (l2_kblock_dep > 0)
         defs += "#define WEAVE_L2_KBLOCK_DEP 1\n";
@@ -534,8 +571,7 @@ static std::string get_agy_sm90_jit_defines(const AgySm90KnobSpec& spec) {
     const int comb_sync_chunk = spec.get_int("comb_sync_chunk", 0);
     DG_HOST_ASSERT(comb_sync_chunk == 0 or comb_sync_chunk == 16 or comb_sync_chunk == 32 or
                    comb_sync_chunk == 64 or comb_sync_chunk == 128);
-    DG_HOST_ASSERT(comb_sync_chunk == 0 or use_hbm_dedup);
-    if (comb_sync_chunk > 0)
+    if (comb_sync_chunk > 0 and use_hbm_dedup)
         defs += std::format("#define WEAVE_COMBINE_SYNC_CHUNK {}\n", comb_sync_chunk);
     const int dispatch_sms = spec.get_int("dispatch_sms", 0);
     DG_HOST_ASSERT(dispatch_sms >= 0);
@@ -556,7 +592,9 @@ static std::string get_agy_sm90_jit_defines(const AgySm90KnobSpec& spec) {
         defs += "#define AGY_FUSED_1KERNEL 1\n";
     if (spec.get_int("compact", 0) > 0)
         defs += "#define AGY_COMPACT_NOTIFY 1\n";
-    if (spec.get_int("dyn", 0) > 0 or spec.get_int("adapt_bm", 0) > 0)
+    const bool force_formula = spec.get_int("ready_queue_formula", 0) > 0;
+    if ((not force_formula) and
+        (spec.get_int("dyn", 0) > 0 or spec.get_int("ready_queue", 0) > 0 or spec.get_int("adapt_bm", 0) > 0))
         defs += "#define WEAVE_DYN_SCHED 1\n";
     if (spec.get_int("pipe_wgmma", 0) > 0)
         defs += "#define WEAVE_PIPE_WGMMA 1\n";
@@ -619,10 +657,11 @@ static std::string get_agy_sm90_jit_defines(const AgySm90KnobSpec& spec) {
         d_mask_mode = 1;
     if (d_mask_mode > 0)
         defs += std::format("#define WEAVE_HETERO_MASK_MODE {}\n", d_mask_mode);
-    const int front_regs = spec.get_int("front_regs", 0);
+    const int reg_bal = spec.get_int("reg_balance", 0);
+    const int front_regs = spec.get_int("front_regs", reg_bal > 0 ? 40 : 0);
     if (front_regs > 0)
         defs += std::format("#define AGY_FRONT_REGS {}\n", front_regs);
-    const int non_epi_regs = spec.get_int("non_epi_regs", 0);
+    const int non_epi_regs = spec.get_int("non_epi_regs", reg_bal > 0 ? 40 : 0);
     if (non_epi_regs > 0)
         defs += std::format("#define AGY_NON_EPI_REGS {}\n", non_epi_regs);
     const int math_regs = spec.get_int("math_regs", 0);
@@ -654,6 +693,8 @@ static std::string get_agy_sm90_jit_defines(const AgySm90KnobSpec& spec) {
 
     // MD P6: fine_comb_g + early_comb + comb_warps + all_idle_comb
     int fine_comb_g = spec.get_int("fine_comb_g", spec.get_int("comb_g", 0));
+    if (fine_comb_g == 0 and comb_sync_chunk > 0 and not use_hbm_dedup)
+        fine_comb_g = comb_sync_chunk / 16;
     const int early_comb = spec.get_int("early_comb", spec.get_int("early_stream", 0));
     const int comb_warps = spec.get_int("comb_warps", 0);
     const int all_idle_comb = spec.get_int("all_idle_comb", 0);
@@ -1714,7 +1755,10 @@ static Sm90MoeLaunchConfig select_mega_moe_sm90(
     }
 
     if (agy.enabled) {
-        const bool is_fused = agy.get_int("fused", 0) > 0;
+        const int req_l1_bm = agy.get_int("l1_bm", 0);
+        const int req_l2_bm = agy.get_int("l2_bm", 0);
+        const bool decoupled_bm = (req_l1_bm > 0 and req_l2_bm > 0 and req_l1_bm != req_l2_bm);
+        const bool is_fused = (agy.get_int("fused", 0) > 0) and not decoupled_bm;
         result.fused_single_kernel = is_fused;
         auto apply_phase = [&](MegaMoESM90Config& cfg, bool is_l2) {
             if (agy.get_int("adapt_bm", 0) > 0) {
@@ -1730,7 +1774,17 @@ static Sm90MoeLaunchConfig select_mega_moe_sm90(
             const char* pfx_swap = is_l2 ? "l2_swap" : "l1_swap";
 
             if (agy.has("bm")) cfg.block_m = agy.get_int("bm", cfg.block_m);
-            if (agy.has(pfx_bm)) cfg.block_m = agy.get_int(pfx_bm, cfg.block_m);
+            if (agy.has(pfx_bm)) {
+                cfg.block_m = agy.get_int(pfx_bm, cfg.block_m);
+                // Synchronous M -> blockM profile lock when bn/swap/wgs are not overridden:
+                const bool can_bn256 = ((2 * input.intermediate_hidden) % 256 == 0) and (input.hidden % 256 == 0);
+                if (not agy.has("swap") and not agy.has(pfx_swap))
+                    cfg.swap_ab = (cfg.block_m <= 32);
+                if (not agy.has("bn") and not agy.has(pfx_bn))
+                    cfg.block_n = (cfg.block_m >= 128 or not can_bn256) ? 128 : 256;
+                if (not agy.has("bk") and not agy.has(pfx_bk))
+                    cfg.block_k = 128;
+            }
             if (agy.has("bn")) cfg.block_n = agy.get_int("bn", cfg.block_n);
             if (agy.has(pfx_bn)) cfg.block_n = agy.get_int(pfx_bn, cfg.block_n);
             if (agy.has("bk")) cfg.block_k = agy.get_int("bk", cfg.block_k);
@@ -1768,12 +1822,22 @@ static Sm90MoeLaunchConfig select_mega_moe_sm90(
                 not agy.has("disp_warps") and not agy.has(pfx_disp)) {
                 disp_warps = 6;
             }
+            if (agy.has("dispatch_warps"))
+                disp_warps = agy.get_int("dispatch_warps", disp_warps);
+            if (agy.has("scatter_warps") and is_l2)
+                disp_warps = agy.get_int("scatter_warps", disp_warps);
             if (agy.has("disp_warps"))
                 disp_warps = agy.get_int("disp_warps", disp_warps);
             if (agy.has(pfx_disp))
                 disp_warps = agy.get_int(pfx_disp, disp_warps);
-            if (wgs == 4 and disp_warps > 2)
-                disp_warps = 2;
+            if (wgs == 4 and disp_warps > 2) {
+                if (agy.has("dispatch_warps") or agy.has("scatter_warps") or agy.has("disp_warps")) {
+                    wgs = 2;
+                    cfg.num_epilogue_threads = wgs * 128;
+                } else {
+                    disp_warps = 2;
+                }
+            }
 
             int non_epi_warps = ((disp_warps % 4) == 2) ? 2 : 4;
             if (agy.has("non_epi_warps"))

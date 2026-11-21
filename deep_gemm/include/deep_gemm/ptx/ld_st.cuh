@@ -340,6 +340,14 @@ CUTLASS_DEVICE uint16_t ld_acq_sys(const uint16_t* ptr) {
     return ret;
 }
 
+CUTLASS_DEVICE void st_relaxed_sys(const uint16_t* ptr, const uint16_t& value) {
+    asm volatile("st.L1::no_allocate.relaxed.sys.global.u16 [%0], %1;" :: "l"(ptr), "h"(value) : "memory");
+}
+
+CUTLASS_DEVICE void st_rel_sys(const uint16_t* ptr, const uint16_t& value) {
+    asm volatile("st.release.sys.global.u16 [%0], %1;" :: "l"(ptr), "h"(value) : "memory");
+}
+
 CUTLASS_DEVICE uint32_t atomic_add_acq_rel_gpu(
     uint32_t* ptr, const uint32_t& val) {
     uint32_t ret;

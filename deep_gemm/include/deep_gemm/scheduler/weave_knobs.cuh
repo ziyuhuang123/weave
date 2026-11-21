@@ -327,6 +327,14 @@
 #ifndef WEAVE_DISPATCH_ACTIVE_SMS
 #define WEAVE_DISPATCH_ACTIVE_SMS 0u
 #endif
+// Dedicated fine-grained streaming Reduce warps carved out of the CTA
+// communication warp group during Middle (0 = off; 1, 2, 4, 8 warps).
+#ifndef WEAVE_REDUCE_WARPS
+#define WEAVE_REDUCE_WARPS 0u
+#endif
+#if WEAVE_REDUCE_WARPS > 8
+#error "WEAVE_REDUCE_WARPS must be in [0, 8]"
+#endif
 // Strict binary scatter ownership (never mixed):
 //   0 = epilogue_only: epilogue warps issue the remote FC2 stores directly;
 //   1 = comm_only:     epilogue warps only stage locally and publish
@@ -443,9 +451,6 @@
 #if WEAVE_SCATTER_STAGING != 0 && WEAVE_SCATTER_OWNER == 0
 #error "smem / hbm_dedup scatter staging requires WEAVE_SCATTER_OWNER=1 (comm_only)"
 #endif
-#if WEAVE_COMBINE_SYNC_CHUNK != 0 && WEAVE_SCATTER_STAGING != 2 && WEAVE_LOCAL_SCATTER_DEDUP == 0
-#error "WEAVE_COMBINE_SYNC_CHUNK > 0 must be paired with local scatter dedup"
-#endif
 
 namespace weave {
 
@@ -527,6 +532,7 @@ struct WeaveKnobs {
   uint32_t amd_8wave_min_tok;   // internal auto fallback floor in tokens.
   uint32_t dispatch_active_sms; // 0 = all; D = only D SMs run dispatch pull.
   uint32_t scatter_owner;       // 0 = epilogue_only; 1 = comm_only.
+  uint32_t reduce_warps;        // 0 = off; 1..8 dedicated Middle Reduce warps.
 
   // --- Temporal ------------------------------------------------------------
   uint32_t l2_kblock_dep;       // 0/1: tight 1 L2 <-> 1 L1 wave schedule.
@@ -564,15 +570,20 @@ WEAVE_HOST_DEVICE constexpr WeaveKnobs default_weave_knobs(
   // Presets 1/2/3 correspond to the -S, -S-T and -S-T-C ablations: the
   // runtime spatial search is disabled and a fixed per-architecture spatial
   // candidate is used.  Preset 0 enables the full CTA-0 cost model.
+  const bool has_v_head_override =
+      (WEAVE_V_HEAD != 0u && WEAVE_V_HEAD != kAutoU32);
   const uint32_t ablation_override_mask =
-      (WEAVE_ABLATION_PRESET == 0) ? 0u : 3u;  // spatial | scatter
+      ((WEAVE_ABLATION_PRESET == 0) ? 0u : 3u) |
+      (has_v_head_override ? static_cast<uint32_t>(kOverrideVHead) : 0u);
   const uint32_t ablation_r_mask =
       (WEAVE_ABLATION_PRESET == 0) ? kAutoU32 : default_r_mask_for_arch(arch);
   const uint32_t ablation_scatter =
       (WEAVE_ABLATION_PRESET == 0) ? kAutoU32 : WEAVE_SCATTER_MODE;
+  const uint32_t compiled_v_head =
+      has_v_head_override ? static_cast<uint32_t>(WEAVE_V_HEAD) : kAutoU32;
   return WeaveKnobs{
       WEAVE_ENABLE_COST_MODEL,
-      ablation_override_mask, ablation_r_mask, ablation_scatter, kAutoU32,
+      ablation_override_mask, ablation_r_mask, ablation_scatter, compiled_v_head,
       64u,
       static_cast<uint32_t>(precision),
       WEAVE_DISPATCH_WARPS,
@@ -583,6 +594,7 @@ WEAVE_HOST_DEVICE constexpr WeaveKnobs default_weave_knobs(
       WEAVE_AMD_8WAVE_MIN_TOK,
       WEAVE_DISPATCH_ACTIVE_SMS,
       WEAVE_SCATTER_OWNER,
+      WEAVE_REDUCE_WARPS,
       WEAVE_L2_KBLOCK_DEP,
       WEAVE_RING_BLOCKS,
       WEAVE_EARLY_STREAM_REDUCE,

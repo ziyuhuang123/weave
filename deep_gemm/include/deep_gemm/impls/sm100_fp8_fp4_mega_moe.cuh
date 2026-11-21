@@ -10,6 +10,9 @@
 #ifndef WEAVE_DISPATCH_WARPS
 #define WEAVE_DISPATCH_WARPS 0
 #endif
+#ifndef WEAVE_REDUCE_WARPS
+#define WEAVE_REDUCE_WARPS 0
+#endif
 #ifndef WEAVE_SM0_STREAM_SCHED
 #define WEAVE_SM0_STREAM_SCHED 0
 #endif
@@ -1085,10 +1088,10 @@ sm100_fp8_fp4_mega_moe_impl(void* y,
     DG_STATIC_ASSERT(BLOCK_K == 128 or BLOCK_K == 256, "Invalid block K");
     DG_STATIC_ASSERT(WEAVE_RING_BLOCKS == 0 or WEAVE_RING_BLOCKS == kNumRingBlocks,
                      "WEAVE_RING_BLOCKS must match the allocated ring");
-    DG_STATIC_ASSERT(WEAVE_BLOCK_M_L1 == 0 or WEAVE_BLOCK_M_L1 == BLOCK_M,
-                     "SM103 has one static BLOCK_M; L1/L2 envelopes must match");
-    DG_STATIC_ASSERT(WEAVE_BLOCK_M_L2 == 0 or WEAVE_BLOCK_M_L2 == BLOCK_M,
-                     "SM103 has one static BLOCK_M; L1/L2 envelopes must match");
+    DG_STATIC_ASSERT(WEAVE_BLOCK_M_L1 == 0 or WEAVE_BLOCK_M_L1 <= BLOCK_M,
+                     "WEAVE_BLOCK_M_L1 exceeds compiled BLOCK_M envelope");
+    DG_STATIC_ASSERT(WEAVE_BLOCK_M_L2 == 0 or WEAVE_BLOCK_M_L2 <= BLOCK_M,
+                     "WEAVE_BLOCK_M_L2 exceeds compiled BLOCK_M envelope");
     DG_STATIC_ASSERT(WEAVE_STORE_BLOCK_M_L1 == 0 or WEAVE_STORE_BLOCK_M_L1 == STORE_BLOCK_M,
                      "WEAVE_STORE_BLOCK_M_L1 disagrees with the compiled store tile");
     DG_STATIC_ASSERT(WEAVE_ADAPT_BM == 0 or DG_D3_EXPERT_STEP_MODE > 0,
@@ -1263,6 +1266,15 @@ sm100_fp8_fp4_mega_moe_impl(void* y,
             return d2_check_is_d8_sm() ? 256u : 128u;
         }
     };
+    static constexpr uint32_t kRawDedicatedReduceWarps = static_cast<uint32_t>(WEAVE_REDUCE_WARPS);
+    static constexpr bool kSpatialStreamReduce =
+        (kRawDedicatedReduceWarps > 0u) and (DG_ISOLATED_D6_G > 0) and
+        not kD2SmidMasked and (DG_D7_QUEUE_SCATTER == 0);
+    static constexpr uint32_t kDedicatedReduceWarps = !kSpatialStreamReduce ? 0u :
+        ((DG_D7_HANDOFF_MODE != 0)
+            ? (kRawDedicatedReduceWarps >= kNumDispatchWarps ? (kNumDispatchWarps / 2u) : kRawDedicatedReduceWarps)
+            : (kRawDedicatedReduceWarps >= kNumDispatchWarps ? kNumDispatchWarps : kRawDedicatedReduceWarps));
+    static constexpr uint32_t kFirstDedicatedReduceWarp = kNumDispatchWarps - kDedicatedReduceWarps;
 
     // A cluster sync is essential for 2CTA tensor memory allocation
     comm::cluster_sync_with_relaxed_arrive();
@@ -1319,7 +1331,8 @@ sm100_fp8_fp4_mega_moe_impl(void* y,
             for (uint32_t i = 0; i < 4; ++ i) {
                 shared_storage.epi_scatter_mode[i] = 0u;
             }
-            const uint32_t d7_init_disp_t = get_active_dispatch_threads();
+            const uint32_t d7_init_disp_t =
+                kSpatialStreamReduce ? (kFirstDedicatedReduceWarp * 32u) : get_active_dispatch_threads();
             #pragma unroll
             for (uint32_t i = 0; i < 2; ++ i) {
                 shared_storage.scatter_full_barriers[i].init(kNumEpilogueThreads);
@@ -1450,7 +1463,7 @@ sm100_fp8_fp4_mega_moe_impl(void* y,
     static constexpr bool kD2AnyRegPull = kD2AllRegPull or kD2SplitHybridPull;
     static constexpr bool kD2Is20Warp = (kNumDispatchWarps == 8u and kNumEpilogueWarps == 8u);
     static constexpr bool kAnyAxisActive =
-        (DG_ISOLATED_D1_G > 0) or kD2Active or kD2Enable8D or
+        (DG_ISOLATED_D1_G > 0) or kD2Active or kD2Enable8D or kSpatialStreamReduce or
         (DG_TUNE_D3_BM > 0) or (DG_TUNE_D3_BN > 0) or (DG_TUNE_D3_BK > 0) or
         (DG_TUNE_D3_STORE_M > 0) or (DG_D3_DYN_EPI > 0) or (DG_D3_DYN_TMA_A > 0) or
         (DG_D3_OVERLAP_EXPERT_SMEM > 0) or DG_ISOLATED_D4_LUT_ACTIVE or
@@ -1463,8 +1476,8 @@ sm100_fp8_fp4_mega_moe_impl(void* y,
         ? (kUseMoreEpilogueRegisters ? 48u : 56u)
         : (kUseMoreEpilogueRegisters ? 56u : 88u);
     static constexpr uint32_t kAutoDispRegs = kD2Is20Warp
-        ? (kUseMoreEpilogueRegisters ? 64u : 72u)
-        : (kUseMoreEpilogueRegisters ? 64u : 88u);
+        ? (kUseMoreEpilogueRegisters ? (kSpatialStreamReduce ? 72u : 64u) : 72u)
+        : (kUseMoreEpilogueRegisters ? (kSpatialStreamReduce ? 72u : 64u) : 88u);
 #else
     static constexpr uint32_t kAutoNonEpiRegs = !kAnyAxisActive
         ? (kUseMoreEpilogueRegisters ? 40u : 88u)
@@ -1475,11 +1488,11 @@ sm100_fp8_fp4_mega_moe_impl(void* y,
     static constexpr uint32_t kAutoDispRegs = !kAnyAxisActive
         ? (kUseMoreEpilogueRegisters ? 48u : 96u)
         : (kD2Is20Warp
-            ? (!kUseMoreEpilogueRegisters ? (kD2AnyRegPull ? 72u : 64u) :
-               (DG_ISOLATED_D4_LUT_ACTIVE ? 64u : (kD2AnyRegPull ? 72u : 56u)))
+            ? (!kUseMoreEpilogueRegisters ? ((kD2AnyRegPull or kSpatialStreamReduce) ? 72u : 64u) :
+               (DG_ISOLATED_D4_LUT_ACTIVE ? 64u : ((kD2AnyRegPull or kSpatialStreamReduce) ? 72u : 56u)))
             : (!kUseMoreEpilogueRegisters ? 88u :
-               (kNumEpilogueWarps == 4u ? ((kD2AnyRegPull or DG_ISOLATED_D1_G > 0 or DG_ISOLATED_D5_DEDUP > 0 or DG_ISOLATED_D7_SCATTER != 0) ? 80u : 64u) :
-                ((kD2AnyRegPull or DG_ISOLATED_D1_G > 0 or DG_ISOLATED_D5_DEDUP > 0) ? 72u : 56u))));
+               (kNumEpilogueWarps == 4u ? ((kD2AnyRegPull or kSpatialStreamReduce or DG_ISOLATED_D1_G > 0 or DG_ISOLATED_D5_DEDUP > 0 or DG_ISOLATED_D7_SCATTER != 0) ? 80u : 64u) :
+                ((kD2AnyRegPull or kSpatialStreamReduce or DG_ISOLATED_D1_G > 0 or DG_ISOLATED_D5_DEDUP > 0) ? 72u : 56u))));
 #endif
 
     static constexpr uint32_t kMaxRemainingEpiRegs =
@@ -1711,6 +1724,166 @@ sm100_fp8_fp4_mega_moe_impl(void* y,
         run_p1_head_pull.template operator()<kNumNonEpilogueRegisters, false>(p1_wait_for_metadata());
     }
 #endif
+
+    // Zero-SMEM out-of-order in-register scoreboard fine-grained streaming Reduce
+    // shared between dedicated Middle Reduce warps (WEAVE_REDUCE_WARPS) and
+    // Epilogue tail-drain warps so Middle HBM headroom is utilized with 0 SMEM.
+    [[maybe_unused]] const auto run_spatial_streaming_reduce = [&]<uint32_t kInflight>(const uint16_t cur_epoch) {
+        if constexpr (kSpatialStreamReduce) {
+            constexpr uint32_t kNumHiddenBytes = kHidden * sizeof(nv_bfloat16);
+            constexpr uint32_t kSubBytes = 1024u; // 2 x uint4 per lane (512 bf16)
+            constexpr uint32_t kNumSubs = kNumHiddenBytes / kSubBytes;
+            constexpr uint32_t kGroupBytes = kD6SafeDiv * BLOCK_N * sizeof(nv_bfloat16);
+            constexpr uint32_t kSubsPerGroup = (kGroupBytes >= kSubBytes) ? (kGroupBytes / kSubBytes) : 1u;
+            DG_STATIC_ASSERT(kNumHiddenBytes % kSubBytes == 0u,
+                             "Hidden bytes must be divisible by 1024B for WEAVE_REDUCE_WARPS");
+            DG_STATIC_ASSERT(kNumTopk + (kNumSharedExperts > 0 ? 1u : 0u) <= 32u,
+                             "Top-k + shared must fit in a single warp");
+            const uint32_t total_tiles = num_tokens * kNumSubs;
+            if (total_tiles == 0u)
+                return;
+
+            uint32_t slot_tile[kInflight];
+            uint32_t slot_pending[kInflight];
+            float2 slot_acc[kInflight][8];
+            uint32_t next_exhausted = 0u;
+            uint32_t active_slots = 0u;
+
+            const auto claim_into_slot = [&](const uint32_t k) {
+                if (next_exhausted != 0u) {
+                    slot_tile[k] = 0xffffffffu;
+                    slot_pending[k] = 0u;
+                    return;
+                }
+                uint32_t t = 0u;
+                if (lane_idx == 0u)
+                    t = atomicAdd(buffer.get_d6_combine_task_counter_ptr(), 1u);
+                t = __shfl_sync(0xffffffffu, t, 0);
+                if (t >= total_tiles) {
+                    next_exhausted = 1u;
+                    slot_tile[k] = 0xffffffffu;
+                    slot_pending[k] = 0u;
+                    return;
+                }
+                slot_tile[k] = t;
+                #pragma unroll
+                for (uint32_t e = 0u; e < 8u; ++e)
+                    slot_acc[k][e] = {0.0f, 0.0f};
+                const uint32_t tok_idx = t % num_tokens;
+                const int topk_val = lane_idx < kNumTopk
+                    ? static_cast<int>(__ldg(buffer.input_topk_idx_buffer.get_base_ptr<int64_t>() + tok_idx * kNumTopk + lane_idx))
+                    : (kNumSharedExperts > 0 and lane_idx == kNumTopk ? static_cast<int>(kNumTopk) : -1);
+                const uint32_t pmask = __ballot_sync(0xffffffffu, topk_val >= 0);
+                if (pmask == 0u) {
+                    const uint32_t sub_idx = t / num_tokens;
+                    auto* dst_u4 = reinterpret_cast<uint4*>(
+                        math::advance_ptr<uint8_t>(y, static_cast<uint64_t>(tok_idx) * kNumHiddenBytes + sub_idx * kSubBytes));
+                    #pragma unroll
+                    for (uint32_t v = 0u; v < 2u; ++v) {
+                        asm volatile("st.global.cs.v4.u32 [%0], {%1, %2, %3, %4};"
+                                     :: "l"(dst_u4 + v * 32u + lane_idx),
+                                        "r"(0u), "r"(0u), "r"(0u), "r"(0u)
+                                     : "memory");
+                    }
+                    slot_tile[k] = 0xffffffffu;
+                    slot_pending[k] = 0u;
+                } else {
+                    slot_pending[k] = pmask;
+                    ++active_slots;
+                }
+            };
+
+            #pragma unroll
+            for (uint32_t k = 0u; k < kInflight; ++k) {
+                slot_tile[k] = 0xffffffffu;
+                slot_pending[k] = 0u;
+                while (slot_tile[k] == 0xffffffffu and next_exhausted == 0u) {
+                    claim_into_slot(k);
+                }
+            }
+
+            const auto timeout_start = clock64();
+            while (active_slots > 0u) {
+                bool made_progress = false;
+                #pragma unroll
+                for (uint32_t k = 0u; k < kInflight; ++k) {
+                    uint32_t pmask = slot_pending[k];
+                    if (pmask != 0u) {
+                        const uint32_t t = slot_tile[k];
+                        const uint32_t tok_idx = t % num_tokens;
+                        const uint32_t sub_idx = t / num_tokens;
+                        const uint32_t grp_idx = sub_idx / kSubsPerGroup;
+                        const uint16_t* const ready_row_ptr = buffer.get_d6_ready_epoch_ptr(tok_idx, grp_idx);
+                        const bool lane_ready = ((pmask & (1u << lane_idx)) != 0u) and
+                            (ptx::ld_acq_sys(ready_row_ptr + lane_idx) == cur_epoch);
+                        uint32_t rmask = __ballot_sync(0xffffffffu, lane_ready);
+                        if (rmask != 0u) {
+                            made_progress = true;
+#if DG_MEGA_TILE_PROF
+                            const uint32_t prof_red_s = tile_prof::read_gtimer();
+#endif
+                            const uint32_t sub_byte_offset = sub_idx * kSubBytes;
+                            while (rmask != 0u) {
+                                const uint32_t s = static_cast<uint32_t>(__ffs(rmask) - 1);
+                                rmask ^= (1u << s);
+                                pmask ^= (1u << s);
+                                const auto* src_u4 = reinterpret_cast<const uint4*>(math::advance_ptr<uint8_t>(
+                                    buffer.combine_token_buffer.get_rank_buffer(s)
+                                          .get_data_buffer(tok_idx).get_base_ptr(),
+                                    sub_byte_offset));
+                                #pragma unroll
+                                for (uint32_t v = 0u; v < 2u; ++v) {
+                                    uint4 vec_val;
+                                    asm volatile("ld.global.cs.v4.u32 {%0, %1, %2, %3}, [%4];"
+                                                 : "=r"(vec_val.x), "=r"(vec_val.y), "=r"(vec_val.z), "=r"(vec_val.w)
+                                                 : "l"(src_u4 + v * 32u + lane_idx));
+                                    const auto* bf16_vals = reinterpret_cast<const nv_bfloat162*>(&vec_val);
+                                    #pragma unroll
+                                    for (uint32_t l = 0u; l < 4u; ++l)
+                                        ptx::accumulate(slot_acc[k][v * 4u + l], bf16_vals[l]);
+                                }
+                            }
+                            slot_pending[k] = pmask;
+                            if (pmask == 0u) {
+                                auto* dst_u4 = reinterpret_cast<uint4*>(math::advance_ptr<uint8_t>(
+                                    y, static_cast<uint64_t>(tok_idx) * kNumHiddenBytes + sub_byte_offset));
+                                #pragma unroll
+                                for (uint32_t v = 0u; v < 2u; ++v) {
+                                    uint4 casted;
+                                    auto* casted_bf16 = reinterpret_cast<nv_bfloat162*>(&casted);
+                                    #pragma unroll
+                                    for (uint32_t l = 0u; l < 4u; ++l)
+                                        casted_bf16[l] = __float22bfloat162_rn(slot_acc[k][v * 4u + l]);
+                                    asm volatile("st.global.cs.v4.u32 [%0], {%1, %2, %3, %4};"
+                                                 :: "l"(dst_u4 + v * 32u + lane_idx),
+                                                    "r"(casted.x), "r"(casted.y), "r"(casted.z), "r"(casted.w)
+                                                 : "memory");
+                                }
+                            }
+#if DG_MEGA_TILE_PROF
+                            tile_prof::record(cumulative_local_expert_recv_stats, sm_idx, warp_idx, lane_idx,
+                                              prof_rec_idx, prof_t0_ns, prof_red_s, tile_prof::read_gtimer(),
+                                              14u, t);
+#endif
+                            if (pmask == 0u) {
+                                --active_slots;
+                                slot_tile[k] = 0xffffffffu;
+                                while (slot_tile[k] == 0xffffffffu and next_exhausted == 0u) {
+                                    claim_into_slot(k);
+                                }
+                            }
+                        }
+                    }
+                }
+                if (not made_progress) {
+                    if (clock64() - timeout_start >= comm::kNumTimeoutCycles) {
+                        DG_DEVICE_ASSERT(false and "WEAVE_REDUCE_WARPS spatial streaming reduce timeout");
+                    }
+                    asm volatile("nanosleep.u32 64;");
+                }
+            }
+        }
+    };
 
     // Different warp roles
     if (warp_idx < kNumDispatchWarps) {
@@ -2170,6 +2343,7 @@ sm100_fp8_fp4_mega_moe_impl(void* y,
                 if (thread_idx == 0) {
                     const uint32_t prev_ep = *buffer.get_d6_epoch_ptr();
                     *buffer.get_d6_epoch_ptr() = (prev_ep >= 65535u) ? 1u : (prev_ep + 1u);
+                    *buffer.get_d6_combine_task_counter_ptr() = 0u;
                 }
             }
             auto* counter_ptr = workspace.get_nvl_barrier_counter_ptr();
@@ -2374,6 +2548,7 @@ sm100_fp8_fp4_mega_moe_impl(void* y,
                 if (thread_idx == 0) {
                     const uint32_t prev_ep = *buffer.get_d6_epoch_ptr();
                     *buffer.get_d6_epoch_ptr() = (prev_ep >= 65535u) ? 1u : (prev_ep + 1u);
+                    *buffer.get_d6_combine_task_counter_ptr() = 0u;
                 }
             }
             for (uint32_t i = thread_idx; i < kNumExperts; i += get_active_dispatch_threads()) {
@@ -2991,119 +3166,141 @@ sm100_fp8_fp4_mega_moe_impl(void* y,
 
 #if DG_D7_HANDOFF_MODE != 0
         {
-            constexpr uint32_t WG_BLOCK_M = BLOCK_M / kNumEpilogueWarpgroups;
-            constexpr uint32_t kNumBankGroupBytes = 16u;
-            const uint32_t rows_per_disp_wave = (d7_act_disp_t / 32u) * 2u;
-            constexpr uint32_t kBatchWaves = 1u;
-            const uint32_t warp_row_offset = warp_idx * 2u + (lane_idx >> 4);
-            const uint32_t half_base = (lane_idx & 16u);
-            const uint32_t lane_in_half = (lane_idx & 15u);
-            const uint32_t bank_group_idx = (lane_idx & 7u);
+            const uint32_t d7_scatter_t =
+                kSpatialStreamReduce ? (kFirstDedicatedReduceWarp * 32u) : d7_act_disp_t;
+            if (warp_idx < kFirstDedicatedReduceWarp) {
+                constexpr uint32_t WG_BLOCK_M = BLOCK_M / kNumEpilogueWarpgroups;
+                constexpr uint32_t kNumBankGroupBytes = 16u;
+                const uint32_t rows_per_disp_wave = (d7_scatter_t / 32u) * 2u;
+                constexpr uint32_t kBatchWaves = 1u;
+                const uint32_t warp_row_offset = warp_idx * 2u + (lane_idx >> 4);
+                const uint32_t half_base = (lane_idx & 16u);
+                const uint32_t lane_in_half = (lane_idx & 15u);
+                const uint32_t bank_group_idx = (lane_idx & 7u);
 
-            uint32_t disp_slot = 0u;
-            uint32_t disp_phase = 0u;
-            while (true) {
-                shared_storage.scatter_full_barriers[disp_slot].wait(disp_phase);
-                const uint4 job_raw = ptx::ld_shared(
-                    reinterpret_cast<const uint4*>(&shared_storage.scatter_jobs[disp_slot]));
-                const uint32_t packed_meta = job_raw.z;
-                if (packed_meta & 0x80000000u) {
-                    break;
-                }
+                uint32_t disp_slot = 0u;
+                uint32_t disp_phase = 0u;
+                while (true) {
+                    shared_storage.scatter_full_barriers[disp_slot].wait(disp_phase);
+                    const uint4 job_raw = ptx::ld_shared(
+                        reinterpret_cast<const uint4*>(&shared_storage.scatter_jobs[disp_slot]));
+                    const uint32_t packed_meta = job_raw.z;
+                    if (packed_meta & 0x80000000u) {
+                        break;
+                    }
 #if DG_MEGA_TILE_PROF
-                const uint64_t prof_d7_s = tile_prof::read_gtimer();
+                    const uint64_t prof_d7_s = tile_prof::read_gtimer();
 #endif
 
-                const uint32_t pool_m_idx = job_raw.x;
-                const uint32_t n_idx = job_raw.y;
-                const uint32_t valid_m = packed_meta & 0xffffu;
-                const uint32_t s_row_offset = (packed_meta >> 16) & 0x1fffu;
-                const bool wg0_full32 = kD7AllowDynamicWg0Full32 and ((packed_meta & 0x20000000u) != 0u);
-                const uint32_t runtime_chunk_m = wg0_full32 ? 32u : kD7DualWgChunkM;
-                const uint32_t half_col_offset = ((lane_in_half >> 3) * runtime_chunk_m) * kSwizzleCDMode;
-                const bool is_shared = (packed_meta & 0x40000000u) != 0u;
+                    const uint32_t pool_m_idx = job_raw.x;
+                    const uint32_t n_idx = job_raw.y;
+                    const uint32_t valid_m = packed_meta & 0xffffu;
+                    const uint32_t s_row_offset = (packed_meta >> 16) & 0x1fffu;
+                    const bool wg0_full32 = kD7AllowDynamicWg0Full32 and ((packed_meta & 0x20000000u) != 0u);
+                    const uint32_t runtime_chunk_m = wg0_full32 ? 32u : kD7DualWgChunkM;
+                    const uint32_t half_col_offset = ((lane_in_half >> 3) * runtime_chunk_m) * kSwizzleCDMode;
+                    const bool is_shared = (packed_meta & 0x40000000u) != 0u;
 
-                const uint32_t v0 = valid_m > s_row_offset ?
-                    cute::min(valid_m - s_row_offset, runtime_chunk_m) : 0u;
-                const uint32_t v1 = (not wg0_full32 and kNumEpilogueWarpgroups > 1u and valid_m > WG_BLOCK_M + s_row_offset) ?
-                    cute::min(valid_m - (WG_BLOCK_M + s_row_offset), runtime_chunk_m) : 0u;
-                const uint32_t total_valid_rows = v0 + v1;
+                    const uint32_t v0 = valid_m > s_row_offset ?
+                        cute::min(valid_m - s_row_offset, runtime_chunk_m) : 0u;
+                    const uint32_t v1 = (not wg0_full32 and kNumEpilogueWarpgroups > 1u and valid_m > WG_BLOCK_M + s_row_offset) ?
+                        cute::min(valid_m - (WG_BLOCK_M + s_row_offset), runtime_chunk_m) : 0u;
+                    const uint32_t total_valid_rows = v0 + v1;
 
-                const uint8_t* slot_base_ptr = d7_get_scatter_base_ptr() + disp_slot * kD7SlotBytes;
-                const uint32_t active_batches = total_valid_rows == 0u ? 1u :
-                    math::ceil_div(total_valid_rows, kBatchWaves * rows_per_disp_wave);
+                    const uint8_t* slot_base_ptr = d7_get_scatter_base_ptr() + disp_slot * kD7SlotBytes;
+                    const uint32_t active_batches = total_valid_rows == 0u ? 1u :
+                        math::ceil_div(total_valid_rows, kBatchWaves * rows_per_disp_wave);
 
-                #pragma unroll 1
-                for (uint32_t b = 0; b < active_batches; ++ b) {
-                    const uint32_t w_base = b * kBatchWaves;
-                    float4 reg_packed[kBatchWaves];
-                    uint32_t reg_meta_word[kBatchWaves];
-                    #pragma unroll
-                    for (uint32_t wb = 0; wb < kBatchWaves; ++ wb) {
-                        const uint32_t r = (w_base + wb) * rows_per_disp_wave + warp_row_offset;
-                        reg_meta_word[wb] = 0u;
-                        if (r < total_valid_rows) {
-                            const bool in_wg0 = (r < v0);
-                            const uint32_t row_in_chunk = in_wg0 ? r : (r - v0);
-                            const uint32_t m_in_blk = (in_wg0 ? 0u : WG_BLOCK_M) + s_row_offset + row_in_chunk;
-                            if (not is_shared and lane_in_half < 3u) {
-                                const auto* meta_u32 = reinterpret_cast<const uint32_t*>(
-                                    workspace.get_token_src_metadata_ptr(pool_m_idx + m_in_blk));
-                                reg_meta_word[wb] = meta_u32[lane_in_half];
-                            }
-                            const uint8_t* wg_slot_ptr = slot_base_ptr + (in_wg0 ? 0u : (runtime_chunk_m * 256u));
-                            const uint8_t* smem_ptr = wg_slot_ptr +
-                                half_col_offset +
-                                row_in_chunk * kSwizzleCDMode +
-                                (bank_group_idx ^ (row_in_chunk & 7u)) * kNumBankGroupBytes;
-                            reg_packed[wb] = ptx::ld_shared(reinterpret_cast<const float4*>(smem_ptr));
-                        }
-                    }
-
-                    if (b + 1u == active_batches) {
-                        shared_storage.scatter_empty_barriers[disp_slot].arrive();
-                        disp_slot ^= 1u;
-                        disp_phase ^= (disp_slot == 0u);
-                    }
-
-                    #pragma unroll
-                    for (uint32_t wb = 0; wb < kBatchWaves; ++ wb) {
-                        const uint32_t meta_rank = __shfl_sync(0xffffffff, reg_meta_word[wb], half_base + 0u);
-                        const uint32_t meta_tok  = __shfl_sync(0xffffffff, reg_meta_word[wb], half_base + 1u);
-                        const uint32_t meta_topk = __shfl_sync(0xffffffff, reg_meta_word[wb], half_base + 2u) & 0xffu;
-                        const uint32_t r = (w_base + wb) * rows_per_disp_wave + warp_row_offset;
-                        if (r < total_valid_rows) {
-                            uint32_t dst_rank_idx, dst_token_idx, dst_topk_idx;
-                            if (is_shared) {
+                    #pragma unroll 1
+                    for (uint32_t b = 0; b < active_batches; ++ b) {
+                        const uint32_t w_base = b * kBatchWaves;
+                        float4 reg_packed[kBatchWaves];
+                        uint32_t reg_meta_word[kBatchWaves];
+                        #pragma unroll
+                        for (uint32_t wb = 0; wb < kBatchWaves; ++ wb) {
+                            const uint32_t r = (w_base + wb) * rows_per_disp_wave + warp_row_offset;
+                            reg_meta_word[wb] = 0u;
+                            if (r < total_valid_rows) {
                                 const bool in_wg0 = (r < v0);
                                 const uint32_t row_in_chunk = in_wg0 ? r : (r - v0);
                                 const uint32_t m_in_blk = (in_wg0 ? 0u : WG_BLOCK_M) + s_row_offset + row_in_chunk;
-                                dst_rank_idx = sym_buffer.rank_idx;
-                                dst_token_idx = pool_m_idx + m_in_blk;
-                                dst_topk_idx = kNumTopk;
-                            } else {
-                                dst_rank_idx = meta_rank;
-                                dst_token_idx = meta_tok;
-                                dst_topk_idx = meta_topk;
+                                if (not is_shared and lane_in_half < 3u) {
+                                    const auto* meta_u32 = reinterpret_cast<const uint32_t*>(
+                                        workspace.get_token_src_metadata_ptr(pool_m_idx + m_in_blk));
+                                    reg_meta_word[wb] = meta_u32[lane_in_half];
+                                }
+                                const uint8_t* wg_slot_ptr = slot_base_ptr + (in_wg0 ? 0u : (runtime_chunk_m * 256u));
+                                const uint8_t* smem_ptr = wg_slot_ptr +
+                                    half_col_offset +
+                                    row_in_chunk * kSwizzleCDMode +
+                                    (bank_group_idx ^ (row_in_chunk & 7u)) * kNumBankGroupBytes;
+                                reg_packed[wb] = ptx::ld_shared(reinterpret_cast<const float4*>(smem_ptr));
                             }
-                            const auto dst_token = buffer.combine_token_buffer.get_rank_buffer(dst_topk_idx)
-                                                   .get_data_buffer(dst_token_idx);
-                            const auto dst_ptr = math::advance_ptr<float4>(
-                                dst_token.get_base_ptr(),
-                                n_idx * static_cast<uint32_t>(sizeof(nv_bfloat16)) +
-                                lane_in_half * static_cast<uint32_t>(sizeof(float4)));
-                            *sym_buffer.map(dst_ptr, dst_rank_idx) = reg_packed[wb];
+                        }
+
+                        if constexpr (kD6GroupTiles == 0u) {
+                            if (b + 1u == active_batches) {
+                                shared_storage.scatter_empty_barriers[disp_slot].arrive();
+                                disp_slot ^= 1u;
+                                disp_phase ^= (disp_slot == 0u);
+                            }
+                        }
+
+                        #pragma unroll
+                        for (uint32_t wb = 0; wb < kBatchWaves; ++ wb) {
+                            const uint32_t meta_rank = __shfl_sync(0xffffffff, reg_meta_word[wb], half_base + 0u);
+                            const uint32_t meta_tok  = __shfl_sync(0xffffffff, reg_meta_word[wb], half_base + 1u);
+                            const uint32_t meta_topk = __shfl_sync(0xffffffff, reg_meta_word[wb], half_base + 2u) & 0xffu;
+                            const uint32_t r = (w_base + wb) * rows_per_disp_wave + warp_row_offset;
+                            if (r < total_valid_rows) {
+                                uint32_t dst_rank_idx, dst_token_idx, dst_topk_idx;
+                                if (is_shared) {
+                                    const bool in_wg0 = (r < v0);
+                                    const uint32_t row_in_chunk = in_wg0 ? r : (r - v0);
+                                    const uint32_t m_in_blk = (in_wg0 ? 0u : WG_BLOCK_M) + s_row_offset + row_in_chunk;
+                                    dst_rank_idx = sym_buffer.rank_idx;
+                                    dst_token_idx = pool_m_idx + m_in_blk;
+                                    dst_topk_idx = kNumTopk;
+                                } else {
+                                    dst_rank_idx = meta_rank;
+                                    dst_token_idx = meta_tok;
+                                    dst_topk_idx = meta_topk;
+                                }
+                                const auto dst_token = buffer.combine_token_buffer.get_rank_buffer(dst_topk_idx)
+                                                       .get_data_buffer(dst_token_idx);
+                                const auto dst_ptr = math::advance_ptr<float4>(
+                                    dst_token.get_base_ptr(),
+                                    n_idx * static_cast<uint32_t>(sizeof(nv_bfloat16)) +
+                                    lane_in_half * static_cast<uint32_t>(sizeof(float4)));
+                                *sym_buffer.map(dst_ptr, dst_rank_idx) = reg_packed[wb];
+                            }
+                        }
+
+                        if constexpr (kD6GroupTiles > 0u) {
+                            if (b + 1u == active_batches) {
+                                ptx::fence_acq_rel_sys();
+                                shared_storage.scatter_empty_barriers[disp_slot].arrive();
+                                disp_slot ^= 1u;
+                                disp_phase ^= (disp_slot == 0u);
+                            }
                         }
                     }
-                }
 #if DG_MEGA_TILE_PROF
-                tile_prof::record(cumulative_local_expert_recv_stats, sm_idx, warp_idx, lane_idx,
-                                  prof_rec_idx, prof_t0_ns, prof_d7_s, tile_prof::read_gtimer(),
-                                  12u, pool_m_idx / BLOCK_M);
+                    tile_prof::record(cumulative_local_expert_recv_stats, sm_idx, warp_idx, lane_idx,
+                                      prof_rec_idx, prof_t0_ns, prof_d7_s, tile_prof::read_gtimer(),
+                                      12u, pool_m_idx / BLOCK_M);
 #endif
-            }
+                }
 
-            ptx::arrive_unaligned(d7_act_disp_t + kNumEpilogueThreads, kScatterDrainBarrierIdx);
+                ptx::arrive_unaligned(d7_scatter_t + kNumEpilogueThreads, kScatterDrainBarrierIdx);
+                if constexpr (kSpatialStreamReduce) {
+                    const uint16_t disp_d6_epoch = static_cast<uint16_t>(*buffer.get_d6_epoch_ptr());
+                    run_spatial_streaming_reduce.template operator()<2u>(disp_d6_epoch);
+                }
+            } else if constexpr (kSpatialStreamReduce) {
+                const uint16_t disp_d6_epoch = static_cast<uint16_t>(*buffer.get_d6_epoch_ptr());
+                run_spatial_streaming_reduce.template operator()<2u>(disp_d6_epoch);
+            }
         }
 #elif DG_D7_QUEUE_SCATTER != 0
         if constexpr (kD7QueueScatterActive) {
@@ -3215,6 +3412,13 @@ sm100_fp8_fp4_mega_moe_impl(void* y,
                 ptx::sync_aligned(d7_act_disp_t, kDispatchBarrierIdx);
             }
             ptx::arrive_unaligned(d7_act_disp_t + kNumEpilogueThreads, kScatterDrainBarrierIdx);
+        }
+#else
+        if constexpr (kSpatialStreamReduce) {
+            if (warp_idx >= kFirstDedicatedReduceWarp) {
+                const uint16_t disp_d6_epoch = static_cast<uint16_t>(*buffer.get_d6_epoch_ptr());
+                run_spatial_streaming_reduce.template operator()<2u>(disp_d6_epoch);
+            }
         }
 #endif
 
@@ -4992,6 +5196,11 @@ if constexpr (kAccumOverlapCols > 0u) { if (accum_stage_idx == 0u ? (epilogue_wg
                             done = ptx::exchange(done, 0);
                         }
                         if (done != 0u) {
+#if DG_D7_HANDOFF_MODE != 0
+                            shared_storage.scatter_empty_barriers[epi_scatter_slot].wait(epi_scatter_phase ^ 1u);
+                            shared_storage.scatter_empty_barriers[epi_scatter_slot ^ 1u].wait(
+                                (epi_scatter_slot == 0u) ? (epi_scatter_phase ^ 1u) : epi_scatter_phase);
+#endif
                             ptx::fence_acq_rel_sys();
                             for (uint32_t m_row = lane_idx; m_row < valid_m; m_row += 32u) {
                                 uint32_t dst_rank_idx, dst_token_idx, dst_topk_idx;
@@ -5026,7 +5235,11 @@ if constexpr (kAccumOverlapCols > 0u) { if (accum_stage_idx == 0u ? (epilogue_wg
             ptx::st_shared(&shared_storage.scatter_jobs[epi_scatter_slot], 0u, 0u, 0x80000000u, 0u);
         }
         shared_storage.scatter_full_barriers[epi_scatter_slot].arrive();
-        ptx::sync_unaligned(get_active_dispatch_threads() + kNumEpilogueThreads, kScatterDrainBarrierIdx);
+        {
+            const uint32_t d7_epi_scatter_t =
+                kSpatialStreamReduce ? (kFirstDedicatedReduceWarp * 32u) : get_active_dispatch_threads();
+            ptx::sync_unaligned(d7_epi_scatter_t + kNumEpilogueThreads, kScatterDrainBarrierIdx);
+        }
 #elif DG_D7_QUEUE_SCATTER != 0
         if constexpr (kD7QueueScatterActive) {
             d7_queue_flush();
@@ -5043,7 +5256,10 @@ if constexpr (kAccumOverlapCols > 0u) { if (accum_stage_idx == 0u ? (epilogue_wg
         if (epilogue_warp_idx == 0)
             Allocator().free(0, kNumTmemCols);
 
-        if constexpr (kD6ReduceWarps == 16u and not kD2SmidMasked) {
+        if constexpr (kSpatialStreamReduce) {
+            run_spatial_streaming_reduce.template operator()<2u>(d6_cur_epoch);
+            ptx::sync_unaligned(get_active_dispatch_threads() + kNumEpilogueThreads, kDispatchWithEpilogueBarrierIdx);
+        } else if constexpr (kD6ReduceWarps == 16u and not kD2SmidMasked) {
             if constexpr (kD6GroupTiles == 0) {
 #if DG_MEGA_TILE_PROF
                 const uint64_t prof_pre_s = tile_prof::read_gtimer();
@@ -5361,7 +5577,7 @@ if constexpr (kAccumOverlapCols > 0u) { if (accum_stage_idx == 0u ? (epilogue_wg
     // Axis 6 (D6 All-Warp Reduce): ALL Warps in CTA (W0..W15, 512 threads)
     // converge and execute 1024B Tile-Granularity Reduce together at the end!
     // ========================================================================
-    if constexpr (kD6ReduceWarps == 16u and not kD2SmidMasked) {
+    if constexpr (not kSpatialStreamReduce and kD6ReduceWarps == 16u and not kD2SmidMasked) {
         constexpr uint32_t kAllReduceWarps = kNumThreads / 32u;
         constexpr uint32_t kNumHiddenBytes = kHidden * sizeof(nv_bfloat16);
         constexpr uint32_t kSubChunkBytes = 1024u;

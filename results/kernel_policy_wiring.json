@@ -5,7 +5,7 @@
     "b300": {
       "exists": true,
       "path": "deep_gemm\\include\\deep_gemm\\impls\\sm100_fp8_fp4_mega_moe.cuh",
-      "bytes": 306517,
+      "bytes": 319630,
       "checks": {
         "scheduler_include": {
           "needle": "scheduler/mega_moe.cuh",
@@ -194,7 +194,7 @@
     "mi308x": {
       "exists": true,
       "path": "deep_gemm\\include\\deep_gemm\\impls\\gfx942_fp8_mega_moe.cuh",
-      "bytes": 244,
+      "bytes": 248,
       "checks": {
         "include_body": {
           "needle": "amd/megamoe_amd.hip",
@@ -243,7 +243,7 @@
     "mi308x_body": {
       "exists": true,
       "path": "deep_gemm\\include\\deep_gemm\\impls\\amd\\megamoe_amd.hip",
-      "bytes": 59558,
+      "bytes": 60784,
       "checks": {
         "include": {
           "needle": "weave_policy_runtime.cuh",
@@ -280,7 +280,7 @@
     "mi308x_route": {
       "exists": true,
       "path": "deep_gemm\\include\\deep_gemm\\impls\\amd\\include\\direct_gather_and_greedy_tiles.hpp",
-      "bytes": 29055,
+      "bytes": 29719,
       "checks": {
         "cta0": {
           "needle": "cta0_select_and_publish",
@@ -317,7 +317,7 @@
     "mi308x_comm": {
       "exists": true,
       "path": "deep_gemm\\include\\deep_gemm\\impls\\amd\\include\\weave_comm_4wave_turbo.hpp",
-      "bytes": 36834,
+      "bytes": 37813,
       "checks": {
         "consume_v_head": {
           "needle": "selected_v_head",

@@ -47,6 +47,9 @@ static const std::vector<KnobSchemaEntry>& knob_schema_entries() {
         {"WEAVE_SCATTER_WARPS", "Spatial",
          "0 = automatic; 4 or 8 = scatter warps",
          "Per-SM scatter communication warp ratio."},
+        {"WEAVE_REDUCE_WARPS", "Spatial",
+         "0 = off; 2, 4, 8 = dedicated fine-grained streaming Reduce warps in Middle",
+         "Per-SM dedicated Reduce warp allocation overlapping Middle GEMM/Scatter."},
         {"WEAVE_CU_WAVE_SPLIT", "Spatial",
          "0 = auto; 1 = 0-8; 2 = 4-4; 3 = 8-0",
          "MI308X per-CU (comm - compute) wavefront ratio across 0-8, 4-4, and 8-0."},
@@ -129,6 +132,7 @@ static py::dict weave_knob_defaults(const std::string& mma_type) {
     out["WEAVE_SM0_STREAM_SCHED"] = knobs.sm0_stream_sched;
     out["WEAVE_DISPATCH_WARPS"] = knobs.dispatch_warps;
     out["WEAVE_SCATTER_WARPS"] = 0u;
+    out["WEAVE_REDUCE_WARPS"] = knobs.reduce_warps;
     out["WEAVE_CU_WAVE_SPLIT"] = knobs.cu_wave_split;
     out["WEAVE_REG_BALANCE"] = knobs.reg_balance;
     out["WEAVE_V_HEAD"] = static_cast<uint32_t>(WEAVE_V_HEAD);

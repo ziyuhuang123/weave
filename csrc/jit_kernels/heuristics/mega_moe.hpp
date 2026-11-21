@@ -333,30 +333,40 @@ static MegaMoEConfig get_mega_moe_config(
     const auto precision = mma_kind == MmaKind::BF16
         ? weave::PrecisionMode::BF16 : weave::PrecisionMode::FP8xFP4;
     const auto knobs = weave_knobs::from_env(arch, precision);
-    // Per-GEMM envelopes are independent on the dynamic-scheduler backends.
-    // The SM103 fp8xfp4 kernel has one static BLOCK_M template parameter, so a
-    // launch may only request distinct L1/L2 values when they are equal.
-    DG_HOST_ASSERT(knobs.block_m_l1 == 0u or knobs.block_m_l2 == 0u or
-                   knobs.block_m_l1 == knobs.block_m_l2);
-    int block_m_resolved = static_cast<int>(weave::resolve_block_m(
-        knobs, knobs.block_m_l1, knobs.block_m_l2, static_cast<uint32_t>(block_m)));
+    // Per-GEMM envelopes: when L1 and L2 request distinct block_m profiles,
+    // compile the CTA envelope at max(L1, L2) and bind each phase's synchronous
+    // store height (store_block_m_l1 vs store_block_m_l2) and dynamic TMA/epi
+    // sub-tile heights independently from its own profile.
+    const int req_bm_l1 = knobs.block_m_l1 != 0u ? static_cast<int>(knobs.block_m_l1) : 0;
+    const int req_bm_l2 = knobs.block_m_l2 != 0u ? static_cast<int>(knobs.block_m_l2) : 0;
+    int block_m_resolved = (req_bm_l1 > 0 and req_bm_l2 > 0)
+        ? std::max(req_bm_l1, req_bm_l2)
+        : static_cast<int>(weave::resolve_block_m(
+              knobs, knobs.block_m_l1, knobs.block_m_l2, static_cast<uint32_t>(block_m)));
     block_m = block_m_resolved;
-    // A WEAVE_BLOCK_M_L1/L2 envelope that changes BM must also re-derive the
-    // auto store heights for the new BM before explicit store overrides apply,
-    // otherwise e.g. BM=80 would inherit an illegal 32-row store from BM=128.
-    if (block_m != block_m_auto) {
+    const int eff_bm_l1 = req_bm_l1 > 0 ? req_bm_l1 : block_m;
+    const int eff_bm_l2 = req_bm_l2 > 0 ? req_bm_l2 : block_m;
+    if (block_m != block_m_auto or req_bm_l1 != req_bm_l2) {
         const int num_epi_wgs = std::max(1, num_epilogue_threads / 128);
         const bool fp8fp4 = mma_kind == MmaKind::MXFP8FP4;
-        store_block_m_l1 = block_m <= 16 ? 8 : block_m <= 64 ? 16 :
-                           (block_m == 80 and fp8fp4) ? 8 :
-                           (block_m == 96 and fp8fp4) ? 16 :
-                           block_m <= 192 ? 32 :
-                           block_m == 256 ? 32 : fp8fp4 ? 24 : 40;
-        store_block_m_l2 = ((block_m == 80 or block_m == 96 or block_m == 240) and fp8fp4) ? 8 : store_block_m_l1;
-        if (store_block_m_l1 * num_epi_wgs > block_m)
-            store_block_m_l1 = std::max(8, block_m / num_epi_wgs);
-        if (store_block_m_l2 * num_epi_wgs > block_m)
-            store_block_m_l2 = std::max(8, block_m / num_epi_wgs);
+        auto derive_l1_store = [&](const int bm) {
+            return bm <= 16 ? 8 : bm <= 64 ? 16 :
+                   (bm == 80 and fp8fp4) ? 8 :
+                   (bm == 96 and fp8fp4) ? 16 :
+                   bm <= 192 ? 32 :
+                   bm == 256 ? 32 : fp8fp4 ? 24 : 40;
+        };
+        store_block_m_l1 = derive_l1_store(eff_bm_l1);
+        store_block_m_l2 = ((eff_bm_l2 == 80 or eff_bm_l2 == 96 or eff_bm_l2 == 240) and fp8fp4)
+            ? 8 : derive_l1_store(eff_bm_l2);
+        auto fix_divisibility = [&](int s_bm) {
+            const int wg_bm = block_m / num_epi_wgs;
+            while (s_bm > 8 and (s_bm > wg_bm or wg_bm % s_bm != 0))
+                s_bm -= 8;
+            return std::max(8, s_bm);
+        };
+        store_block_m_l1 = fix_divisibility(store_block_m_l1);
+        store_block_m_l2 = fix_divisibility(store_block_m_l2);
     }
     if (knobs.store_block_m_l1 != 0u)
         store_block_m_l1 = static_cast<int>(knobs.store_block_m_l1);

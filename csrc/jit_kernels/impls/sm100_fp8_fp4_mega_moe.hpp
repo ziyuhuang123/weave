@@ -141,8 +141,13 @@ public:
         const int d3_bk = get_weave_env<int>("WEAVE_BLOCK_K", "DG_TUNE_D3_BK", "DG_D3_BK", 0);
         const int d3_store_m = get_weave_env<int>("WEAVE_STORE_BLOCK_M", "DG_TUNE_D3_STORE_M", "DG_D3_STORE_M", args.config.store_block_m_l1);
         const int d3_store_m_l2 = get_weave_env<int>("WEAVE_STORE_BLOCK_M_L2", "DG_TUNE_D3_STORE_M_L2", "DG_D3_STORE_M_L2", args.config.store_block_m_l2);
-        const int d3_dyn_epi = get_weave_env<int>("WEAVE_DYN_EPILOGUE", "DG_TUNE_D3_DYN_EPI", "DG_D3_DYN_EPI", 0);
-        const int d3_dyn_tma_a = get_weave_env<int>("WEAVE_DYN_TMA_A", "DG_TUNE_D3_DYN_TMA_A", "DG_D3_DYN_TMA_A", 0);
+        const bool decoupled_l1_l2_bm =
+            knobs.block_m_l1 > 0u and knobs.block_m_l2 > 0u and knobs.block_m_l1 != knobs.block_m_l2;
+        const int d3_dyn_epi = get_weave_env<int>(
+            "WEAVE_DYN_EPILOGUE", "DG_TUNE_D3_DYN_EPI", "DG_D3_DYN_EPI", decoupled_l1_l2_bm ? 2 : 0);
+        const int d3_dyn_tma_a = get_weave_env<int>(
+            "WEAVE_DYN_TMA_A", "DG_TUNE_D3_DYN_TMA_A", "DG_D3_DYN_TMA_A",
+            (decoupled_l1_l2_bm and args.d3_has_extra_tmas) ? 2 : 0);
         const int d3_overlap_smem = get_weave_env<int>("WEAVE_OVERLAP_EXPERT_SMEM", "DG_TUNE_D3_OVERLAP_SMEM", "DG_D3_OVERLAP_EXPERT_SMEM", 0);
         const int d3_expert_step_mode = get_weave_env<int>("WEAVE_EXPERT_STEP_MODE", "DG_TUNE_D3_EXPERT_STEP_MODE", "DG_D3_EXPERT_STEP_MODE",
                                                           (knobs.adapt_bm != 0u) ? 1 : 0);
@@ -165,8 +170,13 @@ public:
             : get_weave_env<int>("DG_TUNE_D5_DEDUP", "DG_ISOLATED_D5_DEDUP", nullptr, 0);
         const int d5_sched = get_weave_env<int>("WEAVE_DEDUP_SCHED", "DG_TUNE_D5_SCHED", "DG_ISOLATED_D5_SCHED", (d5_dedup == 2) ? 1 : 0);
         // Axis 6 (D6)
-        const int d6_g = get_weave_env<int>("WEAVE_COMBINE_GROUP_TILES", "DG_TUNE_D6_G", "DG_ISOLATED_D6_G",
-                                           (knobs.early_stream_reduce != 0u) ? 2 : 0);
+        const int chunk_to_d6_g = (knobs.combine_sync_chunk >= 128u) ? 8 :
+                                  ((knobs.combine_sync_chunk >= 64u) ? 4 :
+                                  ((knobs.combine_sync_chunk >= 32u) ? 2 :
+                                  ((knobs.combine_sync_chunk >= 16u) ? 1 : 0)));
+        const int auto_d6_g = (chunk_to_d6_g > 0) ? chunk_to_d6_g :
+                              ((knobs.early_stream_reduce != 0u or knobs.reduce_warps > 0u) ? 2 : 0);
+        const int d6_g = get_weave_env<int>("WEAVE_COMBINE_GROUP_TILES", "DG_TUNE_D6_G", "DG_ISOLATED_D6_G", auto_d6_g);
         const int d6_rw = get_weave_env<int>("WEAVE_COMBINE_REDUCE_WARPS", "DG_TUNE_D6_REDUCE_WARPS", "DG_ISOLATED_D6_REDUCE_WARPS", 0);
         // Axis 7 (D7)
         const int d7_scatter_mode = get_weave_env<int>("WEAVE_SCATTER_MODE", "DG_TUNE_D7_SCATTER_MODE", nullptr, -1);
@@ -223,7 +233,11 @@ public:
             : 1;
         std::ostringstream knob_macros;
         knob_macros << "#define WEAVE_LOCALITY_DOMAINS " << knobs_locality_domains << "\n";
+        knob_macros << "#define WEAVE_PRECISION_MODE " << knobs.precision_mode << "u\n";
+        if (knobs.override_v_head != weave::kAutoU32)
+            knob_macros << "#define WEAVE_V_HEAD " << knobs.override_v_head << "u\n";
         knob_macros << "#define WEAVE_DISPATCH_WARPS " << (args.config.num_dispatch_threads / 32) << "\n";
+        knob_macros << "#define WEAVE_REDUCE_WARPS " << knobs.reduce_warps << "\n";
         knob_macros << "#define WEAVE_SM0_STREAM_SCHED " << knobs.sm0_stream_sched << "\n";
         knob_macros << "#define WEAVE_L2_KBLOCK_DEP " << knobs.l2_kblock_dep << "\n";
         knob_macros << "#define WEAVE_RING_BLOCKS " << knobs.ring_blocks << "\n";

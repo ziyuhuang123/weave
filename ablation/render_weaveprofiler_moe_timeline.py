@@ -84,27 +84,27 @@ FORBIDDEN = [base64.b64decode(x).decode("utf-8") for x in _FORBIDDEN_B64]
 # ---------------------------------------------------------------- platform configs
 SHARED_BANNERS = {
     "sm103": (
-        "Spatial: WEAVE_BLOCK_M=64, WEAVE_BLOCK_N=128, WEAVE_BLOCK_K=128, WEAVE_STORE_BLOCK_M=32; "
-        "148 SMs; 4 dispatch + 4 TMA/UMMA + 8 epilogue warps.\n"
-        "Temporal: WEAVE_SCATTER_MODE=1, WEAVE_READY_GROUP_SIZE=2, WEAVE_COMBINE_GROUP_TILES=2, "
-        "WEAVE_COMBINE_REDUCE_WARPS=16, WEAVE_SHARED_L2_EARLY_BLOCKS=77 (capture only).\n"
-        "Implementation: WEAVE_PRECISION_MODE=0 (fp8xfp4), WEAVE_DEDUP_MODE=1, WEAVE_EXPERTS_PER_WAVE=2, "
-        "WEAVE_REG_PULL_BYTES=4096, WEAVE_SCATTER_SMEM_ALIAS=1, WEAVE_SCHED_MODE=3 (reserved = mode 0)."
+        "Spatial: WEAVE_DISPATCH_ACTIVE_SMS=0, WEAVE_SCATTER_ACTIVE_SMS=0, WEAVE_SM0_STREAM_SCHED=0, "
+        "WEAVE_DISPATCH_WARPS=4, WEAVE_SCATTER_WARPS=4, WEAVE_REDUCE_WARPS=4, WEAVE_REG_BALANCE=0.\n"
+        "Temporal: WEAVE_V_HEAD=0 (auto), WEAVE_READY_GROUP_SIZE=2, WEAVE_READY_QUEUE=formula, "
+        "WEAVE_SCATTER_OWNER=comm_only, WEAVE_COMBINE_SYNC_CHUNK=32.\n"
+        "Implementation: WEAVE_PRECISION_MODE=0 (fp8xfp4), WEAVE_ADAPT_BM=0, WEAVE_BLOCK_M_L1=64, "
+        "WEAVE_BLOCK_M_L2=64, WEAVE_REG_PULL_BYTES=4096, WEAVE_DEDUP_MODE=1, WEAVE_SCATTER_STAGING=smem, WEAVE_LOCAL_SCATTER_DEDUP=0."
     ),
     "h20": (
-        "Spatial: WEAVE_H20_CONFIG exact spec bm=32, bn=256, WEAVE_BLOCK_K=128, wgs=4, swap=1; "
-        "78 SMs; 4 epilogue warp groups.\n"
-        "Temporal: WEAVE_INTERLEAVE_L1_L2=5, WEAVE_DYN_SCHED=1, "
-        "stages=0 = runtime auto pipeline depth, WEAVE_SWAP_PIPE=1.\n"
-        "Implementation: WEAVE_DEDUP_DISPATCH=1 + dedup_tier=1 (scatter dedup off), WEAVE_REG_COMBINE=1, "
-        "WEAVE_ALL_IDLE_COMBINE=1, WEAVE_FAST_PULL=1; exact string in WEAVE_H20_CONFIG."
+        "Spatial: WEAVE_DISPATCH_ACTIVE_SMS=0, WEAVE_SCATTER_ACTIVE_SMS=0, WEAVE_SM0_STREAM_SCHED=0, "
+        "WEAVE_DISPATCH_WARPS=0 (auto), WEAVE_REG_BALANCE=0; 78 SMs.\n"
+        "Temporal: WEAVE_V_HEAD=0 (auto), WEAVE_READY_GROUP_SIZE=0, WEAVE_READY_QUEUE=sm0_fifo, "
+        "WEAVE_SCATTER_OWNER=comm_only, WEAVE_COMBINE_SYNC_CHUNK=0.\n"
+        "Implementation: WEAVE_PRECISION_MODE=2 (fp8xfp8), WEAVE_ADAPT_BM=0, WEAVE_BLOCK_M_L1=32, "
+        "WEAVE_BLOCK_M_L2=32, WEAVE_DEDUP_MODE=1, WEAVE_SCATTER_STAGING=smem, WEAVE_LOCAL_SCATTER_DEDUP=0."
     ),
     "mi308x": (
-        "Spatial: 80 CUs, 8 waves/CU; WEAVE_BM_TIER_MODE=2, fixed BN=128, BK=128.\n"
-        "Temporal: WEAVE_SCATTER_MODE=2, WEAVE_OVERLAP_PIPELINE=1, WEAVE_DUALGROUP_MIN_TOKENS=64 "
-        "(S=1024 local 128 -> 8-wave dual compute).\n"
-        "Implementation: WEAVE_ABLATION_PRESET=0, WEAVE_SELECTIVE_DEDUP=1, WEAVE_ALL_WAVE_COMBINE=1, "
-        "WEAVE_PARALLEL_ROUTE_PLAN=1, WEAVE_PROFILER_LEVEL=2 capture / 0 production."
+        "Spatial: WEAVE_SCATTER_ACTIVE_SMS=0, WEAVE_SM0_STREAM_SCHED=0, WEAVE_CU_WAVE_SPLIT=4-4 "
+        "(80 CUs, 4 comm + 4 compute waves/CU).\n"
+        "Temporal: WEAVE_V_HEAD=0 (auto), WEAVE_SCATTER_OWNER=comm_only.\n"
+        "Implementation: WEAVE_PRECISION_MODE=2 (fp8xfp8), WEAVE_ADAPT_BM=1, WEAVE_BLOCK_M_L1=0 (auto), "
+        "WEAVE_BLOCK_M_L2=0 (auto), WEAVE_DEDUP_MODE=1, WEAVE_LOCAL_SCATTER_DEDUP=1."
     ),
 }
 
@@ -288,7 +288,13 @@ def parse(cfg):
     assert set(curves) == set(cfg["curves"]), (set(curves) ^ set(cfg["curves"]))
     for nm, pts in curves.items():
         pts.sort()
-        assert len(pts) == cfg["expected_curve_pts"], (nm, len(pts))
+        assert len(pts) >= 3, (nm, len(pts))
+        if cfg.get("expected_curve_pts"):
+            assert len(pts) == cfg["expected_curve_pts"], (nm, len(pts))
+        for ts_pt, val_pt in pts:
+            assert -1e-6 <= val_pt <= 100.0 + 1e-6, (
+                f"Hardware curve {nm!r} out of [0%, 100%] at ts={ts_pt}: {val_pt}%"
+            )
 
     # per-unit SW spans (physical SMs / CUs only; summary / macro tracks excluded)
     base, n = cfg["pid_base"], cfg["n_units"]

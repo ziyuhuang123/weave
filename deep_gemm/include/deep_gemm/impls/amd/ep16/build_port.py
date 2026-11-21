@@ -99,15 +99,30 @@ fi_variants = [("fi0_mode2", 0)]
 if profiler_level == 2 or os.environ.get("BUILD_FI2_PROFILER", "0") == "1":
     fi_variants.append(("fi2_mode2", 2))
 
+def weave_named_int(name, mapping, legacy=None, default=0):
+    raw = weave_env(name, legacy, None)
+    if raw is None:
+        return default
+    if raw in mapping:
+        return mapping[raw]
+    return int(raw)
+
+
 for name, fi in fi_variants:
-    scatter_env = weave_int("WEAVE_SCATTER_MODE", "WEAVE_SCATTER_ENV",
-                            0 if ablation_preset == 3 else 2)
-    bm_tier = weave_int("WEAVE_BM_TIER_MODE", default=2)
-    selective = weave_int("WEAVE_SELECTIVE_DEDUP", default=1)
+    owner_raw = weave_env("WEAVE_SCATTER_OWNER", None, None)
+    default_scatter = (0 if owner_raw in ("0", "epilogue_only") else 2) if owner_raw is not None else (0 if ablation_preset == 3 else 2)
+    scatter_env = weave_int("WEAVE_SCATTER_MODE", "WEAVE_SCATTER_ENV", default_scatter)
+    adapt_raw = weave_env("WEAVE_ADAPT_BM", None, None)
+    bm_tier = (0 if adapt_raw == "0" else 2) if adapt_raw is not None else weave_int("WEAVE_BM_TIER_MODE", default=2)
+    selective = weave_int("WEAVE_DEDUP_MODE", "WEAVE_SELECTIVE_DEDUP", default=1)
     dualgroup = weave_int("WEAVE_DUALGROUP_MIN_TOKENS", default=64)
     amd_8wave = weave_int("WEAVE_AMD_8WAVE_MIN_TOK", default=dualgroup)
-    cu_wave_split = weave_int("WEAVE_CU_WAVE_SPLIT", default=0)
+    cu_wave_split = weave_named_int("WEAVE_CU_WAVE_SPLIT", {"auto": 0, "0-8": 1, "4-4": 2, "8-0": 3}, default=0)
     scatter_sms = weave_int("WEAVE_SCATTER_ACTIVE_SMS", default=0)
+    dispatch_sms = weave_int("WEAVE_DISPATCH_ACTIVE_SMS", default=0)
+    v_head_raw = weave_int("WEAVE_V_HEAD", default=0)
+    bm_l1 = weave_int("WEAVE_BLOCK_M_L1", default=0)
+    bm_l2 = weave_int("WEAVE_BLOCK_M_L2", default=0)
     locality = weave_int("WEAVE_LOCALITY_DOMAINS", default=4)
     sm0_sched = weave_int("WEAVE_SM0_STREAM_SCHED", default=0)
     l2kdep = weave_int("WEAVE_L2_KBLOCK_DEP", default=0)
@@ -145,6 +160,10 @@ for name, fi in fi_variants:
         f"-DWEAVE_AMD_8WAVE_MIN_TOK={amd_8wave}",
         f"-DWEAVE_CU_WAVE_SPLIT={cu_wave_split}",
         f"-DWEAVE_SCATTER_ACTIVE_SMS={scatter_sms}",
+        f"-DWEAVE_DISPATCH_ACTIVE_SMS={dispatch_sms}",
+        f"-DWEAVE_BLOCK_M_L1={bm_l1}u",
+        f"-DWEAVE_BLOCK_M_L2={bm_l2}u",
+        *([f"-DWEAVE_V_HEAD={v_head_raw}u"] if v_head_raw > 0 else []),
         f"-DWEAVE_LOCALITY_DOMAINS={locality}",
         f"-DWEAVE_SM0_STREAM_SCHED={sm0_sched}",
         f"-DWEAVE_L2_KBLOCK_DEP={l2kdep}",
