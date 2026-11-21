@@ -307,8 +307,18 @@
 #ifndef WEAVE_SM0_STREAM_SCHED
 #define WEAVE_SM0_STREAM_SCHED 0u
 #endif
-// Minimum local tokens per CU-expert before the MI308X 8-wave schedule is
-// admitted.  Defaults to the historical dual-group threshold.
+// MI308X per-CU 8-wave split between (comm_waves - compute_waves):
+//   0 = auto (cost-model / workload selection),
+//   1 = 0-8  (0 comm + 8 compute waves),
+//   2 = 4-4  (4 comm + 4 compute waves, intra-CU overlap),
+//   3 = 8-0  (8 comm + 0 compute waves on dedicated communication CUs).
+#ifndef WEAVE_CU_WAVE_SPLIT
+#define WEAVE_CU_WAVE_SPLIT 0u
+#endif
+#if WEAVE_CU_WAVE_SPLIT > 3
+#error "WEAVE_CU_WAVE_SPLIT must be 0 (auto), 1 (0-8), 2 (4-4), or 3 (8-0)"
+#endif
+// Legacy internal compatibility threshold for auto mode on MI308X.
 #ifndef WEAVE_AMD_8WAVE_MIN_TOK
 #define WEAVE_AMD_8WAVE_MIN_TOK WEAVE_DUALGROUP_MIN_TOKENS
 #endif
@@ -511,9 +521,10 @@ struct WeaveKnobs {
   // --- Spatial -------------------------------------------------------------
   uint32_t dispatch_warps;      // 0 = auto; 4 or 8 warps per CTA.
   uint32_t scatter_active_sms;  // 0 = auto/all; K = throttled scatter SMs.
-  uint32_t locality_domains;    // 0 = auto; 1, 2 (dual-die), 4 (XCD).
-  uint32_t sm0_stream_sched;    // 0/1: SM 0 comm warps become scheduler lane.
-  uint32_t amd_8wave_min_tok;   // MI308X 8-wave admission floor in tokens.
+  uint32_t locality_domains;    // internal compatibility field.
+  uint32_t sm0_stream_sched;    // internal compatibility field.
+  uint32_t cu_wave_split;       // MI308X CU wave split: 0=auto, 1=0-8, 2=4-4, 3=8-0.
+  uint32_t amd_8wave_min_tok;   // internal auto fallback floor in tokens.
   uint32_t dispatch_active_sms; // 0 = all; D = only D SMs run dispatch pull.
   uint32_t scatter_owner;       // 0 = epilogue_only; 1 = comm_only.
 
@@ -568,6 +579,7 @@ WEAVE_HOST_DEVICE constexpr WeaveKnobs default_weave_knobs(
       WEAVE_SCATTER_ACTIVE_SMS,
       WEAVE_LOCALITY_DOMAINS,
       WEAVE_SM0_STREAM_SCHED,
+      WEAVE_CU_WAVE_SPLIT,
       WEAVE_AMD_8WAVE_MIN_TOK,
       WEAVE_DISPATCH_ACTIVE_SMS,
       WEAVE_SCATTER_OWNER,

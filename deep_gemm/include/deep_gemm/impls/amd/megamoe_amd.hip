@@ -1151,7 +1151,11 @@ void stage_ep16_turbo_overlap(V983Envelope envelope,
   if(tid==0u) v1262_publish_wait_context((unsigned*)e.error,e.rank,1u);
   __syncthreads(); // The only CTA barrier; both four-wave counters are initialized.
   FI_OPEN(wave);
-#if WEAVE_ABLATION_PRESET == 0
+#if WEAVE_CU_WAVE_SPLIT == 1
+  bool dual = true;   // 0-8: 0 comm + 8 compute waves
+#elif WEAVE_CU_WAVE_SPLIT == 2 || WEAVE_CU_WAVE_SPLIT == 3
+  bool dual = false;  // 4-4 intra-CU overlap or 8-0 dedicated comm CUs
+#elif WEAVE_ABLATION_PRESET == 0
   // Spatial cost-model selection: enable dual-group (512 compute waves) for
   // t_local >= 64 (S>=1024) AND wide-expert models like qwen38max at S=128
   // (t_local >= 4 && est_s1_tiles >= 192) where 2x occupancy hides HBM3 latency.

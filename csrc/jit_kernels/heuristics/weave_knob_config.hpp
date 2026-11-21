@@ -78,9 +78,18 @@ static inline weave::WeaveKnobs from_env(
     knobs.locality_domains = static_cast<uint32_t>(bounded_env(
         "WEAVE_LOCALITY_DOMAINS", "DG_LOCALITY_DOMAINS",
         static_cast<int>(knobs.locality_domains), 0, 4));
+    const int ready_queue_mode = named_env(
+        "WEAVE_READY_QUEUE", {"formula", "sm0_fifo"}, 0);
+    const bool sm0_explicit = std::getenv("WEAVE_SM0_STREAM_SCHED") != nullptr or
+                              std::getenv("DG_SM0_STREAM_SCHED") != nullptr;
     knobs.sm0_stream_sched = static_cast<uint32_t>(bounded_env(
         "WEAVE_SM0_STREAM_SCHED", "DG_SM0_STREAM_SCHED",
         static_cast<int>(knobs.sm0_stream_sched), 0, 1));
+    if (not sm0_explicit and ready_queue_mode == 1)
+        knobs.sm0_stream_sched = 1u;
+    knobs.cu_wave_split = static_cast<uint32_t>(named_env(
+        "WEAVE_CU_WAVE_SPLIT", {"auto", "0-8", "4-4", "8-0"},
+        static_cast<int>(knobs.cu_wave_split)));
     knobs.amd_8wave_min_tok = static_cast<uint32_t>(bounded_env(
         "WEAVE_AMD_8WAVE_MIN_TOK", "DG_AMD_8WAVE_MIN_TOK",
         static_cast<int>(knobs.amd_8wave_min_tok), 0, 65536));
@@ -174,6 +183,7 @@ static inline void validate(const weave::WeaveKnobs& knobs,
     DG_HOST_ASSERT(knobs.dispatch_warps == 0u or
                    knobs.dispatch_warps == 4u or knobs.dispatch_warps == 8u);
     DG_HOST_ASSERT(knobs.sm0_stream_sched <= 1u);
+    DG_HOST_ASSERT(knobs.cu_wave_split <= 3u);
     DG_HOST_ASSERT(knobs.l2_kblock_dep <= 1u);
     DG_HOST_ASSERT(knobs.early_stream_reduce <= 1u);
     DG_HOST_ASSERT(knobs.adapt_bm <= 1u);

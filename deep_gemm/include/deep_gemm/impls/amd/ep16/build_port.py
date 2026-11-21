@@ -106,6 +106,7 @@ for name, fi in fi_variants:
     selective = weave_int("WEAVE_SELECTIVE_DEDUP", default=1)
     dualgroup = weave_int("WEAVE_DUALGROUP_MIN_TOKENS", default=64)
     amd_8wave = weave_int("WEAVE_AMD_8WAVE_MIN_TOK", default=dualgroup)
+    cu_wave_split = weave_int("WEAVE_CU_WAVE_SPLIT", default=0)
     scatter_sms = weave_int("WEAVE_SCATTER_ACTIVE_SMS", default=0)
     locality = weave_int("WEAVE_LOCALITY_DOMAINS", default=4)
     sm0_sched = weave_int("WEAVE_SM0_STREAM_SCHED", default=0)
@@ -142,6 +143,7 @@ for name, fi in fi_variants:
         f"-DWEAVE_SELECTIVE_DEDUP={selective}",
         f"-DWEAVE_DUALGROUP_MIN_TOKENS={dualgroup}",
         f"-DWEAVE_AMD_8WAVE_MIN_TOK={amd_8wave}",
+        f"-DWEAVE_CU_WAVE_SPLIT={cu_wave_split}",
         f"-DWEAVE_SCATTER_ACTIVE_SMS={scatter_sms}",
         f"-DWEAVE_LOCALITY_DOMAINS={locality}",
         f"-DWEAVE_SM0_STREAM_SCHED={sm0_sched}",

@@ -1,7 +1,13 @@
 #include <deep_gemm/scheduler/weave_knobs.cuh>
 
-// MI308X 8-wave admission floor.  Defaults to the historical dual-group
-// threshold; build scripts may override it through the public knob space.
+// MI308X per-CU 8-wave split: 0 = auto, 1 = 0-8, 2 = 4-4, 3 = 8-0.
+#ifndef WEAVE_CU_WAVE_SPLIT
+#define WEAVE_CU_WAVE_SPLIT 0
+#endif
+#if WEAVE_CU_WAVE_SPLIT < 0 || WEAVE_CU_WAVE_SPLIT > 3
+#error "MI308X WEAVE_CU_WAVE_SPLIT must be 0 (auto), 1 (0-8), 2 (4-4) or 3 (8-0)"
+#endif
+// Legacy internal auto threshold fallback.
 #ifndef WEAVE_AMD_8WAVE_MIN_TOK
 #define WEAVE_AMD_8WAVE_MIN_TOK WEAVE_DUALGROUP_MIN_TOKENS
 #endif
@@ -1163,7 +1169,9 @@ v1864_ov1_runtime_roles(V983Envelope envelope) {
   const unsigned wave = tid >> 6u;
   auto* phase_arena = g_v1262_phase_arena;
   auto* trace = (unsigned long long*)o.trace;
-  const V1864Roles roles{80u, 0u, 80u};
+  const V1864Roles roles = (WEAVE_CU_WAVE_SPLIT == 3)
+      ? V1864Roles{64u, 64u, 16u}
+      : V1864Roles{80u, 0u, 80u};
   // Fix K5: strictly enforce 80x512 persistent grid geometry BEFORE any trace access!
   if (gridDim.x != 80u || gridDim.y != 1u || gridDim.z != 1u ||
       blockDim.x != 512u || blockDim.y != 1u || blockDim.z != 1u) {
@@ -1208,12 +1216,16 @@ v1864_ov1_runtime_roles(V983Envelope envelope) {
   FI_OPEN(fi_wave);
 
   // =========================================================================
-  // Intra-CU 4+4 overlap: waves 0..3 Compute, waves 4..7 Comm.  No further
-  // __syncthreads() is issued; the two halves run concurrently and coordinate
-  // only through fine-grained global flags and the 4-wave LDS barrier.
+  // Per-CU wave split (WEAVE_CU_WAVE_SPLIT: 0=auto, 1=0-8, 2=4-4, 3=8-0):
+  //   * 0-8: 0 comm + 8 compute waves (waves 4..7 join dual-group GEMM)
+  //   * 4-4: 4 comm + 4 compute waves (waves 0..3 Compute, waves 4..7 Comm)
+  //   * 8-0: 8 comm + 0 compute waves on dedicated communication CUs
   // =========================================================================
-  const bool use_8wave = (e.t_local >= WEAVE_AMD_8WAVE_MIN_TOK);
-  if (wave < 4u) {
+  const bool is_comm_only_cu = (WEAVE_CU_WAVE_SPLIT == 3) && (cta >= roles.comp_ctas);
+  const bool use_8wave = (WEAVE_CU_WAVE_SPLIT == 1) ? true
+      : ((WEAVE_CU_WAVE_SPLIT == 2 || WEAVE_CU_WAVE_SPLIT == 3) ? false
+         : (e.t_local >= WEAVE_AMD_8WAVE_MIN_TOK));
+  if (wave < 4u && !is_comm_only_cu) {
     // COMPUTE half (Group 0, waves 0..3): 80-CTA parallel route plan then direct-gather GEMM1 + GEMM2.
     FI_BG(V1988_FI_PHASE, V1988_EV_ROUTE_PLAN, cta);
     const bool rp_ok = v983_route_plan_parallel_80cta(env, o, phase_arena);

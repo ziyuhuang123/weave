@@ -142,24 +142,27 @@ def write_docs(schema) -> None:
         "`0` as the default so routed-only workloads do not pay the shared-expert "
         "workspace or scheduling cost.\n"
     )
-    parts.append("## 5. Values derived at launch time (not knobs)\n")
+    parts.append("## 5. Built-in mechanisms & offline-coupled profile tuples (not standalone knobs)\n")
     parts.append(
-        "The GEMM stage count, accumulator ring depth, TMA-store ring depth and "
-        "scheduler look-ahead are computed from the live tile shape and the SMEM "
-        "budget in `csrc/jit_kernels/heuristics/mega_moe.hpp`. The per-expert "
-        "BM ladder is selected inside the scheduler when `WEAVE_ADAPT_BM=1`. "
-        "These are derivations, not configuration inputs.\n"
+        "Once `blockM` is selected for GEMM1 or GEMM2 (either dynamically per expert "
+        "from live `M_e` when `WEAVE_ADAPT_BM=1`, or via `WEAVE_BLOCK_M_L1` / "
+        "`WEAVE_BLOCK_M_L2`), its entire offline-calibrated single-operator tuple—"
+        "`(blockM, blockN, blockK, mainloop_stages)` and `(epi_M, epi_N, epi_K, "
+        "epi_stages)` (including `1.75/2.0`-stage TMEM accumulation and 2-stage "
+        "register epilogue prefetch)—is locked synchronously with zero user sub-knobs. "
+        "Cross-stage compute-communication overlap, cooperative all-idle-warp tail "
+        "Combine reduction, and modulo intermediate-activation ring-buffer reuse "
+        "(8-9x HBM compression) are always-on built-in mechanisms.\n"
     )
     parts.append("## 6. Architecture coverage\n")
     parts.append(
         "| Parameter group | SM103 fp8xfp4 | SM103 fp4xfp4 | H20 | MI308X EP8 | MI308X EP16 |\n"
         "|---|---|---|---|---|---|\n"
-        "| Spatial: SM subsets (`DISPATCH_ACTIVE_SMS`, `SCATTER_ACTIVE_SMS`) and dedicated SM 0 scheduler | yes | n/a | yes | yes | yes |\n"
-        "| Spatial: per-SM warp/wave & register ratios (`DISPATCH_WARPS`, `SCATTER_WARPS`, `REG_BALANCE`, `AMD_8WAVE_MIN_TOK`) | yes | n/a | yes | yes | yes |\n"
-        "| Temporal: Head prefetch/group readiness, Middle `L2_KBLOCK_DEP` & binary `SCATTER_OWNER`, Tail `COMBINE_SYNC_CHUNK` & all-wave combine | yes | overlap | yes | yes | yes |\n"
-        "| Implementation: independent GEMM1/GEMM2/Dispatch/Scatter params & per-expert M-profile lookup (`ADAPT_BM`, `BM_TIER_MODE`) | yes | fixed | yes | yes | yes |\n"
-        "| Implementation: single-op `TMEM_PIPELINE_MODE` (1.0/1.75/2.0), `EPI_REG_STAGES` (2-stage reg), `RING_BLOCKS`, `PRECISION_MODE` | yes | ring | fp8 | fp8 | fp8 |\n"
-        "| Implementation: scatter staging (`reg_2stage` / `smem` / `hbm_dedup`) & Dispatch/Scatter deduplication | yes | n/a | yes | yes | yes |\n"
+        "| Spatial: SM subsets (`DISPATCH_ACTIVE_SMS`, `SCATTER_ACTIVE_SMS`) | yes | n/a | yes | yes | yes |\n"
+        "| Spatial: per-SM/CU warp/wave & register ratios (`DISPATCH_WARPS`, `SCATTER_WARPS`, `CU_WAVE_SPLIT` `0-8/4-4/8-0`, `REG_BALANCE`) | yes | n/a | yes | yes | yes |\n"
+        "| Temporal: Head (`V_HEAD`, `READY_GROUP_SIZE`), task dispatch (`READY_QUEUE`: `formula` vs `sm0_fifo`), Middle `SCATTER_OWNER`, Tail `COMBINE_SYNC_CHUNK` | yes | overlap | yes | yes | yes |\n"
+        "| Implementation: independent GEMM1/GEMM2 `M -> blockM` coupled profiles (`PRECISION_MODE`, `ADAPT_BM`, `BLOCK_M_L1`, `BLOCK_M_L2`) | yes | fixed | yes | yes | yes |\n"
+        "| Implementation: independent Dispatch & Scatter data-path/dedup (`REG_PULL_BYTES`, `DEDUP_MODE`, `SCATTER_STAGING`, `LOCAL_SCATTER_DEDUP`) | yes | n/a | yes | yes | yes |\n"
     )
     (ROOT / "docs" / "TUNABLE_PARAMETERS.md").write_text("\n".join(parts), encoding="utf-8")
 

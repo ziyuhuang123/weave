@@ -152,7 +152,9 @@ public:
         // Axis 4 (D4)
         const int d4_epw = get_weave_env<int>("WEAVE_EXPERTS_PER_WAVE", "DG_TUNE_D4_EPW", "DG_ISOLATED_D4_EPW", 0);
         const int d4_static = get_weave_env<int>("WEAVE_STATIC_EXPERT_ORDER", "DG_TUNE_D4_STATIC", "DG_ISOLATED_D4_STATIC", 0);
-        const int d4_readyq = get_weave_env<int>("WEAVE_READY_QUEUE", "DG_TUNE_D4_READYQ", "DG_ISOLATED_D4_READYQ", 0);
+        const int d4_readyq = weave_knobs::named_env(
+            "WEAVE_READY_QUEUE", {"formula", "sm0_fifo"},
+            get_weave_env<int>("DG_TUNE_D4_READYQ", "DG_ISOLATED_D4_READYQ", nullptr, 0));
         const int d4_mode = get_weave_env<int>("WEAVE_SCHED_MODE", "DG_TUNE_D4_MODE", "DG_ISOLATED_D4_MODE", 0);
         const std::string d4_static_code = generate_d4_static_table(args, d4_static);
         // Axis 5 (D5)
