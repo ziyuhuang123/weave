@@ -67,10 +67,11 @@ independently tuned **single-operator and data-path implementations**:
     looks up its own profile from live `tokens[e]`, while in-flight `FC1 -> FC2`
     activations reuse a bounded modulo ring buffer (8-9x HBM compression);
   - **Independent Dispatch & Scatter transfer/staging/deduplication:** Dispatch
-    independently configures register-direct pull packet width and pull
-    deduplication, while Scatter independently selects among `reg_2stage`,
-    bank-conflict-free `smem`, and `hbm_dedup` staging plus local `bf16x2`
-    multi-hit deduplication.
+    independently configures per-warp register-direct pull chunk width (`1024 /
+    2048 / 4096 B` per 32-lane warp = `8 / 16 / 32` 32-bit registers per thread)
+    and pull deduplication, while Scatter independently selects among
+    `reg_2stage`, bank-conflict-free `smem`, and `hbm_dedup` staging plus local
+    `bf16x2` multi-hit deduplication.
 
 ## Hardware partitions and global ready queues
 
@@ -284,7 +285,7 @@ The parameter surface is organized strictly as **Spatial / Temporal / Implementa
 | `WEAVE_ADAPT_BM` | Implementation | `0 = fixed layer-wide profile`; `1 = per-expert M-bucketed offline profile lookup` | 0 | Runtime per-expert lookup from M_e -> blockM, synchronously binding the offline-calibrated (blockM/N/K, mainloop_stages, epi_M/N/K, epi_stages) group. | `csrc/jit_kernels/heuristics/sm90_mega_moe.hpp:280` | `deep_gemm/include/deep_gemm/impls/sm90_fp8_mega_moe.cuh:591` |
 | `WEAVE_BLOCK_M_L1` | Implementation | `0 = auto lookup from M`; `16, 32, 64, 80, 96, 128, 192, 240, 256` | 0 | Independent GEMM1 (FC1) profile selector: choosing blockM synchronously locks GEMM1's paired blockN/K, mainloop TMA stages, and epilogue M/N/K & TMEM/reg stages. | `csrc/jit_kernels/heuristics/weave_knob_config.hpp:131` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:1088` |
 | `WEAVE_BLOCK_M_L2` | Implementation | `0 = auto lookup from M`; `16, 32, 64, 80, 96, 128, 192, 240, 256` | 0 | Independent GEMM2 (FC2) profile selector (decoupled from GEMM1): choosing blockM synchronously locks GEMM2's paired blockN/K, mainloop stages, and epilogue M/N/K & stages. | `csrc/jit_kernels/heuristics/weave_knob_config.hpp:134` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:1090` |
-| `WEAVE_REG_PULL_BYTES` | Implementation | `0 = SMEM staging`; `1024, 2048, 4096 = register-direct pull width in bytes` | 0 | Independent Dispatch operator parameter: zero-SMEM register-direct remote pull packet width (freeing SMEM for deeper GEMM mainloop stages). | `csrc/jit_kernels/impls/sm100_fp8_fp4_mega_moe.hpp:254` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:119` |
+| `WEAVE_REG_PULL_BYTES` | Implementation | `0 = TMA SMEM staging`; `1024, 2048, 4096 = per-warp bytes per pull chunk` (= `32, 64, 128 B` or `8, 16, 32` 32-bit regs per thread) | 0 | Independent Dispatch operator parameter: per-warp (32-lane) chunk width for zero-SMEM register-direct remote pulling (`uint4 regs[2/4/8]` per thread, freeing SMEM for deeper GEMM mainloop stages). | `csrc/jit_kernels/impls/sm100_fp8_fp4_mega_moe.hpp:254` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:119` |
 | `WEAVE_DEDUP_MODE` | Implementation | `0 = off`; `1 = unique (token, destination) buckets`; `2 = local pre-reduce plus 32-lane fanout` | 0 | Independent Dispatch operator deduplication of duplicate remote token pulls. | `csrc/jit_kernels/impls/sm100_fp8_fp4_mega_moe.hpp:276` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:415` |
 | `WEAVE_SCATTER_STAGING` | Implementation | `0 = reg_2stage`: double-buffered register transfer; `1 = smem`: per-SM bank-conflict-free SMEM ring handoff; `2 = hbm_dedup`: L2-resident HBM buffer with bf16x2 atomic dedup (names or codes accepted) | 0 (auto `hbm_dedup` when `WEAVE_LOCAL_SCATTER_DEDUP=1`) | Independent Scatter operator staging implementation (`reg_2stage`, XOR-swizzled `smem`, or `hbm_dedup`). | `csrc/jit_kernels/heuristics/weave_knob_config.hpp:154` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:1437` |
 | `WEAVE_LOCAL_SCATTER_DEDUP` | Implementation | `0 = direct per-hit scatter`; `1 = bf16x2 local merge of multi-expert hits before send` | 0 | Independent Scatter operator local deduplication merging duplicate destination hits on the same GPU before NVLink/xGMI send. | `csrc/jit_kernels/impls/sm100_fp8_fp4_mega_moe.hpp:229` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:1420` |
