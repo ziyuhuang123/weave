@@ -24,24 +24,48 @@ runtime.
 
 After dispatch completes, CTA 0 evaluates an on-device cost model over the live
 per-expert token distribution and communication volume, selecting the layer's
-**spatial partitioning** and **temporal schedule**, which all other CTAs read
-from device memory:
+**spatial resource ratios** and **temporal schedule**, executed on top of
+independently tuned **single-operator and data-path implementations**:
 
-- **Spatial partitioning:** chooses the per-SM/CU ratio between communication
-  warps and compute/epilogue warps, and adapts per-expert tile sizes at runtime
-  according to each expert's actual token count to cut padding waste.
+- **Spatial partitioning (SM-level and Warp-level hardware ratios):**
+  - **Across SMs/CUs:** independently assigns active SMs for Dispatch pulling
+    (`D`), active SMs for async Scatter draining (`K`, $D \neq K$), an optional
+    streaming scheduler SM (SM 0), and physical dual-die / multi-XCD locality
+    domains with tail cross-domain work stealing, while recruiting all SMs for
+    tail Combine reduction.
+  - **Within each SM/CU:** configures the warp/wave split between the
+    communication partition (`N_c`: Dispatch / Scatter warps) and the compute
+    partition (`N_e`: TMA/MMA + Epilogue warps), together with per-role register
+    file budgets (e.g., `96/72/168` vs. `64/56/192`).
 - **Temporal scheduling (eliminating head, middle, and tail bubbles):**
-  - **Head:** at layer start before any GEMM tile is ready, otherwise-waiting
-    compute/TMA/epilogue warps join remote token pulling within their own
-    register budgets to saturate link bandwidth, then switch to GEMM once the
-    first tiles arrive;
-  - **Middle:** based on the live comm-to-compute ratio, selects whether FC2
-    Scatter runs inline in epilogue warps or is handed off to communication
-    warps to overlap with subsequent GEMM tiles;
-  - **Tail:** replaces the global cross-GPU barrier before Combine with
-    **per-token readiness** (each token is reduced as soon as all `K` of its
-    expert outputs arrive) and recruits **all finished warps (comm, TMA/MMA, and
-    epilogue)** into cooperative weighted reduction.
+  - **Head:** before the first GEMM tiles arrive, otherwise-waiting
+    compute/TMA/epilogue warps join remote token pulling within their register
+    budgets to saturate link bandwidth, and fine-grained group readiness starts
+    GEMM1 without waiting for full experts;
+  - **Middle:** a 64-bit K-block readiness bitmask drives **fine-grained
+    GEMM1<->GEMM2 interleaving**, while **strict binary Scatter ownership**
+    selects either inline epilogue stores (`epilogue_only`) or 100% dedicated
+    communication-warp draining (`comm_only`, with zero mixed fallback) to
+    overlap NVLink/xGMI scatter with ongoing GEMM;
+  - **Tail:** replaces the global cross-GPU barrier with **chunked (`G`-token)
+    cross-GPU readiness paired with local deduplication** (emitting a single
+    `red.release.sys` per `G`-token destination chunk to avoid per-tile or
+    per-token system-atomic storms) and recruits **all finished warps** into
+    cooperative Combine reduction overlapping tail Scatter.
+- **Single-op optimizations & prior-art implementations (Implementation):**
+  - **Independent 4-stage parameter search & per-expert `M`-profile lookup:**
+    **GEMM1**, **GEMM2**, **Dispatch**, and **Scatter** search their parameters
+    independently (within each GEMM, `Mainloop + Epilogue` are matched together
+    so compact store sub-blocks automatically unlock maximum legal SMEM TMA
+    stages); optimal parameter groups for each `M` bucket are calibrated offline
+    and looked up per expert from live `tokens[e]` at runtime;
+  - **On-chip accumulator & register pipelines:** TMEM accumulator pipelining
+    (`1.0`, `1.75`-stage overlapping dual-buffer, and `2.0`-stage), 2-stage
+    register epilogue prefetch (`epi_reg_stages=2` for early TMEM release), and
+    bounded intermediate activation ring-buffer reuse;
+  - **Staging paths & deduplication:** preserves all three Scatter staging paths
+    (`reg_2stage`, bank-conflict-free `smem`, and `hbm_dedup`) alongside
+    selective Dispatch pull deduplication and local Scatter deduplication.
 
 ## Hardware partitions and global ready queues
 
@@ -185,28 +209,39 @@ Full tuned `WEAVE_*` presets (organized by **Spatial**, **Temporal**, and
 
 ## Parameter taxonomy: Spatial, Temporal, and Implementation
 
-Weave's scheduling and kernel parameters fall into three categories:
+Weave's tunable surface is partitioned strictly across three axes:
 
-- **Spatial dimension:** how compute, communication, and tile
-  resources are partitioned across SMs/CUs, warps, clusters, and numeric
-  formats—including the comm/compute warp split, heterogeneous SM role masks,
-  2-CTA multicast, numeric precision (`fp8xfp4` / `fp4xfp4` / `fp8` / `bf16`),
-  and **runtime per-expert tile sizing** from live per-expert token counts
-  (MI308X five-tier `BM_e in {16, 32, 64, 128, 256}` with EP16 floored at 32;
-  H20 8-tier swapAB `{8..64}` gated by padding waste; 148-SM SM103 dynamic
-  TMA-A `m8/m16/BM`, dynamic epilogue `store_m8/m16`, and per-expert tile
-  ladders).
-- **Temporal dimension:** execution order, compute-communication
-  overlap, opening all-warp prefetch token count, scatter ownership (epilogue
-  inline vs. async comm queue vs. local pre-reduce dedup), ready-queue &
-  L2-swizzled ordering, L1/L2 interleaving, per-token ready &
-  cooperative all-warp tail reduction, and **runtime-derived pipeline stage
-  depth** (`num_stages` is computed at launch from the tile shape and remaining
-  SMEM budget rather than hardcoded at compile time).
-- **Implementation & prior work:** standard GPU/MoE systems techniques from
-  prior work (register-direct pull/combine, selective deduplication, RDMA
-  descriptor chunking, SMEM aliasing, profiler instrumentation, and ablation
-  presets).
+- **Spatial dimension:** strictly **SM-level and per-SM Warp/Wave-level hardware
+  resource ratios**—active SMs for Dispatch (`WEAVE_DISPATCH_ACTIVE_SMS`),
+  active SMs for Scatter (`WEAVE_SCATTER_ACTIVE_SMS`), dedicated SM 0 streaming
+  scheduler (`WEAVE_SM0_STREAM_SCHED`), physical dual-die / multi-XCD locality
+  domains (`WEAVE_LOCALITY_DOMAINS`), per-SM communication vs. compute warp/wave
+  ratios (`WEAVE_DISPATCH_WARPS`, `WEAVE_SCATTER_WARPS`,
+  `WEAVE_AMD_8WAVE_MIN_TOK`), and per-role register file ratios
+  (`WEAVE_REG_BALANCE`).
+- **Temporal dimension:** **cross-stage execution order, role switching,
+  compute-communication overlap, and synchronization granularity**—opening
+  all-warp prefetch budget and fine-grained group readiness (`WEAVE_V_HEAD`,
+  `WEAVE_HEAD_PULL_CHUNK`, `WEAVE_READY_GROUP_SIZE`, `WEAVE_READY_QUEUE`),
+  middle K-block L1<->L2 interleaving, wave ratio, and strict binary Scatter
+  role ownership (`WEAVE_L2_KBLOCK_DEP`, `WEAVE_SCHED_L2_RATIO`,
+  `WEAVE_SCATTER_OWNER`, `WEAVE_SCHED_MODE`, `WEAVE_EXPERTS_PER_WAVE`), and tail
+  chunked `G`-token cross-GPU Combine readiness plus cooperative all-idle-warp
+  reduction (`WEAVE_COMBINE_SYNC_CHUNK`, `WEAVE_EARLY_STREAM_REDUCE`,
+  `WEAVE_ALL_WAVE_COMBINE`).
+- **Single-op optimizations & prior work (Implementation):** **single-operator
+  kernel optimizations, independent per-stage parameter search, per-expert `M`
+  profile lookup, staging paths, and deduplication**—independent GEMM1 and GEMM2
+  `(Mainloop + Epilogue)` tile/store parameters (`WEAVE_BLOCK_M_L1/L2`,
+  `WEAVE_STORE_BLOCK_M_L1/L2`, with TMA `num_stages` derived automatically from
+  remaining SMEM) and offline-calibrated per-`M` profile lookup
+  (`WEAVE_ADAPT_BM`, `WEAVE_BM_TIER_MODE`), single-op `1.0 / 1.75 / 2.0`-stage
+  TMEM accumulator pipelining (`WEAVE_TMEM_PIPELINE_MODE`) and 2-stage register
+  epilogue prefetch (`WEAVE_EPI_REG_STAGES`), bounded activation ring buffers
+  (`WEAVE_RING_BLOCKS`), independent Dispatch and Scatter transfer/staging/dedup
+  knobs (`WEAVE_REG_PULL_BYTES`, `WEAVE_DEDUP_MODE`, `WEAVE_SCATTER_STAGING`,
+  `WEAVE_LOCAL_SCATTER_DEDUP`, `WEAVE_SCATTER_SMEM_ALIAS`), numeric precision
+  (`WEAVE_PRECISION_MODE`), and evaluation switches.
 
 At runtime, CTA 0 ranks candidate schedules with the lightweight on-device cost
 model: shared fixed overheads cancel in the ranking, matching the exhaustive
@@ -225,56 +260,56 @@ The parameter surface is organized strictly as **Spatial / Temporal / Implementa
 
 | Parameter | Category | Values (every accepted value is named) | Default | Mechanism | Host parse | Kernel consumption |
 |---|---|---|---|---|---|---|
-| `WEAVE_PRECISION_MODE` | Spatial | `0 = fp8xfp4`; `1 = fp4xfp4`; `2 = fp8xfp8`; `3 = bf16` | 0 | Numeric precision and tensor-core mode; the source of every byte width in the cost model. | `deep_gemm/include/deep_gemm/scheduler/weave_knobs.cuh:273` | `deep_gemm/include/deep_gemm/scheduler/weave_cost_model.cuh:25` |
-| `WEAVE_DISPATCH_WARPS` | Spatial | `0 = auto` (4 warps); `4`; `8` | 0 | Per-CTA communication warp budget; 8 warps double the dispatch pull width and raise the CTA to 256 dispatch threads. | `csrc/jit_kernels/heuristics/weave_knob_config.hpp:73` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:969` |
-| `WEAVE_DISPATCH_ACTIVE_SMS` | Spatial | `0 = auto` (all SMs run dispatch pull); `D = 1..num_sms`: only D SMs pull remote tokens | 0 | Independent partial-SM dispatch throttle: limits dispatch pulls to D SMs while remaining SMs enter GEMM immediately. | `csrc/jit_kernels/heuristics/weave_knob_config.hpp:88` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:46` |
-| `WEAVE_SCATTER_ACTIVE_SMS` | Spatial | `0 = auto` (all SMs/CUs participate); `K = 1..num_sms`: only K SMs drain the scatter queue | 0 | Decoupled throttled active scatter SMs: the epilogue only publishes descriptors and a bounded SM subset owns NVLink/xGMI scatter. | `csrc/jit_kernels/impls/sm100_fp8_fp4_mega_moe.hpp:187` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:528` |
-| `WEAVE_LOCALITY_DOMAINS` | Spatial | `0 = auto`; `1 = single domain`; `2 = dual-die SM103`; `4 = XCD MI308X` | 0 | Splits every L1/L2 N-cluster queue across locality domains; each domain claims locally and steals from the peer at the tail. | `csrc/jit_kernels/impls/sm100_fp8_fp4_mega_moe.hpp:198` | `deep_gemm/include/deep_gemm/scheduler/mega_moe.cuh:837` |
-| `WEAVE_SM0_STREAM_SCHED` | Spatial | `0 = SM 0 communication warps pull`; `1 = SM 0 communication warps become the streaming scheduler lane` | 0 | Repurposes SM 0/CU 0 communication warps as a dedicated scheduler lane; the remaining SMs evenly own the full dispatch pull range. | `csrc/jit_kernels/heuristics/weave_knob_config.hpp:82` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:2856` |
-| `WEAVE_SCATTER_OWNER` | Spatial | `0 = epilogue_only`: epilogue warps issue every remote FC2 store; `1 = comm_only`: epilogue warps only stage locally and communication warps own every remote store (names or codes accepted) | 0 (auto `comm_only` when a staged path or a scatter SM throttle is requested) | Strict binary scatter ownership; a mixed epilogue + communication scatter is rejected at host parse and by a kernel static assertion. | `csrc/jit_kernels/heuristics/weave_knob_config.hpp:153` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:1431` |
-| `WEAVE_AMD_8WAVE_MIN_TOK` | Spatial | `N = minimum local tokens per CU-expert`; `0 = follow WEAVE_DUALGROUP_MIN_TOKENS` | 64 | MI308X 8-wave schedule admission floor: below N tokens the CU keeps the 4-wave schedule. | `deep_gemm/include/deep_gemm/impls/amd/ep8/build_one.sh:67` | `deep_gemm/include/deep_gemm/impls/amd/ep8/megamoe_amd_ep8.hip:1215` |
-| `WEAVE_DUALGROUP_MIN_TOKENS` | Spatial | `N = second compute-group threshold in local tokens` | 64 | Historical MI308X dual-group threshold; the 8-wave knob defaults to this value. | `deep_gemm/include/deep_gemm/impls/amd/ep8/build_one.sh:14` | `deep_gemm/include/deep_gemm/impls/amd/megamoe_amd.hip:1159` |
-| `WEAVE_BM_TIER_MODE` | Spatial | `0 = five-tier`; `1 = four-tier`; `2 = EP16 four-tier {32,64,128,256}` | 2 | Per-expert block-M ladder used by the MI308X greedy tile planner. | `deep_gemm/include/deep_gemm/impls/amd/ep8/build_one.sh:12` | `deep_gemm/include/deep_gemm/impls/amd/include/direct_gather_and_greedy_tiles.hpp:71` |
+| `WEAVE_DISPATCH_ACTIVE_SMS` | Spatial | `0 = auto` (all SMs run dispatch pull); `D = 1..num_sms`: only D SMs pull remote tokens | 0 | SM-level dispatch allocation: assigns D SMs to remote token pulling while remaining SMs enter prefetch/GEMM immediately. | `csrc/jit_kernels/heuristics/weave_knob_config.hpp:88` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:46` |
+| `WEAVE_SCATTER_ACTIVE_SMS` | Spatial | `0 = auto` (all SMs/CUs participate); `K = 1..num_sms`: only K SMs drain the scatter queue | 0 | SM-level scatter allocation (independent from dispatch SMs): bounds async NVLink/xGMI scatter draining to K SMs while Combine uses all SMs. | `csrc/jit_kernels/impls/sm100_fp8_fp4_mega_moe.hpp:187` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:528` |
+| `WEAVE_SM0_STREAM_SCHED` | Spatial | `0 = SM 0 communication warps pull`; `1 = SM 0 communication warps become the streaming scheduler lane` | 0 | SM-level scheduler dedication: assigns SM 0/CU 0 communication warps to streaming tile scheduling while remaining SMs split the pull range. | `csrc/jit_kernels/heuristics/weave_knob_config.hpp:82` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:2856` |
+| `WEAVE_LOCALITY_DOMAINS` | Spatial | `0 = auto`; `1 = single domain`; `2 = dual-die SM103`; `4 = XCD MI308X` | 0 | Die/XCD SM domain partitioning: splits L1/L2 N-cluster queues across physical locality domains with tail cross-domain work stealing. | `csrc/jit_kernels/impls/sm100_fp8_fp4_mega_moe.hpp:198` | `deep_gemm/include/deep_gemm/scheduler/mega_moe.cuh:837` |
+| `WEAVE_DISPATCH_WARPS` | Spatial | `0 = auto` (4 warps); `4`; `8` | 0 | Per-SM dispatch warp ratio: sets the CTA communication warp count dedicated to remote token/SF pulling (`4D+4N+8E` vs `8D+4N+8E`). | `csrc/jit_kernels/heuristics/weave_knob_config.hpp:73` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:969` |
+| `WEAVE_SCATTER_WARPS` | Spatial | `0 = automatic`; `4`; `8` | 0 | Per-SM scatter warp ratio: sets the CTA communication warp budget dedicated to async FC2 scatter (independent from dispatch pull parameters). | `csrc/jit_kernels/impls/sm100_fp8_fp4_mega_moe.hpp:208` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:501` |
+| `WEAVE_REG_BALANCE` | Spatial | `0 = default (96/72/168)`; `1 = rebalanced (64/56/192) at E/rank > 64` | 0 | Per-SM register file ratio across warp roles: shifts spare dispatch/non-epilogue registers to epilogue warps (`64/56/192` vs `96/72/168`). | `csrc/jit_kernels/heuristics/weave_knob_config.hpp:137` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:1503` |
+| `WEAVE_AMD_8WAVE_MIN_TOK` | Spatial | `N = minimum local tokens per CU-expert`; `0 = follow WEAVE_DUALGROUP_MIN_TOKENS` | 64 | Per-CU wave ratio threshold on MI308X: selects 8-wave dual-group vs 4-wave single-group CU partitioning. | `deep_gemm/include/deep_gemm/impls/amd/ep8/build_one.sh:67` | `deep_gemm/include/deep_gemm/impls/amd/ep8/megamoe_amd_ep8.hip:1215` |
+| `WEAVE_DUALGROUP_MIN_TOKENS` | Spatial | `N = second compute-group threshold in local tokens` | 64 | Per-CU second compute-wave group admission threshold on MI308X. | `deep_gemm/include/deep_gemm/impls/amd/ep8/build_one.sh:14` | `deep_gemm/include/deep_gemm/impls/amd/megamoe_amd.hip:1159` |
 
 ### Temporal
 
 | Parameter | Category | Values (every accepted value is named) | Default | Mechanism | Host parse | Kernel consumption |
 |---|---|---|---|---|---|---|
-| `WEAVE_L2_KBLOCK_DEP` | Temporal | `0 = default L1-first order`; `1 = 64-bit XOR L2KBlockDependency bitmask with a tight 1 L2 <-> 1 L1 alternating wave schedule` | 0 | Starts the L2 K block as soon as its matching L1 N subtile completes instead of waiting for the full L1 wave. | `csrc/jit_kernels/heuristics/sm90_mega_moe.hpp:285` | `deep_gemm/include/deep_gemm/scheduler/mega_moe.cuh:838` |
-| `WEAVE_RING_BLOCKS` | Temporal | `0 = auto capacity from get_num_max_live_pool_blocks`; `N >= 1 = forced ring block count` | 0 | Bounded ring-buffer reuse for the intermediate SwiGLU activations; the ring wraps after N live pool blocks instead of allocating the whole pool. | `csrc/jit_kernels/impls/sm100_fp8_fp4_mega_moe.hpp:223` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:1086` |
-| `WEAVE_EARLY_STREAM_REDUCE` | Temporal | `0 = global barrier before combine`; `1 = barrier-free per-token cnt==topk tail-interleaved early reduce` | 0 | Epilogue warps enter the per-token reduce as soon as their last L2 tile is handed off, overlapping the tail with the remaining scatter. | `csrc/jit_kernels/impls/sm100_fp8_fp4_mega_moe.hpp:224` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:1417` |
-| `WEAVE_COMBINE_SYNC_CHUNK` | Temporal | `0 = global barrier before combine`; `16, 32, 64, 128 = chunked dedup combine sync granularity (tokens per chunk)` | 0 | Paired with local bf16x2 dedup: tracks deduplicated sends per (destination rank, chunk) in a local L2 counter and issues one cross-GPU release per chunk so finished warps overlap Combine with tail Scatter. | `csrc/jit_kernels/heuristics/weave_knob_config.hpp:108` | `deep_gemm/include/deep_gemm/impls/sm90_fp8_mega_moe.cuh:730` |
-| `WEAVE_TMEM_PIPELINE_MODE` | Temporal | `0 = auto` (2.0 at BM<=240 with one prefetch stage; 1.75 at BM=256); `100 = 1.0`; `175 = 1.75`; `200 = 2.0` | 0 | TMEM epilogue pipeline depth; the 1.75 mode overlaps the tail epilogue with the next accumulator column range at BM=256. | `csrc/jit_kernels/impls/sm100_fp8_fp4_mega_moe.hpp:225` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:3795` |
-| `WEAVE_HEAD_PULL_CHUNK` | Temporal | `0 = pull the opening head budget as one prefix`; `N = tokens per head-pull chunk` | 0 | Bounds the all-warp opening head-pull prefix; after N tokens only the selected communication warps keep pulling. | `csrc/jit_kernels/heuristics/weave_knob_config.hpp:105` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:2884` |
-| `WEAVE_EPI_REG_STAGES` | Temporal | `0 = auto` (2 at BM in `{80, 96, 240, 256}` with TMEM depth >= 1.75, else 1); `1 = single register buffer`; `2 = two register stages` | 0 | Epilogue TMEM-to-register pipeline: with 2 stages the load of store block s+1 overlaps SwiGLU, quantization and the store of block s, and TMEM is released as soon as the last load is issued. | `csrc/jit_kernels/heuristics/weave_knob_config.hpp:111` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:3805` |
-| `WEAVE_SCHED_L2_RATIO` | Temporal | `1..4`: number of L2 tasks scheduled per L1 task in interleaved mode | 1 | Matches L2-to-L1 M-block consumption rate so L2 activations stay resident in L2 cache while overlapping L1 and L2. | `csrc/jit_kernels/heuristics/weave_knob_config.hpp:114` | `deep_gemm/include/deep_gemm/scheduler/mega_moe.cuh:886` |
-| `WEAVE_V_HEAD` | Temporal | `0 = automatic`; `N = opening head-pull budget in tokens` | automatic | Opening head-pull budget: all warps pull the first N remote tokens at peak link bandwidth before the first GEMM tile is ready. | `deep_gemm/include/deep_gemm/scheduler/weave_knobs.cuh:263` | `deep_gemm/include/deep_gemm/scheduler/weave_cost_model.cuh:30` |
-| `WEAVE_OVERLAP_PIPELINE` | Temporal | `0 = serialized`; `1 = compute-communication overlap` | 1 (forced 0 at preset 2 and above) | Turns compute-communication overlap on or off; the ablation presets derive it automatically. | `deep_gemm/include/deep_gemm/impls/amd/ep8/build_one.sh:23` | `deep_gemm/include/deep_gemm/scheduler/weave_knobs.cuh:151` |
-| `WEAVE_ALL_WAVE_COMBINE` | Temporal | `0 = compute-group waves only`; `1 = all waves join the cooperative tail combine` | 1 (forced 0 at preset 2 and above) | Cooperative all-wave tail combine; the ablation presets derive it automatically. | `deep_gemm/include/deep_gemm/impls/amd/ep8/build_one.sh:24` | `deep_gemm/include/deep_gemm/scheduler/weave_knobs.cuh:181` |
-| `WEAVE_READY_QUEUE` | Temporal | `0 = preset expert order`; `1 = global FIFO ready queue` | 0 | Selects the ready-tile source: prefix-summed expert offsets or a global FIFO. | `csrc/jit_kernels/impls/sm100_fp8_fp4_mega_moe.hpp:271` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:383` |
-| `WEAVE_READY_GROUP_SIZE` | Temporal | `0 = per-expert readiness`; `N = group-granularity readiness publication` | 0 | Publishes readiness per expert or per group of N experts. | `csrc/jit_kernels/impls/sm100_fp8_fp4_mega_moe.hpp:250` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:87` |
-| `WEAVE_SCHED_MODE` | Temporal | `0 = descending load`; `1 = L2 tile swizzle`; `2 = expert-major` | 0 | Tile ordering key used when the ready queue is not a FIFO. | `csrc/jit_kernels/impls/sm100_fp8_fp4_mega_moe.hpp:272` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:399` |
-| `WEAVE_EXPERTS_PER_WAVE` | Temporal | `0 = auto`; `N = LPT scheduling window`; `100 + N = inline static order` | 0 | Longest-processing-time scheduling window across experts. | `csrc/jit_kernels/impls/sm100_fp8_fp4_mega_moe.hpp:269` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:351` |
+| `WEAVE_OVERLAP_PIPELINE` | Temporal | `0 = serialized`; `1 = compute-communication overlap` | 1 (forced 0 at preset 2 and above) | Master switch for cross-stage compute-communication temporal overlap. | `deep_gemm/include/deep_gemm/impls/amd/ep8/build_one.sh:23` | `deep_gemm/include/deep_gemm/scheduler/weave_knobs.cuh:151` |
+| `WEAVE_V_HEAD` | Temporal | `0 = automatic`; `N = opening head-pull budget in tokens` | automatic | Head schedule: all warps cooperatively pull the first N remote tokens at peak link bandwidth before the first GEMM tile is ready. | `deep_gemm/include/deep_gemm/scheduler/weave_knobs.cuh:263` | `deep_gemm/include/deep_gemm/scheduler/weave_cost_model.cuh:30` |
+| `WEAVE_HEAD_PULL_CHUNK` | Temporal | `0 = pull the opening head budget as one prefix`; `N = tokens per head-pull chunk` | 0 | Head schedule: bounds the cooperative all-warp opening pull prefix before non-comm warps switch to GEMM. | `csrc/jit_kernels/heuristics/weave_knob_config.hpp:105` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:2884` |
+| `WEAVE_READY_GROUP_SIZE` | Temporal | `0 = per-expert readiness`; `N = group-granularity readiness publication` | 0 | Head schedule: fine-grained tile readiness publication granularity so GEMM1 starts without waiting for full experts. | `csrc/jit_kernels/impls/sm100_fp8_fp4_mega_moe.hpp:250` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:87` |
+| `WEAVE_READY_QUEUE` | Temporal | `0 = preset expert order`; `1 = global FIFO ready queue` | 0 | Head/Middle schedule: selects arrival-ordered FIFO ready queue vs preset expert order. | `csrc/jit_kernels/impls/sm100_fp8_fp4_mega_moe.hpp:271` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:383` |
+| `WEAVE_SCATTER_OWNER` | Temporal | `0 = epilogue_only`: epilogue warps issue every remote FC2 store; `1 = comm_only`: epilogue warps only stage locally and communication warps own every remote store (names or codes accepted) | 0 (auto `comm_only` when a staged path or a scatter SM throttle is requested) | Middle schedule: strict binary scatter role ownership (never mixes inline epilogue scatter with comm-warp scatter) to overlap FC2 scatter with ongoing GEMM. | `csrc/jit_kernels/heuristics/weave_knob_config.hpp:153` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:1431` |
+| `WEAVE_L2_KBLOCK_DEP` | Temporal | `0 = default L1-first order`; `1 = 64-bit XOR L2KBlockDependency bitmask with a tight 1 L2 <-> 1 L1 alternating wave schedule` | 0 | Middle schedule: fine-grained K-block L1-to-L2 dependency bitmask unlocking GEMM2 K-blocks as soon as matching GEMM1 subtiles finish. | `csrc/jit_kernels/heuristics/sm90_mega_moe.hpp:285` | `deep_gemm/include/deep_gemm/scheduler/mega_moe.cuh:838` |
+| `WEAVE_SCHED_L2_RATIO` | Temporal | `1..4`: number of L2 tasks scheduled per L1 task in interleaved mode | 1 | Middle schedule: L2-to-L1 interleaved wave ratio keeping intermediate activations hot in L2 cache while overlapping Scatter. | `csrc/jit_kernels/heuristics/weave_knob_config.hpp:114` | `deep_gemm/include/deep_gemm/scheduler/mega_moe.cuh:886` |
+| `WEAVE_SCHED_MODE` | Temporal | `0 = descending load`; `1 = L2 tile swizzle`; `2 = expert-major` | 0 | Middle schedule: expert/tile temporal dispatch order when not using FIFO. | `csrc/jit_kernels/impls/sm100_fp8_fp4_mega_moe.hpp:272` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:399` |
+| `WEAVE_EXPERTS_PER_WAVE` | Temporal | `0 = auto`; `N = LPT scheduling window`; `100 + N = inline static order` | 0 | Middle schedule: expert wave window size for load-balanced temporal pairing. | `csrc/jit_kernels/impls/sm100_fp8_fp4_mega_moe.hpp:269` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:351` |
+| `WEAVE_COMBINE_SYNC_CHUNK` | Temporal | `0 = global barrier before combine`; `16, 32, 64, 128 = chunked dedup combine sync granularity (tokens per chunk)` | 0 | Tail schedule: aggregates deduplicated sends into G-token chunks in local L2 and emits one cross-GPU release per chunk so Combine overlaps tail Scatter without atomic storms. | `csrc/jit_kernels/heuristics/weave_knob_config.hpp:108` | `deep_gemm/include/deep_gemm/impls/sm90_fp8_mega_moe.cuh:730` |
+| `WEAVE_EARLY_STREAM_REDUCE` | Temporal | `0 = global barrier before combine`; `1 = barrier-free per-token cnt==topk tail-interleaved early reduce` | 0 | Tail schedule: barrier-free streaming combine readiness overlapping tail scatter. | `csrc/jit_kernels/impls/sm100_fp8_fp4_mega_moe.hpp:224` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:1417` |
+| `WEAVE_ALL_WAVE_COMBINE` | Temporal | `0 = compute-group waves only`; `1 = all waves join the cooperative tail combine` | 1 (forced 0 at preset 2 and above) | Tail schedule: recruits all finished communication and compute warps/waves into cooperative Combine reduction. | `deep_gemm/include/deep_gemm/impls/amd/ep8/build_one.sh:24` | `deep_gemm/include/deep_gemm/scheduler/weave_knobs.cuh:181` |
 
 ### Implementation
 
 | Parameter | Category | Values (every accepted value is named) | Default | Mechanism | Host parse | Kernel consumption |
 |---|---|---|---|---|---|---|
+| `WEAVE_PRECISION_MODE` | Implementation | `0 = fp8xfp4`; `1 = fp4xfp4`; `2 = fp8xfp8`; `3 = bf16` | 0 | Single-op numeric precision and tensor-core instruction format across GEMM1/GEMM2. | `deep_gemm/include/deep_gemm/scheduler/weave_knobs.cuh:273` | `deep_gemm/include/deep_gemm/scheduler/weave_cost_model.cuh:25` |
+| `WEAVE_ADAPT_BM` | Implementation | `0 = fixed per-expert BM`; `1 = per-expert M-bucketed profile lookup` | 0 | Runtime per-expert M-bucketed parameter group lookup from offline-calibrated (Mainloop + Epilogue) tables. | `csrc/jit_kernels/heuristics/sm90_mega_moe.hpp:280` | `deep_gemm/include/deep_gemm/impls/sm90_fp8_mega_moe.cuh:591` |
+| `WEAVE_BM_TIER_MODE` | Implementation | `0 = five-tier`; `1 = four-tier`; `2 = EP16 four-tier {32,64,128,256}` | 2 | Offline-calibrated per-expert M-bucket profile ladder on MI308X. | `deep_gemm/include/deep_gemm/impls/amd/ep8/build_one.sh:12` | `deep_gemm/include/deep_gemm/impls/amd/include/direct_gather_and_greedy_tiles.hpp:71` |
+| `WEAVE_BLOCK_M_L1` | Implementation | `0 = auto`; `16, 32, 64, 80, 96, 128, 192, 240, 256` | 0 | Independent GEMM1 (FC1) mainloop block-M parameter (paired with GEMM1 epilogue store/stage config). | `csrc/jit_kernels/heuristics/weave_knob_config.hpp:122` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:1088` |
+| `WEAVE_STORE_BLOCK_M_L1` | Implementation | `0 = auto`; positive multiple of 8 (e.g. `8` at BM=80, `16` at BM=96, `24` at BM=240) | 0 (auto 8/16/24 at BM=80/96/240) | Independent GEMM1 (FC1) epilogue store-M parameter matched to GEMM1 mainloop to maximize SMEM TMA stages. | `csrc/jit_kernels/impls/sm100_fp8_fp4_mega_moe.hpp:231` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:1092` |
+| `WEAVE_BLOCK_M_L2` | Implementation | `0 = auto`; `16, 32, 64, 80, 96, 128, 192, 240, 256` | 0 | Independent GEMM2 (FC2) mainloop block-M parameter searched independently from GEMM1. | `csrc/jit_kernels/heuristics/weave_knob_config.hpp:125` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:1090` |
+| `WEAVE_STORE_BLOCK_M_L2` | Implementation | `0 = auto`; positive multiple of 8 (e.g. `8` at BM=80/96/240) | 0 (auto 8 at BM=80/96/240) | Independent GEMM2 (FC2) epilogue store-M parameter matched to GEMM2 mainloop (e.g. compact `8` rows for BF16 output). | `csrc/jit_kernels/impls/sm100_fp8_fp4_mega_moe.hpp:260` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:233` |
+| `WEAVE_TMEM_PIPELINE_MODE` | Implementation | `0 = auto` (2.0 at BM<=240 with one prefetch stage; 1.75 at BM=256); `100 = 1.0`; `175 = 1.75`; `200 = 2.0` | 0 | Single-op TMEM accumulator pipeline implementation (`1.0`, `1.75`-stage 64-col overlapping TMEM at BM=256, or `2.0`-stage). | `csrc/jit_kernels/impls/sm100_fp8_fp4_mega_moe.hpp:225` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:3795` |
+| `WEAVE_EPI_REG_STAGES` | Implementation | `0 = auto` (2 at BM in `{80, 96, 240, 256}` with TMEM depth >= 1.75, else 1); `1 = single register buffer`; `2 = two register stages` | 0 | Single-op 2-stage register epilogue pipeline prefetching TMEM sub-block s+1 while quantizing/storing sub-block s to release TMEM early. | `csrc/jit_kernels/heuristics/weave_knob_config.hpp:111` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:3805` |
+| `WEAVE_RING_BLOCKS` | Implementation | `0 = auto capacity from get_num_max_live_pool_blocks`; `N >= 1 = forced ring block count` | 0 | Bounded intermediate activation ring-buffer slot reuse between GEMM1 and GEMM2. | `csrc/jit_kernels/impls/sm100_fp8_fp4_mega_moe.hpp:223` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:1086` |
+| `WEAVE_REG_PULL_BYTES` | Implementation | `0 = SMEM staging`; `1024, 2048, 4096 = register-direct pull width in bytes` | 0 | Independent Dispatch operator parameter: register-direct remote pull packet width. | `csrc/jit_kernels/impls/sm100_fp8_fp4_mega_moe.hpp:252` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:119` |
+| `WEAVE_DEDUP_MODE` | Implementation | `0 = off`; `1 = unique (token, destination) buckets`; `2 = local pre-reduce plus 32-lane fanout` | 0 | Independent Dispatch operator deduplication of duplicate remote token reads. | `csrc/jit_kernels/impls/sm100_fp8_fp4_mega_moe.hpp:274` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:415` |
+| `WEAVE_SCATTER_STAGING` | Implementation | `0 = reg_2stage`: double-buffered register transfer; `1 = smem`: per-SM on-chip handoff to the same SM's dispatch warps; `2 = hbm_dedup`: L2-resident HBM buffer with bf16x2 atomic dedup and a global queue drained by the scatter SMs (names or codes accepted) | 0 (auto `hbm_dedup` when `WEAVE_LOCAL_SCATTER_DEDUP=1`) | Independent Scatter operator staging implementation (`reg_2stage`, XOR-swizzled `smem`, or `hbm_dedup`). | `csrc/jit_kernels/heuristics/weave_knob_config.hpp:145` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:1437` |
+| `WEAVE_LOCAL_SCATTER_DEDUP` | Implementation | `0 = full-precision local accumulation`; `1 = bf16x2 hardware L2 atomic dedup before send` | 0 | Independent Scatter operator local deduplication merging multi-expert hits on the same GPU before NVLink send. | `csrc/jit_kernels/impls/sm100_fp8_fp4_mega_moe.hpp:227` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:1420` |
+| `WEAVE_SCATTER_SMEM_ALIAS` | Implementation | `0 = dedicated scatter SMEM`; `1 = alias the scatter buffer into the dispatch dead zone` | 1 | Scatter SMEM buffer aliasing into the post-dispatch SMEM window. | `csrc/jit_kernels/impls/sm100_fp8_fp4_mega_moe.hpp:207` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:490` |
+| `WEAVE_SCATTER_MODE` | Implementation | `0 = epilogue inline`; `1 = SMEM handoff to communication warps`; `2 = local pre-reduce dedup first`; `3 = local bf16x2 dedup + HBM scatter queue` | derived | Low-level scatter data-path code (derived from `WEAVE_SCATTER_OWNER` and `WEAVE_SCATTER_STAGING` on SM103; direct on MI308X). | `csrc/jit_kernels/impls/sm100_fp8_fp4_mega_moe.hpp:206` | `deep_gemm/include/deep_gemm/scheduler/weave_cost_model.cuh:31` |
+| `WEAVE_ENABLE_COST_MODEL` | Implementation | `0 = static policy`; `1 = CTA-0 runtime cost model` | 1 at preset 0; 0 at presets 1-3 | Master switch for the on-device CTA-0 runtime policy selector. | `deep_gemm/include/deep_gemm/scheduler/weave_knobs.cuh:51` | `deep_gemm/include/deep_gemm/scheduler/weave_cost_model.cuh:27` |
 | `WEAVE_ABLATION_PRESET` | Implementation | `0 = full Weave`; `1 = -S`; `2 = -S-T`; `3 = -S-T-C` | 0 | Compile-time progressive ablation selector. | `deep_gemm/include/deep_gemm/scheduler/weave_knobs.cuh:41` | `deep_gemm/include/deep_gemm/scheduler/weave_cost_model.cuh:26` |
-| `WEAVE_ENABLE_COST_MODEL` | Implementation | `0 = static policy`; `1 = CTA-0 runtime cost model` | 1 at preset 0; 0 at presets 1-3 | Master switch for the on-device CTA-0 policy search. | `deep_gemm/include/deep_gemm/scheduler/weave_knobs.cuh:51` | `deep_gemm/include/deep_gemm/scheduler/weave_cost_model.cuh:27` |
-| `WEAVE_ADAPT_BM` | Implementation | `0 = fixed per-expert BM`; `1 = per-expert dynamic BM ladder` | 0 | Enables the per-expert adaptive block-M ladder (H20 swapAB tiers, SM103 expert step mode). | `csrc/jit_kernels/heuristics/sm90_mega_moe.hpp:280` | `deep_gemm/include/deep_gemm/impls/sm90_fp8_mega_moe.cuh:591` |
-| `WEAVE_BLOCK_M_L1` | Implementation | `0 = auto`; `16, 32, 64, 80, 96, 128, 192, 240, 256` | 0 | GEMM1 (FC1) per-expert block-M envelope; the adaptive ladder picks BM_e inside it. SM103 and H20 have one static BLOCK_M template, so a non-zero value must equal it. | `csrc/jit_kernels/heuristics/weave_knob_config.hpp:122` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:1088` |
-| `WEAVE_BLOCK_M_L2` | Implementation | `0 = auto`; `16, 32, 64, 80, 96, 128, 192, 240, 256` | 0 | GEMM2 (FC2) per-expert block-M envelope; independent from GEMM1 on the dynamic-scheduler backends. SM103 and H20 require a value equal to the compiled BLOCK_M. | `csrc/jit_kernels/heuristics/weave_knob_config.hpp:125` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:1090` |
-| `WEAVE_STORE_BLOCK_M_L1` | Implementation | `0 = auto`; positive multiple of 8 (e.g. `8` at BM=80, `16` at BM=96, `24` at BM=240) | 0 (auto 8/16/24 at BM=80/96/240) | GEMM1 epilogue store height; asymmetric splits unlock 8 TMA stages at BM=80/96 and 6 stages at BM=240. H20 accepts only the full compiled BLOCK_M. | `csrc/jit_kernels/impls/sm100_fp8_fp4_mega_moe.hpp:231` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:1092` |
-| `WEAVE_STORE_BLOCK_M_L2` | Implementation | `0 = auto`; positive multiple of 8 (e.g. `8` at BM=80/96/240) | 0 (auto 8 at BM=80/96/240) | GEMM2 epilogue store height; asymmetric splits unlock 8 TMA stages at BM=80/96 and 6 stages at BM=240. H20 accepts only the full compiled BLOCK_M. | `csrc/jit_kernels/impls/sm100_fp8_fp4_mega_moe.hpp:260` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:233` |
-| `WEAVE_LOCAL_SCATTER_DEDUP` | Implementation | `0 = full-precision local accumulation`; `1 = bf16x2 hardware L2 atomic dedup before send` | 0 | Fire-and-forget red.add.noftz.bf16x2 merge of duplicate expert contributions into a pre-zeroed L2-resident buffer; one descriptor is published per deduplicated row. | `csrc/jit_kernels/impls/sm100_fp8_fp4_mega_moe.hpp:227` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:1420` |
-| `WEAVE_SCATTER_STAGING` | Implementation | `0 = reg_2stage`: double-buffered register transfer; `1 = smem`: per-SM on-chip handoff to the same SM's dispatch warps; `2 = hbm_dedup`: L2-resident HBM buffer with bf16x2 atomic dedup and a global queue drained by the scatter SMs (names or codes accepted) | 0 (auto `hbm_dedup` when `WEAVE_LOCAL_SCATTER_DEDUP=1`) | Selects one of the three scatter fast paths; `smem` adds zero L2/HBM traffic for small batches, `hbm_dedup` removes SMEM slot backpressure for large batches. `smem` and `hbm_dedup` require `comm_only` ownership. | `csrc/jit_kernels/heuristics/weave_knob_config.hpp:145` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:1437` |
-| `WEAVE_SCATTER_MODE` | Implementation | `0 = epilogue inline`; `1 = SMEM handoff to communication warps`; `2 = local pre-reduce dedup first`; `3 = local bf16x2 dedup + HBM scatter queue` | derived | Low-level scatter executor code. On SM103 it is derived from `WEAVE_SCATTER_OWNER` and `WEAVE_SCATTER_STAGING` unless pinned explicitly; MI308X and the CTA-0 scatter override read it directly. | `csrc/jit_kernels/impls/sm100_fp8_fp4_mega_moe.hpp:206` | `deep_gemm/include/deep_gemm/scheduler/weave_cost_model.cuh:31` |
-| `WEAVE_REG_PULL_BYTES` | Implementation | `0 = SMEM staging`; `1024, 2048, 4096 = register-direct pull width in bytes` | 0 | Pulls remote token payloads directly into registers instead of staging them in SMEM. | `csrc/jit_kernels/impls/sm100_fp8_fp4_mega_moe.hpp:252` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:119` |
-| `WEAVE_SCATTER_SMEM_ALIAS` | Implementation | `0 = dedicated scatter SMEM`; `1 = alias the scatter buffer into the dispatch dead zone` | 1 | Reuses the dispatch buffer's idle window for scatter staging. | `csrc/jit_kernels/impls/sm100_fp8_fp4_mega_moe.hpp:207` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:490` |
-| `WEAVE_SCATTER_WARPS` | Implementation | `0 = automatic`; `4`; `8` | 0 | Scatter warp allocation inside the dispatch partition. | `csrc/jit_kernels/impls/sm100_fp8_fp4_mega_moe.hpp:208` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:501` |
-| `WEAVE_DEDUP_MODE` | Implementation | `0 = off`; `1 = unique (token, destination) buckets`; `2 = local pre-reduce plus 32-lane fanout` | 0 | Selective input deduplication of duplicate routed reads. | `csrc/jit_kernels/impls/sm100_fp8_fp4_mega_moe.hpp:274` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:415` |
-| `WEAVE_REG_BALANCE` | Implementation | `0 = default (96/72/168)`; `1 = rebalanced (64/56/192) at E/rank > 64` | 0 | Reclaims spare dispatch/non-epilogue registers on SM103 to give epilogue warps 192 registers when E/rank > 64. | `csrc/jit_kernels/heuristics/weave_knob_config.hpp:137` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:1503` |
 | `WEAVE_PROFILER_LEVEL` | Implementation | `0 = production`; `1 = phase open/close events`; `2 = full per-stage events` | 0 | WeaveProfiler instrumentation level for the AMD port. | `deep_gemm/include/deep_gemm/impls/amd/ep16/build_port.py:97` | `deep_gemm/include/deep_gemm/impls/amd/third_party_overlay/fi_lite_hip.h:8` |
 
 `num_shared_experts` is a Python/C++ API argument rather than an environment knob. Its default is `0` on every MegaMoE entry point; shared-expert buffers are allocated only when it is explicitly non-zero. The gate API (`bf16_mega_gate`) takes it explicitly together with `use_shared_as_routed`.

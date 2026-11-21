@@ -154,12 +154,12 @@ def write_docs(schema) -> None:
     parts.append(
         "| Parameter group | SM103 fp8xfp4 | SM103 fp4xfp4 | H20 | MI308X EP8 | MI308X EP16 |\n"
         "|---|---|---|---|---|---|\n"
-        "| Spatial: dispatch warps, dispatch/scatter active SMs, locality domains, SM 0 scheduler | yes | n/a | yes | yes | yes |\n"
-        "| Spatial: strict binary scatter ownership (`epilogue_only` / `comm_only`) | yes | n/a | yes | n/a | n/a |\n"
-        "| Temporal: L2 K-block dependency, ring blocks, early reduce, chunked combine sync, TMEM pipeline, head pull | yes | ring only | yes | yes | yes |\n"
-        "| Temporal: epilogue register stages | yes | n/a | n/a | n/a | n/a |\n"
-        "| Implementation: per-expert BM, asymmetric store, local dedup, precision | yes | fixed | yes | yes | yes |\n"
-        "| Implementation: scatter staging (`reg_2stage` / `smem` / `hbm_dedup`) | yes | n/a | yes | n/a | n/a |\n"
+        "| Spatial: SM subsets (`DISPATCH_ACTIVE_SMS`, `SCATTER_ACTIVE_SMS`), locality domains, SM 0 scheduler | yes | n/a | yes | yes | yes |\n"
+        "| Spatial: per-SM warp/wave & register ratios (`DISPATCH_WARPS`, `SCATTER_WARPS`, `REG_BALANCE`, `AMD_8WAVE_MIN_TOK`) | yes | n/a | yes | yes | yes |\n"
+        "| Temporal: Head prefetch/group readiness, Middle `L2_KBLOCK_DEP` & binary `SCATTER_OWNER`, Tail `COMBINE_SYNC_CHUNK` & all-wave combine | yes | overlap | yes | yes | yes |\n"
+        "| Implementation: independent GEMM1/GEMM2/Dispatch/Scatter params & per-expert M-profile lookup (`ADAPT_BM`, `BM_TIER_MODE`) | yes | fixed | yes | yes | yes |\n"
+        "| Implementation: single-op `TMEM_PIPELINE_MODE` (1.0/1.75/2.0), `EPI_REG_STAGES` (2-stage reg), `RING_BLOCKS`, `PRECISION_MODE` | yes | ring | fp8 | fp8 | fp8 |\n"
+        "| Implementation: scatter staging (`reg_2stage` / `smem` / `hbm_dedup`) & Dispatch/Scatter deduplication | yes | n/a | yes | yes | yes |\n"
     )
     (ROOT / "docs" / "TUNABLE_PARAMETERS.md").write_text("\n".join(parts), encoding="utf-8")
 
