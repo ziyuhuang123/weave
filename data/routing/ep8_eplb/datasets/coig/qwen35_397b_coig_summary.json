@@ -1,0 +1,17 @@
+{
+ "model": "qwen35_397b_coig",
+ "base_model": "qwen35_397b",
+ "dataset": "coig",
+ "arch": "qwen3_5_moe_true_prefix",
+ "E": 512,
+ "K": 10,
+ "EP": 8,
+ "tokens_global_S": 262144,
+ "routes_total": 2621440,
+ "expert_route_min": 8,
+ "expert_route_max": 95453,
+ "expert_route_mean": 5120.0,
+ "nonzero_experts": 512,
+ "source": "coig (real dataset) + real weights FULL prefix (Qwen3.8-2.4T-A95B-FP8, ModelScope)",
+ "route_note": "true prefix, softmax gate top-10, same pipeline as ShareGPT masters"
+}

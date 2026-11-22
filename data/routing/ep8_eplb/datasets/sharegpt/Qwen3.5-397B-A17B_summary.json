@@ -1,0 +1,27 @@
+{
+ "model": "Qwen3.5-397B-A17B",
+ "arch": "qwen3_5_moe_true_prefix",
+ "E": 512,
+ "K": 10,
+ "EP": 8,
+ "tokens_global_S": 262144,
+ "tokens_per_rank": 32768,
+ "routes_total": 2621440,
+ "routes_per_dst_rank": [
+  292569,
+  315194,
+  345037,
+  345228,
+  320297,
+  352395,
+  326296,
+  324424
+ ],
+ "rank_balance_ratio": 1.0754241943359375,
+ "expert_route_min": 510,
+ "expert_route_max": 26269,
+ "expert_route_mean": 5120.0,
+ "nonzero_experts": 512,
+ "source": "sharegpt_n1024_random_seed42 (real dataset) + real weights FULL prefix",
+ "route_note": "true prefix: embed + layers0-2 (attn+MoE) + layer3 attn, softmax gate top-10"
+}

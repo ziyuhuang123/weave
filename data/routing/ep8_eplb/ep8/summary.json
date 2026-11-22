@@ -1,0 +1,135 @@
+{
+ "DeepSeek-V4-Flash_S262144": {
+  "E": 256,
+  "K": 6,
+  "EP": 8,
+  "tokens": 262144,
+  "tokens_per_rank": 32768,
+  "experts_per_rank": 32,
+  "routes_per_rank": [
+   212543,
+   233852,
+   197370,
+   210178,
+   191989,
+   181245,
+   180872,
+   164815
+  ],
+  "rank_balance_ratio": 1.1894
+ },
+ "DeepSeek-V4-Flash_S8192": {
+  "E": 256,
+  "K": 6,
+  "EP": 8,
+  "tokens": 8192,
+  "tokens_per_rank": 1024,
+  "experts_per_rank": 32,
+  "routes_per_rank": [
+   6813,
+   7389,
+   6034,
+   6723,
+   6185,
+   5349,
+   5736,
+   4923
+  ],
+  "rank_balance_ratio": 1.2026
+ },
+ "Qwen3.5-122B-A10B_S262144": {
+  "E": 256,
+  "K": 8,
+  "EP": 8,
+  "tokens": 262144,
+  "tokens_per_rank": 32768,
+  "experts_per_rank": 32,
+  "routes_per_rank": [
+   278579,
+   242808,
+   284797,
+   220793,
+   295634,
+   260252,
+   258492,
+   255797
+  ],
+  "rank_balance_ratio": 1.1278
+ },
+ "Qwen3.5-35B-A3B_S262144": {
+  "E": 256,
+  "K": 8,
+  "EP": 8,
+  "tokens": 262144,
+  "tokens_per_rank": 32768,
+  "experts_per_rank": 32,
+  "routes_per_rank": [
+   237273,
+   285071,
+   279920,
+   229394,
+   251369,
+   252296,
+   272966,
+   288863
+  ],
+  "rank_balance_ratio": 1.1019
+ },
+ "Qwen3.5-397B-A17B_S262144": {
+  "E": 512,
+  "K": 10,
+  "EP": 8,
+  "tokens": 262144,
+  "tokens_per_rank": 32768,
+  "experts_per_rank": 64,
+  "routes_per_rank": [
+   292569,
+   315194,
+   345037,
+   345228,
+   320297,
+   352395,
+   326296,
+   324424
+  ],
+  "rank_balance_ratio": 1.0754
+ },
+ "minimax_m3_S262144": {
+  "E": 128,
+  "K": 4,
+  "EP": 8,
+  "tokens": 262144,
+  "tokens_per_rank": 32768,
+  "experts_per_rank": 16,
+  "routes_per_rank": [
+   166723,
+   97981,
+   193707,
+   104071,
+   131522,
+   126762,
+   94873,
+   132937
+  ],
+  "rank_balance_ratio": 1.4779
+ },
+ "qwen38max_S262144": {
+  "E": 512,
+  "K": 10,
+  "EP": 8,
+  "tokens": 262144,
+  "tokens_per_rank": 32768,
+  "experts_per_rank": 64,
+  "routes_per_rank": [
+   297215,
+   343291,
+   288955,
+   354371,
+   372304,
+   319212,
+   304173,
+   341919
+  ],
+  "rank_balance_ratio": 1.1362
+ }
+}

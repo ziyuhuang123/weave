@@ -1,0 +1,41 @@
+{
+ "schema": "costmodel-hist/1",
+ "model": "minimax_m3",
+ "S": 128,
+ "R": 8,
+ "T_per_rank": 16,
+ "E": 128,
+ "K": 4,
+ "el_ep8": 16,
+ "src_lineage": "EP8 prefix (ranks 0-7) derived from real ShareGPT token routing traces",
+ "selfcheck": {
+  "bad_id": 0,
+  "dup_topk": 0,
+  "bad_w_full": 0,
+  "rows_total": 512
+ },
+ "rows_per_dst": {
+  "min": 41,
+  "mean": 64.0,
+  "max": 86,
+  "max/min": 2.098
+ },
+ "tiles_per_dst_g0": {
+  "s1_min": 9,
+  "s1_max": 16,
+  "s2_min": 9,
+  "s2_max": 16,
+  "gemm_workers": 78
+ },
+ "max_src_share_per_dst": [
+  0.1765,
+  0.1951,
+  0.1628,
+  0.2075,
+  0.2,
+  0.2121,
+  0.2273,
+  0.25
+ ],
+ "worst_max_src_share": 0.25
+}

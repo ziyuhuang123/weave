@@ -1,0 +1,17 @@
+{
+ "model": "qwen35_122b_metamath",
+ "base_model": "qwen35_122b",
+ "dataset": "metamath",
+ "arch": "qwen3_5_moe_true_prefix",
+ "E": 256,
+ "K": 8,
+ "EP": 8,
+ "tokens_global_S": 262144,
+ "routes_total": 2097152,
+ "expert_route_min": 122,
+ "expert_route_max": 123140,
+ "expert_route_mean": 8192.0,
+ "nonzero_experts": 256,
+ "source": "metamath (real dataset) + real weights FULL prefix (Qwen3.8-2.4T-A95B-FP8, ModelScope)",
+ "route_note": "true prefix, softmax gate top-8, same pipeline as ShareGPT masters"
+}

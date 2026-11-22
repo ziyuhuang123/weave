@@ -1,0 +1,3002 @@
+{
+ "DeepSeek-V4-Flash@S16": {
+  "tokens": 16,
+  "routes": 96,
+  "experts": 256,
+  "expert_route_min": 0,
+  "expert_route_max": 3,
+  "expert_route_mean": 0.375,
+  "nonzero_experts": 83
+ },
+ "DeepSeek-V4-Flash@S32": {
+  "tokens": 32,
+  "routes": 192,
+  "experts": 256,
+  "expert_route_min": 0,
+  "expert_route_max": 4,
+  "expert_route_mean": 0.75,
+  "nonzero_experts": 140
+ },
+ "DeepSeek-V4-Flash@S64": {
+  "tokens": 64,
+  "routes": 384,
+  "experts": 256,
+  "expert_route_min": 0,
+  "expert_route_max": 6,
+  "expert_route_mean": 1.5,
+  "nonzero_experts": 193
+ },
+ "DeepSeek-V4-Flash@S128": {
+  "tokens": 128,
+  "routes": 768,
+  "experts": 256,
+  "expert_route_min": 0,
+  "expert_route_max": 14,
+  "expert_route_mean": 3.0,
+  "nonzero_experts": 223
+ },
+ "DeepSeek-V4-Flash@S256": {
+  "tokens": 256,
+  "routes": 1536,
+  "experts": 256,
+  "expert_route_min": 0,
+  "expert_route_max": 23,
+  "expert_route_mean": 6.0,
+  "nonzero_experts": 252
+ },
+ "DeepSeek-V4-Flash@S512": {
+  "tokens": 512,
+  "routes": 3072,
+  "experts": 256,
+  "expert_route_min": 1,
+  "expert_route_max": 45,
+  "expert_route_mean": 12.0,
+  "nonzero_experts": 256
+ },
+ "DeepSeek-V4-Flash@S1024": {
+  "tokens": 1024,
+  "routes": 6144,
+  "experts": 256,
+  "expert_route_min": 6,
+  "expert_route_max": 95,
+  "expert_route_mean": 24.0,
+  "nonzero_experts": 256
+ },
+ "DeepSeek-V4-Flash@S2048": {
+  "tokens": 2048,
+  "routes": 12288,
+  "experts": 256,
+  "expert_route_min": 13,
+  "expert_route_max": 180,
+  "expert_route_mean": 48.0,
+  "nonzero_experts": 256
+ },
+ "DeepSeek-V4-Flash@S4096": {
+  "tokens": 4096,
+  "routes": 24576,
+  "experts": 256,
+  "expert_route_min": 38,
+  "expert_route_max": 400,
+  "expert_route_mean": 96.0,
+  "nonzero_experts": 256
+ },
+ "DeepSeek-V4-Flash@S8192": {
+  "tokens": 8192,
+  "routes": 49152,
+  "experts": 256,
+  "expert_route_min": 74,
+  "expert_route_max": 761,
+  "expert_route_mean": 192.0,
+  "nonzero_experts": 256
+ },
+ "DeepSeek-V4-Flash@S16384": {
+  "tokens": 16384,
+  "routes": 98304,
+  "experts": 256,
+  "expert_route_min": 140,
+  "expert_route_max": 1246,
+  "expert_route_mean": 384.0,
+  "nonzero_experts": 256
+ },
+ "DeepSeek-V4-Flash@S32768": {
+  "tokens": 32768,
+  "routes": 196608,
+  "experts": 256,
+  "expert_route_min": 343,
+  "expert_route_max": 2517,
+  "expert_route_mean": 768.0,
+  "nonzero_experts": 256
+ },
+ "DeepSeek-V4-Flash@S65536": {
+  "tokens": 65536,
+  "routes": 393216,
+  "experts": 256,
+  "expert_route_min": 595,
+  "expert_route_max": 4713,
+  "expert_route_mean": 1536.0,
+  "nonzero_experts": 256
+ },
+ "DeepSeek-V4-Flash@S131072": {
+  "tokens": 131072,
+  "routes": 786432,
+  "experts": 256,
+  "expert_route_min": 1374,
+  "expert_route_max": 8282,
+  "expert_route_mean": 3072.0,
+  "nonzero_experts": 256
+ },
+ "DeepSeek-V4-Flash@S262144": {
+  "tokens": 262144,
+  "routes": 1572864,
+  "experts": 256,
+  "expert_route_min": 2982,
+  "expert_route_max": 17945,
+  "expert_route_mean": 6144.0,
+  "nonzero_experts": 256
+ },
+ "DeepSeek-V4-Flash@meta": {
+  "route_note": "true prefix (see <model>_summary.json)",
+  "total_tokens": 262144,
+  "rank_balance_ratio": 1.1894327402114868,
+  "routes_per_dst_rank": [
+   212543,
+   233852,
+   197370,
+   210178,
+   191989,
+   181245,
+   180872,
+   164815
+  ]
+ },
+ "Qwen3.5-122B-A10B@S16": {
+  "tokens": 16,
+  "routes": 128,
+  "experts": 256,
+  "expert_route_min": 0,
+  "expert_route_max": 6,
+  "expert_route_mean": 0.5,
+  "nonzero_experts": 68
+ },
+ "Qwen3.5-122B-A10B@S32": {
+  "tokens": 32,
+  "routes": 256,
+  "experts": 256,
+  "expert_route_min": 0,
+  "expert_route_max": 12,
+  "expert_route_mean": 1.0,
+  "nonzero_experts": 103
+ },
+ "Qwen3.5-122B-A10B@S64": {
+  "tokens": 64,
+  "routes": 512,
+  "experts": 256,
+  "expert_route_min": 0,
+  "expert_route_max": 27,
+  "expert_route_mean": 2.0,
+  "nonzero_experts": 148
+ },
+ "Qwen3.5-122B-A10B@S128": {
+  "tokens": 128,
+  "routes": 1024,
+  "experts": 256,
+  "expert_route_min": 0,
+  "expert_route_max": 65,
+  "expert_route_mean": 4.0,
+  "nonzero_experts": 190
+ },
+ "Qwen3.5-122B-A10B@S256": {
+  "tokens": 256,
+  "routes": 2048,
+  "experts": 256,
+  "expert_route_min": 0,
+  "expert_route_max": 122,
+  "expert_route_mean": 8.0,
+  "nonzero_experts": 228
+ },
+ "Qwen3.5-122B-A10B@S512": {
+  "tokens": 512,
+  "routes": 4096,
+  "experts": 256,
+  "expert_route_min": 0,
+  "expert_route_max": 170,
+  "expert_route_mean": 16.0,
+  "nonzero_experts": 240
+ },
+ "Qwen3.5-122B-A10B@S1024": {
+  "tokens": 1024,
+  "routes": 8192,
+  "experts": 256,
+  "expert_route_min": 0,
+  "expert_route_max": 203,
+  "expert_route_mean": 32.0,
+  "nonzero_experts": 252
+ },
+ "Qwen3.5-122B-A10B@S2048": {
+  "tokens": 2048,
+  "routes": 16384,
+  "experts": 256,
+  "expert_route_min": 0,
+  "expert_route_max": 515,
+  "expert_route_mean": 64.0,
+  "nonzero_experts": 254
+ },
+ "Qwen3.5-122B-A10B@S4096": {
+  "tokens": 4096,
+  "routes": 32768,
+  "experts": 256,
+  "expert_route_min": 3,
+  "expert_route_max": 606,
+  "expert_route_mean": 128.0,
+  "nonzero_experts": 256
+ },
+ "Qwen3.5-122B-A10B@S8192": {
+  "tokens": 8192,
+  "routes": 65536,
+  "experts": 256,
+  "expert_route_min": 6,
+  "expert_route_max": 1103,
+  "expert_route_mean": 256.0,
+  "nonzero_experts": 256
+ },
+ "Qwen3.5-122B-A10B@S16384": {
+  "tokens": 16384,
+  "routes": 131072,
+  "experts": 256,
+  "expert_route_min": 19,
+  "expert_route_max": 1729,
+  "expert_route_mean": 512.0,
+  "nonzero_experts": 256
+ },
+ "Qwen3.5-122B-A10B@S32768": {
+  "tokens": 32768,
+  "routes": 262144,
+  "experts": 256,
+  "expert_route_min": 88,
+  "expert_route_max": 3157,
+  "expert_route_mean": 1024.0,
+  "nonzero_experts": 256
+ },
+ "Qwen3.5-122B-A10B@S65536": {
+  "tokens": 65536,
+  "routes": 524288,
+  "experts": 256,
+  "expert_route_min": 212,
+  "expert_route_max": 9577,
+  "expert_route_mean": 2048.0,
+  "nonzero_experts": 256
+ },
+ "Qwen3.5-122B-A10B@S131072": {
+  "tokens": 131072,
+  "routes": 1048576,
+  "experts": 256,
+  "expert_route_min": 351,
+  "expert_route_max": 20222,
+  "expert_route_mean": 4096.0,
+  "nonzero_experts": 256
+ },
+ "Qwen3.5-122B-A10B@S262144": {
+  "tokens": 262144,
+  "routes": 2097152,
+  "experts": 256,
+  "expert_route_min": 823,
+  "expert_route_max": 36728,
+  "expert_route_mean": 8192.0,
+  "nonzero_experts": 256
+ },
+ "Qwen3.5-122B-A10B@meta": {
+  "route_note": "true prefix (see <model>_summary.json)",
+  "total_tokens": 262144,
+  "rank_balance_ratio": 1.1277542114257812,
+  "routes_per_dst_rank": [
+   278579,
+   242808,
+   284797,
+   220793,
+   295634,
+   260252,
+   258492,
+   255797
+  ]
+ },
+ "Qwen3.5-35B-A3B@S16": {
+  "tokens": 16,
+  "routes": 128,
+  "experts": 256,
+  "expert_route_min": 0,
+  "expert_route_max": 8,
+  "expert_route_mean": 0.5,
+  "nonzero_experts": 56
+ },
+ "Qwen3.5-35B-A3B@S32": {
+  "tokens": 32,
+  "routes": 256,
+  "experts": 256,
+  "expert_route_min": 0,
+  "expert_route_max": 10,
+  "expert_route_mean": 1.0,
+  "nonzero_experts": 87
+ },
+ "Qwen3.5-35B-A3B@S64": {
+  "tokens": 64,
+  "routes": 512,
+  "experts": 256,
+  "expert_route_min": 0,
+  "expert_route_max": 16,
+  "expert_route_mean": 2.0,
+  "nonzero_experts": 140
+ },
+ "Qwen3.5-35B-A3B@S128": {
+  "tokens": 128,
+  "routes": 1024,
+  "experts": 256,
+  "expert_route_min": 0,
+  "expert_route_max": 30,
+  "expert_route_mean": 4.0,
+  "nonzero_experts": 181
+ },
+ "Qwen3.5-35B-A3B@S256": {
+  "tokens": 256,
+  "routes": 2048,
+  "experts": 256,
+  "expert_route_min": 0,
+  "expert_route_max": 67,
+  "expert_route_mean": 8.0,
+  "nonzero_experts": 217
+ },
+ "Qwen3.5-35B-A3B@S512": {
+  "tokens": 512,
+  "routes": 4096,
+  "experts": 256,
+  "expert_route_min": 0,
+  "expert_route_max": 145,
+  "expert_route_mean": 16.0,
+  "nonzero_experts": 240
+ },
+ "Qwen3.5-35B-A3B@S1024": {
+  "tokens": 1024,
+  "routes": 8192,
+  "experts": 256,
+  "expert_route_min": 0,
+  "expert_route_max": 217,
+  "expert_route_mean": 32.0,
+  "nonzero_experts": 253
+ },
+ "Qwen3.5-35B-A3B@S2048": {
+  "tokens": 2048,
+  "routes": 16384,
+  "experts": 256,
+  "expert_route_min": 1,
+  "expert_route_max": 572,
+  "expert_route_mean": 64.0,
+  "nonzero_experts": 256
+ },
+ "Qwen3.5-35B-A3B@S4096": {
+  "tokens": 4096,
+  "routes": 32768,
+  "experts": 256,
+  "expert_route_min": 5,
+  "expert_route_max": 617,
+  "expert_route_mean": 128.0,
+  "nonzero_experts": 256
+ },
+ "Qwen3.5-35B-A3B@S8192": {
+  "tokens": 8192,
+  "routes": 65536,
+  "experts": 256,
+  "expert_route_min": 15,
+  "expert_route_max": 1070,
+  "expert_route_mean": 256.0,
+  "nonzero_experts": 256
+ },
+ "Qwen3.5-35B-A3B@S16384": {
+  "tokens": 16384,
+  "routes": 131072,
+  "experts": 256,
+  "expert_route_min": 46,
+  "expert_route_max": 2181,
+  "expert_route_mean": 512.0,
+  "nonzero_experts": 256
+ },
+ "Qwen3.5-35B-A3B@S32768": {
+  "tokens": 32768,
+  "routes": 262144,
+  "experts": 256,
+  "expert_route_min": 137,
+  "expert_route_max": 3689,
+  "expert_route_mean": 1024.0,
+  "nonzero_experts": 256
+ },
+ "Qwen3.5-35B-A3B@S65536": {
+  "tokens": 65536,
+  "routes": 524288,
+  "experts": 256,
+  "expert_route_min": 302,
+  "expert_route_max": 6485,
+  "expert_route_mean": 2048.0,
+  "nonzero_experts": 256
+ },
+ "Qwen3.5-35B-A3B@S131072": {
+  "tokens": 131072,
+  "routes": 1048576,
+  "experts": 256,
+  "expert_route_min": 629,
+  "expert_route_max": 14485,
+  "expert_route_mean": 4096.0,
+  "nonzero_experts": 256
+ },
+ "Qwen3.5-35B-A3B@S262144": {
+  "tokens": 262144,
+  "routes": 2097152,
+  "experts": 256,
+  "expert_route_min": 1339,
+  "expert_route_max": 29936,
+  "expert_route_mean": 8192.0,
+  "nonzero_experts": 256
+ },
+ "Qwen3.5-35B-A3B@meta": {
+  "route_note": "true prefix (see <model>_summary.json)",
+  "total_tokens": 262144,
+  "rank_balance_ratio": 1.1019248962402344,
+  "routes_per_dst_rank": [
+   237273,
+   285071,
+   279920,
+   229394,
+   251369,
+   252296,
+   272966,
+   288863
+  ]
+ },
+ "Qwen3.5-397B-A17B@S16": {
+  "tokens": 16,
+  "routes": 160,
+  "experts": 512,
+  "expert_route_min": 0,
+  "expert_route_max": 16,
+  "expert_route_mean": 0.3125,
+  "nonzero_experts": 81
+ },
+ "Qwen3.5-397B-A17B@S32": {
+  "tokens": 32,
+  "routes": 320,
+  "experts": 512,
+  "expert_route_min": 0,
+  "expert_route_max": 29,
+  "expert_route_mean": 0.625,
+  "nonzero_experts": 141
+ },
+ "Qwen3.5-397B-A17B@S64": {
+  "tokens": 64,
+  "routes": 640,
+  "experts": 512,
+  "expert_route_min": 0,
+  "expert_route_max": 48,
+  "expert_route_mean": 1.25,
+  "nonzero_experts": 222
+ },
+ "Qwen3.5-397B-A17B@S128": {
+  "tokens": 128,
+  "routes": 1280,
+  "experts": 512,
+  "expert_route_min": 0,
+  "expert_route_max": 70,
+  "expert_route_mean": 2.5,
+  "nonzero_experts": 316
+ },
+ "Qwen3.5-397B-A17B@S256": {
+  "tokens": 256,
+  "routes": 2560,
+  "experts": 512,
+  "expert_route_min": 0,
+  "expert_route_max": 127,
+  "expert_route_mean": 5.0,
+  "nonzero_experts": 402
+ },
+ "Qwen3.5-397B-A17B@S512": {
+  "tokens": 512,
+  "routes": 5120,
+  "experts": 512,
+  "expert_route_min": 0,
+  "expert_route_max": 223,
+  "expert_route_mean": 10.0,
+  "nonzero_experts": 446
+ },
+ "Qwen3.5-397B-A17B@S1024": {
+  "tokens": 1024,
+  "routes": 10240,
+  "experts": 512,
+  "expert_route_min": 0,
+  "expert_route_max": 346,
+  "expert_route_mean": 20.0,
+  "nonzero_experts": 484
+ },
+ "Qwen3.5-397B-A17B@S2048": {
+  "tokens": 2048,
+  "routes": 20480,
+  "experts": 512,
+  "expert_route_min": 0,
+  "expert_route_max": 458,
+  "expert_route_mean": 40.0,
+  "nonzero_experts": 501
+ },
+ "Qwen3.5-397B-A17B@S4096": {
+  "tokens": 4096,
+  "routes": 40960,
+  "experts": 512,
+  "expert_route_min": 1,
+  "expert_route_max": 723,
+  "expert_route_mean": 80.0,
+  "nonzero_experts": 512
+ },
+ "Qwen3.5-397B-A17B@S8192": {
+  "tokens": 8192,
+  "routes": 81920,
+  "experts": 512,
+  "expert_route_min": 3,
+  "expert_route_max": 1004,
+  "expert_route_mean": 160.0,
+  "nonzero_experts": 512
+ },
+ "Qwen3.5-397B-A17B@S16384": {
+  "tokens": 16384,
+  "routes": 163840,
+  "experts": 512,
+  "expert_route_min": 14,
+  "expert_route_max": 1787,
+  "expert_route_mean": 320.0,
+  "nonzero_experts": 512
+ },
+ "Qwen3.5-397B-A17B@S32768": {
+  "tokens": 32768,
+  "routes": 327680,
+  "experts": 512,
+  "expert_route_min": 39,
+  "expert_route_max": 2755,
+  "expert_route_mean": 640.0,
+  "nonzero_experts": 512
+ },
+ "Qwen3.5-397B-A17B@S65536": {
+  "tokens": 65536,
+  "routes": 655360,
+  "experts": 512,
+  "expert_route_min": 107,
+  "expert_route_max": 7856,
+  "expert_route_mean": 1280.0,
+  "nonzero_experts": 512
+ },
+ "Qwen3.5-397B-A17B@S131072": {
+  "tokens": 131072,
+  "routes": 1310720,
+  "experts": 512,
+  "expert_route_min": 239,
+  "expert_route_max": 14327,
+  "expert_route_mean": 2560.0,
+  "nonzero_experts": 512
+ },
+ "Qwen3.5-397B-A17B@S262144": {
+  "tokens": 262144,
+  "routes": 2621440,
+  "experts": 512,
+  "expert_route_min": 510,
+  "expert_route_max": 26269,
+  "expert_route_mean": 5120.0,
+  "nonzero_experts": 512
+ },
+ "Qwen3.5-397B-A17B@meta": {
+  "route_note": "true prefix (see <model>_summary.json)",
+  "total_tokens": 262144,
+  "rank_balance_ratio": 1.0754241943359375,
+  "routes_per_dst_rank": [
+   292569,
+   315194,
+   345037,
+   345228,
+   320297,
+   352395,
+   326296,
+   324424
+  ]
+ },
+ "minimax_m3_coig@S16": {
+  "tokens": 16,
+  "routes": 64,
+  "experts": 128,
+  "expert_route_min": 0,
+  "expert_route_max": 7,
+  "expert_route_mean": 0.5,
+  "nonzero_experts": 29
+ },
+ "minimax_m3_coig@S32": {
+  "tokens": 32,
+  "routes": 128,
+  "experts": 128,
+  "expert_route_min": 0,
+  "expert_route_max": 19,
+  "expert_route_mean": 1.0,
+  "nonzero_experts": 36
+ },
+ "minimax_m3_coig@S64": {
+  "tokens": 64,
+  "routes": 256,
+  "experts": 128,
+  "expert_route_min": 0,
+  "expert_route_max": 40,
+  "expert_route_mean": 2.0,
+  "nonzero_experts": 42
+ },
+ "minimax_m3_coig@S128": {
+  "tokens": 128,
+  "routes": 512,
+  "experts": 128,
+  "expert_route_min": 0,
+  "expert_route_max": 87,
+  "expert_route_mean": 4.0,
+  "nonzero_experts": 56
+ },
+ "minimax_m3_coig@S256": {
+  "tokens": 256,
+  "routes": 1024,
+  "experts": 128,
+  "expert_route_min": 0,
+  "expert_route_max": 173,
+  "expert_route_mean": 8.0,
+  "nonzero_experts": 65
+ },
+ "minimax_m3_coig@S512": {
+  "tokens": 512,
+  "routes": 2048,
+  "experts": 128,
+  "expert_route_min": 0,
+  "expert_route_max": 336,
+  "expert_route_mean": 16.0,
+  "nonzero_experts": 76
+ },
+ "minimax_m3_coig@S1024": {
+  "tokens": 1024,
+  "routes": 4096,
+  "experts": 128,
+  "expert_route_min": 0,
+  "expert_route_max": 653,
+  "expert_route_mean": 32.0,
+  "nonzero_experts": 93
+ },
+ "minimax_m3_coig@S2048": {
+  "tokens": 2048,
+  "routes": 8192,
+  "experts": 128,
+  "expert_route_min": 0,
+  "expert_route_max": 1204,
+  "expert_route_mean": 64.0,
+  "nonzero_experts": 100
+ },
+ "minimax_m3_coig@S4096": {
+  "tokens": 4096,
+  "routes": 16384,
+  "experts": 128,
+  "expert_route_min": 0,
+  "expert_route_max": 2380,
+  "expert_route_mean": 128.0,
+  "nonzero_experts": 113
+ },
+ "minimax_m3_coig@S8192": {
+  "tokens": 8192,
+  "routes": 32768,
+  "experts": 128,
+  "expert_route_min": 0,
+  "expert_route_max": 4542,
+  "expert_route_mean": 256.0,
+  "nonzero_experts": 115
+ },
+ "minimax_m3_coig@S16384": {
+  "tokens": 16384,
+  "routes": 65536,
+  "experts": 128,
+  "expert_route_min": 0,
+  "expert_route_max": 9065,
+  "expert_route_mean": 512.0,
+  "nonzero_experts": 117
+ },
+ "minimax_m3_coig@S32768": {
+  "tokens": 32768,
+  "routes": 131072,
+  "experts": 128,
+  "expert_route_min": 0,
+  "expert_route_max": 17972,
+  "expert_route_mean": 1024.0,
+  "nonzero_experts": 120
+ },
+ "minimax_m3_coig@S65536": {
+  "tokens": 65536,
+  "routes": 262144,
+  "experts": 128,
+  "expert_route_min": 0,
+  "expert_route_max": 35661,
+  "expert_route_mean": 2048.0,
+  "nonzero_experts": 124
+ },
+ "minimax_m3_coig@S131072": {
+  "tokens": 131072,
+  "routes": 524288,
+  "experts": 128,
+  "expert_route_min": 0,
+  "expert_route_max": 70098,
+  "expert_route_mean": 4096.0,
+  "nonzero_experts": 127
+ },
+ "minimax_m3_coig@S262144": {
+  "tokens": 262144,
+  "routes": 1048576,
+  "experts": 128,
+  "expert_route_min": 1,
+  "expert_route_max": 135909,
+  "expert_route_mean": 8192.0,
+  "nonzero_experts": 128
+ },
+ "minimax_m3_coig@meta": {
+  "route_note": "true prefix (see <model>_summary.json)",
+  "total_tokens": 262144,
+  "rank_balance_ratio": 2.2582244873046875,
+  "routes_per_dst_rank": [
+   106146,
+   39362,
+   295990,
+   171774,
+   234221,
+   22415,
+   80746,
+   97922
+  ]
+ },
+ "minimax_m3_dolly@S16": {
+  "tokens": 16,
+  "routes": 64,
+  "experts": 128,
+  "expert_route_min": 0,
+  "expert_route_max": 6,
+  "expert_route_mean": 0.5,
+  "nonzero_experts": 38
+ },
+ "minimax_m3_dolly@S32": {
+  "tokens": 32,
+  "routes": 128,
+  "experts": 128,
+  "expert_route_min": 0,
+  "expert_route_max": 7,
+  "expert_route_mean": 1.0,
+  "nonzero_experts": 57
+ },
+ "minimax_m3_dolly@S64": {
+  "tokens": 64,
+  "routes": 256,
+  "experts": 128,
+  "expert_route_min": 0,
+  "expert_route_max": 13,
+  "expert_route_mean": 2.0,
+  "nonzero_experts": 80
+ },
+ "minimax_m3_dolly@S128": {
+  "tokens": 128,
+  "routes": 512,
+  "experts": 128,
+  "expert_route_min": 0,
+  "expert_route_max": 28,
+  "expert_route_mean": 4.0,
+  "nonzero_experts": 88
+ },
+ "minimax_m3_dolly@S256": {
+  "tokens": 256,
+  "routes": 1024,
+  "experts": 128,
+  "expert_route_min": 0,
+  "expert_route_max": 53,
+  "expert_route_mean": 8.0,
+  "nonzero_experts": 104
+ },
+ "minimax_m3_dolly@S512": {
+  "tokens": 512,
+  "routes": 2048,
+  "experts": 128,
+  "expert_route_min": 0,
+  "expert_route_max": 70,
+  "expert_route_mean": 16.0,
+  "nonzero_experts": 105
+ },
+ "minimax_m3_dolly@S1024": {
+  "tokens": 1024,
+  "routes": 4096,
+  "experts": 128,
+  "expert_route_min": 0,
+  "expert_route_max": 151,
+  "expert_route_mean": 32.0,
+  "nonzero_experts": 111
+ },
+ "minimax_m3_dolly@S2048": {
+  "tokens": 2048,
+  "routes": 8192,
+  "experts": 128,
+  "expert_route_min": 0,
+  "expert_route_max": 372,
+  "expert_route_mean": 64.0,
+  "nonzero_experts": 116
+ },
+ "minimax_m3_dolly@S4096": {
+  "tokens": 4096,
+  "routes": 16384,
+  "experts": 128,
+  "expert_route_min": 0,
+  "expert_route_max": 681,
+  "expert_route_mean": 128.0,
+  "nonzero_experts": 119
+ },
+ "minimax_m3_dolly@S8192": {
+  "tokens": 8192,
+  "routes": 32768,
+  "experts": 128,
+  "expert_route_min": 0,
+  "expert_route_max": 1210,
+  "expert_route_mean": 256.0,
+  "nonzero_experts": 124
+ },
+ "minimax_m3_dolly@S16384": {
+  "tokens": 16384,
+  "routes": 65536,
+  "experts": 128,
+  "expert_route_min": 0,
+  "expert_route_max": 2382,
+  "expert_route_mean": 512.0,
+  "nonzero_experts": 124
+ },
+ "minimax_m3_dolly@S32768": {
+  "tokens": 32768,
+  "routes": 131072,
+  "experts": 128,
+  "expert_route_min": 1,
+  "expert_route_max": 5223,
+  "expert_route_mean": 1024.0,
+  "nonzero_experts": 128
+ },
+ "minimax_m3_dolly@S65536": {
+  "tokens": 65536,
+  "routes": 262144,
+  "experts": 128,
+  "expert_route_min": 4,
+  "expert_route_max": 10274,
+  "expert_route_mean": 2048.0,
+  "nonzero_experts": 128
+ },
+ "minimax_m3_dolly@S131072": {
+  "tokens": 131072,
+  "routes": 524288,
+  "experts": 128,
+  "expert_route_min": 10,
+  "expert_route_max": 20642,
+  "expert_route_mean": 4096.0,
+  "nonzero_experts": 128
+ },
+ "minimax_m3_dolly@S262144": {
+  "tokens": 262144,
+  "routes": 1048576,
+  "experts": 128,
+  "expert_route_min": 16,
+  "expert_route_max": 41082,
+  "expert_route_mean": 8192.0,
+  "nonzero_experts": 128
+ },
+ "minimax_m3_dolly@meta": {
+  "route_note": "true prefix (see <model>_summary.json)",
+  "total_tokens": 262144,
+  "rank_balance_ratio": 1.48150634765625,
+  "routes_per_dst_rank": [
+   194184,
+   73854,
+   160821,
+   95450,
+   117285,
+   148756,
+   116424,
+   141802
+  ]
+ },
+ "minimax_m3_metamath@S16": {
+  "tokens": 16,
+  "routes": 64,
+  "experts": 128,
+  "expert_route_min": 0,
+  "expert_route_max": 3,
+  "expert_route_mean": 0.5,
+  "nonzero_experts": 46
+ },
+ "minimax_m3_metamath@S32": {
+  "tokens": 32,
+  "routes": 128,
+  "experts": 128,
+  "expert_route_min": 0,
+  "expert_route_max": 6,
+  "expert_route_mean": 1.0,
+  "nonzero_experts": 61
+ },
+ "minimax_m3_metamath@S64": {
+  "tokens": 64,
+  "routes": 256,
+  "experts": 128,
+  "expert_route_min": 0,
+  "expert_route_max": 9,
+  "expert_route_mean": 2.0,
+  "nonzero_experts": 78
+ },
+ "minimax_m3_metamath@S128": {
+  "tokens": 128,
+  "routes": 512,
+  "experts": 128,
+  "expert_route_min": 0,
+  "expert_route_max": 23,
+  "expert_route_mean": 4.0,
+  "nonzero_experts": 85
+ },
+ "minimax_m3_metamath@S256": {
+  "tokens": 256,
+  "routes": 1024,
+  "experts": 128,
+  "expert_route_min": 0,
+  "expert_route_max": 63,
+  "expert_route_mean": 8.0,
+  "nonzero_experts": 94
+ },
+ "minimax_m3_metamath@S512": {
+  "tokens": 512,
+  "routes": 2048,
+  "experts": 128,
+  "expert_route_min": 0,
+  "expert_route_max": 110,
+  "expert_route_mean": 16.0,
+  "nonzero_experts": 103
+ },
+ "minimax_m3_metamath@S1024": {
+  "tokens": 1024,
+  "routes": 4096,
+  "experts": 128,
+  "expert_route_min": 0,
+  "expert_route_max": 176,
+  "expert_route_mean": 32.0,
+  "nonzero_experts": 113
+ },
+ "minimax_m3_metamath@S2048": {
+  "tokens": 2048,
+  "routes": 8192,
+  "experts": 128,
+  "expert_route_min": 0,
+  "expert_route_max": 416,
+  "expert_route_mean": 64.0,
+  "nonzero_experts": 117
+ },
+ "minimax_m3_metamath@S4096": {
+  "tokens": 4096,
+  "routes": 16384,
+  "experts": 128,
+  "expert_route_min": 0,
+  "expert_route_max": 702,
+  "expert_route_mean": 128.0,
+  "nonzero_experts": 121
+ },
+ "minimax_m3_metamath@S8192": {
+  "tokens": 8192,
+  "routes": 32768,
+  "experts": 128,
+  "expert_route_min": 0,
+  "expert_route_max": 1539,
+  "expert_route_mean": 256.0,
+  "nonzero_experts": 121
+ },
+ "minimax_m3_metamath@S16384": {
+  "tokens": 16384,
+  "routes": 65536,
+  "experts": 128,
+  "expert_route_min": 0,
+  "expert_route_max": 3296,
+  "expert_route_mean": 512.0,
+  "nonzero_experts": 125
+ },
+ "minimax_m3_metamath@S32768": {
+  "tokens": 32768,
+  "routes": 131072,
+  "experts": 128,
+  "expert_route_min": 0,
+  "expert_route_max": 6716,
+  "expert_route_mean": 1024.0,
+  "nonzero_experts": 125
+ },
+ "minimax_m3_metamath@S65536": {
+  "tokens": 65536,
+  "routes": 262144,
+  "experts": 128,
+  "expert_route_min": 0,
+  "expert_route_max": 15367,
+  "expert_route_mean": 2048.0,
+  "nonzero_experts": 125
+ },
+ "minimax_m3_metamath@S131072": {
+  "tokens": 131072,
+  "routes": 524288,
+  "experts": 128,
+  "expert_route_min": 0,
+  "expert_route_max": 30343,
+  "expert_route_mean": 4096.0,
+  "nonzero_experts": 126
+ },
+ "minimax_m3_metamath@S262144": {
+  "tokens": 262144,
+  "routes": 1048576,
+  "experts": 128,
+  "expert_route_min": 1,
+  "expert_route_max": 61644,
+  "expert_route_mean": 8192.0,
+  "nonzero_experts": 128
+ },
+ "minimax_m3_metamath@meta": {
+  "route_note": "true prefix (see <model>_summary.json)",
+  "total_tokens": 262144,
+  "rank_balance_ratio": 1.4760360717773438,
+  "routes_per_dst_rank": [
+   193467,
+   100568,
+   164362,
+   74434,
+   115069,
+   124071,
+   157530,
+   119075
+  ]
+ },
+ "qwen35_122b_coig@S16": {
+  "tokens": 16,
+  "routes": 128,
+  "experts": 256,
+  "expert_route_min": 0,
+  "expert_route_max": 11,
+  "expert_route_mean": 0.5,
+  "nonzero_experts": 63
+ },
+ "qwen35_122b_coig@S32": {
+  "tokens": 32,
+  "routes": 256,
+  "experts": 256,
+  "expert_route_min": 0,
+  "expert_route_max": 12,
+  "expert_route_mean": 1.0,
+  "nonzero_experts": 86
+ },
+ "qwen35_122b_coig@S64": {
+  "tokens": 64,
+  "routes": 512,
+  "experts": 256,
+  "expert_route_min": 0,
+  "expert_route_max": 27,
+  "expert_route_mean": 2.0,
+  "nonzero_experts": 118
+ },
+ "qwen35_122b_coig@S128": {
+  "tokens": 128,
+  "routes": 1024,
+  "experts": 256,
+  "expert_route_min": 0,
+  "expert_route_max": 46,
+  "expert_route_mean": 4.0,
+  "nonzero_experts": 166
+ },
+ "qwen35_122b_coig@S256": {
+  "tokens": 256,
+  "routes": 2048,
+  "experts": 256,
+  "expert_route_min": 0,
+  "expert_route_max": 97,
+  "expert_route_mean": 8.0,
+  "nonzero_experts": 188
+ },
+ "qwen35_122b_coig@S512": {
+  "tokens": 512,
+  "routes": 4096,
+  "experts": 256,
+  "expert_route_min": 0,
+  "expert_route_max": 197,
+  "expert_route_mean": 16.0,
+  "nonzero_experts": 201
+ },
+ "qwen35_122b_coig@S1024": {
+  "tokens": 1024,
+  "routes": 8192,
+  "experts": 256,
+  "expert_route_min": 0,
+  "expert_route_max": 367,
+  "expert_route_mean": 32.0,
+  "nonzero_experts": 228
+ },
+ "qwen35_122b_coig@S2048": {
+  "tokens": 2048,
+  "routes": 16384,
+  "experts": 256,
+  "expert_route_min": 0,
+  "expert_route_max": 757,
+  "expert_route_mean": 64.0,
+  "nonzero_experts": 243
+ },
+ "qwen35_122b_coig@S4096": {
+  "tokens": 4096,
+  "routes": 32768,
+  "experts": 256,
+  "expert_route_min": 0,
+  "expert_route_max": 1442,
+  "expert_route_mean": 128.0,
+  "nonzero_experts": 254
+ },
+ "qwen35_122b_coig@S8192": {
+  "tokens": 8192,
+  "routes": 65536,
+  "experts": 256,
+  "expert_route_min": 1,
+  "expert_route_max": 2730,
+  "expert_route_mean": 256.0,
+  "nonzero_experts": 256
+ },
+ "qwen35_122b_coig@S16384": {
+  "tokens": 16384,
+  "routes": 131072,
+  "experts": 256,
+  "expert_route_min": 6,
+  "expert_route_max": 5565,
+  "expert_route_mean": 512.0,
+  "nonzero_experts": 256
+ },
+ "qwen35_122b_coig@S32768": {
+  "tokens": 32768,
+  "routes": 262144,
+  "experts": 256,
+  "expert_route_min": 10,
+  "expert_route_max": 10664,
+  "expert_route_mean": 1024.0,
+  "nonzero_experts": 256
+ },
+ "qwen35_122b_coig@S65536": {
+  "tokens": 65536,
+  "routes": 524288,
+  "experts": 256,
+  "expert_route_min": 28,
+  "expert_route_max": 21586,
+  "expert_route_mean": 2048.0,
+  "nonzero_experts": 256
+ },
+ "qwen35_122b_coig@S131072": {
+  "tokens": 131072,
+  "routes": 1048576,
+  "experts": 256,
+  "expert_route_min": 84,
+  "expert_route_max": 41833,
+  "expert_route_mean": 4096.0,
+  "nonzero_experts": 256
+ },
+ "qwen35_122b_coig@S262144": {
+  "tokens": 262144,
+  "routes": 2097152,
+  "experts": 256,
+  "expert_route_min": 209,
+  "expert_route_max": 82746,
+  "expert_route_mean": 8192.0,
+  "nonzero_experts": 256
+ },
+ "qwen35_122b_coig@meta": {
+  "route_note": "true prefix (see <model>_summary.json)",
+  "total_tokens": 262144,
+  "rank_balance_ratio": 1.5594329833984375,
+  "routes_per_dst_rank": [
+   324578,
+   221540,
+   244029,
+   189698,
+   202388,
+   408796,
+   247636,
+   258487
+  ]
+ },
+ "qwen35_122b_dolly@S16": {
+  "tokens": 16,
+  "routes": 128,
+  "experts": 256,
+  "expert_route_min": 0,
+  "expert_route_max": 6,
+  "expert_route_mean": 0.5,
+  "nonzero_experts": 71
+ },
+ "qwen35_122b_dolly@S32": {
+  "tokens": 32,
+  "routes": 256,
+  "experts": 256,
+  "expert_route_min": 0,
+  "expert_route_max": 13,
+  "expert_route_mean": 1.0,
+  "nonzero_experts": 103
+ },
+ "qwen35_122b_dolly@S64": {
+  "tokens": 64,
+  "routes": 512,
+  "experts": 256,
+  "expert_route_min": 0,
+  "expert_route_max": 32,
+  "expert_route_mean": 2.0,
+  "nonzero_experts": 150
+ },
+ "qwen35_122b_dolly@S128": {
+  "tokens": 128,
+  "routes": 1024,
+  "experts": 256,
+  "expert_route_min": 0,
+  "expert_route_max": 57,
+  "expert_route_mean": 4.0,
+  "nonzero_experts": 190
+ },
+ "qwen35_122b_dolly@S256": {
+  "tokens": 256,
+  "routes": 2048,
+  "experts": 256,
+  "expert_route_min": 0,
+  "expert_route_max": 83,
+  "expert_route_mean": 8.0,
+  "nonzero_experts": 229
+ },
+ "qwen35_122b_dolly@S512": {
+  "tokens": 512,
+  "routes": 4096,
+  "experts": 256,
+  "expert_route_min": 0,
+  "expert_route_max": 142,
+  "expert_route_mean": 16.0,
+  "nonzero_experts": 244
+ },
+ "qwen35_122b_dolly@S1024": {
+  "tokens": 1024,
+  "routes": 8192,
+  "experts": 256,
+  "expert_route_min": 0,
+  "expert_route_max": 387,
+  "expert_route_mean": 32.0,
+  "nonzero_experts": 253
+ },
+ "qwen35_122b_dolly@S2048": {
+  "tokens": 2048,
+  "routes": 16384,
+  "experts": 256,
+  "expert_route_min": 1,
+  "expert_route_max": 920,
+  "expert_route_mean": 64.0,
+  "nonzero_experts": 256
+ },
+ "qwen35_122b_dolly@S4096": {
+  "tokens": 4096,
+  "routes": 32768,
+  "experts": 256,
+  "expert_route_min": 2,
+  "expert_route_max": 1788,
+  "expert_route_mean": 128.0,
+  "nonzero_experts": 256
+ },
+ "qwen35_122b_dolly@S8192": {
+  "tokens": 8192,
+  "routes": 65536,
+  "experts": 256,
+  "expert_route_min": 18,
+  "expert_route_max": 3355,
+  "expert_route_mean": 256.0,
+  "nonzero_experts": 256
+ },
+ "qwen35_122b_dolly@S16384": {
+  "tokens": 16384,
+  "routes": 131072,
+  "experts": 256,
+  "expert_route_min": 34,
+  "expert_route_max": 6056,
+  "expert_route_mean": 512.0,
+  "nonzero_experts": 256
+ },
+ "qwen35_122b_dolly@S32768": {
+  "tokens": 32768,
+  "routes": 262144,
+  "experts": 256,
+  "expert_route_min": 76,
+  "expert_route_max": 9849,
+  "expert_route_mean": 1024.0,
+  "nonzero_experts": 256
+ },
+ "qwen35_122b_dolly@S65536": {
+  "tokens": 65536,
+  "routes": 524288,
+  "experts": 256,
+  "expert_route_min": 190,
+  "expert_route_max": 17420,
+  "expert_route_mean": 2048.0,
+  "nonzero_experts": 256
+ },
+ "qwen35_122b_dolly@S131072": {
+  "tokens": 131072,
+  "routes": 1048576,
+  "experts": 256,
+  "expert_route_min": 518,
+  "expert_route_max": 34310,
+  "expert_route_mean": 4096.0,
+  "nonzero_experts": 256
+ },
+ "qwen35_122b_dolly@S262144": {
+  "tokens": 262144,
+  "routes": 2097152,
+  "experts": 256,
+  "expert_route_min": 1197,
+  "expert_route_max": 72148,
+  "expert_route_mean": 8192.0,
+  "nonzero_experts": 256
+ },
+ "qwen35_122b_dolly@meta": {
+  "route_note": "true prefix (see <model>_summary.json)",
+  "total_tokens": 262144,
+  "rank_balance_ratio": 1.2914962768554688,
+  "routes_per_dst_rank": [
+   226874,
+   237197,
+   243076,
+   217068,
+   244777,
+   304411,
+   338558,
+   285191
+  ]
+ },
+ "qwen35_122b_metamath@S16": {
+  "tokens": 16,
+  "routes": 128,
+  "experts": 256,
+  "expert_route_min": 0,
+  "expert_route_max": 7,
+  "expert_route_mean": 0.5,
+  "nonzero_experts": 62
+ },
+ "qwen35_122b_metamath@S32": {
+  "tokens": 32,
+  "routes": 256,
+  "experts": 256,
+  "expert_route_min": 0,
+  "expert_route_max": 20,
+  "expert_route_mean": 1.0,
+  "nonzero_experts": 80
+ },
+ "qwen35_122b_metamath@S64": {
+  "tokens": 64,
+  "routes": 512,
+  "experts": 256,
+  "expert_route_min": 0,
+  "expert_route_max": 47,
+  "expert_route_mean": 2.0,
+  "nonzero_experts": 103
+ },
+ "qwen35_122b_metamath@S128": {
+  "tokens": 128,
+  "routes": 1024,
+  "experts": 256,
+  "expert_route_min": 0,
+  "expert_route_max": 106,
+  "expert_route_mean": 4.0,
+  "nonzero_experts": 152
+ },
+ "qwen35_122b_metamath@S256": {
+  "tokens": 256,
+  "routes": 2048,
+  "experts": 256,
+  "expert_route_min": 0,
+  "expert_route_max": 141,
+  "expert_route_mean": 8.0,
+  "nonzero_experts": 216
+ },
+ "qwen35_122b_metamath@S512": {
+  "tokens": 512,
+  "routes": 4096,
+  "experts": 256,
+  "expert_route_min": 0,
+  "expert_route_max": 331,
+  "expert_route_mean": 16.0,
+  "nonzero_experts": 230
+ },
+ "qwen35_122b_metamath@S1024": {
+  "tokens": 1024,
+  "routes": 8192,
+  "experts": 256,
+  "expert_route_min": 0,
+  "expert_route_max": 706,
+  "expert_route_mean": 32.0,
+  "nonzero_experts": 245
+ },
+ "qwen35_122b_metamath@S2048": {
+  "tokens": 2048,
+  "routes": 16384,
+  "experts": 256,
+  "expert_route_min": 0,
+  "expert_route_max": 1126,
+  "expert_route_mean": 64.0,
+  "nonzero_experts": 254
+ },
+ "qwen35_122b_metamath@S4096": {
+  "tokens": 4096,
+  "routes": 32768,
+  "experts": 256,
+  "expert_route_min": 0,
+  "expert_route_max": 2430,
+  "expert_route_mean": 128.0,
+  "nonzero_experts": 255
+ },
+ "qwen35_122b_metamath@S8192": {
+  "tokens": 8192,
+  "routes": 65536,
+  "experts": 256,
+  "expert_route_min": 5,
+  "expert_route_max": 4619,
+  "expert_route_mean": 256.0,
+  "nonzero_experts": 256
+ },
+ "qwen35_122b_metamath@S16384": {
+  "tokens": 16384,
+  "routes": 131072,
+  "experts": 256,
+  "expert_route_min": 10,
+  "expert_route_max": 8580,
+  "expert_route_mean": 512.0,
+  "nonzero_experts": 256
+ },
+ "qwen35_122b_metamath@S32768": {
+  "tokens": 32768,
+  "routes": 262144,
+  "experts": 256,
+  "expert_route_min": 17,
+  "expert_route_max": 16552,
+  "expert_route_mean": 1024.0,
+  "nonzero_experts": 256
+ },
+ "qwen35_122b_metamath@S65536": {
+  "tokens": 65536,
+  "routes": 524288,
+  "experts": 256,
+  "expert_route_min": 23,
+  "expert_route_max": 31086,
+  "expert_route_mean": 2048.0,
+  "nonzero_experts": 256
+ },
+ "qwen35_122b_metamath@S131072": {
+  "tokens": 131072,
+  "routes": 1048576,
+  "experts": 256,
+  "expert_route_min": 51,
+  "expert_route_max": 62094,
+  "expert_route_mean": 4096.0,
+  "nonzero_experts": 256
+ },
+ "qwen35_122b_metamath@S262144": {
+  "tokens": 262144,
+  "routes": 2097152,
+  "experts": 256,
+  "expert_route_min": 122,
+  "expert_route_max": 123067,
+  "expert_route_mean": 8192.0,
+  "nonzero_experts": 256
+ },
+ "qwen35_122b_metamath@meta": {
+  "route_note": "true prefix (see <model>_summary.json)",
+  "total_tokens": 262144,
+  "rank_balance_ratio": 1.3953056335449219,
+  "routes_per_dst_rank": [
+   362444,
+   251695,
+   365771,
+   209879,
+   227306,
+   212031,
+   229952,
+   238074
+  ]
+ },
+ "qwen35_35b_coig@S16": {
+  "tokens": 16,
+  "routes": 128,
+  "experts": 256,
+  "expert_route_min": 0,
+  "expert_route_max": 10,
+  "expert_route_mean": 0.5,
+  "nonzero_experts": 60
+ },
+ "qwen35_35b_coig@S32": {
+  "tokens": 32,
+  "routes": 256,
+  "experts": 256,
+  "expert_route_min": 0,
+  "expert_route_max": 20,
+  "expert_route_mean": 1.0,
+  "nonzero_experts": 87
+ },
+ "qwen35_35b_coig@S64": {
+  "tokens": 64,
+  "routes": 512,
+  "experts": 256,
+  "expert_route_min": 0,
+  "expert_route_max": 47,
+  "expert_route_mean": 2.0,
+  "nonzero_experts": 126
+ },
+ "qwen35_35b_coig@S128": {
+  "tokens": 128,
+  "routes": 1024,
+  "experts": 256,
+  "expert_route_min": 0,
+  "expert_route_max": 103,
+  "expert_route_mean": 4.0,
+  "nonzero_experts": 158
+ },
+ "qwen35_35b_coig@S256": {
+  "tokens": 256,
+  "routes": 2048,
+  "experts": 256,
+  "expert_route_min": 0,
+  "expert_route_max": 189,
+  "expert_route_mean": 8.0,
+  "nonzero_experts": 200
+ },
+ "qwen35_35b_coig@S512": {
+  "tokens": 512,
+  "routes": 4096,
+  "experts": 256,
+  "expert_route_min": 0,
+  "expert_route_max": 338,
+  "expert_route_mean": 16.0,
+  "nonzero_experts": 226
+ },
+ "qwen35_35b_coig@S1024": {
+  "tokens": 1024,
+  "routes": 8192,
+  "experts": 256,
+  "expert_route_min": 0,
+  "expert_route_max": 519,
+  "expert_route_mean": 32.0,
+  "nonzero_experts": 244
+ },
+ "qwen35_35b_coig@S2048": {
+  "tokens": 2048,
+  "routes": 16384,
+  "experts": 256,
+  "expert_route_min": 0,
+  "expert_route_max": 1140,
+  "expert_route_mean": 64.0,
+  "nonzero_experts": 252
+ },
+ "qwen35_35b_coig@S4096": {
+  "tokens": 4096,
+  "routes": 32768,
+  "experts": 256,
+  "expert_route_min": 0,
+  "expert_route_max": 1622,
+  "expert_route_mean": 128.0,
+  "nonzero_experts": 255
+ },
+ "qwen35_35b_coig@S8192": {
+  "tokens": 8192,
+  "routes": 65536,
+  "experts": 256,
+  "expert_route_min": 6,
+  "expert_route_max": 2561,
+  "expert_route_mean": 256.0,
+  "nonzero_experts": 256
+ },
+ "qwen35_35b_coig@S16384": {
+  "tokens": 16384,
+  "routes": 131072,
+  "experts": 256,
+  "expert_route_min": 11,
+  "expert_route_max": 4938,
+  "expert_route_mean": 512.0,
+  "nonzero_experts": 256
+ },
+ "qwen35_35b_coig@S32768": {
+  "tokens": 32768,
+  "routes": 262144,
+  "experts": 256,
+  "expert_route_min": 36,
+  "expert_route_max": 10665,
+  "expert_route_mean": 1024.0,
+  "nonzero_experts": 256
+ },
+ "qwen35_35b_coig@S65536": {
+  "tokens": 65536,
+  "routes": 524288,
+  "experts": 256,
+  "expert_route_min": 107,
+  "expert_route_max": 23853,
+  "expert_route_mean": 2048.0,
+  "nonzero_experts": 256
+ },
+ "qwen35_35b_coig@S131072": {
+  "tokens": 131072,
+  "routes": 1048576,
+  "experts": 256,
+  "expert_route_min": 175,
+  "expert_route_max": 48631,
+  "expert_route_mean": 4096.0,
+  "nonzero_experts": 256
+ },
+ "qwen35_35b_coig@S262144": {
+  "tokens": 262144,
+  "routes": 2097152,
+  "experts": 256,
+  "expert_route_min": 404,
+  "expert_route_max": 98041,
+  "expert_route_mean": 8192.0,
+  "nonzero_experts": 256
+ },
+ "qwen35_35b_coig@meta": {
+  "route_note": "true prefix (see <model>_summary.json)",
+  "total_tokens": 262144,
+  "rank_balance_ratio": 1.3629531860351562,
+  "routes_per_dst_rank": [
+   357290,
+   220986,
+   185793,
+   212798,
+   238258,
+   290263,
+   338985,
+   252779
+  ]
+ },
+ "qwen35_35b_dolly@S16": {
+  "tokens": 16,
+  "routes": 128,
+  "experts": 256,
+  "expert_route_min": 0,
+  "expert_route_max": 6,
+  "expert_route_mean": 0.5,
+  "nonzero_experts": 74
+ },
+ "qwen35_35b_dolly@S32": {
+  "tokens": 32,
+  "routes": 256,
+  "experts": 256,
+  "expert_route_min": 0,
+  "expert_route_max": 12,
+  "expert_route_mean": 1.0,
+  "nonzero_experts": 115
+ },
+ "qwen35_35b_dolly@S64": {
+  "tokens": 64,
+  "routes": 512,
+  "experts": 256,
+  "expert_route_min": 0,
+  "expert_route_max": 22,
+  "expert_route_mean": 2.0,
+  "nonzero_experts": 170
+ },
+ "qwen35_35b_dolly@S128": {
+  "tokens": 128,
+  "routes": 1024,
+  "experts": 256,
+  "expert_route_min": 0,
+  "expert_route_max": 40,
+  "expert_route_mean": 4.0,
+  "nonzero_experts": 212
+ },
+ "qwen35_35b_dolly@S256": {
+  "tokens": 256,
+  "routes": 2048,
+  "experts": 256,
+  "expert_route_min": 0,
+  "expert_route_max": 42,
+  "expert_route_mean": 8.0,
+  "nonzero_experts": 241
+ },
+ "qwen35_35b_dolly@S512": {
+  "tokens": 512,
+  "routes": 4096,
+  "experts": 256,
+  "expert_route_min": 0,
+  "expert_route_max": 95,
+  "expert_route_mean": 16.0,
+  "nonzero_experts": 250
+ },
+ "qwen35_35b_dolly@S1024": {
+  "tokens": 1024,
+  "routes": 8192,
+  "experts": 256,
+  "expert_route_min": 0,
+  "expert_route_max": 247,
+  "expert_route_mean": 32.0,
+  "nonzero_experts": 254
+ },
+ "qwen35_35b_dolly@S2048": {
+  "tokens": 2048,
+  "routes": 16384,
+  "experts": 256,
+  "expert_route_min": 2,
+  "expert_route_max": 643,
+  "expert_route_mean": 64.0,
+  "nonzero_experts": 256
+ },
+ "qwen35_35b_dolly@S4096": {
+  "tokens": 4096,
+  "routes": 32768,
+  "experts": 256,
+  "expert_route_min": 5,
+  "expert_route_max": 1283,
+  "expert_route_mean": 128.0,
+  "nonzero_experts": 256
+ },
+ "qwen35_35b_dolly@S8192": {
+  "tokens": 8192,
+  "routes": 65536,
+  "experts": 256,
+  "expert_route_min": 10,
+  "expert_route_max": 2553,
+  "expert_route_mean": 256.0,
+  "nonzero_experts": 256
+ },
+ "qwen35_35b_dolly@S16384": {
+  "tokens": 16384,
+  "routes": 131072,
+  "experts": 256,
+  "expert_route_min": 20,
+  "expert_route_max": 4664,
+  "expert_route_mean": 512.0,
+  "nonzero_experts": 256
+ },
+ "qwen35_35b_dolly@S32768": {
+  "tokens": 32768,
+  "routes": 262144,
+  "experts": 256,
+  "expert_route_min": 48,
+  "expert_route_max": 8516,
+  "expert_route_mean": 1024.0,
+  "nonzero_experts": 256
+ },
+ "qwen35_35b_dolly@S65536": {
+  "tokens": 65536,
+  "routes": 524288,
+  "experts": 256,
+  "expert_route_min": 100,
+  "expert_route_max": 15481,
+  "expert_route_mean": 2048.0,
+  "nonzero_experts": 256
+ },
+ "qwen35_35b_dolly@S131072": {
+  "tokens": 131072,
+  "routes": 1048576,
+  "experts": 256,
+  "expert_route_min": 216,
+  "expert_route_max": 29717,
+  "expert_route_mean": 4096.0,
+  "nonzero_experts": 256
+ },
+ "qwen35_35b_dolly@S262144": {
+  "tokens": 262144,
+  "routes": 2097152,
+  "experts": 256,
+  "expert_route_min": 582,
+  "expert_route_max": 61782,
+  "expert_route_mean": 8192.0,
+  "nonzero_experts": 256
+ },
+ "qwen35_35b_dolly@meta": {
+  "route_note": "true prefix (see <model>_summary.json)",
+  "total_tokens": 262144,
+  "rank_balance_ratio": 1.3484649658203125,
+  "routes_per_dst_rank": [
+   278465,
+   353492,
+   229042,
+   221861,
+   231529,
+   239230,
+   282783,
+   260750
+  ]
+ },
+ "qwen35_35b_metamath@S16": {
+  "tokens": 16,
+  "routes": 128,
+  "experts": 256,
+  "expert_route_min": 0,
+  "expert_route_max": 9,
+  "expert_route_mean": 0.5,
+  "nonzero_experts": 62
+ },
+ "qwen35_35b_metamath@S32": {
+  "tokens": 32,
+  "routes": 256,
+  "experts": 256,
+  "expert_route_min": 0,
+  "expert_route_max": 13,
+  "expert_route_mean": 1.0,
+  "nonzero_experts": 96
+ },
+ "qwen35_35b_metamath@S64": {
+  "tokens": 64,
+  "routes": 512,
+  "experts": 256,
+  "expert_route_min": 0,
+  "expert_route_max": 19,
+  "expert_route_mean": 2.0,
+  "nonzero_experts": 136
+ },
+ "qwen35_35b_metamath@S128": {
+  "tokens": 128,
+  "routes": 1024,
+  "experts": 256,
+  "expert_route_min": 0,
+  "expert_route_max": 35,
+  "expert_route_mean": 4.0,
+  "nonzero_experts": 193
+ },
+ "qwen35_35b_metamath@S256": {
+  "tokens": 256,
+  "routes": 2048,
+  "experts": 256,
+  "expert_route_min": 0,
+  "expert_route_max": 53,
+  "expert_route_mean": 8.0,
+  "nonzero_experts": 234
+ },
+ "qwen35_35b_metamath@S512": {
+  "tokens": 512,
+  "routes": 4096,
+  "experts": 256,
+  "expert_route_min": 0,
+  "expert_route_max": 103,
+  "expert_route_mean": 16.0,
+  "nonzero_experts": 247
+ },
+ "qwen35_35b_metamath@S1024": {
+  "tokens": 1024,
+  "routes": 8192,
+  "experts": 256,
+  "expert_route_min": 0,
+  "expert_route_max": 262,
+  "expert_route_mean": 32.0,
+  "nonzero_experts": 254
+ },
+ "qwen35_35b_metamath@S2048": {
+  "tokens": 2048,
+  "routes": 16384,
+  "experts": 256,
+  "expert_route_min": 0,
+  "expert_route_max": 375,
+  "expert_route_mean": 64.0,
+  "nonzero_experts": 255
+ },
+ "qwen35_35b_metamath@S4096": {
+  "tokens": 4096,
+  "routes": 32768,
+  "experts": 256,
+  "expert_route_min": 4,
+  "expert_route_max": 646,
+  "expert_route_mean": 128.0,
+  "nonzero_experts": 256
+ },
+ "qwen35_35b_metamath@S8192": {
+  "tokens": 8192,
+  "routes": 65536,
+  "experts": 256,
+  "expert_route_min": 9,
+  "expert_route_max": 1313,
+  "expert_route_mean": 256.0,
+  "nonzero_experts": 256
+ },
+ "qwen35_35b_metamath@S16384": {
+  "tokens": 16384,
+  "routes": 131072,
+  "experts": 256,
+  "expert_route_min": 25,
+  "expert_route_max": 2186,
+  "expert_route_mean": 512.0,
+  "nonzero_experts": 256
+ },
+ "qwen35_35b_metamath@S32768": {
+  "tokens": 32768,
+  "routes": 262144,
+  "experts": 256,
+  "expert_route_min": 70,
+  "expert_route_max": 4080,
+  "expert_route_mean": 1024.0,
+  "nonzero_experts": 256
+ },
+ "qwen35_35b_metamath@S65536": {
+  "tokens": 65536,
+  "routes": 524288,
+  "experts": 256,
+  "expert_route_min": 157,
+  "expert_route_max": 7763,
+  "expert_route_mean": 2048.0,
+  "nonzero_experts": 256
+ },
+ "qwen35_35b_metamath@S131072": {
+  "tokens": 131072,
+  "routes": 1048576,
+  "experts": 256,
+  "expert_route_min": 342,
+  "expert_route_max": 16151,
+  "expert_route_mean": 4096.0,
+  "nonzero_experts": 256
+ },
+ "qwen35_35b_metamath@S262144": {
+  "tokens": 262144,
+  "routes": 2097152,
+  "experts": 256,
+  "expert_route_min": 762,
+  "expert_route_max": 33414,
+  "expert_route_mean": 8192.0,
+  "nonzero_experts": 256
+ },
+ "qwen35_35b_metamath@meta": {
+  "route_note": "true prefix (see <model>_summary.json)",
+  "total_tokens": 262144,
+  "rank_balance_ratio": 1.1710433959960938,
+  "routes_per_dst_rank": [
+   306982,
+   251582,
+   215798,
+   221443,
+   231358,
+   297194,
+   281331,
+   291464
+  ]
+ },
+ "qwen35_397b_coig@S16": {
+  "tokens": 16,
+  "routes": 160,
+  "experts": 512,
+  "expert_route_min": 0,
+  "expert_route_max": 10,
+  "expert_route_mean": 0.3125,
+  "nonzero_experts": 76
+ },
+ "qwen35_397b_coig@S32": {
+  "tokens": 32,
+  "routes": 320,
+  "experts": 512,
+  "expert_route_min": 0,
+  "expert_route_max": 14,
+  "expert_route_mean": 0.625,
+  "nonzero_experts": 115
+ },
+ "qwen35_397b_coig@S64": {
+  "tokens": 64,
+  "routes": 640,
+  "experts": 512,
+  "expert_route_min": 0,
+  "expert_route_max": 31,
+  "expert_route_mean": 1.25,
+  "nonzero_experts": 168
+ },
+ "qwen35_397b_coig@S128": {
+  "tokens": 128,
+  "routes": 1280,
+  "experts": 512,
+  "expert_route_min": 0,
+  "expert_route_max": 72,
+  "expert_route_mean": 2.5,
+  "nonzero_experts": 232
+ },
+ "qwen35_397b_coig@S256": {
+  "tokens": 256,
+  "routes": 2560,
+  "experts": 512,
+  "expert_route_min": 0,
+  "expert_route_max": 166,
+  "expert_route_mean": 5.0,
+  "nonzero_experts": 270
+ },
+ "qwen35_397b_coig@S512": {
+  "tokens": 512,
+  "routes": 5120,
+  "experts": 512,
+  "expert_route_min": 0,
+  "expert_route_max": 332,
+  "expert_route_mean": 10.0,
+  "nonzero_experts": 325
+ },
+ "qwen35_397b_coig@S1024": {
+  "tokens": 1024,
+  "routes": 10240,
+  "experts": 512,
+  "expert_route_min": 0,
+  "expert_route_max": 523,
+  "expert_route_mean": 20.0,
+  "nonzero_experts": 388
+ },
+ "qwen35_397b_coig@S2048": {
+  "tokens": 2048,
+  "routes": 20480,
+  "experts": 512,
+  "expert_route_min": 0,
+  "expert_route_max": 965,
+  "expert_route_mean": 40.0,
+  "nonzero_experts": 439
+ },
+ "qwen35_397b_coig@S4096": {
+  "tokens": 4096,
+  "routes": 40960,
+  "experts": 512,
+  "expert_route_min": 0,
+  "expert_route_max": 1746,
+  "expert_route_mean": 80.0,
+  "nonzero_experts": 486
+ },
+ "qwen35_397b_coig@S8192": {
+  "tokens": 8192,
+  "routes": 81920,
+  "experts": 512,
+  "expert_route_min": 0,
+  "expert_route_max": 3035,
+  "expert_route_mean": 160.0,
+  "nonzero_experts": 505
+ },
+ "qwen35_397b_coig@S16384": {
+  "tokens": 16384,
+  "routes": 163840,
+  "experts": 512,
+  "expert_route_min": 0,
+  "expert_route_max": 6183,
+  "expert_route_mean": 320.0,
+  "nonzero_experts": 508
+ },
+ "qwen35_397b_coig@S32768": {
+  "tokens": 32768,
+  "routes": 327680,
+  "experts": 512,
+  "expert_route_min": 0,
+  "expert_route_max": 12088,
+  "expert_route_mean": 640.0,
+  "nonzero_experts": 510
+ },
+ "qwen35_397b_coig@S65536": {
+  "tokens": 65536,
+  "routes": 655360,
+  "experts": 512,
+  "expert_route_min": 0,
+  "expert_route_max": 24452,
+  "expert_route_mean": 1280.0,
+  "nonzero_experts": 511
+ },
+ "qwen35_397b_coig@S131072": {
+  "tokens": 131072,
+  "routes": 1310720,
+  "experts": 512,
+  "expert_route_min": 3,
+  "expert_route_max": 48204,
+  "expert_route_mean": 2560.0,
+  "nonzero_experts": 512
+ },
+ "qwen35_397b_coig@S262144": {
+  "tokens": 262144,
+  "routes": 2621440,
+  "experts": 512,
+  "expert_route_min": 9,
+  "expert_route_max": 95487,
+  "expert_route_mean": 5120.0,
+  "nonzero_experts": 512
+ },
+ "qwen35_397b_coig@meta": {
+  "route_note": "true prefix (see <model>_summary.json)",
+  "total_tokens": 262144,
+  "rank_balance_ratio": 1.304528832435608,
+  "routes_per_dst_rank": [
+   417199,
+   290201,
+   306097,
+   323149,
+   395349,
+   427468,
+   270202,
+   191775
+  ]
+ },
+ "qwen35_397b_dolly@S16": {
+  "tokens": 16,
+  "routes": 160,
+  "experts": 512,
+  "expert_route_min": 0,
+  "expert_route_max": 5,
+  "expert_route_mean": 0.3125,
+  "nonzero_experts": 101
+ },
+ "qwen35_397b_dolly@S32": {
+  "tokens": 32,
+  "routes": 320,
+  "experts": 512,
+  "expert_route_min": 0,
+  "expert_route_max": 11,
+  "expert_route_mean": 0.625,
+  "nonzero_experts": 137
+ },
+ "qwen35_397b_dolly@S64": {
+  "tokens": 64,
+  "routes": 640,
+  "experts": 512,
+  "expert_route_min": 0,
+  "expert_route_max": 21,
+  "expert_route_mean": 1.25,
+  "nonzero_experts": 234
+ },
+ "qwen35_397b_dolly@S128": {
+  "tokens": 128,
+  "routes": 1280,
+  "experts": 512,
+  "expert_route_min": 0,
+  "expert_route_max": 31,
+  "expert_route_mean": 2.5,
+  "nonzero_experts": 322
+ },
+ "qwen35_397b_dolly@S256": {
+  "tokens": 256,
+  "routes": 2560,
+  "experts": 512,
+  "expert_route_min": 0,
+  "expert_route_max": 47,
+  "expert_route_mean": 5.0,
+  "nonzero_experts": 413
+ },
+ "qwen35_397b_dolly@S512": {
+  "tokens": 512,
+  "routes": 5120,
+  "experts": 512,
+  "expert_route_min": 0,
+  "expert_route_max": 110,
+  "expert_route_mean": 10.0,
+  "nonzero_experts": 449
+ },
+ "qwen35_397b_dolly@S1024": {
+  "tokens": 1024,
+  "routes": 10240,
+  "experts": 512,
+  "expert_route_min": 0,
+  "expert_route_max": 183,
+  "expert_route_mean": 20.0,
+  "nonzero_experts": 495
+ },
+ "qwen35_397b_dolly@S2048": {
+  "tokens": 2048,
+  "routes": 20480,
+  "experts": 512,
+  "expert_route_min": 0,
+  "expert_route_max": 407,
+  "expert_route_mean": 40.0,
+  "nonzero_experts": 501
+ },
+ "qwen35_397b_dolly@S4096": {
+  "tokens": 4096,
+  "routes": 40960,
+  "experts": 512,
+  "expert_route_min": 0,
+  "expert_route_max": 805,
+  "expert_route_mean": 80.0,
+  "nonzero_experts": 508
+ },
+ "qwen35_397b_dolly@S8192": {
+  "tokens": 8192,
+  "routes": 81920,
+  "experts": 512,
+  "expert_route_min": 1,
+  "expert_route_max": 1608,
+  "expert_route_mean": 160.0,
+  "nonzero_experts": 512
+ },
+ "qwen35_397b_dolly@S16384": {
+  "tokens": 16384,
+  "routes": 163840,
+  "experts": 512,
+  "expert_route_min": 2,
+  "expert_route_max": 2813,
+  "expert_route_mean": 320.0,
+  "nonzero_experts": 512
+ },
+ "qwen35_397b_dolly@S32768": {
+  "tokens": 32768,
+  "routes": 327680,
+  "experts": 512,
+  "expert_route_min": 8,
+  "expert_route_max": 4553,
+  "expert_route_mean": 640.0,
+  "nonzero_experts": 512
+ },
+ "qwen35_397b_dolly@S65536": {
+  "tokens": 65536,
+  "routes": 655360,
+  "experts": 512,
+  "expert_route_min": 18,
+  "expert_route_max": 8319,
+  "expert_route_mean": 1280.0,
+  "nonzero_experts": 512
+ },
+ "qwen35_397b_dolly@S131072": {
+  "tokens": 131072,
+  "routes": 1310720,
+  "experts": 512,
+  "expert_route_min": 36,
+  "expert_route_max": 16709,
+  "expert_route_mean": 2560.0,
+  "nonzero_experts": 512
+ },
+ "qwen35_397b_dolly@S262144": {
+  "tokens": 262144,
+  "routes": 2621440,
+  "experts": 512,
+  "expert_route_min": 75,
+  "expert_route_max": 34730,
+  "expert_route_mean": 5120.0,
+  "nonzero_experts": 512
+ },
+ "qwen35_397b_dolly@meta": {
+  "route_note": "true prefix (see <model>_summary.json)",
+  "total_tokens": 262144,
+  "rank_balance_ratio": 1.2305419445037842,
+  "routes_per_dst_rank": [
+   296983,
+   368205,
+   315979,
+   325372,
+   282129,
+   403224,
+   345734,
+   283814
+  ]
+ },
+ "qwen35_397b_metamath@S16": {
+  "tokens": 16,
+  "routes": 160,
+  "experts": 512,
+  "expert_route_min": 0,
+  "expert_route_max": 12,
+  "expert_route_mean": 0.3125,
+  "nonzero_experts": 92
+ },
+ "qwen35_397b_metamath@S32": {
+  "tokens": 32,
+  "routes": 320,
+  "experts": 512,
+  "expert_route_min": 0,
+  "expert_route_max": 22,
+  "expert_route_mean": 0.625,
+  "nonzero_experts": 131
+ },
+ "qwen35_397b_metamath@S64": {
+  "tokens": 64,
+  "routes": 640,
+  "experts": 512,
+  "expert_route_min": 0,
+  "expert_route_max": 44,
+  "expert_route_mean": 1.25,
+  "nonzero_experts": 180
+ },
+ "qwen35_397b_metamath@S128": {
+  "tokens": 128,
+  "routes": 1280,
+  "experts": 512,
+  "expert_route_min": 0,
+  "expert_route_max": 72,
+  "expert_route_mean": 2.5,
+  "nonzero_experts": 284
+ },
+ "qwen35_397b_metamath@S256": {
+  "tokens": 256,
+  "routes": 2560,
+  "experts": 512,
+  "expert_route_min": 0,
+  "expert_route_max": 85,
+  "expert_route_mean": 5.0,
+  "nonzero_experts": 401
+ },
+ "qwen35_397b_metamath@S512": {
+  "tokens": 512,
+  "routes": 5120,
+  "experts": 512,
+  "expert_route_min": 0,
+  "expert_route_max": 186,
+  "expert_route_mean": 10.0,
+  "nonzero_experts": 448
+ },
+ "qwen35_397b_metamath@S1024": {
+  "tokens": 1024,
+  "routes": 10240,
+  "experts": 512,
+  "expert_route_min": 0,
+  "expert_route_max": 363,
+  "expert_route_mean": 20.0,
+  "nonzero_experts": 479
+ },
+ "qwen35_397b_metamath@S2048": {
+  "tokens": 2048,
+  "routes": 20480,
+  "experts": 512,
+  "expert_route_min": 0,
+  "expert_route_max": 564,
+  "expert_route_mean": 40.0,
+  "nonzero_experts": 501
+ },
+ "qwen35_397b_metamath@S4096": {
+  "tokens": 4096,
+  "routes": 40960,
+  "experts": 512,
+  "expert_route_min": 0,
+  "expert_route_max": 1157,
+  "expert_route_mean": 80.0,
+  "nonzero_experts": 507
+ },
+ "qwen35_397b_metamath@S8192": {
+  "tokens": 8192,
+  "routes": 81920,
+  "experts": 512,
+  "expert_route_min": 0,
+  "expert_route_max": 2437,
+  "expert_route_mean": 160.0,
+  "nonzero_experts": 510
+ },
+ "qwen35_397b_metamath@S16384": {
+  "tokens": 16384,
+  "routes": 163840,
+  "experts": 512,
+  "expert_route_min": 0,
+  "expert_route_max": 4148,
+  "expert_route_mean": 320.0,
+  "nonzero_experts": 511
+ },
+ "qwen35_397b_metamath@S32768": {
+  "tokens": 32768,
+  "routes": 327680,
+  "experts": 512,
+  "expert_route_min": 2,
+  "expert_route_max": 7906,
+  "expert_route_mean": 640.0,
+  "nonzero_experts": 512
+ },
+ "qwen35_397b_metamath@S65536": {
+  "tokens": 65536,
+  "routes": 655360,
+  "experts": 512,
+  "expert_route_min": 3,
+  "expert_route_max": 14314,
+  "expert_route_mean": 1280.0,
+  "nonzero_experts": 512
+ },
+ "qwen35_397b_metamath@S131072": {
+  "tokens": 131072,
+  "routes": 1310720,
+  "experts": 512,
+  "expert_route_min": 8,
+  "expert_route_max": 28680,
+  "expert_route_mean": 2560.0,
+  "nonzero_experts": 512
+ },
+ "qwen35_397b_metamath@S262144": {
+  "tokens": 262144,
+  "routes": 2621440,
+  "experts": 512,
+  "expert_route_min": 15,
+  "expert_route_max": 56009,
+  "expert_route_mean": 5120.0,
+  "nonzero_experts": 512
+ },
+ "qwen35_397b_metamath@meta": {
+  "route_note": "true prefix (see <model>_summary.json)",
+  "total_tokens": 262144,
+  "rank_balance_ratio": 1.24273681640625,
+  "routes_per_dst_rank": [
+   407220,
+   307520,
+   283240,
+   290845,
+   262866,
+   329310,
+   335478,
+   404961
+  ]
+ },
+ "qwen38max@S16": {
+  "tokens": 16,
+  "routes": 160,
+  "experts": 512,
+  "expert_route_min": 0,
+  "expert_route_max": 10,
+  "expert_route_mean": 0.3125,
+  "nonzero_experts": 88
+ },
+ "qwen38max@S32": {
+  "tokens": 32,
+  "routes": 320,
+  "experts": 512,
+  "expert_route_min": 0,
+  "expert_route_max": 11,
+  "expert_route_mean": 0.625,
+  "nonzero_experts": 156
+ },
+ "qwen38max@S64": {
+  "tokens": 64,
+  "routes": 640,
+  "experts": 512,
+  "expert_route_min": 0,
+  "expert_route_max": 19,
+  "expert_route_mean": 1.25,
+  "nonzero_experts": 221
+ },
+ "qwen38max@S128": {
+  "tokens": 128,
+  "routes": 1280,
+  "experts": 512,
+  "expert_route_min": 0,
+  "expert_route_max": 40,
+  "expert_route_mean": 2.5,
+  "nonzero_experts": 271
+ },
+ "qwen38max@S256": {
+  "tokens": 256,
+  "routes": 2560,
+  "experts": 512,
+  "expert_route_min": 0,
+  "expert_route_max": 88,
+  "expert_route_mean": 5.0,
+  "nonzero_experts": 343
+ },
+ "qwen38max@S512": {
+  "tokens": 512,
+  "routes": 5120,
+  "experts": 512,
+  "expert_route_min": 0,
+  "expert_route_max": 116,
+  "expert_route_mean": 10.0,
+  "nonzero_experts": 407
+ },
+ "qwen38max@S1024": {
+  "tokens": 1024,
+  "routes": 10240,
+  "experts": 512,
+  "expert_route_min": 0,
+  "expert_route_max": 224,
+  "expert_route_mean": 20.0,
+  "nonzero_experts": 450
+ },
+ "qwen38max@S2048": {
+  "tokens": 2048,
+  "routes": 20480,
+  "experts": 512,
+  "expert_route_min": 0,
+  "expert_route_max": 456,
+  "expert_route_mean": 40.0,
+  "nonzero_experts": 474
+ },
+ "qwen38max@S4096": {
+  "tokens": 4096,
+  "routes": 40960,
+  "experts": 512,
+  "expert_route_min": 0,
+  "expert_route_max": 744,
+  "expert_route_mean": 80.0,
+  "nonzero_experts": 500
+ },
+ "qwen38max@S8192": {
+  "tokens": 8192,
+  "routes": 81920,
+  "experts": 512,
+  "expert_route_min": 0,
+  "expert_route_max": 1382,
+  "expert_route_mean": 160.0,
+  "nonzero_experts": 508
+ },
+ "qwen38max@S16384": {
+  "tokens": 16384,
+  "routes": 163840,
+  "experts": 512,
+  "expert_route_min": 0,
+  "expert_route_max": 2593,
+  "expert_route_mean": 320.0,
+  "nonzero_experts": 508
+ },
+ "qwen38max@S32768": {
+  "tokens": 32768,
+  "routes": 327680,
+  "experts": 512,
+  "expert_route_min": 0,
+  "expert_route_max": 4723,
+  "expert_route_mean": 640.0,
+  "nonzero_experts": 510
+ },
+ "qwen38max@S65536": {
+  "tokens": 65536,
+  "routes": 655360,
+  "experts": 512,
+  "expert_route_min": 0,
+  "expert_route_max": 8314,
+  "expert_route_mean": 1280.0,
+  "nonzero_experts": 510
+ },
+ "qwen38max@S131072": {
+  "tokens": 131072,
+  "routes": 1310720,
+  "experts": 512,
+  "expert_route_min": 0,
+  "expert_route_max": 17446,
+  "expert_route_mean": 2560.0,
+  "nonzero_experts": 511
+ },
+ "qwen38max@S262144": {
+  "tokens": 262144,
+  "routes": 2621440,
+  "experts": 512,
+  "expert_route_min": 0,
+  "expert_route_max": 35889,
+  "expert_route_mean": 5120.0,
+  "nonzero_experts": 511
+ },
+ "qwen38max@meta": {
+  "route_note": "true prefix (see <model>_summary.json)",
+  "total_tokens": 262144,
+  "rank_balance_ratio": 1.1361815929412842,
+  "routes_per_dst_rank": [
+   297215,
+   343291,
+   288955,
+   354371,
+   372304,
+   319212,
+   304173,
+   341919
+  ]
+ },
+ "qwen38max_coig@S16": {
+  "tokens": 16,
+  "routes": 160,
+  "experts": 512,
+  "expert_route_min": 0,
+  "expert_route_max": 7,
+  "expert_route_mean": 0.3125,
+  "nonzero_experts": 83
+ },
+ "qwen38max_coig@S32": {
+  "tokens": 32,
+  "routes": 320,
+  "experts": 512,
+  "expert_route_min": 0,
+  "expert_route_max": 13,
+  "expert_route_mean": 0.625,
+  "nonzero_experts": 113
+ },
+ "qwen38max_coig@S64": {
+  "tokens": 64,
+  "routes": 640,
+  "experts": 512,
+  "expert_route_min": 0,
+  "expert_route_max": 29,
+  "expert_route_mean": 1.25,
+  "nonzero_experts": 151
+ },
+ "qwen38max_coig@S128": {
+  "tokens": 128,
+  "routes": 1280,
+  "experts": 512,
+  "expert_route_min": 0,
+  "expert_route_max": 64,
+  "expert_route_mean": 2.5,
+  "nonzero_experts": 190
+ },
+ "qwen38max_coig@S256": {
+  "tokens": 256,
+  "routes": 2560,
+  "experts": 512,
+  "expert_route_min": 0,
+  "expert_route_max": 134,
+  "expert_route_mean": 5.0,
+  "nonzero_experts": 211
+ },
+ "qwen38max_coig@S512": {
+  "tokens": 512,
+  "routes": 5120,
+  "experts": 512,
+  "expert_route_min": 0,
+  "expert_route_max": 298,
+  "expert_route_mean": 10.0,
+  "nonzero_experts": 242
+ },
+ "qwen38max_coig@S1024": {
+  "tokens": 1024,
+  "routes": 10240,
+  "experts": 512,
+  "expert_route_min": 0,
+  "expert_route_max": 549,
+  "expert_route_mean": 20.0,
+  "nonzero_experts": 297
+ },
+ "qwen38max_coig@S2048": {
+  "tokens": 2048,
+  "routes": 20480,
+  "experts": 512,
+  "expert_route_min": 0,
+  "expert_route_max": 1056,
+  "expert_route_mean": 40.0,
+  "nonzero_experts": 354
+ },
+ "qwen38max_coig@S4096": {
+  "tokens": 4096,
+  "routes": 40960,
+  "experts": 512,
+  "expert_route_min": 0,
+  "expert_route_max": 2044,
+  "expert_route_mean": 80.0,
+  "nonzero_experts": 403
+ },
+ "qwen38max_coig@S8192": {
+  "tokens": 8192,
+  "routes": 81920,
+  "experts": 512,
+  "expert_route_min": 0,
+  "expert_route_max": 3909,
+  "expert_route_mean": 160.0,
+  "nonzero_experts": 444
+ },
+ "qwen38max_coig@S16384": {
+  "tokens": 16384,
+  "routes": 163840,
+  "experts": 512,
+  "expert_route_min": 0,
+  "expert_route_max": 7853,
+  "expert_route_mean": 320.0,
+  "nonzero_experts": 459
+ },
+ "qwen38max_coig@S32768": {
+  "tokens": 32768,
+  "routes": 327680,
+  "experts": 512,
+  "expert_route_min": 0,
+  "expert_route_max": 15109,
+  "expert_route_mean": 640.0,
+  "nonzero_experts": 483
+ },
+ "qwen38max_coig@S65536": {
+  "tokens": 65536,
+  "routes": 655360,
+  "experts": 512,
+  "expert_route_min": 0,
+  "expert_route_max": 30672,
+  "expert_route_mean": 1280.0,
+  "nonzero_experts": 495
+ },
+ "qwen38max_coig@S131072": {
+  "tokens": 131072,
+  "routes": 1310720,
+  "experts": 512,
+  "expert_route_min": 0,
+  "expert_route_max": 59777,
+  "expert_route_mean": 2560.0,
+  "nonzero_experts": 501
+ },
+ "qwen38max_coig@S262144": {
+  "tokens": 262144,
+  "routes": 2621440,
+  "experts": 512,
+  "expert_route_min": 0,
+  "expert_route_max": 118133,
+  "expert_route_mean": 5120.0,
+  "nonzero_experts": 506
+ },
+ "qwen38max_coig@meta": {
+  "route_note": "true prefix (see <model>_summary.json)",
+  "total_tokens": 262144,
+  "rank_balance_ratio": 1.6671142578125,
+  "routes_per_dst_rank": [
+   306165,
+   299582,
+   205295,
+   428139,
+   546280,
+   335710,
+   278384,
+   221885
+  ]
+ },
+ "qwen38max_dolly@S16": {
+  "tokens": 16,
+  "routes": 160,
+  "experts": 512,
+  "expert_route_min": 0,
+  "expert_route_max": 6,
+  "expert_route_mean": 0.3125,
+  "nonzero_experts": 94
+ },
+ "qwen38max_dolly@S32": {
+  "tokens": 32,
+  "routes": 320,
+  "experts": 512,
+  "expert_route_min": 0,
+  "expert_route_max": 12,
+  "expert_route_mean": 0.625,
+  "nonzero_experts": 127
+ },
+ "qwen38max_dolly@S64": {
+  "tokens": 64,
+  "routes": 640,
+  "experts": 512,
+  "expert_route_min": 0,
+  "expert_route_max": 27,
+  "expert_route_mean": 1.25,
+  "nonzero_experts": 166
+ },
+ "qwen38max_dolly@S128": {
+  "tokens": 128,
+  "routes": 1280,
+  "experts": 512,
+  "expert_route_min": 0,
+  "expert_route_max": 55,
+  "expert_route_mean": 2.5,
+  "nonzero_experts": 213
+ },
+ "qwen38max_dolly@S256": {
+  "tokens": 256,
+  "routes": 2560,
+  "experts": 512,
+  "expert_route_min": 0,
+  "expert_route_max": 63,
+  "expert_route_mean": 5.0,
+  "nonzero_experts": 299
+ },
+ "qwen38max_dolly@S512": {
+  "tokens": 512,
+  "routes": 5120,
+  "experts": 512,
+  "expert_route_min": 0,
+  "expert_route_max": 164,
+  "expert_route_mean": 10.0,
+  "nonzero_experts": 355
+ },
+ "qwen38max_dolly@S1024": {
+  "tokens": 1024,
+  "routes": 10240,
+  "experts": 512,
+  "expert_route_min": 0,
+  "expert_route_max": 257,
+  "expert_route_mean": 20.0,
+  "nonzero_experts": 423
+ },
+ "qwen38max_dolly@S2048": {
+  "tokens": 2048,
+  "routes": 20480,
+  "experts": 512,
+  "expert_route_min": 0,
+  "expert_route_max": 417,
+  "expert_route_mean": 40.0,
+  "nonzero_experts": 456
+ },
+ "qwen38max_dolly@S4096": {
+  "tokens": 4096,
+  "routes": 40960,
+  "experts": 512,
+  "expert_route_min": 0,
+  "expert_route_max": 885,
+  "expert_route_mean": 80.0,
+  "nonzero_experts": 480
+ },
+ "qwen38max_dolly@S8192": {
+  "tokens": 8192,
+  "routes": 81920,
+  "experts": 512,
+  "expert_route_min": 0,
+  "expert_route_max": 1865,
+  "expert_route_mean": 160.0,
+  "nonzero_experts": 494
+ },
+ "qwen38max_dolly@S16384": {
+  "tokens": 16384,
+  "routes": 163840,
+  "experts": 512,
+  "expert_route_min": 0,
+  "expert_route_max": 3610,
+  "expert_route_mean": 320.0,
+  "nonzero_experts": 498
+ },
+ "qwen38max_dolly@S32768": {
+  "tokens": 32768,
+  "routes": 327680,
+  "experts": 512,
+  "expert_route_min": 0,
+  "expert_route_max": 7271,
+  "expert_route_mean": 640.0,
+  "nonzero_experts": 507
+ },
+ "qwen38max_dolly@S65536": {
+  "tokens": 65536,
+  "routes": 655360,
+  "experts": 512,
+  "expert_route_min": 0,
+  "expert_route_max": 14669,
+  "expert_route_mean": 1280.0,
+  "nonzero_experts": 511
+ },
+ "qwen38max_dolly@S131072": {
+  "tokens": 131072,
+  "routes": 1310720,
+  "experts": 512,
+  "expert_route_min": 0,
+  "expert_route_max": 28557,
+  "expert_route_mean": 2560.0,
+  "nonzero_experts": 511
+ },
+ "qwen38max_dolly@S262144": {
+  "tokens": 262144,
+  "routes": 2621440,
+  "experts": 512,
+  "expert_route_min": 0,
+  "expert_route_max": 57313,
+  "expert_route_mean": 5120.0,
+  "nonzero_experts": 511
+ },
+ "qwen38max_dolly@meta": {
+  "route_note": "true prefix (see <model>_summary.json)",
+  "total_tokens": 262144,
+  "rank_balance_ratio": 1.210241675376892,
+  "routes_per_dst_rank": [
+   260574,
+   396572,
+   265426,
+   379266,
+   352263,
+   350326,
+   256501,
+   360512
+  ]
+ },
+ "qwen38max_metamath@S16": {
+  "tokens": 16,
+  "routes": 160,
+  "experts": 512,
+  "expert_route_min": 0,
+  "expert_route_max": 7,
+  "expert_route_mean": 0.3125,
+  "nonzero_experts": 103
+ },
+ "qwen38max_metamath@S32": {
+  "tokens": 32,
+  "routes": 320,
+  "experts": 512,
+  "expert_route_min": 0,
+  "expert_route_max": 16,
+  "expert_route_mean": 0.625,
+  "nonzero_experts": 130
+ },
+ "qwen38max_metamath@S64": {
+  "tokens": 64,
+  "routes": 640,
+  "experts": 512,
+  "expert_route_min": 0,
+  "expert_route_max": 35,
+  "expert_route_mean": 1.25,
+  "nonzero_experts": 175
+ },
+ "qwen38max_metamath@S128": {
+  "tokens": 128,
+  "routes": 1280,
+  "experts": 512,
+  "expert_route_min": 0,
+  "expert_route_max": 92,
+  "expert_route_mean": 2.5,
+  "nonzero_experts": 213
+ },
+ "qwen38max_metamath@S256": {
+  "tokens": 256,
+  "routes": 2560,
+  "experts": 512,
+  "expert_route_min": 0,
+  "expert_route_max": 187,
+  "expert_route_mean": 5.0,
+  "nonzero_experts": 241
+ },
+ "qwen38max_metamath@S512": {
+  "tokens": 512,
+  "routes": 5120,
+  "experts": 512,
+  "expert_route_min": 0,
+  "expert_route_max": 348,
+  "expert_route_mean": 10.0,
+  "nonzero_experts": 284
+ },
+ "qwen38max_metamath@S1024": {
+  "tokens": 1024,
+  "routes": 10240,
+  "experts": 512,
+  "expert_route_min": 0,
+  "expert_route_max": 604,
+  "expert_route_mean": 20.0,
+  "nonzero_experts": 353
+ },
+ "qwen38max_metamath@S2048": {
+  "tokens": 2048,
+  "routes": 20480,
+  "experts": 512,
+  "expert_route_min": 0,
+  "expert_route_max": 1321,
+  "expert_route_mean": 40.0,
+  "nonzero_experts": 393
+ },
+ "qwen38max_metamath@S4096": {
+  "tokens": 4096,
+  "routes": 40960,
+  "experts": 512,
+  "expert_route_min": 0,
+  "expert_route_max": 2329,
+  "expert_route_mean": 80.0,
+  "nonzero_experts": 431
+ },
+ "qwen38max_metamath@S8192": {
+  "tokens": 8192,
+  "routes": 81920,
+  "experts": 512,
+  "expert_route_min": 0,
+  "expert_route_max": 4521,
+  "expert_route_mean": 160.0,
+  "nonzero_experts": 451
+ },
+ "qwen38max_metamath@S16384": {
+  "tokens": 16384,
+  "routes": 163840,
+  "experts": 512,
+  "expert_route_min": 0,
+  "expert_route_max": 9911,
+  "expert_route_mean": 320.0,
+  "nonzero_experts": 476
+ },
+ "qwen38max_metamath@S32768": {
+  "tokens": 32768,
+  "routes": 327680,
+  "experts": 512,
+  "expert_route_min": 0,
+  "expert_route_max": 19410,
+  "expert_route_mean": 640.0,
+  "nonzero_experts": 489
+ },
+ "qwen38max_metamath@S65536": {
+  "tokens": 65536,
+  "routes": 655360,
+  "experts": 512,
+  "expert_route_min": 0,
+  "expert_route_max": 38789,
+  "expert_route_mean": 1280.0,
+  "nonzero_experts": 497
+ },
+ "qwen38max_metamath@S131072": {
+  "tokens": 131072,
+  "routes": 1310720,
+  "experts": 512,
+  "expert_route_min": 0,
+  "expert_route_max": 78703,
+  "expert_route_mean": 2560.0,
+  "nonzero_experts": 503
+ },
+ "qwen38max_metamath@S262144": {
+  "tokens": 262144,
+  "routes": 2621440,
+  "experts": 512,
+  "expert_route_min": 0,
+  "expert_route_max": 156723,
+  "expert_route_mean": 5120.0,
+  "nonzero_experts": 508
+ },
+ "qwen38max_metamath@meta": {
+  "route_note": "true prefix (see <model>_summary.json)",
+  "total_tokens": 262144,
+  "rank_balance_ratio": 1.6377776861190796,
+  "routes_per_dst_rank": [
+   244854,
+   460646,
+   196591,
+   184886,
+   336826,
+   536667,
+   281174,
+   379796
+  ]
+ }
+}

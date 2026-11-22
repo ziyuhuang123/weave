@@ -1,0 +1,17 @@
+{
+ "model": "qwen38max_metamath",
+ "base_model": "qwen38max",
+ "dataset": "metamath",
+ "arch": "qwen3_5_moe_true_prefix_4gpu",
+ "E": 512,
+ "K": 10,
+ "EP": 8,
+ "tokens_global_S": 262144,
+ "routes_total": 2621440,
+ "expert_route_min": 0,
+ "expert_route_max": 156749,
+ "expert_route_mean": 5120.0,
+ "nonzero_experts": 508,
+ "source": "metamath + Qwen3.8-2.4T-A95B-FP8 (ModelScope, open base of qwen38max)",
+ "route_note": "4-GPU prefix, experts bf16 resident, softmax top-10"
+}

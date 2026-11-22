@@ -1,0 +1,27 @@
+{
+ "model": "minimax_m3_dolly",
+ "arch": "minimax_m3_true_prefix",
+ "E": 128,
+ "K": 4,
+ "EP": 8,
+ "tokens_global_S": 262144,
+ "tokens_per_rank": 32768,
+ "routes_total": 1048576,
+ "routes_per_dst_rank": [
+  194141,
+  73803,
+  160854,
+  95503,
+  117303,
+  148808,
+  116416,
+  141748
+ ],
+ "rank_balance_ratio": 1.4811782836914062,
+ "expert_route_min": 16,
+ "expert_route_max": 41059,
+ "expert_route_mean": 8192.0,
+ "nonzero_experts": 128,
+ "source": "sharegpt_n1024_random_seed42 (real) + real weights, layers0-2 exact, layer3 attn full (DSA indexer ignored)",
+ "route_note": "sigmoid gate + correction bias, top-4, normalized"
+}

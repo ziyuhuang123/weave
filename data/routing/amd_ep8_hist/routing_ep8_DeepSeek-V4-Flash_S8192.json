@@ -1,0 +1,41 @@
+{
+ "schema": "costmodel-hist/1",
+ "model": "DeepSeek-V4-Flash",
+ "S": 8192,
+ "R": 8,
+ "T_per_rank": 1024,
+ "E": 256,
+ "K": 6,
+ "el_ep8": 32,
+ "src_lineage": "EP8 prefix (ranks 0-7) derived from real ShareGPT token routing traces",
+ "selfcheck": {
+  "bad_id": 0,
+  "dup_topk": 0,
+  "bad_w_full": 0,
+  "rows_total": 49152
+ },
+ "rows_per_dst": {
+  "min": 4949,
+  "mean": 6144.0,
+  "max": 7582,
+  "max/min": 1.532
+ },
+ "tiles_per_dst_g0": {
+  "s1_min": 92,
+  "s1_max": 132,
+  "s2_min": 51,
+  "s2_max": 73,
+  "gemm_workers": 78
+ },
+ "max_src_share_per_dst": [
+  0.1299,
+  0.1351,
+  0.1383,
+  0.1468,
+  0.1413,
+  0.1334,
+  0.1376,
+  0.1384
+ ],
+ "worst_max_src_share": 0.1468
+}

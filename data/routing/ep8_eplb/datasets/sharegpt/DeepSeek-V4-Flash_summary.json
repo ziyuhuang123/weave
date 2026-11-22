@@ -1,0 +1,27 @@
+{
+ "model": "DeepSeek-V4-Flash",
+ "arch": "deepseek",
+ "E": 256,
+ "K": 6,
+ "EP": 8,
+ "tokens_global_S": 8192,
+ "tokens_per_rank": 1024,
+ "routes_total": 49152,
+ "routes_per_dst_rank": [
+  6813,
+  7389,
+  6034,
+  6723,
+  6185,
+  5349,
+  5736,
+  4923
+ ],
+ "rank_balance_ratio": 1.20263671875,
+ "expert_route_min": 74,
+ "expert_route_max": 761,
+ "expert_route_mean": 192.0,
+ "nonzero_experts": 256,
+ "source": "sharegpt_n1024_random_seed42 (real dataset) + real weights",
+ "route_note": "static tid2eid table (exact, no router forward)"
+}
