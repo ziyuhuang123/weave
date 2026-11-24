@@ -68,6 +68,10 @@
 #ifndef DG_ISOLATED_D2_REG_PULL_BYTES
 #define DG_ISOLATED_D2_REG_PULL_BYTES WEAVE_REG_PULL_BYTES
 #endif
+#if WEAVE_REG_PULL_BYTES != 0 && WEAVE_REG_PULL_BYTES != 1024 && \
+    WEAVE_REG_PULL_BYTES != 2048 && WEAVE_REG_PULL_BYTES != 4096
+#error "WEAVE_REG_PULL_BYTES must be 0 (TMA SMEM staging), 1024, 2048 or 4096"
+#endif
 
 #ifndef WEAVE_HETERO_SM_LIMIT
 #  if defined(DG_ISOLATED_D2_D8_SM_LIMIT)
@@ -228,6 +232,14 @@
 #endif
 #ifndef DG_D3_EXPERT_STEP_MODE
 #define DG_D3_EXPERT_STEP_MODE WEAVE_EXPERT_STEP_MODE
+#endif
+
+// Per-phase GEMM tile heights (0 = the compiled BLOCK_M envelope).
+#ifndef WEAVE_BLOCK_M_L1
+#define WEAVE_BLOCK_M_L1 0
+#endif
+#ifndef WEAVE_BLOCK_M_L2
+#define WEAVE_BLOCK_M_L2 0
 #endif
 
 #ifndef WEAVE_ACCUM_STAGES
@@ -432,6 +444,9 @@
 #endif
 #ifndef DG_TUNE_D7_SCATTER_WARPS
 #define DG_TUNE_D7_SCATTER_WARPS WEAVE_SCATTER_WARPS
+#endif
+#if WEAVE_SCATTER_WARPS != 0 && WEAVE_SCATTER_WARPS != 4 && WEAVE_SCATTER_WARPS != 8
+#error "WEAVE_SCATTER_WARPS must be 0 (automatic), 4 or 8"
 #endif
 
 #ifndef WEAVE_SCATTER_HANDOFF_WAIT
@@ -784,44 +799,79 @@ struct alignas(16) TaskInfo {
     CUTLASS_HOST_DEVICE uint32_t get_umma_aligned_valid_m() const {
         return cute::max(math::constexpr_align(valid_m, 16u), 16u);
     }
+
+    // Sub-tiled builds (per-phase WEAVE_BLOCK_M_L1/L2 or per-expert WEAVE_ADAPT_BM)
+    // let one GEMM task cover a 32-row aligned window of its pool block.  No
+    // consumer warp reads the expert-relative block index, so those builds reuse
+    // `m_block_idx` to carry the window:
+    //   bits [0, 16)  : row offset of the task inside its BLOCK_M pool block
+    //   bits [16, 24) : 32-row credits the task adds to the per-pool-block
+    //                   readiness counters (l2_full, l1_empty, l2_empty)
+    // Legacy builds never call these accessors.
+    static CUTLASS_HOST_DEVICE uint32_t pack_sub_tile(const uint32_t& row_offset, const uint32_t& credits) {
+        return row_offset | (credits << 16);
+    }
+    CUTLASS_HOST_DEVICE uint32_t get_m_row_offset() const {
+        return m_block_idx & 0xffffu;
+    }
+    CUTLASS_HOST_DEVICE uint32_t get_m_credits() const {
+        return (m_block_idx >> 16) & 0xffu;
+    }
 };
 
 DG_STATIC_ASSERT(sizeof(sched::TaskInfo<true>) == sizeof(sched::TaskInfo<false>), "Invalid layout");
 
+// Pool-block granularity of the data plane.  Dispatch, the token/SF rings and
+// every readiness counter use compile-time BLOCK_M blocks, so the scheduler's
+// pool-block arithmetic must use exactly BLOCK_M as well.  Per-expert tile
+// heights (WEAVE_ADAPT_BM) are expressed by `select_expert_tile_bm` instead,
+// as windows inside these pool blocks.
 template <uint32_t BLOCK_M>
 CUTLASS_HOST_DEVICE constexpr uint32_t select_expert_bm(const uint32_t& num_tokens) {
-#if defined(DG_D3_EXPERT_STEP_MODE) && (DG_D3_EXPERT_STEP_MODE > 0)
-    if constexpr (BLOCK_M <= 32u) {
-        return BLOCK_M;
-    } else {
-        if (num_tokens == 0u)
-            return BLOCK_M;
-        constexpr uint32_t kSlack =
-        #ifdef DG_D3_BM_PAD_SLACK
-            DG_D3_BM_PAD_SLACK;
-        #else
-            0u;
-        #endif
-        const uint32_t min_padded = math::constexpr_ceil_div(num_tokens, 32u) * 32u;
-        uint32_t best_bm = 32u;
-        if constexpr (BLOCK_M >= 64u) {
-            const uint32_t p64 = math::constexpr_ceil_div(num_tokens, 64u) * 64u;
-            if (p64 <= min_padded + kSlack) best_bm = 64u;
-        }
-        if constexpr (BLOCK_M >= 128u) {
-            const uint32_t p128 = math::constexpr_ceil_div(num_tokens, 128u) * 128u;
-            if (p128 <= min_padded + kSlack) best_bm = 128u;
-        }
-        if constexpr (BLOCK_M >= 256u) {
-            const uint32_t p256 = math::constexpr_ceil_div(num_tokens, 256u) * 256u;
-            if (p256 <= min_padded + kSlack) best_bm = 256u;
-        }
-        return best_bm;
-    }
-#else
     (void)num_tokens;
     return BLOCK_M;
+}
+
+// WEAVE_ADAPT_BM lookup M_e -> tile height.  Candidates are the members of
+// {32, 64, 128, 256} that divide BLOCK_M, plus BLOCK_M itself, so a tile never
+// straddles a pool block and its row offset is a multiple of 32 (one SF TMEM
+// column).  The largest candidate whose padded size does not exceed the 32-row
+// padded size (plus DG_D3_BM_PAD_SLACK) wins.
+// A 32-row tile is only legal as an expert's single tile (num_tokens <= 32,
+// row offset 0): the block-scaled MMA reads the token SF at TMEM column
+// base + row_offset / 32, and an odd column (2nd / 4th 32-row tile of a pool
+// block) faults with `misaligned address` on SM103 (measured for L1 and L2
+// alike, while 64-row tiles at offsets 0 / 64 are bit-exact).  Larger experts
+// start the ladder at 64, so every offset is a multiple of 64.  The analytical
+// 3-hardware cost model (weave::select_online_expert_bm and its Python twin)
+// keeps the unconstrained ladder: it is an estimate shared with H20 / MI308X,
+// while this SM103 kernel scheduler is the binding tile layout.
+template <uint32_t BLOCK_M>
+CUTLASS_HOST_DEVICE constexpr uint32_t select_expert_tile_bm(const uint32_t& num_tokens) {
+    if (num_tokens == 0u or BLOCK_M % 32u != 0u)
+        return BLOCK_M;
+    constexpr uint32_t kSlack =
+#ifdef DG_D3_BM_PAD_SLACK
+        DG_D3_BM_PAD_SLACK;
+#else
+        0u;
 #endif
+    const uint32_t min_padded = math::constexpr_ceil_div(num_tokens, 32u) * 32u;
+    uint32_t best_bm = 32u;
+    if constexpr (BLOCK_M >= 64u and BLOCK_M % 64u == 0u) {
+        if (num_tokens > 32u or math::constexpr_ceil_div(num_tokens, 64u) * 64u <= min_padded + kSlack) best_bm = 64u;
+    }
+    if constexpr (BLOCK_M >= 128u and BLOCK_M % 128u == 0u) {
+        if (math::constexpr_ceil_div(num_tokens, 128u) * 128u <= min_padded + kSlack) best_bm = 128u;
+    }
+    if constexpr (BLOCK_M >= 256u and BLOCK_M % 256u == 0u) {
+        if (math::constexpr_ceil_div(num_tokens, 256u) * 256u <= min_padded + kSlack) best_bm = 256u;
+    }
+    if constexpr (BLOCK_M > 32u and (BLOCK_M & (BLOCK_M - 1u)) != 0u) {
+        // Non power-of-two envelope (e.g. 96, 192): BLOCK_M itself is a candidate.
+        if (math::constexpr_ceil_div(num_tokens, BLOCK_M) * BLOCK_M <= min_padded + kSlack) best_bm = BLOCK_M;
+    }
+    return best_bm;
 }
 
 #if defined(__CUDACC__) or defined(__CLION_IDE__)
@@ -882,6 +932,51 @@ struct MegaMoEScheduler {
     uint32_t stored_lane_block_offset[kNumExpertsPerLane] = {};
     #endif
     uint32_t num_total_m_blocks = 0;
+
+    // Per-phase / per-expert GEMM tile heights.  Pool blocks stay BLOCK_M rows;
+    // a sub-tiled task covers [row_offset, row_offset + valid_m) of one pool block
+    // (see TaskInfo::get_m_row_offset).  Each phase enumerates its own tile space:
+    // tile t of expert e covers expert rows [t * bm_e, t * bm_e + bm_e).
+    static constexpr bool kAdaptiveTileBM = (DG_D3_EXPERT_STEP_MODE > 0);
+    static constexpr uint32_t kTileBML1 =
+        (WEAVE_BLOCK_M_L1 > 0 and static_cast<uint32_t>(WEAVE_BLOCK_M_L1) < BLOCK_M) ? static_cast<uint32_t>(WEAVE_BLOCK_M_L1) : BLOCK_M;
+    static constexpr uint32_t kTileBML2 =
+        (WEAVE_BLOCK_M_L2 > 0 and static_cast<uint32_t>(WEAVE_BLOCK_M_L2) < BLOCK_M) ? static_cast<uint32_t>(WEAVE_BLOCK_M_L2) : BLOCK_M;
+    static constexpr bool kSubTileL1 = kAdaptiveTileBM or (kTileBML1 != BLOCK_M);
+    static constexpr bool kSubTileL2 = kAdaptiveTileBM or (kTileBML2 != BLOCK_M);
+    static constexpr bool kSubTileActive = kSubTileL1 or kSubTileL2;
+    // Every pool block credits exactly kCreditsPerPoolBlock units per N block to
+    // its readiness counters, independent of how many tiles covered it.
+    static constexpr uint32_t kCreditsPerPoolBlock = kSubTileActive ? (BLOCK_M / 32u) : 1u;
+    DG_STATIC_ASSERT(not kSubTileActive or BLOCK_M % 32u == 0u,
+                     "Sub-tiled BLOCK_M_L1/L2 or ADAPT_BM needs a 32-row aligned BLOCK_M envelope");
+    DG_STATIC_ASSERT(kTileBML1 % 32u == 0u or kTileBML1 == BLOCK_M, "WEAVE_BLOCK_M_L1 sub-tile must be a multiple of 32");
+    DG_STATIC_ASSERT(kTileBML2 % 32u == 0u or kTileBML2 == BLOCK_M, "WEAVE_BLOCK_M_L2 sub-tile must be a multiple of 32");
+    DG_STATIC_ASSERT(BLOCK_M % kTileBML1 == 0u and BLOCK_M % kTileBML2 == 0u,
+                     "Per-phase tile heights must divide the BLOCK_M envelope");
+#if defined(__CUDACC__) or defined(__CLION_IDE__)
+    DG_STATIC_ASSERT(not kSubTileActive or (DG_ISOLATED_D4_LUT_ACTIVE == 0 and DG_ISOLATED_D4_READYQ == 0 and
+                                            DG_ISOLATED_D5_DEDUP == 0 and DG_ISOLATED_D1_G == 0),
+                     "Sub-tiled BLOCK_M_L1/L2 or ADAPT_BM supports the default scheduler path only");
+#endif
+    uint32_t num_total_l1_tiles = 0;
+    uint32_t num_total_l2_tiles = 0;
+    // L1 tiles that must be claimed before the last created L2 tile may wait on
+    // the readiness of its pool block (sub-tiled builds only).
+    mutable uint32_t last_l2_required_l1_tiles = 0;
+
+    template <bool kIsL1>
+    static CUTLASS_DEVICE uint32_t get_tile_bm(const uint32_t& num_tokens) {
+        constexpr uint32_t kPhaseBM = kIsL1 ? kTileBML1 : kTileBML2;
+        if constexpr (kAdaptiveTileBM) {
+            const uint32_t adaptive_bm = select_expert_tile_bm<BLOCK_M>(num_tokens);
+            return adaptive_bm < kPhaseBM ? adaptive_bm : kPhaseBM;
+        } else {
+            (void)num_tokens;
+            return kPhaseBM;
+        }
+    }
+
     static constexpr uint32_t kEffL2PerL1Ratio =
         (WEAVE_SCHED_L2_RATIO > 1 and kNumL2Clusters >= static_cast<uint32_t>(WEAVE_SCHED_L2_RATIO) * kNumL1Clusters)
             ? static_cast<uint32_t>(WEAVE_SCHED_L2_RATIO) : 1u;
@@ -942,11 +1037,18 @@ struct MegaMoEScheduler {
     }
 
     CUTLASS_DEVICE uint32_t get_num_tokens(const uint32_t& expert_idx) const {
+        // NOTES: compare against the lane-specific expert index (reference form).
+        // The former `if (i == expert_idx / 32)` select is warp-uniform, so NVVM
+        // folded it into a dynamic `stored_num_tokens_per_expert[expert_idx / 32]`
+        // load.  That demoted the whole scheduler object (and, through its
+        // `workspace` reference, the kernel's Workspace) to local memory:
+        // 192 B STACK and 180 LDL re-reads of Workspace fields after every
+        // `asm volatile(... "memory")`, including the epilogue/TMA hot paths.
         uint32_t valid_value = 0;
         #pragma unroll
         for (uint32_t i = 0; i < kNumExpertsPerLane; ++ i) {
-            if (i == expert_idx / 32)
-                valid_value = stored_num_tokens_per_expert[i];
+            valid_value = (expert_idx == i * 32 + ptx::get_lane_idx()) ?
+                stored_num_tokens_per_expert[i] : valid_value;
         }
         return ptx::exchange(valid_value, expert_idx % 32);
     }
@@ -1027,10 +1129,24 @@ struct MegaMoEScheduler {
         #else
         num_total_m_blocks = get_pool_block_offset(kNumExpertsPerRank);
         #endif
+        if constexpr (kSubTileActive) {
+            uint32_t l1_tiles = 0, l2_tiles = 0;
+            #pragma unroll
+            for (uint32_t i = 0; i < kNumExpertsPerLane; ++ i) {
+                const uint32_t num_tokens = stored_num_tokens_per_expert[i];
+                l1_tiles += math::ceil_div(num_tokens, get_tile_bm<true>(num_tokens));
+                l2_tiles += math::ceil_div(num_tokens, get_tile_bm<false>(num_tokens));
+            }
+            num_total_l1_tiles = __reduce_add_sync(0xffffffff, l1_tiles);
+            num_total_l2_tiles = __reduce_add_sync(0xffffffff, l2_tiles);
+        } else {
+            num_total_l1_tiles = num_total_m_blocks;
+            num_total_l2_tiles = num_total_m_blocks;
+        }
         const uint32_t num_clusters = kNumSMs / 2;
         const uint32_t min_l1_warmup_waves = get_min_l1_warmup_waves(
-            num_total_m_blocks, num_clusters, kNumL1Clusters, kNumL2Clusters);
-        const uint32_t num_total_l1_waves = math::ceil_div(num_total_m_blocks * kNumL1Clusters, num_clusters);
+            num_total_l1_tiles, num_clusters, kNumL1Clusters, kNumL2Clusters);
+        const uint32_t num_total_l1_waves = math::ceil_div(num_total_l1_tiles * kNumL1Clusters, num_clusters);
         num_sched_l1_waves = cute::min(min_l1_warmup_waves, num_total_l1_waves);
     }
 
@@ -1367,6 +1483,52 @@ struct MegaMoEScheduler {
             }
         }
         #else
+        if constexpr (kSubTileActive) {
+            // `m_block_idx` is a tile index in the phase's own tile space.
+            const bool is_l1 = (block_phase == BlockPhase::Linear1);
+            uint32_t tile_base = 0, pool_base = 0, l1_tile_base = 0;
+            #pragma unroll
+            for (uint32_t i = 0; i < kNumExpertsPerLane; ++ i) {
+                const uint32_t expert_idx = i * 32 + lane_idx;
+                const uint32_t num_tokens = stored_num_tokens_per_expert[i];
+                const uint32_t l1_bm = get_tile_bm<true>(num_tokens);
+                const uint32_t tile_bm = is_l1 ? l1_bm : get_tile_bm<false>(num_tokens);
+                const uint32_t num_tiles = math::ceil_div(num_tokens, tile_bm);
+                const uint32_t num_pool_blocks = math::ceil_div(num_tokens, BLOCK_M);
+                const uint32_t num_l1_tiles = math::ceil_div(num_tokens, l1_bm);
+                const uint32_t inc_tiles = math::warp_inclusive_sum(num_tiles, lane_idx);
+                const uint32_t inc_pool = math::warp_inclusive_sum(num_pool_blocks, lane_idx);
+                const uint32_t inc_l1 = math::warp_inclusive_sum(num_l1_tiles, lane_idx);
+                const uint32_t lane_tile_offset = tile_base + inc_tiles - num_tiles;
+                const bool is_owner = expert_idx < kNumExpertsPerRank and
+                    m_block_idx >= lane_tile_offset and m_block_idx < lane_tile_offset + num_tiles;
+                const uint32_t owner_mask = __ballot_sync(0xffffffff, is_owner);
+
+                if (owner_mask) {
+                    const uint32_t owner_lane_idx = static_cast<uint32_t>(__ffs(owner_mask) - 1);
+                    const uint32_t tile_in_expert = m_block_idx - lane_tile_offset;
+                    const uint32_t row_in_expert = tile_in_expert * tile_bm;
+                    const uint32_t row_offset = row_in_expert % BLOCK_M;
+                    const uint32_t owner_pool_block = pool_base + inc_pool - num_pool_blocks + row_in_expert / BLOCK_M;
+                    const uint32_t owner_valid_m = cute::min(num_tokens - row_in_expert, tile_bm);
+                    // The expert's last tile also credits the empty remainder of its pool block.
+                    const uint32_t credits = (tile_in_expert + 1u == num_tiles) ?
+                        (BLOCK_M - row_offset) / 32u : tile_bm / 32u;
+                    const uint32_t pool_rows_end = cute::min(num_tokens, (row_in_expert / BLOCK_M + 1u) * BLOCK_M);
+                    const uint32_t required_l1_tiles = l1_tile_base + inc_l1 - num_l1_tiles +
+                        math::ceil_div(pool_rows_end, l1_bm);
+                    result.local_expert_idx = ptx::exchange(expert_idx, owner_lane_idx);
+                    result.m_block_idx = ptx::exchange(task_info_t::pack_sub_tile(row_offset, credits), owner_lane_idx);
+                    result.pool_block_idx = ptx::exchange(owner_pool_block, owner_lane_idx);
+                    result.valid_m = ptx::exchange(owner_valid_m, owner_lane_idx);
+                    last_l2_required_l1_tiles = ptx::exchange(required_l1_tiles, owner_lane_idx);
+                }
+                tile_base += ptx::exchange(inc_tiles, 31);
+                pool_base += ptx::exchange(inc_pool, 31);
+                l1_tile_base += ptx::exchange(inc_l1, 31);
+            }
+            return result;
+        }
         uint32_t block_offset = 0;
         #pragma unroll
         for (uint32_t i = 0; i < kNumExpertsPerLane; ++ i) {
@@ -1605,7 +1767,7 @@ struct MegaMoEScheduler {
                 -- num_sched_l1_waves;
 
                 if (not get_next_task_idx<kNumL1Clusters>(
-                        workspace.get_l1_task_count_ptr(), num_total_m_blocks, sel_m_block, sel_n_cluster)) {
+                        workspace.get_l1_task_count_ptr(), num_total_l1_tiles, sel_m_block, sel_n_cluster)) {
                     num_sched_l1_waves = kNumSchedL1WavesDone;
                     continue;
                 }
@@ -1617,7 +1779,7 @@ struct MegaMoEScheduler {
                 );
             } else {
                 if (not get_next_task_idx<kNumL2Clusters>(
-                        workspace.get_l2_task_count_ptr(), num_total_m_blocks, sel_m_block, sel_n_cluster))
+                        workspace.get_l2_task_count_ptr(), num_total_l2_tiles, sel_m_block, sel_n_cluster))
                     break;
 
                 if (num_sched_l1_waves != kNumSchedL1WavesDone) {
@@ -1633,7 +1795,8 @@ struct MegaMoEScheduler {
 #endif
                 );
 
-                wait_l1_tasks(sel_m_block + 1u);
+                // Sub-tiled builds: every L1 tile of this L2 tile's pool block must be claimed.
+                wait_l1_tasks(kSubTileActive ? last_l2_required_l1_tiles : (sel_m_block + 1u));
                 return task_info;
             }
         }
@@ -1665,7 +1828,10 @@ struct MegaMoEScheduler {
                 break;
 
             const uint32_t valid_m = cute::min(num_tokens - m_block_idx * BLOCK_M, BLOCK_M);
-            publish_task(task_info_t(kBlockPhase, 0, m_block_idx, n_cluster_idx, m_block_idx, valid_m, kShapeN, kShapeK), lane_idx);
+            // Shared-expert tasks always cover a whole pool block (row offset 0).
+            const uint32_t task_m_field = kSubTileActive
+                ? task_info_t::pack_sub_tile(0u, kCreditsPerPoolBlock) : m_block_idx;
+            publish_task(task_info_t(kBlockPhase, 0, task_m_field, n_cluster_idx, m_block_idx, valid_m, kShapeN, kShapeK), lane_idx);
         }
     }
 

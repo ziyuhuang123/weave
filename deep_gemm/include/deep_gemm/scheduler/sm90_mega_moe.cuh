@@ -16,6 +16,15 @@ enum class SM90BlockPhase {
 // independent kernels with different grids and traversal orders. Keep those
 // semantics out of MegaMoEScheduler, whose default mapping is the SM100
 // two-CTA-cluster contract from nv_dev.
+// WEAVE_POOL_BLOCK_M: common expert-pool padding granularity (tokens).  The split
+// L1/L2 kernels of a decoupled WEAVE_BLOCK_M_L1 != WEAVE_BLOCK_M_L2 launch must agree
+// on every expert's pool row base, so each expert is padded to a multiple of
+// P = max(BLOCK_M_L1, BLOCK_M_L2) and both phases address the pool in their own
+// BLOCK_M units (P is a multiple of either BLOCK_M).  0 keeps pool padding == BLOCK_M.
+#ifndef WEAVE_POOL_BLOCK_M
+#define WEAVE_POOL_BLOCK_M 0u
+#endif
+
 template <uint32_t BLOCK_M, uint32_t BLOCK_N, uint32_t BLOCK_K,
           uint32_t L1_SHAPE_N, uint32_t L1_SHAPE_K,
           uint32_t L2_SHAPE_N, uint32_t L2_SHAPE_K,
@@ -31,6 +40,9 @@ template <uint32_t BLOCK_M, uint32_t BLOCK_N, uint32_t BLOCK_K,
           uint32_t kNumL1BlockKs = L1_SHAPE_K / BLOCK_K,
           uint32_t kNumL2BlockKs = L2_SHAPE_K / BLOCK_K>
 struct SM90MegaMoESchedulerAdapter {
+    static constexpr uint32_t kPoolBlockM =
+        (static_cast<uint32_t>(WEAVE_POOL_BLOCK_M) > BLOCK_M) ? static_cast<uint32_t>(WEAVE_POOL_BLOCK_M) : BLOCK_M;
+    static_assert(kPoolBlockM % BLOCK_M == 0, "WEAVE_POOL_BLOCK_M must be a multiple of BLOCK_M");
     DG_STATIC_ASSERT(L1_SHAPE_N % BLOCK_N == 0, "Invalid shape");
     DG_STATIC_ASSERT(L2_SHAPE_N % BLOCK_N == 0, "Invalid shape");
     DG_STATIC_ASSERT(L1_SHAPE_K % BLOCK_K == 0, "Invalid shape");
@@ -85,13 +97,18 @@ struct SM90MegaMoESchedulerAdapter {
         #pragma unroll
         for (uint32_t i = 0; i < kNumExpertsPerLane; ++ i) {
             if (i * 32 + ptx::get_lane_idx() < expert_idx)
-                num_blocks += math::ceil_div(stored_num_tokens_per_expert[i], BLOCK_M);
+                num_blocks += math::ceil_div(stored_num_tokens_per_expert[i], kPoolBlockM) * (kPoolBlockM / BLOCK_M);
         }
         return __reduce_add_sync(0xffffffff, num_blocks);
     }
 
     CUTLASS_DEVICE void advance_expert_idx() {
-        current_pool_block_offset += get_current_num_m_blocks();
+        // Advance by the expert's padded pool footprint (kPoolBlockM granularity, in
+        // BLOCK_M units), exactly as get_pool_block_offset() sums it: with a decoupled
+        // WEAVE_BLOCK_M_L1 != WEAVE_BLOCK_M_L2 launch, the phase with the smaller
+        // BLOCK_M would otherwise walk ceil(n / BLOCK_M) blocks per expert and drift
+        // from the pool rows that set_expert_idx() / the dispatcher address.
+        current_pool_block_offset += math::ceil_div(current_num_tokens, kPoolBlockM) * (kPoolBlockM / BLOCK_M);
         current_local_expert_idx += 1;
         current_num_tokens = get_num_tokens(current_local_expert_idx);
     }

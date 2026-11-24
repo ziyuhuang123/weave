@@ -1,6 +1,81 @@
 #include <deep_gemm/scheduler/weave_knobs.cuh>
 #include <deep_gemm/scheduler/weave_policy_runtime.cuh>
 #include <deep_gemm/scheduler/weave_cost_model.cuh>
+// MI308X_EP16_KNOB_GATE_BEGIN
+// Fail-closed support gate for the unified WEAVE_* knobs on the MI308X EP16
+// kernel (stage_ep16_turbo_overlap).  weave_knobs.cuh supplies the defaults
+// (all 0u, WEAVE_V_HEAD = 0xffffffffu = auto), which never trigger an #error
+// below; only a non-default, unsupported value does.
+#ifndef WEAVE_DISPATCH_ACTIVE_SMS
+#define WEAVE_DISPATCH_ACTIVE_SMS 0u
+#endif
+#ifndef WEAVE_SCATTER_ACTIVE_SMS
+#define WEAVE_SCATTER_ACTIVE_SMS 0u
+#endif
+#ifndef WEAVE_SM0_STREAM_SCHED
+#define WEAVE_SM0_STREAM_SCHED 0u
+#endif
+#ifndef WEAVE_CU_WAVE_SPLIT
+#define WEAVE_CU_WAVE_SPLIT 0u
+#endif
+#ifndef WEAVE_BLOCK_M_L1
+#define WEAVE_BLOCK_M_L1 0u
+#endif
+#ifndef WEAVE_BLOCK_M_L2
+#define WEAVE_BLOCK_M_L2 0u
+#endif
+#ifndef WEAVE_COMBINE_SYNC_CHUNK
+#define WEAVE_COMBINE_SYNC_CHUNK 0u
+#endif
+#ifndef WEAVE_REDUCE_WARPS
+#define WEAVE_REDUCE_WARPS 0u
+#endif
+#ifndef WEAVE_LOCAL_SCATTER_DEDUP_EXPLICIT
+#define WEAVE_LOCAL_SCATTER_DEDUP_EXPLICIT 0
+#endif
+// WEAVE_DISPATCH_ACTIVE_SMS = D: 0 = all 48 dispatch-capable CTAs (32..79);
+// 0 < D < 48 = only CTAs 32..32+D-1 dispatch; D in [48, 80] = documented no-op
+// (EP16 has only 48 dispatch-capable CTAs).
+#if WEAVE_DISPATCH_ACTIVE_SMS > 80
+#error "MI308X EP16: WEAVE_DISPATCH_ACTIVE_SMS must be in [0, 80] (0 = all 48 dispatch CTAs; values >= 48 are a no-op)"
+#endif
+// WEAVE_SCATTER_ACTIVE_SMS = K: 0 = every CTA may help ep16_scatter_reclaim;
+// 0 < K < 80 = only CTAs < K (assist only; ep16_combine on CTAs 0..31 drains
+// every bucket on its own); K == 80 = no-op.
+#if WEAVE_SCATTER_ACTIVE_SMS > 80
+#error "MI308X EP16: WEAVE_SCATTER_ACTIVE_SMS must be in [0, 80] (0 = all 80 CTAs may run scatter reclaim)"
+#endif
+#if WEAVE_CU_WAVE_SPLIT < 0 || WEAVE_CU_WAVE_SPLIT > 3
+#error "MI308X EP16: WEAVE_CU_WAVE_SPLIT must be 0 (auto), 1 (0-8), 2 (4-4) or 3 (8-0)"
+#endif
+#if WEAVE_SM0_STREAM_SCHED != 0
+#error "MI308X EP16: WEAVE_SM0_STREAM_SCHED=1 is not supported; the CTA-0 comm waves are statically bound to GDA (wave 4) and combine (waves 5..7)"
+#endif
+#if WEAVE_BLOCK_M_L1 != 0 && WEAVE_BLOCK_M_L1 != 16 && WEAVE_BLOCK_M_L1 != 32 && \
+    WEAVE_BLOCK_M_L1 != 64 && WEAVE_BLOCK_M_L1 != 128
+#error "MI308X EP16: WEAVE_BLOCK_M_L1 must be 0 (auto), 16, 32, 64 or 128"
+#endif
+#if WEAVE_BLOCK_M_L2 != 0 && WEAVE_BLOCK_M_L2 != 16 && WEAVE_BLOCK_M_L2 != 32 && \
+    WEAVE_BLOCK_M_L2 != 64 && WEAVE_BLOCK_M_L2 != 128
+#error "MI308X EP16: WEAVE_BLOCK_M_L2 must be 0 (auto), 16, 32, 64 or 128"
+#endif
+#if WEAVE_COMBINE_SYNC_CHUNK != 0
+#error "MI308X EP16: WEAVE_COMBINE_SYNC_CHUNK is not supported; ep16_combine already releases per bucket (streams each (src,slot) bucket as soon as bucket_done == nexp) and has no chunked release"
+#endif
+#if WEAVE_REDUCE_WARPS != 0
+#error "MI308X EP16: WEAVE_REDUCE_WARPS is not supported; ep16_combine waves 5..7 (node reduce + home) cannot be re-carved into 1/2/4/8 dedicated Reduce warps"
+#endif
+// MI308X EP16 always merges multi-expert hits locally in fp32 -> bf16 before the
+// send (one return slot per (src,token)).  Only an explicit request for per-hit
+// scatter (WEAVE_LOCAL_SCATTER_DEDUP=0 passed by the user) is rejected; the
+// header default of 0u coming from weave_knobs.cuh must keep compiling.
+#if WEAVE_LOCAL_SCATTER_DEDUP != 0 && WEAVE_LOCAL_SCATTER_DEDUP != 1
+#error "MI308X EP16: WEAVE_LOCAL_SCATTER_DEDUP must be 0 or 1"
+#endif
+#if WEAVE_LOCAL_SCATTER_DEDUP_EXPLICIT && WEAVE_LOCAL_SCATTER_DEDUP == 0
+#error "MI308X EP16 always merges multi-expert hits locally before send (one return slot per (src,token)); per-hit scatter (WEAVE_LOCAL_SCATTER_DEDUP=0) is not supported"
+#endif
+// MI308X_EP16_KNOB_GATE_END
 // MEGA_OPT_OPTIONS_BEGIN
 #ifndef WEAVE_OPT_RELAXED_SPIN
 #define WEAVE_OPT_RELAXED_SPIN 0
@@ -273,7 +348,7 @@ struct __attribute__((packed)) V968CkExt {
   uint32_t ck_m64_block_rows;       // must be 64
   uint32_t ck_n_block_cols;         // must be 128
   uint32_t ck_route_sentinel;       // must equal the actual M64 row count at runtime
-  uint32_t ck_flags;                // must be zero
+  uint32_t ck_flags;                // bits [3:0] = num_shared_experts (v59), other bits zero
 };
 static_assert(sizeof(V968CkExt) == 168, "V968CkExt ABI changed");
 
@@ -464,7 +539,9 @@ __device__ __forceinline__ bool v983_wait_ge(const unsigned* p, unsigned target,
                                               unsigned* error, unsigned code) {
   unsigned backoff = 1u, spins = 0u;
 #if WEAVE_OPT_RELAXED_SPIN
-  // relaxed 轮询：不�?acquire 语义，因此不会每圈作�?L1/L2�?  // 条件满足后在函数返回前补一�?acquire 栅栏，保证后续读到的 payload 是新的�?  while(__hip_atomic_load(p, __ATOMIC_RELAXED, __HIP_MEMORY_SCOPE_SYSTEM) < target) {
+  // relaxed 轮询：不带 acquire 语义，因此不会每圈作废 L1/L2；
+  // 条件满足后在函数返回前补一次 acquire 栅栏，保证后续读到的 payload 是新的。
+  while(__hip_atomic_load(p, __ATOMIC_RELAXED, __HIP_MEMORY_SCOPE_SYSTEM) < target) {
 #else
   while(v983_load_system(p) < target) {
 #endif
@@ -530,6 +607,10 @@ __device__ __forceinline__ bool v1864_wave_wait_ge(
   (reinterpret_cast<int*>((env).ck.ck_sorted_token_ids))
 #include "direct_gather_and_greedy_tiles.hpp"
 #include "weave_comm_4wave_turbo.hpp"
+// EP16-only: let v1864_validate_envelope_general accept num_shared_experts in
+// ck_flags[3:0] (v59).  The EP8 TU includes the same header without this macro
+// and therefore keeps the original `ck.ck_flags != 0u` fail-closed check.
+#define MI308X_EP16_CK_SHARED_EXPERTS 1
 #include "sub6_6models_generalize.hpp"
 
 // Communication waves 4..7 execute this routine concurrently with compute
@@ -782,6 +863,27 @@ __device__ __forceinline__ void weave_v4_gemm1_direct(
     const unsigned g1_aux = ((unsigned)d.bm << 16u) | (unsigned)d.valid_rows;
     FI_BG(V1988_FI_CORE, V1988_EV_GEMM1_TILE, g1_aux);
     const int32_t* ids = stage1_ids + d.row_start;
+#if WEAVE_BLOCK_M_L1 != 0
+    // WEAVE_BLOCK_M_L1 = C: Stage-1 execution blockM CAP.  The route-plan tile
+    // (d.bm / d.valid_rows) is unchanged; a tile larger than C runs as chunks of
+    // at most C rows through the BM=C kernel (same argument convention as the
+    // split_128 chunk loop below).  C == 128 is skipped when the dual-group LDS
+    // halving is active (no BM128 kernel there), so the 64-row split path runs.
+    constexpr unsigned kBmCapL1 = static_cast<unsigned>(WEAVE_BLOCK_M_L1);
+    if (static_cast<unsigned>(d.bm) > kBmCapL1 && (kBmCapL1 <= 64u || !split_128)) {
+      #pragma clang loop unroll(disable)
+      for (unsigned r_off = 0u; r_off < d.valid_rows; r_off += kBmCapL1) {
+        const unsigned r_rem = d.valid_rows - r_off;
+        const unsigned chunk = (r_rem > kBmCapL1) ? kBmCapL1 : r_rem;
+        weave_dispatch_stage1_bk64<kBmCapL1>(ids + r_off, (int32_t)d.expert_id, recv_payload,
+            reinterpret_cast<const uint8_t*>(ck.ck_b), recv_scale,
+            reinterpret_cast<const float*>(ck.ck_b_scale), nullptr,
+            reinterpret_cast<uint8_t*>(ck.ck_quant_output),
+            reinterpret_cast<float*>(ck.ck_quant_scale), d.row_start + r_off, chunk, n1,
+            num_tokens, run, ck.ck_intermediate, ck.ck_hidden, arena);
+      }
+    } else
+#endif
     if (split_128 && (d.bm == 128u || d.bm == 256u)) {
       #pragma clang loop unroll(disable)
       for (unsigned r_off = 0u; r_off < d.valid_rows; r_off += 64u) {
@@ -918,6 +1020,9 @@ __device__ __forceinline__ void weave_v4_gemm2_direct(
   const unsigned n2_claims_per_mt = use_bn64 ? (n2_blocks * 2u) : (n2_blocks / n2_group);
   const unsigned n2_blocks_eff = use_bn64 ? (n2_blocks * 2u) : n2_blocks;
   unsigned last_acq_mt = 0xffffffffu;
+#if WEAVE_BLOCK_M_L2 != 0
+  constexpr unsigned kBmCapL2 = static_cast<unsigned>(WEAVE_BLOCK_M_L2);
+#endif
 
   for (;;) {
     const unsigned tile = weave_v4_next_tile(trace + 12u, arena);
@@ -973,6 +1078,27 @@ __device__ __forceinline__ void weave_v4_gemm2_direct(
       const unsigned n2_eff = claim_idx * n2_group + g;
       const unsigned n2 = use_bn64 ? (n2_eff >> 1u) : n2_eff;
       if (use_bn64 && d.bm <= 64u) {
+#if WEAVE_BLOCK_M_L2 == 16 || WEAVE_BLOCK_M_L2 == 32
+        // WEAVE_BLOCK_M_L2 cap for the BN64 small-tile path: tiles with
+        // d.bm > C (only 32/64 reach here) run as C-row chunks through the
+        // BM=C BN64 kernel; arguments copied from the whole-tile calls below
+        // with ids/weights/row offset advanced by r_off and rows = chunk.
+        if (static_cast<unsigned>(d.bm) > kBmCapL2) {
+          #pragma clang loop unroll(disable)
+          for (unsigned r_off = 0u; r_off < d.valid_rows; r_off += kBmCapL2) {
+            const unsigned r_rem = d.valid_rows - r_off;
+            const unsigned chunk = (r_rem > kBmCapL2) ? kBmCapL2 : r_rem;
+            const unsigned rs_c = d.row_start + r_off;
+            weave_s2_small_1x4_bn64<kBmCapL2>(ids + r_off, (int32_t)d.expert_id,
+                reinterpret_cast<const uint8_t*>(ck.ck_quant_output),
+                reinterpret_cast<const uint8_t*>(o.ck_w2),
+                reinterpret_cast<const float*>(ck.ck_quant_scale),
+                reinterpret_cast<const float*>(o.ck_w2_scale), weights + rs_c,
+                reinterpret_cast<uint16_t*>(o.gemm2_output), rs_c, chunk, n2_eff, run,
+                o.hidden, ck.ck_intermediate, arena);
+          }
+        } else
+#endif
         if (d.bm == 32u) {
           weave_s2_small_1x4_bn64<32u>(ids, (int32_t)d.expert_id,
               reinterpret_cast<const uint8_t*>(ck.ck_quant_output),
@@ -992,7 +1118,30 @@ __device__ __forceinline__ void weave_v4_gemm2_direct(
         }
       } else if (use_bn64 && (n2_eff & 1u) != 0u) {
         // Odd half of >=128 row tile already computed by even half (BN=128)
-      } else if (split_128 && (d.bm == 128u || d.bm == 256u)) {
+      }
+#if WEAVE_BLOCK_M_L2 != 0
+      // WEAVE_BLOCK_M_L2 = C: Stage-2 execution blockM CAP (independent of L1).
+      // Placed after the BN64 branches so their semantics are untouched.  The
+      // route-plan tile is unchanged; a tile larger than C runs as chunks of at
+      // most C rows through the BM=C kernel (same convention as the split_128
+      // loop below).  C == 128 is skipped under the dual-group LDS halving.
+      else if (static_cast<unsigned>(d.bm) > kBmCapL2 && (kBmCapL2 <= 64u || !split_128)) {
+        #pragma clang loop unroll(disable)
+        for (unsigned r_off = 0u; r_off < d.valid_rows; r_off += kBmCapL2) {
+          const unsigned r_rem = d.valid_rows - r_off;
+          const unsigned chunk = (r_rem > kBmCapL2) ? kBmCapL2 : r_rem;
+          const unsigned rs_c = d.row_start + r_off;
+          weave_dispatch_stage2_bk64<kBmCapL2>(ids + r_off, (int32_t)d.expert_id,
+              reinterpret_cast<const uint8_t*>(ck.ck_quant_output),
+              reinterpret_cast<const uint8_t*>(o.ck_w2),
+              reinterpret_cast<const float*>(ck.ck_quant_scale),
+              reinterpret_cast<const float*>(o.ck_w2_scale), weights + rs_c,
+              reinterpret_cast<uint16_t*>(o.gemm2_output), rs_c, chunk, n2, run,
+              o.hidden, ck.ck_intermediate, arena);
+        }
+      }
+#endif
+      else if (split_128 && (d.bm == 128u || d.bm == 256u)) {
         #pragma clang loop unroll(disable)
         for (unsigned r_off = 0u; r_off < d.valid_rows; r_off += 64u) {
           const unsigned r_rem = d.valid_rows - r_off;
@@ -1153,8 +1302,14 @@ void stage_ep16_turbo_overlap(V983Envelope envelope,
   FI_OPEN(wave);
 #if WEAVE_CU_WAVE_SPLIT == 1
   bool dual = true;   // 0-8: 0 comm + 8 compute waves
-#elif WEAVE_CU_WAVE_SPLIT == 2 || WEAVE_CU_WAVE_SPLIT == 3
-  bool dual = false;  // 4-4 intra-CU overlap or 8-0 dedicated comm CUs
+#elif WEAVE_CU_WAVE_SPLIT == 2
+  bool dual = false;  // 4-4 intra-CU overlap
+#elif WEAVE_CU_WAVE_SPLIT == 3
+  // 8-0 (real): CTAs 0..31 are dedicated communication CUs (waves 4..7 run
+  // GDA + combine; waves 0..3 exit right after the mandatory 80-CTA route plan,
+  // see below) and CTAs 32..79 are 8-wave compute CUs (waves 4..7 join GEMM as
+  // group 1 after local plan + dispatch).
+  bool dual = true;
 #elif WEAVE_ABLATION_PRESET == 0
   // Spatial cost-model selection: enable dual-group (512 compute waves) for
   // t_local >= 64 (S>=1024) AND wide-expert models like qwen38max at S=128
@@ -1170,7 +1325,11 @@ void stage_ep16_turbo_overlap(V983Envelope envelope,
     if(cta==0u && tid==0u) trace[17u]=v983_clock();
     FI_EG(V1988_FI_PHASE,V1988_EV_ROUTE_PLAN,cta);
     if(!ok){FI_CLOSE();return;}
-#if WEAVE_ABLATION_PRESET == 3
+#if WEAVE_ABLATION_PRESET == 3 || WEAVE_CU_WAVE_SPLIT == 3
+    // Waves 0..3 of the 32 dedicated comm CTAs carry no GEMM work.  The route
+    // plan above REQUIRES all 80 CTAs, so they exit only after it.  Reclaim is
+    // an assist only: ep16_combine (CTAs 0..31, waves 5..7) drains every bucket
+    // and home/node reduce on its own (same argument as ablation preset 3).
     if(cta<32u){FI_CLOSE();return;}
 #endif
   } else if(wave==4u && cta<32u) {

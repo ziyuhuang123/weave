@@ -1,0 +1,283 @@
+{
+  "schema": "weave-ep16-v62-champion-preset/v1",
+  "arm": "v62_champion",
+  "label": "V62 dynamic-BM {16,32,64} + GEMM2 1x4 BN256 (BM64) / BN512 (BM16, BM32)",
+  "scope": "2-Node 16xMI308X EP16 champion translation unit (arm v62_champion). Source files SHA-verified against Nebula job 01a204b684c8479453de03934774988b (local build_port.py --champion v62_champion dry-run verified; ROCm rebuild SHA check pending on MI308X host). Vendored next to (not replacing) the policy-wired EP16 port (amd/megamoe_amd.hip). Internal -D macros only; zero public WEAVE_* knobs are read.",
+  "provenance": {
+    "benchmark_nebula_job": "01a204b684c8479453de03934774988b",
+    "capture_nebula_job": "01a204c9709e2c16d2005f8e45329f8b",
+    "build_host_tree": "R/<v62 build tree>/tree/v62_o2/v4",
+    "build_host_builder": "R/<v62 builder dir>/src/build_v62.py (clang -S -> cuid normalise -> cc1as -> relax -> assemble -> ld.lld)",
+    "evidence_ledger": "results/ep16_mi308x_v62_16gpu_champion.json"
+  },
+  "exact_v62_extra_flags": "-DV44_COMBINE=1 -DV44_FASTTOK=1 -DV44_QUIET=1 -DV44_SAFE_ST=2 -DV45_TAIL=1 -DV45_SCAT_CLAIM=16u -DV45_META=1 -DV45_STAGE=1 -DV45_PULL=2 -DV46_SP=1 -DV46_N08=4u -DV46_N44=8u -DV55_COALESCE_SCHED=1 -DV55_N1G=2 -DV55_N2G=8 -DV55_SWIZZLE=1 -DV55_NOSPEC_G2=1 -DV61_N08=4u -DV61_N44=8u -DV61_COMM=1 -DV61_G1_1X4=1 -DV61_G2_1X4=2 -DV54_S1_BYPASS_MALL=1 -DV60_L3_SMALL_RAW_SC1=0 -DV46_P0PCT=100u -DV46_P1PCT=100u -DV62_G2_BN256=3 -DV62_BN256_BM32=1 -DV62_G1_BM32=3 -DV62_G2_SWZ=1 -DV62_G1_STEAL=1 -DV62_BAR_MODE=1 -DV62_DYN_BM=1 -DV62_G2_BN512=4 -DV62_BN512_BM16=1 -DV62_BN512_BM32=1",
+  "inert_in_production_tu": {
+    "macros": [
+      "V61_N08",
+      "V61_N44",
+      "V61_COMM"
+    ],
+    "note": "kept verbatim in exact_v62_extra_flags (the recorded command line); no file of the production include closure references them -- they are consumed only by the v61_gp GEMM-phase harness TU (<v62 builder dir>/src/v61_gp.hip), so they cannot change the production P.co bytes"
+  },
+  "expected_co": {
+    "fi_level": 0,
+    "sha256": "e915ce1f51f53cbba0b4739b1e6497f578a5126590a2f0e4bd238fd59386e8b2",
+    "bytes": 375960,
+    "byte_identical_to_production_champion": true,
+    "post_link": {
+      "co_passed": true,
+      "co_vgpr_spill_count_max": 0,
+      "co_scratch_load": 0,
+      "co_scratch_store": 0,
+      "co_private_segment_fixed_size_max": 0,
+      "co_lds_bytes_max": 65536
+    },
+    "static_isa_gate": {
+      "vgpr_count_max": 230,
+      "sgpr_count_max": 106,
+      "vgpr_spill_count_max": 0,
+      "scratch_load": 0,
+      "scratch_store": 0,
+      "private_segment_fixed_size_max": 0,
+      "group_segment_fixed_size_max": 65536,
+      "s_barrier": 1
+    },
+    "required": {
+      "vgpr_spill_count_max": 0,
+      "scratch_load": 0,
+      "scratch_store": 0,
+      "private_segment_fixed_size_max": 0,
+      "group_segment_fixed_size_max_lte": 65536,
+      "s_barrier": 1,
+      "co_passed": true
+    }
+  },
+  "source_manifest": {
+    "ep16/v62/common/weave_knobs.hpp": {
+      "sha256_lf": "3612153d33ba3531fa1eb4dd510f81ce1c604c485937f1b6553d803677a16e5b",
+      "bytes_lf": 11313,
+      "origin": "build_host_sha256_verified",
+      "note": "vendored from the local weave_new1_light/rebuttal/common/weave_knobs.hpp (same R/common lineage as the -I{R}/common include of the V62 builder); sha256 3612153d... verified byte-for-byte against R/common/weave_knobs.hpp on the V62 build host (sha256sum, 2026-11-22)",
+      "verified_against": {
+        "host": "v62-build-host",
+        "path": "R/common/weave_knobs.hpp",
+        "tool": "sha256sum",
+        "date": "2026-11-22",
+        "sha256": "3612153d33ba3531fa1eb4dd510f81ce1c604c485937f1b6553d803677a16e5b"
+      }
+    },
+    "ep16/v62/tree/include/direct_gather_and_greedy_tiles.hpp": {
+      "sha256_lf": "490de191d2c04528fc6c1908da732ce37c39676850e3addedf3f5585670c6985",
+      "bytes_lf": 27054,
+      "origin": "build_host_v62_pull",
+      "note": "byte-identical to the V62 build-host pull of tree/v62_o2/v4/include/direct_gather_and_greedy_tiles.hpp"
+    },
+    "ep16/v62/tree/include/ep16_combine.hpp": {
+      "sha256_lf": "4d83430c41d7e2a34a2a623b7e044d7f9e1f554addd87e4041e1c53ebda7fb55",
+      "bytes_lf": 22542,
+      "origin": "build_host_v62_pull",
+      "note": "byte-identical to the V62 build-host pull of tree/v62_o2/v4/include/ep16_combine.hpp"
+    },
+    "ep16/v62/tree/include/ep16_fic2_lean.hpp": {
+      "sha256_lf": "d2f4dad303cfe9aec501bc59972e0148652e60096f0f581d4bfdd2ad423f4b35",
+      "bytes_lf": 13868,
+      "origin": "build_host_v62_pull",
+      "note": "byte-identical to the V62 build-host pull of tree/v62_o2/v4/include/ep16_fic2_lean.hpp"
+    },
+    "ep16/v62/tree/include/ep16_transport.hpp": {
+      "sha256_lf": "d8ab7ce0b4faf39e1b87f79a38b611ac7ba61244d912f3e353d1ba1439622935",
+      "bytes_lf": 17683,
+      "origin": "build_host_v62_pull",
+      "note": "byte-identical to the V62 build-host pull of tree/v62_o2/v4/include/ep16_transport.hpp"
+    },
+    "ep16/v62/tree/include/gemm_bk64_winner.hpp": {
+      "sha256_lf": "4732d1f2766e50aca40b40d2f07db9df49304a6a3c4e961946f4b41e716a97a6",
+      "bytes_lf": 171761,
+      "origin": "build_host_v62_pull",
+      "note": "byte-identical to the V62 build-host pull of tree/v62_o2/v4/include/gemm_bk64_winner.hpp"
+    },
+    "ep16/v62/tree/include/rb43/v43_pf.hpp": {
+      "sha256_lf": "47d57ccc6f82e075c8c8c40f52f77190d4033eb4d005a50c31d018fd0d1b0282",
+      "bytes_lf": 1307,
+      "origin": "build_host_v62_pull",
+      "note": "byte-identical to the V62 build-host pull of tree/v62_o2/v4/include/rb43/v43_pf.hpp"
+    },
+    "ep16/v62/tree/include/rb43/v43_util.hpp": {
+      "sha256_lf": "9e9f65601aef80c483f0740b92ad7f99461dba915ace9c84bfaaf3edc78de24d",
+      "bytes_lf": 2152,
+      "origin": "build_host_v62_pull",
+      "note": "byte-identical to the V62 build-host pull of tree/v62_o2/v4/include/rb43/v43_util.hpp"
+    },
+    "ep16/v62/tree/include/sub6_6models_generalize.hpp": {
+      "sha256_lf": "b321a3768878c0cfd6f6d5e8359650664e499fefbff5e8c459110dd350b7f107",
+      "bytes_lf": 9445,
+      "origin": "build_host_v62_pull",
+      "note": "byte-identical to the V62 build-host pull of tree/v62_o2/v4/include/sub6_6models_generalize.hpp"
+    },
+    "ep16/v62/tree/include/v41_dedup_overlap.hpp": {
+      "sha256_lf": "3782bcb69ee311385b8e66676fbf23350917f7cab80607aeda9c9be14bdb4e06",
+      "bytes_lf": 66150,
+      "origin": "build_host_v62_pull",
+      "note": "byte-identical to the V62 build-host pull of tree/v62_o2/v4/include/v41_dedup_overlap.hpp"
+    },
+    "ep16/v62/tree/include/v44_cka.hpp": {
+      "sha256_lf": "3e68559f0b42c4b75e00b41bb8e69fc436cdafe3c9bbd991abcb937e07809d5a",
+      "bytes_lf": 2388,
+      "origin": "build_host_v62_pull",
+      "note": "V62 build-host pull of tree/v62_o2/v4/include/v44_cka.hpp carries CRLF line endings; vendored LF-normalised (sha256_lf identical; no raw-string literal, and CRLF/LF are the same new-line in translation phase 1, so the preprocessed token stream is unchanged)"
+    },
+    "ep16/v62/tree/include/v44_combine.hpp": {
+      "sha256_lf": "3b5d8a796351963d062871136a2516ac9aba6c3dda24a742b2caafa18a7c8513",
+      "bytes_lf": 34082,
+      "origin": "build_host_v62_pull",
+      "note": "byte-identical to the V62 build-host pull of tree/v62_o2/v4/include/v44_combine.hpp"
+    },
+    "ep16/v62/tree/include/v44_safe_st.hpp": {
+      "sha256_lf": "1e93c92cc96b83535bba49ec8c05022d75edbdbdc76964c6df4714abf0ee7d72",
+      "bytes_lf": 2349,
+      "origin": "build_host_v62_pull",
+      "note": "byte-identical to the V62 build-host pull of tree/v62_o2/v4/include/v44_safe_st.hpp"
+    },
+    "ep16/v62/tree/include/v45_front.hpp": {
+      "sha256_lf": "244a2d7091047ba6a89fa056e7480090ee97e1437d3dbca0321fd33d707d71f6",
+      "bytes_lf": 18936,
+      "origin": "build_host_v62_pull",
+      "note": "byte-identical to the V62 build-host pull of tree/v62_o2/v4/include/v45_front.hpp"
+    },
+    "ep16/v62/tree/include/v45_tail.hpp": {
+      "sha256_lf": "77c3d2f26ca2ec49f1c7d1330fa71069e2610b71dcc3ce1039fa6f180e70a5e3",
+      "bytes_lf": 27111,
+      "origin": "build_host_v62_pull",
+      "note": "V62 build-host pull of tree/v62_o2/v4/include/v45_tail.hpp carries CRLF line endings; vendored LF-normalised (sha256_lf identical; no raw-string literal, and CRLF/LF are the same new-line in translation phase 1, so the preprocessed token stream is unchanged)"
+    },
+    "ep16/v62/tree/include/v46_run.hpp": {
+      "sha256_lf": "4f59c30c5796e07e83b9c91c9f19250973d28d50261f539bbecf9ea50d5cef5a",
+      "bytes_lf": 62402,
+      "origin": "build_host_v62_pull",
+      "note": "byte-identical to the V62 build-host pull of tree/v62_o2/v4/include/v46_run.hpp"
+    },
+    "ep16/v62/tree/include/v46_sp.hpp": {
+      "sha256_lf": "b6984b543b52c7b873ae304e0e66ea48b8ffa6c7f1931dd24401140135bbcde0",
+      "bytes_lf": 33191,
+      "origin": "build_host_v62_pull",
+      "note": "byte-identical to the V62 build-host pull of tree/v62_o2/v4/include/v46_sp.hpp"
+    },
+    "ep16/v62/tree/include/v54_xcd.hpp": {
+      "sha256_lf": "15875e90ce630ed49bcf0533bb2435bf3bca21be9277e29b8e52503ee91212ac",
+      "bytes_lf": 12149,
+      "origin": "build_host_v62_pull",
+      "note": "byte-identical to the V62 build-host pull of tree/v62_o2/v4/include/v54_xcd.hpp"
+    },
+    "ep16/v62/tree/include/v61_s2_pf2.hpp": {
+      "sha256_lf": "7448192121f5d6b093e6af5617ce956b04c50244c404ee58d5bc38759d76f2d2",
+      "bytes_lf": 11353,
+      "origin": "build_host_v62_pull",
+      "note": "byte-identical to the V62 build-host pull of tree/v62_o2/v4/include/v61_s2_pf2.hpp"
+    },
+    "ep16/v62/tree/include/v62_s1_1x4.hpp": {
+      "sha256_lf": "4d3ddfb4a42b8baf564756abcf69556cb4c9a56bfce3a28719aa4e081e7bd27f",
+      "bytes_lf": 13201,
+      "origin": "build_host_v62_pull",
+      "note": "byte-identical to the V62 build-host pull of tree/v62_o2/v4/include/v62_s1_1x4.hpp"
+    },
+    "ep16/v62/tree/include/v62_s2_bn256.hpp": {
+      "sha256_lf": "28d9ee3845fae023ea36a75028f97f2847dbf1f49ac18e0a0b101b01f3d2d437",
+      "bytes_lf": 18461,
+      "origin": "build_host_v62_pull",
+      "note": "byte-identical to the V62 build-host pull of tree/v62_o2/v4/include/v62_s2_bn256.hpp"
+    },
+    "ep16/v62/tree/include/v62_s2_bn384.hpp": {
+      "sha256_lf": "f084f30214f4a9c6438bf9845cad504849672222a9bf0f62be7e4e03b4d92e6b",
+      "bytes_lf": 11066,
+      "origin": "build_host_v62_pull",
+      "note": "byte-identical to the V62 build-host pull of tree/v62_o2/v4/include/v62_s2_bn384.hpp"
+    },
+    "ep16/v62/tree/include/v62_s2_bn512.hpp": {
+      "sha256_lf": "7cf057f4005fa36ad43d6f4ddf2a2f0fc5512c7ea4ce26ce33ca010507d1fdb0",
+      "bytes_lf": 12032,
+      "origin": "build_host_v62_pull",
+      "note": "byte-identical to the V62 build-host pull of tree/v62_o2/v4/include/v62_s2_bn512.hpp"
+    },
+    "ep16/v62/tree/include/weave_comm_4wave_turbo.hpp": {
+      "sha256_lf": "f3f1e450bf276ca3380c13767493980aec2864aaa5b0004265d8f9da757a2441",
+      "bytes_lf": 36041,
+      "origin": "build_host_v62_pull",
+      "note": "byte-identical to the V62 build-host pull of tree/v62_o2/v4/include/weave_comm_4wave_turbo.hpp"
+    },
+    "ep16/v62/tree/include/weave_gemm_400t_v6.hpp": {
+      "sha256_lf": "58bb0b0d04b93219f609dddc01cf0694a55910ae5792642cf45abb7a5e7c3ad9",
+      "bytes_lf": 52586,
+      "origin": "build_host_v62_pull",
+      "note": "byte-identical to the V62 build-host pull of tree/v62_o2/v4/include/weave_gemm_400t_v6.hpp"
+    },
+    "ep16/v62/tree/megamoe_amd.hip": {
+      "sha256_lf": "316b0cc2f6e8e8f8e00a515e366be2edbc7086e033532e38a79ffe6d5b5710b5",
+      "bytes_lf": 66334,
+      "origin": "build_host_v62_pull",
+      "note": "byte-identical to the V62 build-host pull of tree/v62_o2/v4/megamoe_amd.hip"
+    },
+    "include/gda_mesh.hpp": {
+      "sha256_lf": "ffeacf51546bac0f75db5fd16798aff211a9474416f29509d045c1b74553b909",
+      "bytes_lf": 42300,
+      "origin": "repo_shared_identical",
+      "note": "shared repo header, byte-identical to the V62 build-host pull of tree/v62_o2/v4/include/gda_mesh.hpp"
+    },
+    "include/v1262_subwave_barrier.hpp": {
+      "sha256_lf": "6119666312e72afff52ef38163c7acee55917572cb0fc0051d9620158c3b24cd",
+      "bytes_lf": 9833,
+      "origin": "repo_shared_identical",
+      "note": "shared repo header, byte-identical to the V62 build-host pull of tree/v62_o2/v4/include/v1262_subwave_barrier.hpp"
+    },
+    "include/weave_ck_512_configs.hpp": {
+      "sha256_lf": "30348ce0ff3f0fdb8615846742ac49eae00e5b60d83d5baddf35f14c25810a08",
+      "bytes_lf": 5854,
+      "origin": "repo_shared_identical",
+      "note": "shared repo header, byte-identical to the V62 build-host pull of tree/v62_o2/v4/include/weave_ck_512_configs.hpp"
+    },
+    "third_party_overlay/fi_lite_hip.h": {
+      "sha256_lf": "f78f8f14a106b46843cdd8abd0d24ac16d0b48773371f05cd5b02567b2800ec9",
+      "bytes_lf": 13725,
+      "origin": "repo_third_party_overlay",
+      "note": "repo overlay (the V62 builder used the build-host SNAP/V3225 overlay dirs; pinned here at the repo copy)"
+    },
+    "third_party_overlay/gemm2_configs_v1010_hip.hpp": {
+      "sha256_lf": "e92aaf8e741ebb672a9a13695d61265a3d54bef9b464c9751297ff52c4ed6e62",
+      "bytes_lf": 3766,
+      "origin": "repo_third_party_overlay",
+      "note": "repo overlay (the V62 builder used the build-host SNAP/V3225 overlay dirs; pinned here at the repo copy)"
+    },
+    "third_party_overlay/m16_packet_support.hpp": {
+      "sha256_lf": "aa278ccf2723644a3aaef2dda3296883b50bdf202434a7bc30e0699912b163de",
+      "bytes_lf": 18454,
+      "origin": "repo_third_party_overlay",
+      "note": "repo overlay (the V62 builder used the build-host SNAP/V3225 overlay dirs; pinned here at the repo copy)"
+    },
+    "third_party_overlay/official_m16_m32_configs_v1262.hpp": {
+      "sha256_lf": "0727e329e4b38f195df7cfe2ca2bf5164e920644409d24c1e98af21f430106c9",
+      "bytes_lf": 4047,
+      "origin": "repo_third_party_overlay",
+      "note": "repo overlay (the V62 builder used the build-host SNAP/V3225 overlay dirs; pinned here at the repo copy)"
+    },
+    "third_party_overlay/v1198_site_trace.hpp": {
+      "sha256_lf": "495787a2b1aa36cf66ff955c5371e0c778880589ad477cf58da89211e03723d0",
+      "bytes_lf": 8864,
+      "origin": "repo_third_party_overlay",
+      "note": "repo overlay (the V62 builder used the build-host SNAP/V3225 overlay dirs; pinned here at the repo copy)"
+    },
+    "third_party_overlay/v956_stage1_body.hpp": {
+      "sha256_lf": "53357aacb5176035249a458920cc5d56f5ab90a2ff60c9a049238be8cf2ccc55",
+      "bytes_lf": 18808,
+      "origin": "repo_third_party_overlay",
+      "note": "repo overlay (the V62 builder used the build-host SNAP/V3225 overlay dirs; pinned here at the repo copy)"
+    }
+  },
+  "external_includes": [
+    "ck/ck.hpp",
+    "ck/tensor_operation/gpu/device/impl/device_moe_gemm_blockscale.hpp",
+    "ck/tensor_operation/gpu/device/tensor_layout.hpp",
+    "ck/tensor_operation/gpu/element/element_wise_operation.hpp",
+    "ck/tensor_operation/gpu/element/unary_element_wise_operation.hpp",
+    "ck/utility/type_convert.hpp",
+    "gemm_moe_ck2stages_common_blockscale.cuh"
+  ]
+}

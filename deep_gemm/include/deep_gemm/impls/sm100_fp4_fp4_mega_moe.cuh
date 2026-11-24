@@ -1,5 +1,30 @@
 #pragma once
 
+// Verified architectural knobs consumed by this translation unit.  Host
+// dispatchers always define them explicitly; the defaults keep direct header
+// users on the historical behavior.
+#ifndef WEAVE_DISPATCH_WARPS
+#define WEAVE_DISPATCH_WARPS 0
+#endif
+#ifndef WEAVE_SM0_STREAM_SCHED
+#define WEAVE_SM0_STREAM_SCHED 0
+#endif
+#ifndef WEAVE_RING_BLOCKS
+#define WEAVE_RING_BLOCKS 0
+#endif
+#ifndef WEAVE_DISPATCH_ACTIVE_SMS
+#define WEAVE_DISPATCH_ACTIVE_SMS 0
+#endif
+#ifndef WEAVE_BLOCK_M_L1
+#define WEAVE_BLOCK_M_L1 0
+#endif
+#ifndef WEAVE_BLOCK_M_L2
+#define WEAVE_BLOCK_M_L2 0
+#endif
+#ifndef WEAVE_STORE_BLOCK_M_L1
+#define WEAVE_STORE_BLOCK_M_L1 0
+#endif
+
 #include <cstdint>
 #include <cutlass/arch/barrier.h>
 #include <cutlass/arch/reg_reconfig.h>
@@ -226,6 +251,16 @@ sm100_fp4_fp4_mega_moe_impl(void* y,
     DG_STATIC_ASSERT(BLOCK_M % 16 == 0, "Invalid block M");
     DG_STATIC_ASSERT(BLOCK_N == LAYOUT_AD_M, "Invalid block N");
     DG_STATIC_ASSERT(BLOCK_K_BYTES % UMMA_BLOCK_K_BYTES == 0, "Invalid block K");
+    DG_STATIC_ASSERT(WEAVE_DISPATCH_WARPS == 0 or WEAVE_DISPATCH_WARPS == kNumDispatchWarps,
+                     "WEAVE_DISPATCH_WARPS disagrees with the launch thread layout");
+    DG_STATIC_ASSERT(WEAVE_RING_BLOCKS == 0 or WEAVE_RING_BLOCKS == kNumRingBlocks,
+                     "WEAVE_RING_BLOCKS must match the allocated ring");
+    DG_STATIC_ASSERT(WEAVE_BLOCK_M_L1 == 0 or WEAVE_BLOCK_M_L1 <= BLOCK_M,
+                     "WEAVE_BLOCK_M_L1 exceeds compiled BLOCK_M envelope");
+    DG_STATIC_ASSERT(WEAVE_BLOCK_M_L2 == 0 or WEAVE_BLOCK_M_L2 <= BLOCK_M,
+                     "WEAVE_BLOCK_M_L2 exceeds compiled BLOCK_M envelope");
+    DG_STATIC_ASSERT(WEAVE_STORE_BLOCK_M_L1 == 0 or WEAVE_STORE_BLOCK_M_L1 == STORE_BLOCK_M,
+                     "WEAVE_STORE_BLOCK_M_L1 disagrees with the compiled store tile");
 
     // Swizzle configs (in bytes)
     constexpr uint32_t kSwizzleAMode = 128;
@@ -575,8 +610,23 @@ sm100_fp4_fp4_mega_moe_impl(void* y,
         uint32_t expert_start_idx = 0, expert_end_idx = 0;
         uint32_t expert_pool_block_offset = 0;
 
-        constexpr uint32_t kNumGlobalWarps = kNumSMs * kNumDispatchWarps;
-        for (uint32_t token_idx = sm_idx * kNumDispatchWarps + warp_idx; ; token_idx += kNumGlobalWarps) {
+        // SM 0 streaming scheduler & independent partial-SM dispatch throttle
+        // (mirrors sm100_fp8_fp4_mega_moe): with WEAVE_SM0_STREAM_SCHED = 1,
+        // SM 0 leaves the pull queue and SMs 1..N-1 own the dense warp-start
+        // range; with WEAVE_DISPATCH_ACTIVE_SMS = D > 0, only D SMs pull
+        // remote tokens while the rest proceed to the GEMM / cleanup barriers.
+        constexpr bool kSm0StreamSchedActive = WEAVE_SM0_STREAM_SCHED != 0;
+        constexpr uint32_t kMaxPullSms = kSm0StreamSchedActive ? (kNumSMs - 1u) : kNumSMs;
+        constexpr uint32_t kActiveDispatchSMs =
+            (WEAVE_DISPATCH_ACTIVE_SMS == 0 or static_cast<uint32_t>(WEAVE_DISPATCH_ACTIVE_SMS) > kMaxPullSms)
+                ? kMaxPullSms : static_cast<uint32_t>(WEAVE_DISPATCH_ACTIVE_SMS);
+        const uint32_t pull_sm_idx = kSm0StreamSchedActive
+            ? (sm_idx == 0u ? kNumSMs : sm_idx - 1u) : sm_idx;
+        const uint32_t initial_pull_warp_idx =
+            ((kSm0StreamSchedActive and sm_idx == 0u) or pull_sm_idx >= kActiveDispatchSMs)
+                ? 0xffffffffu : pull_sm_idx * kNumDispatchWarps + warp_idx;
+        constexpr uint32_t kNumGlobalWarps = kActiveDispatchSMs * kNumDispatchWarps;
+        for (uint32_t token_idx = initial_pull_warp_idx; ; token_idx += kNumGlobalWarps) {
             // Advance expert until within the range
             int old_expert_idx = current_expert_idx;
             while (token_idx >= expert_end_idx) {

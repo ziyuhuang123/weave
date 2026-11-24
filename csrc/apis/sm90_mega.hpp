@@ -354,7 +354,7 @@ static void fp8_mega_moe_compile_only(
         args.kernel_phase = phase;
         args.config = phase == SM90FP8MegaMoERuntime::KernelPhase::Linear1 ? launch_config.l1 : launch_config.l2;
         args.num_tokens = num_tokens;
-        args.agy_prof_mode = deep_jit::get_env<int>("AGY_PROF", 0);
+        args.agy_prof_mode = agy_prof::get_env_mode();
         return args;
     };
     if (launch_config.fused_single_kernel) {

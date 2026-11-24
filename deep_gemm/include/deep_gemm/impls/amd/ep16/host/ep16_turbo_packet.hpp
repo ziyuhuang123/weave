@@ -39,6 +39,16 @@ static inline int ep16_turbo_build_packet(const Ep16TurboShape& s,
   if (!ext.ck_b || !ext.ck_b_scale || !ext.ck_w2 || !ext.ck_w2_scale) return -33;
   if (!ext.final_output) return -34;
   if (!ext.x_scale) return -35;
+  // v59: num_shared_experts > 0 requires all four shared weight tensors; 0
+  // requires all of them null (the legacy ABI is unchanged and the kernel's
+  // ck_flags nibble stays 0).
+  if (ep16t_shared_experts(s) != 0u) {
+    if (!ext.reserved[0] || !ext.reserved[1] || !ext.reserved[2] || !ext.reserved[3]) return -36;
+    if (ext.reserved[4] || ext.reserved[5]) return -37;
+  } else {
+    if (ext.reserved[0] || ext.reserved[1] || ext.reserved[2] || ext.reserved[3] ||
+        ext.reserved[4] || ext.reserved[5]) return -38;
+  }
 
   V983Envelope env{};
   V964DispatchExt& e = env.base.base;
@@ -136,7 +146,11 @@ static inline int ep16_turbo_build_packet(const Ep16TurboShape& s,
   ck.ck_m64_block_rows = 64u;
   ck.ck_n_block_cols = 128u;
   ck.ck_route_sentinel = 0u;      // published at runtime by the planner
-  ck.ck_flags = 0u;
+  // v59: bits [3:0] carry num_shared_experts (the only defined bits; the
+  // device entry guard accepts exactly this nibble -- see
+  // v1864_validate_envelope_general).  0 when num_shared_experts == 0, which
+  // keeps the legacy ABI byte-identical.
+  ck.ck_flags = ep16t_shared_experts(s) & 0xfu;
 
   // ---- V983 OV1 suffix -----------------------------------------------------
   o.peer_payload_ready_table = PT + EP16_PT_PEER_PAYLOAD_READY;

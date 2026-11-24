@@ -253,7 +253,13 @@ __device__ __forceinline__ void v983_local_plan_4wave(
     return;
   }
 
+#if defined(WEAVE_V_HEAD) && ((WEAVE_V_HEAD) != 0u) && ((WEAVE_V_HEAD) < 64u)
+  // WEAVE_V_HEAD = N: head-pull quota per atomic local-plan claim (tokens),
+  // shrink-only like the EP16 policy rail; N >= 64 / auto keeps 64 (one wave).
+  constexpr unsigned kBatch = (WEAVE_V_HEAD);
+#else
   constexpr unsigned kBatch = 64u;
+#endif
 
   for (;;) {
     unsigned first = 0u;
@@ -390,10 +396,33 @@ __device__ __forceinline__ void v983_dispatch_4wave(
   const unsigned wave = tid >> 6u;
   const unsigned lane = tid & 63u;
 
+#if WEAVE_CU_WAVE_SPLIT == 3
+  // 8-0: only the dedicated comm CUs dispatch, with all eight waves.
+  constexpr unsigned kDispBase = V1864_CTAS - V1864_8_0_COMM_CTAS;
+  if (cta < kDispBase || cta >= V1864_CTAS) return;
+  const unsigned comm_worker = (cta - kDispBase) * 8u + wave;
+  constexpr unsigned kCommWorkers = V1864_8_0_COMM_CTAS * 8u;
+  // Waves 0..3 of a comm CU are inside the mandatory 80-CTA route plan, which
+  // CTA 0 releases only after it has seen meta_ready from all 8 sources.  The
+  // metadata copy therefore must not be striped onto those waves: with
+  // world <= kCommWorkers the first `world` workers are exactly CTA kDispBase
+  // waves 0..world-1, so striping over all 8 waves deadlocks (device error 120).
+  // Waves 4..7 never enter the route plan, so they own the metadata copy.
+  const unsigned meta_worker =
+      (wave < 4u) ? e.world : ((cta - kDispBase) * 4u + (wave - 4u));
+  constexpr unsigned kMetaWorkers = V1864_8_0_COMM_CTAS * 4u;
+#elif defined(V1864_DISPATCH_CTAS)
+  // WEAVE_DISPATCH_ACTIVE_SMS = D: only CTAs [0, D) dispatch (D = 80 default).
+  if (wave < 4u || cta >= V1864_DISPATCH_CTAS) return;
+
+  const unsigned comm_worker = cta * 4u + (wave - 4u);
+  constexpr unsigned kCommWorkers = V1864_DISPATCH_CTAS * 4u;
+#else
   if (wave < 4u || cta >= V1864_CTAS) return;
 
   const unsigned comm_worker = cta * 4u + (wave - 4u);
   constexpr unsigned kCommWorkers = V1864_CTAS * 4u;
+#endif
   auto* trace = reinterpret_cast<unsigned long long*>(o.trace);
   auto* bytes = reinterpret_cast<unsigned long long*>(o.byte_counters);
   auto* flags = reinterpret_cast<unsigned*>(o.plan_flags);
@@ -418,7 +447,15 @@ __device__ __forceinline__ void v983_dispatch_4wave(
   const auto* home_slots = reinterpret_cast<const unsigned*>(o.home_slots);
 
   FI_BG(V1988_FI_PHASE, V1988_EV_DISPATCH_META, comm_worker);
+#if defined(WEAVE_SM0_STREAM_SCHED) && (WEAVE_SM0_STREAM_SCHED != 0)
+  // SM0 stream: CTA 0's four comm waves own the route-metadata copy to every
+  // destination; no other CTA copies metadata.
+  for (unsigned dst = (cta == 0u) ? (wave - 4u) : e.world; dst < e.world; dst += 4u) {
+#elif WEAVE_CU_WAVE_SPLIT == 3
+  for (unsigned dst = meta_worker; dst < e.world; dst += kMetaWorkers) {
+#else
   for (unsigned dst = comm_worker; dst < e.world; dst += kCommWorkers) {
+#endif
     const unsigned n = weave_comm_load_relaxed_sys(count + dst);
     const uint64_t entry_bytes = static_cast<uint64_t>(n) * V809_META_STRIDE;
     const uint64_t nbytes = 64ull + entry_bytes;
@@ -459,6 +496,12 @@ __device__ __forceinline__ void v983_dispatch_4wave(
   unsigned long long local_b0 = 0ull;
   unsigned long long local_b1 = 0ull;
 
+#if defined(WEAVE_SM0_STREAM_SCHED) && (WEAVE_SM0_STREAM_SCHED != 0)
+  // SM0 stream: CTA 0 takes no payload tokens (the claim cursor is dynamic, so
+  // the remaining dispatch CTAs cover every token).
+  if (cta == 0u) {
+  } else
+#endif
   for (;;) {
     unsigned token = 0u;
     if (lane == 0u) {
@@ -552,7 +595,19 @@ __device__ __forceinline__ void v983_dispatch_4wave(
           if (byte_offset < hidden) {
             auto* dstp = reinterpret_cast<unsigned char*>(peer_payload[dst]) +
                          static_cast<uint64_t>(slot) * hidden + byte_offset;
+#if defined(WEAVE_SELECTIVE_DEDUP) && (WEAVE_SELECTIVE_DEDUP == 0)
+            // WEAVE_DEDUP_MODE=0 (per-hit): same per-expert-hit store traffic
+            // as the prequantized branch above (one store per hit expert).
+            const auto* lm = reinterpret_cast<const V809Meta*>(
+                reinterpret_cast<const uint64_t*>(e.local_meta_table)[dst] +
+                V809_META_HEADER + static_cast<uint64_t>(slot) * V809_META_STRIDE);
+            for (unsigned dup = 0u; dup < lm->nexp; ++dup) {
+              volatile unsigned* vdst = reinterpret_cast<volatile unsigned*>(dstp);
+              vdst[0] = packed_fp8.x; vdst[1] = packed_fp8.y;
+            }
+#else
             *reinterpret_cast<uint2*>(dstp) = packed_fp8;
+#endif
           }
           if (lane_in_group == 0u && global_group_idx < scale_groups) {
             auto* dst_scale = reinterpret_cast<float*>(peer_scale[dst]) +
@@ -731,11 +786,16 @@ __device__ __forceinline__ bool v1988_push_bucket_wave_turbo(
   return true;
 }
 
+// Reduce the half-open column range [col_begin, col_end) of one home token.
+// The post-queue drain passes the whole row; the static tail passes the
+// wave's own chunk so that all eight waves of every CTA take part.
 __device__ __forceinline__ bool v1988_home_sum_wave_turbo(
     const V968DispatchExt& env,
     const V983Ov1Ext& o,
     unsigned token,
     unsigned lane,
+    unsigned col_begin,
+    unsigned col_end,
     unsigned long long* spin FI_CTX_PARAM) {
   const V964DispatchExt& e = env.base;
   const unsigned needed = reinterpret_cast<const unsigned*>(o.home_expected)[token];
@@ -775,7 +835,7 @@ __device__ __forceinline__ bool v1988_home_sum_wave_turbo(
     }
   }
 
-  for (unsigned col = lane * 8u; col < o.hidden; col += 64u * 8u) {
+  for (unsigned col = col_begin + lane * 8u; col < col_end; col += 64u * 8u) {
     float sum[8] = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
     for (unsigned i = 0u; i < active_ranks; ++i) {
       const unsigned d = active_d[i];
@@ -852,8 +912,22 @@ __device__ __forceinline__ bool v1988_epilogue_finish_4wave(
   unsigned backoff = 1u;
   unsigned long long local_post_spins = 0ull;
 
+#if defined(V1988_DRAIN_GATED) && V1988_DRAIN_GATED
+  // Compile-time scatter participation: WEAVE_SCATTER_ACTIVE_SMS = K keeps the
+  // post-queue drain on CTAs [0, K); an explicit WEAVE_SCATTER_OWNER makes the
+  // owner strict (0 = epilogue_only -> waves 0..3, 1 = comm_only -> waves
+  // 4..7).  The queue is claimed dynamically, so any non-empty participant set
+  // drains every item; the static home-sum below is unchanged.
+  const unsigned drain_wave = __builtin_amdgcn_readfirstlane(tid >> 6u);
+  const bool v1988_drain = (cta < V1988_SCATTER_CTAS) &&
+      ((WEAVE_SCATTER_OWNER_EXPLICIT == 0) ||
+       (((WEAVE_SCATTER_OWNER) == 0u) ? (drain_wave < 4u) : (drain_wave >= 4u)));
+#endif
 
   for (;;) {
+#if defined(V1988_DRAIN_GATED) && V1988_DRAIN_GATED
+    if (!v1988_drain) break;
+#endif
     unsigned base = 0u;
     if (lane == 0u) {
       base = static_cast<unsigned>(
@@ -928,7 +1002,7 @@ __device__ __forceinline__ bool v1988_epilogue_finish_4wave(
         bool item_ok = false;
 
         if (item & V1988_POST_TOKEN_TAG) {
-          item_ok = v1988_home_sum_wave_turbo(env, o, index, lane,
+          item_ok = v1988_home_sum_wave_turbo(env, o, index, lane, 0u, o.hidden,
                                               trace ? trace + 16u + cta * 16u + 14u : nullptr FI_CTX_ARG);
         } else {
           item_ok = v1988_push_bucket_wave_turbo(env, o, index, lane,
@@ -947,14 +1021,36 @@ __device__ __forceinline__ bool v1988_epilogue_finish_4wave(
 #if defined(WEAVE_ALL_WAVE_COMBINE) && (WEAVE_ALL_WAVE_COMBINE == 0)
   const unsigned home_wid = cta * 4u + ((tid >> 6u) - 4u);
   for (unsigned tok = home_wid; tok < e.t_local; tok += gridDim.x * 4u) {
-#else
-  for (unsigned tok = worker_id; tok < e.t_local; tok += gridDim.x * 8u) {
-#endif
-    if (!v1988_home_sum_wave_turbo(env, o, tok, lane,
+    if (!v1988_home_sum_wave_turbo(env, o, tok, lane, 0u, o.hidden,
                                    trace ? trace + 16u + cta * 16u + 14u : nullptr FI_CTX_ARG)) {
           return false;
     }
   }
+#else
+  // All-wave tail Reduce.  Every local token is cut into `blocks` contiguous
+  // column chunks and the (token, chunk) items are striped over all
+  // gridDim.x * 8 waves, so every wave of every CU reduces in the tail.
+  // `blocks` starts at 8 (one chunk per wave of a CTA) and doubles while the
+  // item count would leave waves idle, which keeps full participation even
+  // when t_local < 80.  Chunk bounds stay multiples of the 8-element uint4
+  // vector width because blocks always divides hidden / 8.
+  const unsigned nworkers = gridDim.x * 8u;
+  const unsigned vec_cols = o.hidden / 8u;
+  unsigned blocks = 8u;
+  while (e.t_local != 0u && blocks * e.t_local < nworkers && (vec_cols % (blocks * 2u)) == 0u) {
+    blocks *= 2u;
+  }
+  const unsigned items = e.t_local * blocks;
+  const unsigned chunk_cols = o.hidden / blocks;
+  for (unsigned item = worker_id; item < items; item += nworkers) {
+    const unsigned tok = item / blocks;
+    const unsigned c0 = (item - tok * blocks) * chunk_cols;
+    if (!v1988_home_sum_wave_turbo(env, o, tok, lane, c0, c0 + chunk_cols,
+                                   trace ? trace + 16u + cta * 16u + 14u : nullptr FI_CTX_ARG)) {
+          return false;
+    }
+  }
+#endif
 
   if (lane == 0u && local_post_spins != 0ull && trace) {
     atomicAdd(trace + 4u, local_post_spins);

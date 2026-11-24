@@ -1,11 +1,13 @@
 #pragma once
 
+#include <cctype>
 #include <cublasLt.h>
 #include <torch/version.h>
 #include <ATen/cuda/CUDAContext.h>
 
 #include "../utils/exception.hpp"
 #include "../utils/lazy_init.hpp"
+#include "compile_only.hpp"
 
 #define PYTORCH_SUPPORTS_GET_CUBLASLT_HANDLE (TORCH_VERSION_MAJOR > 2 or (TORCH_VERSION_MAJOR == 2 and TORCH_VERSION_MINOR >= 3))
 
@@ -87,11 +89,25 @@ public:
 
     std::string get_arch(const bool& number_only = false,
                          const bool& support_arch_family = false) {
+        // Compile-only override (`DG_JIT_COMPILE_ONLY=1` + `DG_JIT_TARGET_ARCH`)
+        if (const auto target_arch = compile_only_target_arch(); target_arch.has_value()) {
+            if (not number_only)
+                return *target_arch;
+            std::string digits = *target_arch;
+            while (not digits.empty() and not std::isdigit(static_cast<unsigned char>(digits.back())))
+                digits.pop_back();
+            return digits;
+        }
         const auto [major, minor] = get_arch_pair();
+        // cc 10.0 (B200) and cc 10.3 (B300) are one family; each gets its own target
         if (major == 10 and minor != 1) {
+            // SM103 must be scheduled for its own SM.  Targeting the SM100
+            // family here makes ptxas emit a 192 B stack frame and 180 local
+            // loads where the SM103 target needs 56 B and none.
+            const std::string base = (minor == 3) ? "103" : "100";
             if (number_only)
-                return "100";
-            return support_arch_family ? "100f" : "100a";
+                return base;
+            return base + (support_arch_family ? "f" : "a");
         }
         return std::to_string(major * 10 + minor) + (number_only ? "" : "a");
     }
@@ -101,13 +117,14 @@ public:
     }
 
     void set_num_sms(const int& new_num_sms) {
-        DG_HOST_ASSERT(0 <= new_num_sms and new_num_sms <= get_prop()->multiProcessorCount);
+        DG_HOST_ASSERT(0 <= new_num_sms and
+                       (new_num_sms <= get_prop()->multiProcessorCount or compile_only_target_num_sms().has_value()));
         num_sms = new_num_sms;
     }
 
     int get_num_sms() {
         if (num_sms == 0)
-            num_sms = get_prop()->multiProcessorCount;
+            num_sms = compile_only_target_num_sms().value_or(get_prop()->multiProcessorCount);
         return num_sms;
     }
 

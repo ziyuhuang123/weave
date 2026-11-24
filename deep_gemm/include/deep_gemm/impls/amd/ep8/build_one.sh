@@ -7,22 +7,68 @@ TH64=${3:-16}
 TH128=${4:-96}
 EXTRA=${5:-""}
 ADVISORY=${6:-0}
-PRESET=${WEAVE_ABLATION_PRESET:-0}
-if [ -n "${WEAVE_SCATTER_OWNER:-}" ]; then
-  case "$WEAVE_SCATTER_OWNER" in
-    0|epilogue_only) DEFAULT_SCATTER=0 ;;
-    *) DEFAULT_SCATTER=2 ;;
+
+# ---- public WEAVE_* knob parsing (fail fast, exit 1, message on stderr) ----
+die() { echo "[build_one] ERROR: $*" >&2; exit 1; }
+# weave_uint OUT_VAR ENV_NAME LO HI DEFAULT
+#   Read $ENV_NAME (unset/empty -> DEFAULT); require a decimal integer in
+#   [LO,HI]; store its canonical form (no leading zeros, so clang never sees an
+#   octal literal) in OUT_VAR.  Results go through printf -v (no subshell) so
+#   that die() really terminates the script.
+weave_uint() {
+  local _o=$1 _n=$2 _lo=$3 _hi=$4 _r _v
+  _r=${!_n:-$5}
+  case "$_r" in
+    ''|*[!0-9]*|??????????*) die "Invalid $_n=$_r (expected an integer in [$_lo,$_hi])" ;;
   esac
-else
-  DEFAULT_SCATTER=$([ "$PRESET" = "3" ] && echo 0 || echo 2)
-fi
+  _v=$((10#$_r))
+  if [ "$_v" -lt "$_lo" ] || [ "$_v" -gt "$_hi" ]; then
+    die "Invalid $_n=$_r (expected an integer in [$_lo,$_hi])"
+  fi
+  printf -v "$_o" '%s' "$_v"
+}
+# weave_choice OUT_VAR ENV_NAME "ALLOWED..." DEFAULT : integer restricted to a set.
+weave_choice() {
+  local _o=$1 _n=$2 _allowed=$3 _r _v
+  _r=${!_n:-$4}
+  case "$_r" in
+    ''|*[!0-9]*|??????????*) die "Invalid $_n=$_r (allowed: $_allowed)" ;;
+  esac
+  _v=$((10#$_r))
+  case " $_allowed " in
+    *" $_v "*) ;;
+    *) die "Invalid $_n=$_r (allowed: $_allowed)" ;;
+  esac
+  printf -v "$_o" '%s' "$_v"
+}
+
+PRESET=${WEAVE_ABLATION_PRESET:-0}
+# WEAVE_SCATTER_OWNER: 0|epilogue_only -> 0, 1|comm_only -> 1, anything else is
+# an error.  Owner 0 derives SCATTER_MODE 0, owner 1 derives SCATTER_MODE 2,
+# unset derives (preset 3 ? 0 : 2); an explicit WEAVE_SCATTER_MODE still wins.
+case "${WEAVE_SCATTER_OWNER:-}" in
+  '')
+    DEFAULT_SCATTER=$([ "$PRESET" = "3" ] && echo 0 || echo 2)
+    OWNER_DEF="-DWEAVE_SCATTER_OWNER_EXPLICIT=0" ;;
+  0|epilogue_only)
+    DEFAULT_SCATTER=0
+    OWNER_DEF="-DWEAVE_SCATTER_OWNER=0u -DWEAVE_SCATTER_OWNER_EXPLICIT=1" ;;
+  1|comm_only)
+    DEFAULT_SCATTER=2
+    OWNER_DEF="-DWEAVE_SCATTER_OWNER=1u -DWEAVE_SCATTER_OWNER_EXPLICIT=1" ;;
+  *) die "Invalid WEAVE_SCATTER_OWNER=${WEAVE_SCATTER_OWNER} (allowed: 0|epilogue_only, 1|comm_only)" ;;
+esac
 SCATTER=${WEAVE_SCATTER_MODE:-$DEFAULT_SCATTER}
 if [ -n "${WEAVE_ADAPT_BM:-}" ]; then
-  BM_TIER=$([ "$WEAVE_ADAPT_BM" = "0" ] && echo 0 || echo 2)
+  weave_choice ADAPT_BM WEAVE_ADAPT_BM "0 1" 0
+  BM_TIER=$([ "$ADAPT_BM" = "1" ] && echo 2 || echo 0)
 else
-  BM_TIER=${WEAVE_BM_TIER_MODE:-2}
+  # WEAVE_ADAPT_BM is the only public spelling; the tier macro stays internal.
+  BM_TIER=2
 fi
-SELECTIVE=${WEAVE_DEDUP_MODE:-${WEAVE_SELECTIVE_DEDUP:-1}}
+# WEAVE_DEDUP_MODE is the only public spelling (strict 0/1); the
+# selective-dedup macro stays an internal compile-time name.
+weave_choice SELECTIVE WEAVE_DEDUP_MODE "0 1" 1
 DUALGROUP=${WEAVE_DUALGROUP_MIN_TOKENS:-64}
 AMD_8WAVE_MIN_TOK=${WEAVE_AMD_8WAVE_MIN_TOK:-$DUALGROUP}
 case "${WEAVE_CU_WAVE_SPLIT:-0}" in
@@ -30,26 +76,108 @@ case "${WEAVE_CU_WAVE_SPLIT:-0}" in
   0-8|1)  CU_WAVE_SPLIT=1 ;;
   4-4|2)  CU_WAVE_SPLIT=2 ;;
   8-0|3)  CU_WAVE_SPLIT=3 ;;
-  *) echo "Invalid WEAVE_CU_WAVE_SPLIT=${WEAVE_CU_WAVE_SPLIT}"; exit 1 ;;
+  *) die "Invalid WEAVE_CU_WAVE_SPLIT=${WEAVE_CU_WAVE_SPLIT} (allowed: auto|0, 0-8|1, 4-4|2, 8-0|3)" ;;
 esac
-SCATTER_SMS=${WEAVE_SCATTER_ACTIVE_SMS:-0}
-DISPATCH_SMS=${WEAVE_DISPATCH_ACTIVE_SMS:-0}
-BM_L1=${WEAVE_BLOCK_M_L1:-0}
-BM_L2=${WEAVE_BLOCK_M_L2:-0}
+weave_uint SCATTER_SMS WEAVE_SCATTER_ACTIVE_SMS 0 80 0
+weave_uint DISPATCH_SMS WEAVE_DISPATCH_ACTIVE_SMS 0 80 0
+weave_choice BM_L1 WEAVE_BLOCK_M_L1 "0 16 32 64 128" 0
+weave_choice BM_L2 WEAVE_BLOCK_M_L2 "0 16 32 64 128" 0
+# WEAVE_V_HEAD: unset/empty/0/auto -> not passed; else a positive decimal integer.
 V_HEAD_DEF=""
-if [ -n "${WEAVE_V_HEAD:-}" ] && [ "${WEAVE_V_HEAD}" != "0" ]; then
-  V_HEAD_DEF="-DWEAVE_V_HEAD=${WEAVE_V_HEAD}u"
-fi
+case "${WEAVE_V_HEAD:-auto}" in
+  auto) ;;
+  *[!0-9]*|??????????*) die "Invalid WEAVE_V_HEAD=${WEAVE_V_HEAD} (allowed: auto|0 or a positive decimal integer)" ;;
+  *)
+    V_HEAD=$((10#${WEAVE_V_HEAD}))
+    if [ "$V_HEAD" -gt 0 ]; then V_HEAD_DEF="-DWEAVE_V_HEAD=${V_HEAD}u"; fi ;;
+esac
+# MI308X (gfx942) only has the fp8xfp8 path.  Deliberately NOT passed to the
+# compiler: -DWEAVE_PRECISION_MODE would change the CTA-0 cost-model spec, and
+# the validated build keeps the default spec.
+case "${WEAVE_PRECISION_MODE:-}" in
+  ''|2|fp8|fp8xfp8) ;;
+  *) die "MI308X supports only WEAVE_PRECISION_MODE=2 (fp8xfp8); got WEAVE_PRECISION_MODE=${WEAVE_PRECISION_MODE}" ;;
+esac
 LOCALITY=${WEAVE_LOCALITY_DOMAINS:-4}
-SM0=${WEAVE_SM0_STREAM_SCHED:-0}
+weave_choice SM0 WEAVE_SM0_STREAM_SCHED "0 1" 0
 L2KDEP=${WEAVE_L2_KBLOCK_DEP:-0}
 RING_BLOCKS=${WEAVE_RING_BLOCKS:-0}
 EARLY=${WEAVE_EARLY_STREAM_REDUCE:-0}
-LOCAL_DEDUP=${WEAVE_LOCAL_SCATTER_DEDUP:-0}
+# Default stays 0 (weave_knobs.cuh already defaults the macro to 0u).  An
+# explicit WEAVE_LOCAL_SCATTER_DEDUP sets _EXPLICIT=1 so the kernel can tell
+# an explicit request from the header default.
+weave_choice LOCAL_DEDUP WEAVE_LOCAL_SCATTER_DEDUP "0 1" 0
+LOCAL_DEDUP_EXPLICIT=$([ -n "${WEAVE_LOCAL_SCATTER_DEDUP:-}" ] && echo 1 || echo 0)
+STAGING_RAW="${WEAVE_SCATTER_STAGING:-}"
+case "$STAGING_RAW" in
+  ''|0|reg_2stage|direct) SCATTER_STAGING=0 ;;
+  1|smem) SCATTER_STAGING=1 ;;
+  2|hbm_dedup) SCATTER_STAGING=2 ;;
+  *) die "Invalid WEAVE_SCATTER_STAGING=${STAGING_RAW} (allowed: 0|reg_2stage|direct, 1|smem, 2|hbm_dedup)" ;;
+esac
+if [ -z "$STAGING_RAW" ] && [ "$LOCAL_DEDUP" = "1" ] && [ "${WEAVE_SCATTER_OWNER:-}" != "0" ] && [ "${WEAVE_SCATTER_OWNER:-}" != "epilogue_only" ]; then
+  SCATTER_STAGING=2
+fi
+if [ "$SCATTER_STAGING" = "2" ]; then
+  LOCAL_DEDUP=1
+fi
+if [ "$SCATTER_STAGING" != "0" ]; then
+  case "${WEAVE_SCATTER_OWNER:-}" in
+    0|epilogue_only) die "Invalid WEAVE_SCATTER_STAGING=${STAGING_RAW} with WEAVE_SCATTER_OWNER=epilogue_only (requires comm_only)" ;;
+    '') OWNER_DEF="-DWEAVE_SCATTER_OWNER=1u -DWEAVE_SCATTER_OWNER_EXPLICIT=0" ;;
+  esac
+fi
+weave_choice DISPATCH_WARPS WEAVE_DISPATCH_WARPS "0 4 8" 0
+weave_choice SCATTER_WARPS WEAVE_SCATTER_WARPS "0 4 8" 0
+weave_choice READY_GROUP_SIZE WEAVE_READY_GROUP_SIZE "0 1 2 4 8 16" 0
+weave_choice REG_PULL_BYTES WEAVE_REG_PULL_BYTES "0 1024 2048 4096" 0
+weave_choice COMBINE_SYNC_CHUNK WEAVE_COMBINE_SYNC_CHUNK "0 16 32 64 128" 0
+weave_choice REDUCE_WARPS WEAVE_REDUCE_WARPS "0 1 2 4 8" 0
 OVERLAP=${WEAVE_OVERLAP_PIPELINE:-1}
 ALL_WAVE=${WEAVE_ALL_WAVE_COMBINE:-1}
 BN2=${WEAVE_BN2_MODE:-0}
 S2_GROUP=${WEAVE_S2_NGROUP_MODE:-0}
+
+# CPU-only dry run: print the resolved knob -> macro mapping (the same
+# knob-derived -D flags the clang command below receives) and exit before any
+# ROCm toolchain is invoked.  Exercised by tests/test_amd_build_knob_dry_run.py.
+if [ "${WEAVE_DRY_RUN:-0}" = "1" ]; then
+  printf '%s\n' \
+    "-DWEAVE_ABLATION_PRESET=$PRESET" \
+    "-DWEAVE_SCATTER_MODE=$SCATTER" \
+    "-DWEAVE_BM_TIER_MODE=$BM_TIER" \
+    "-DWEAVE_SELECTIVE_DEDUP=$SELECTIVE" \
+    "-DWEAVE_DUALGROUP_MIN_TOKENS=$DUALGROUP" \
+    "-DWEAVE_AMD_8WAVE_MIN_TOK=$AMD_8WAVE_MIN_TOK" \
+    "-DWEAVE_CU_WAVE_SPLIT=$CU_WAVE_SPLIT" \
+    "-DWEAVE_SCATTER_ACTIVE_SMS=$SCATTER_SMS" \
+    "-DWEAVE_DISPATCH_ACTIVE_SMS=$DISPATCH_SMS" \
+    "-DWEAVE_BLOCK_M_L1=${BM_L1}u" \
+    "-DWEAVE_BLOCK_M_L2=${BM_L2}u" \
+    "-DWEAVE_LOCALITY_DOMAINS=$LOCALITY" \
+    "-DWEAVE_SM0_STREAM_SCHED=$SM0" \
+    "-DWEAVE_L2_KBLOCK_DEP=$L2KDEP" \
+    "-DWEAVE_RING_BLOCKS=$RING_BLOCKS" \
+    "-DWEAVE_EARLY_STREAM_REDUCE=$EARLY" \
+    "-DWEAVE_LOCAL_SCATTER_DEDUP=$LOCAL_DEDUP" \
+    "-DWEAVE_LOCAL_SCATTER_DEDUP_EXPLICIT=$LOCAL_DEDUP_EXPLICIT" \
+    "-DWEAVE_SCATTER_STAGING=${SCATTER_STAGING}u" \
+    "-DWEAVE_DISPATCH_WARPS=${DISPATCH_WARPS}u" \
+    "-DWEAVE_SCATTER_WARPS=${SCATTER_WARPS}u" \
+    "-DWEAVE_READY_GROUP_SIZE=${READY_GROUP_SIZE}u" \
+    "-DWEAVE_REG_PULL_BYTES=${REG_PULL_BYTES}u" \
+    "-DWEAVE_COMBINE_SYNC_CHUNK=${COMBINE_SYNC_CHUNK}u" \
+    "-DWEAVE_REDUCE_WARPS=${REDUCE_WARPS}u" \
+    "-DWEAVE_OVERLAP_PIPELINE=$OVERLAP" \
+    "-DWEAVE_ALL_WAVE_COMBINE=$ALL_WAVE" \
+    "-DWEAVE_BN2_MODE=$BN2" \
+    "-DWEAVE_S2_NGROUP_MODE=$S2_GROUP" \
+    "-DWEAVE_PROFILER_LEVEL=$PROF"
+  # Owner flags are one or two tokens (unset owner -> only the _EXPLICIT=0 flag).
+  for _tok in $OWNER_DEF; do printf '%s\n' "$_tok"; done
+  if [ -n "$V_HEAD_DEF" ]; then printf '%s\n' "$V_HEAD_DEF"; fi
+  exit 0
+fi
 
 WORK="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 AMD="$(cd "$WORK/.." && pwd)"
@@ -96,7 +224,11 @@ $CLANG -x hip --offload-arch=gfx942 --cuda-device-only -O3 -S \
   -DWEAVE_LOCALITY_DOMAINS=$LOCALITY \
   -DWEAVE_SM0_STREAM_SCHED=$SM0 -DWEAVE_L2_KBLOCK_DEP=$L2KDEP \
   -DWEAVE_RING_BLOCKS=$RING_BLOCKS -DWEAVE_EARLY_STREAM_REDUCE=$EARLY \
-  -DWEAVE_LOCAL_SCATTER_DEDUP=$LOCAL_DEDUP \
+  -DWEAVE_LOCAL_SCATTER_DEDUP=$LOCAL_DEDUP -DWEAVE_LOCAL_SCATTER_DEDUP_EXPLICIT=$LOCAL_DEDUP_EXPLICIT \
+  -DWEAVE_SCATTER_STAGING=${SCATTER_STAGING}u -DWEAVE_DISPATCH_WARPS=${DISPATCH_WARPS}u \
+  -DWEAVE_SCATTER_WARPS=${SCATTER_WARPS}u -DWEAVE_READY_GROUP_SIZE=${READY_GROUP_SIZE}u \
+  -DWEAVE_REG_PULL_BYTES=${REG_PULL_BYTES}u \
+  -DWEAVE_COMBINE_SYNC_CHUNK=${COMBINE_SYNC_CHUNK}u -DWEAVE_REDUCE_WARPS=${REDUCE_WARPS}u $OWNER_DEF \
   -DWEAVE_ALL_WAVE_COMBINE=$ALL_WAVE -DWEAVE_BN2_MODE=$BN2 -DWEAVE_S2_NGROUP_MODE=$S2_GROUP \
   -w -fno-offload-uniform-block -fgpu-flush-denormals-to-zero \
   -mllvm -amdgpu-early-inline-all=true -mllvm -amdgpu-function-calls=false \

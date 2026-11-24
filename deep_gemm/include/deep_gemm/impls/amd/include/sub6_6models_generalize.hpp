@@ -174,7 +174,15 @@ __device__ __forceinline__ bool v1864_validate_envelope_general(
     // 4. CK extension parameters
     if (ck.ck_topk != 1u || ck.ck_n_block_cols != 128u) return false;
     if (ck.ck_groups_per_row != ck.ck_hidden / 128u) return false;
+#if defined(MI308X_EP16_CK_SHARED_EXPERTS)
+    // v59, EP16 TU only (amd/megamoe_amd.hip defines the macro): bits [3:0]
+    // carry num_shared_experts (ep16_turbo_build_packet; the shared experts
+    // are local rows in the CK space and never ride the network); every other
+    // bit must stay 0.  EP8 never defines it and keeps the original predicate.
+    if ((ck.ck_flags & ~0xfu) != 0u) return false;
+#else
     if (ck.ck_flags != 0u) return false;
+#endif
     if (ck.ck_diagnostics == 0u || (ck.ck_diagnostics & 7u) != 0u) return false;
     if (ck.ck_num_tokens != e.world * e.capacity * e.topk) return false;
     if (ck.ck_local_experts != e.n_experts / e.world) return false;

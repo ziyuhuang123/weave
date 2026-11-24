@@ -55,7 +55,9 @@ public:
         flags = fmt::format("-std=c++{} --diag-suppress=39,161,174,177,186,940 "
                             "--ptxas-options=--register-usage-level=10",
                             get_env<int>("DG_JIT_CPP_STANDARD", 20));
-        if (get_env("DG_JIT_DEBUG", 0) or get_env("DG_JIT_PTXAS_VERBOSE", 0) or get_env("DG_JIT_PTXAS_CHECK", 0))
+        if (get_env<int>("DG_JIT_PTXAS_CHECK", 0) == 2)
+            flags += " --ptxas-options=--verbose,--warn-on-spills";
+        else if (get_env("DG_JIT_DEBUG", 0) or get_env("DG_JIT_PTXAS_VERBOSE", 0) or get_env("DG_JIT_PTXAS_CHECK", 0))
             flags += " --ptxas-options=--verbose,--warn-on-local-memory-usage";
         if (get_env("DG_JIT_WITH_LINEINFO", 0))
             flags += " -Xcompiler -rdynamic -lineinfo";
@@ -101,9 +103,17 @@ public:
         const auto kernel_signature = fmt::format("{}$${}$${}$${}", name, signature, flags, code);
         const auto dir_path = cache_dir_path / "cache" / fmt::format("kernel.{}.{}", name, get_hex_digest(kernel_signature));
 
+        // Compile-only mode (`DG_JIT_COMPILE_ONLY=1`): never load the cubin, so a target
+        // arch that differs from the physical device can still be compiled
+        const bool compile_only = compile_only_enabled();
+        if (compile_only and std::filesystem::exists(dir_path / "kernel.cubin"))
+            return nullptr;
+
         // Hit the runtime cache
-        if (const auto runtime = kernel_runtime_cache->get(dir_path); runtime != nullptr)
-            return runtime;
+        if (not compile_only) {
+            if (const auto runtime = kernel_runtime_cache->get(dir_path); runtime != nullptr)
+                return runtime;
+        }
 
         // Compile into a temporary directory, then atomically rename the whole directory
         // NOTES: renaming a directory is atomic on both local and distributed filesystems,
@@ -141,6 +151,9 @@ public:
             // on the same parent directory, causing stale directory entries
             safe_remove_all(tmp_dir_path);
         }
+
+        if (compile_only)
+            return nullptr;
 
         // Put into the runtime cache
         const auto runtime = kernel_runtime_cache->get(dir_path);
@@ -242,8 +255,21 @@ public:
         }
 
         // Check local memory usage
-        if (get_env("DG_JIT_PTXAS_CHECK", 0))
+        //   DG_JIT_PTXAS_CHECK=1: no local memory at all (upstream semantics; a stack frame also fails)
+        //   DG_JIT_PTXAS_CHECK=2: no register spill (0 B spill stores and 0 B spill loads); a
+        //                         non-spill stack frame from local arrays / printf is allowed
+        const auto ptxas_check = get_env<int>("DG_JIT_PTXAS_CHECK", 0);
+        if (ptxas_check == 2) {
+            const std::regex spill_re(R"((\d+) bytes spill stores, (\d+) bytes spill loads)");
+            bool spilled = std::regex_search(output, std::regex(R"(spilled\s+to\s+local\s+memory)", std::regex::icase));
+            for (auto it = std::sregex_iterator(output.begin(), output.end(), spill_re); it != std::sregex_iterator(); ++ it)
+                spilled = spilled or std::stoll((*it)[1].str()) != 0 or std::stoll((*it)[2].str()) != 0;
+            if (spilled)
+                printf("PTXAS reported register spills:\n%s\n", output.c_str());
+            DG_HOST_ASSERT(not spilled and "PTXAS reported register spills");
+        } else if (ptxas_check) {
             DG_HOST_ASSERT(not std::regex_search(output, std::regex(R"(Local memory used)")));
+        }
 
         // Print PTXAS log
         if (get_env("DG_JIT_DEBUG", 0) or get_env("DG_JIT_PTXAS_VERBOSE", 0))

@@ -14,7 +14,13 @@ static constexpr int kNumCandidateBlockMs = 10;
 static constexpr int kCandidateBlockM[kNumCandidateBlockMs] = {8, 16, 32, 64, 80, 96, 128, 192, 240, 256};
 static constexpr int kMaxCandidateBlockM = 256;
 static constexpr int kMinCandidateBlockM = 8;
-static constexpr int kLCMCandidateBlockM = 7680;  // 2 * lcm(8,16,32,64,80,96,128,192,240,256) = 2 * 3840
+// Upstream ring alignment: lcm(8,16,32,64,80,96,128,192,240) = 1920.  Keeping the
+// symmetric ring at the reference size matters: the alignment multiplies into
+// kNumMaxTokensPerRank and therefore into the ring (38400 rows at EP4/S=256
+// instead of 122880), and a 3.2x larger ring loses the reference producer's L2
+// reuse.  BLOCK_M=256 is the only candidate that does not divide 1920, so a
+// forced 256 bumps the alignment to lcm(1920, 256) = 3840 at buffer creation.
+static constexpr int kLCMCandidateBlockM = 1920;
 static constexpr int kWeaveMinCombineSyncChunk = 16;
 
 // Pool capacity for shared expert token pool: worst-case total tokens + per-expert BLOCK_M alignment padding, among all possible BLOCK_M
@@ -71,6 +77,13 @@ struct Workspace {
     // NVIDIA L2 cache lines are 128B, and these counters are hot atomics.
     static constexpr uint64_t kNumBarrierSignalBytes = 128;
     static constexpr uint64_t kNumD1SignalBytes = 256;
+    // Upstream per-peer combine readiness, on its own lines right after the
+    // barrier line: [0, R) `combine_ready_grid_idx[peer]` (== own grid index + 1
+    // once `peer` finished its L2 rows into this rank) and [R, 2R)
+    // `peer_grid_idx[peer]` (the peer's grid index + 1, pushed in dispatch).
+    // Grid indices are unique per launch, so neither array is ever reset.
+    static constexpr uint32_t kNumMaxCombineReadyRanks = 16;
+    static constexpr uint64_t kNumCombineReadyBytes = 2ull * kNumMaxCombineReadyRanks * sizeof(uint64_t);
 
     Workspace() = default;
 
@@ -101,6 +114,9 @@ struct Workspace {
 
         // Barrier and in-kernel task scheduling counters
         num_bytes += kNumBarrierSignalBytes;
+
+        // Per-peer combine readiness / peer grid indices
+        num_bytes += kNumCombineReadyBytes;
 
         // Expert send/recv count
         num_bytes += static_cast<uint64_t>(num_experts) * sizeof(uint64_t) * 2;
@@ -237,8 +253,18 @@ struct Workspace {
     }
 
     CUTLASS_DEVICE
+    uint64_t* get_combine_ready_grid_idx_ptr(const uint32_t& peer_rank_idx = 0) const {
+        return math::advance_ptr<uint64_t>(base, kNumBarrierSignalBytes) + peer_rank_idx;
+    }
+
+    CUTLASS_DEVICE
+    uint64_t* get_peer_grid_idx_ptr(const uint32_t& peer_rank_idx = 0) const {
+        return math::advance_ptr<uint64_t>(base, kNumBarrierSignalBytes) + kNumMaxCombineReadyRanks + peer_rank_idx;
+    }
+
+    CUTLASS_DEVICE
     uint64_t* get_expert_send_count_ptr(const uint32_t& expert_idx = 0) const {
-        return math::advance_ptr<uint64_t>(base, kNumBarrierSignalBytes) + expert_idx;
+        return math::advance_ptr<uint64_t>(base, kNumBarrierSignalBytes + kNumCombineReadyBytes) + expert_idx;
     }
 
     CUTLASS_DEVICE
@@ -658,9 +684,14 @@ struct MegaMoEBuffer {
 
     CUTLASS_HOST_DEVICE
     uint64_t get_d6_ready_epoch_bytes() const {
+        // D6 readiness flags are u32 epoch slots: a publication stores the
+        // current per-launch epoch with a relaxed sys-scope store issued after
+        // a `fence.acq_rel.sys`, and the consumer compares its
+        // `ld.acquire.sys` result against that epoch, so the stride is
+        // sizeof(uint32_t).
         const uint64_t raw = static_cast<uint64_t>(workspace.num_max_tokens_per_rank) *
                              static_cast<uint64_t>(get_d6_max_groups()) *
-                             static_cast<uint64_t>(kD6ReadyRowStride) * sizeof(uint16_t);
+                             static_cast<uint64_t>(kD6ReadyRowStride) * sizeof(uint32_t);
         return math::align<uint64_t>(raw, 128ull);
     }
 
@@ -693,8 +724,9 @@ struct MegaMoEBuffer {
     }
 
     CUTLASS_DEVICE
-    uint16_t* get_d6_ready_epoch_ptr(const uint32_t& token_idx, const uint32_t& group_idx) const {
-        auto* const base_ptr = math::advance_ptr<uint16_t>(workspace.base, get_d6_ready_epoch_offset());
+    uint32_t* get_d6_ready_epoch_ptr(const uint32_t& token_idx, const uint32_t& group_idx) const {
+        // u32 epoch flags (see get_d6_ready_epoch_bytes).
+        auto* const base_ptr = math::advance_ptr<uint32_t>(workspace.base, get_d6_ready_epoch_offset());
         return base_ptr + (static_cast<uint64_t>(token_idx) * get_d6_max_groups() + group_idx) * kD6ReadyRowStride;
     }
 

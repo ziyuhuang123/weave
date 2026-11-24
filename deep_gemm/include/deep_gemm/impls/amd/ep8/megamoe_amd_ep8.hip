@@ -37,6 +37,93 @@
 #if WEAVE_LOCALITY_DOMAINS != 0 && WEAVE_LOCALITY_DOMAINS != 1 && WEAVE_LOCALITY_DOMAINS != 4
 #error "MI308X WEAVE_LOCALITY_DOMAINS must be 0, 1 or 4"
 #endif
+// ---------------------------------------------------------------------------
+// MI308X EP8 compile-time wiring of the unified WEAVE_* knobs.  Every branch
+// folds at compile time (#if / constexpr): zero extra VGPRs, zero extra
+// s_barrier, and the default values reproduce the validated build.
+//   WEAVE_DISPATCH_ACTIVE_SMS = D, 0 < D < 80 : only CTAs [0, D) run the
+//       register-direct dispatch (meta copy + dynamic payload claims).
+//   WEAVE_SCATTER_ACTIVE_SMS  = K, 0 < K < 80 : only CTAs [0, K) drain the
+//       post-GEMM2 scatter queue; the static home-sum stays on every CTA.
+//   WEAVE_SM0_STREAM_SCHED = 1 : CTA 0 comm waves (4..7) form a dedicated
+//       route/ingress stream: they copy the route metadata to every
+//       destination, take no payload tokens, never join GEMM group 1, and
+//       pre-validate every M tile's ingress (a_tile_ready) for the GEMM CUs.
+//   WEAVE_CU_WAVE_SPLIT = 3 (8-0) : the last V1864_8_0_COMM_CTAS CTAs are
+//       dedicated 8-wave comm CUs (waves 0..3 run only the mandatory 80-CTA
+//       route plan, then dispatch); every other CTA is an 8-wave compute CU.
+//   WEAVE_V_HEAD = N, 0 < N < 64 : head local-plan claim quota (tokens per
+//       atomic claim; shrink-only, same rule as the EP16 policy rail).
+//   WEAVE_BLOCK_M_L1 / WEAVE_BLOCK_M_L2 = C : independent Stage-1 / Stage-2
+//       execution blockM cap; plan tiles with bm > C run as ceil(rows / C)
+//       chunks of the BM=C kernel (the shared tile plan is unchanged).
+//   WEAVE_SCATTER_OWNER with WEAVE_SCATTER_OWNER_EXPLICIT=1 (set by the build
+//       scripts only when the user names an owner): strict owner of every
+//       remote FC2 push, 0 = epilogue_only (GEMM waves 0..3), 1 = comm_only
+//       (comm waves 4..7).  Unset keeps the validated mixed drain.
+// ---------------------------------------------------------------------------
+#ifndef WEAVE_SCATTER_OWNER_EXPLICIT
+#define WEAVE_SCATTER_OWNER_EXPLICIT 0
+#endif
+#ifndef WEAVE_LOCAL_SCATTER_DEDUP_EXPLICIT
+#define WEAVE_LOCAL_SCATTER_DEDUP_EXPLICIT 0
+#endif
+#if (WEAVE_DISPATCH_ACTIVE_SMS) < 0 || (WEAVE_DISPATCH_ACTIVE_SMS) > 80
+#error "MI308X EP8 WEAVE_DISPATCH_ACTIVE_SMS must be in [0, 80]"
+#endif
+#if (WEAVE_SCATTER_ACTIVE_SMS) < 0 || (WEAVE_SCATTER_ACTIVE_SMS) > 80
+#error "MI308X EP8 WEAVE_SCATTER_ACTIVE_SMS must be in [0, 80]"
+#endif
+#if (WEAVE_SM0_STREAM_SCHED) != 0 && (WEAVE_SM0_STREAM_SCHED) != 1
+#error "MI308X EP8 WEAVE_SM0_STREAM_SCHED must be 0 or 1"
+#endif
+#if (WEAVE_SM0_STREAM_SCHED) != 0 && (WEAVE_CU_WAVE_SPLIT == 3)
+#error "MI308X EP8: WEAVE_SM0_STREAM_SCHED=1 conflicts with WEAVE_CU_WAVE_SPLIT=8-0 (CTA 0 is a compute CU in 8-0)"
+#endif
+#if (WEAVE_SM0_STREAM_SCHED) != 0 && (WEAVE_DISPATCH_ACTIVE_SMS) == 1
+#error "MI308X EP8: WEAVE_SM0_STREAM_SCHED=1 needs WEAVE_DISPATCH_ACTIVE_SMS == 0 or >= 2 (CTA 0 takes no payload tokens)"
+#endif
+#if (WEAVE_BLOCK_M_L1) != 0 && (WEAVE_BLOCK_M_L1) != 16 && (WEAVE_BLOCK_M_L1) != 32 && \
+    (WEAVE_BLOCK_M_L1) != 64 && (WEAVE_BLOCK_M_L1) != 128
+#error "MI308X EP8 WEAVE_BLOCK_M_L1 must be 0 (plan blockM), 16, 32, 64 or 128"
+#endif
+#if (WEAVE_BLOCK_M_L2) != 0 && (WEAVE_BLOCK_M_L2) != 16 && (WEAVE_BLOCK_M_L2) != 32 && \
+    (WEAVE_BLOCK_M_L2) != 64 && (WEAVE_BLOCK_M_L2) != 128
+#error "MI308X EP8 WEAVE_BLOCK_M_L2 must be 0 (plan blockM), 16, 32, 64 or 128"
+#endif
+#if (WEAVE_SCATTER_OWNER) != 0 && (WEAVE_SCATTER_OWNER) != 1
+#error "MI308X EP8 WEAVE_SCATTER_OWNER must be 0 (epilogue_only) or 1 (comm_only)"
+#endif
+#if WEAVE_SCATTER_OWNER_EXPLICIT && ((WEAVE_SCATTER_OWNER) == 0) && \
+    defined(WEAVE_ALL_WAVE_COMBINE) && (WEAVE_ALL_WAVE_COMBINE == 0)
+#error "MI308X EP8: WEAVE_SCATTER_OWNER=epilogue_only needs WEAVE_ALL_WAVE_COMBINE=1 (GEMM waves 0..3 must reach the combine)"
+#endif
+#if (WEAVE_COMBINE_SYNC_CHUNK) != 0
+#error "MI308X EP8: WEAVE_COMBINE_SYNC_CHUNK != 0 is not implemented (the V1988 post queue releases every completed (src,token) bucket individually; there is no chunked release)"
+#endif
+#if (WEAVE_REDUCE_WARPS) != 0
+#error "MI308X EP8: WEAVE_REDUCE_WARPS != 0 is not implemented (dedicated 2/4/8 Reduce waves cannot be carved out of the 4-wave comm group)"
+#endif
+#if (WEAVE_LOCAL_SCATTER_DEDUP) != 0 && (WEAVE_LOCAL_SCATTER_DEDUP) != 1
+#error "MI308X EP8 WEAVE_LOCAL_SCATTER_DEDUP must be 0 or 1"
+#endif
+#if WEAVE_LOCAL_SCATTER_DEDUP_EXPLICIT && ((WEAVE_LOCAL_SCATTER_DEDUP) == 0)
+#error "MI308X EP8 always merges multi-expert hits locally (fp32 -> bf16) before the push (one return slot per (src,token)); per-hit scatter (WEAVE_LOCAL_SCATTER_DEDUP=0) is not supported"
+#endif
+#define V1864_DISPATCH_CTAS \
+  ((((WEAVE_DISPATCH_ACTIVE_SMS) > 0) && ((WEAVE_DISPATCH_ACTIVE_SMS) < 80)) \
+       ? (unsigned)(WEAVE_DISPATCH_ACTIVE_SMS) : 80u)
+#define V1864_8_0_COMM_CTAS \
+  ((((WEAVE_DISPATCH_ACTIVE_SMS) > 0) && ((WEAVE_DISPATCH_ACTIVE_SMS) < 80)) \
+       ? (unsigned)(WEAVE_DISPATCH_ACTIVE_SMS) : 16u)
+#define V1864_GEMM_CTAS ((WEAVE_CU_WAVE_SPLIT == 3) ? (80u - V1864_8_0_COMM_CTAS) : 80u)
+#define V1988_SCATTER_CTAS \
+  ((((WEAVE_SCATTER_ACTIVE_SMS) > 0) && ((WEAVE_SCATTER_ACTIVE_SMS) < 80)) \
+       ? (unsigned)(WEAVE_SCATTER_ACTIVE_SMS) : 80u)
+// Preprocessor-evaluable: 1 iff the post-queue drain participation is gated.
+#define V1988_DRAIN_GATED \
+  ((((WEAVE_SCATTER_ACTIVE_SMS) > 0) && ((WEAVE_SCATTER_ACTIVE_SMS) < 80)) || \
+   (WEAVE_SCATTER_OWNER_EXPLICIT != 0))
 // MEGA_OPT_OPTIONS_BEGIN
 #ifndef WEAVE_OPT_RELAXED_SPIN
 #define WEAVE_OPT_RELAXED_SPIN 0
@@ -788,6 +875,25 @@ __device__ __forceinline__ void weave_v4_gemm1_direct(
     const unsigned g1_aux = ((unsigned)d.bm << 16u) | (unsigned)d.valid_rows;
     FI_BG(V1988_FI_CORE, V1988_EV_GEMM1_TILE, g1_aux);
     const int32_t* ids = stage1_ids + d.row_start;
+#if (WEAVE_BLOCK_M_L1) != 0
+    // WEAVE_BLOCK_M_L1 = C: Stage-1 execution blockM cap.  A plan tile with
+    // bm > C runs as ceil(valid_rows / C) chunks of the BM=C kernel (same
+    // ids/row offsets as the split_128 chunk loop below).  Under the 8-wave
+    // split each group owns half the LDS, so C = 128 defers to that 64-row loop.
+    if (d.bm > (WEAVE_BLOCK_M_L1) && ((WEAVE_BLOCK_M_L1) <= 64u || !split_128)) {
+      #pragma clang loop unroll(disable)
+      for (unsigned r_off = 0u; r_off < d.valid_rows; r_off += (WEAVE_BLOCK_M_L1)) {
+        const unsigned r_rem = d.valid_rows - r_off;
+        const unsigned chunk = (r_rem > (WEAVE_BLOCK_M_L1)) ? (WEAVE_BLOCK_M_L1) : r_rem;
+        weave_dispatch_stage1_bk64<(WEAVE_BLOCK_M_L1)>(ids + r_off, (int32_t)d.expert_id, recv_payload,
+            reinterpret_cast<const uint8_t*>(ck.ck_b), recv_scale,
+            reinterpret_cast<const float*>(ck.ck_b_scale), nullptr,
+            reinterpret_cast<uint8_t*>(ck.ck_quant_output),
+            reinterpret_cast<float*>(ck.ck_quant_scale), d.row_start + r_off, chunk, n1,
+            num_tokens, run, ck.ck_intermediate, ck.ck_hidden, arena);
+      }
+    } else
+#endif
     if (split_128 && (d.bm == 128u || d.bm == 256u)) {
       #pragma clang loop unroll(disable)
       for (unsigned r_off = 0u; r_off < d.valid_rows; r_off += 64u) {
@@ -934,7 +1040,13 @@ __device__ __forceinline__ void weave_v4_gemm2_direct(
 #if WEAVE_S2_NGROUP_MODE >= 1
   const unsigned n2_group = (!use_bn64 && ((n2_blocks % WEAVE_S2_NGROUP_MODE) == 0u)) ? WEAVE_S2_NGROUP_MODE : 1u;
 #else
-  const unsigned n2_group = (!split_128 && !use_bn64 && (ck.ck_intermediate <= 1024u))
+  // Auto Stage-2 N grouping.  The occupancy test below is the only gate: the
+  // former `!split_128 && ck_intermediate <= 1024` cap forced n2_group = 1 on
+  // the whole 8-wave dual-group path and on every I > 1024 model, so the
+  // default auto build never reached the measured 4-wide grouping on
+  // Qwen3.8-Max (H=8192, I=2048).  Grouping is a claim-granularity choice and
+  // is independent of the wave split and of the Stage-1 K extent.
+  const unsigned n2_group = (!use_bn64)
       ? ((((n2_blocks & 3u) == 0u) && (init_m_tiles * (n2_blocks >> 2u) >= 160u)) ? 4u
          : ((((n2_blocks & 1u) == 0u) && (init_m_tiles * (n2_blocks >> 1u) >= 160u)) ? 2u : 1u))
       : 1u;
@@ -975,6 +1087,26 @@ __device__ __forceinline__ void weave_v4_gemm2_direct(
       const unsigned n2_eff = claim_idx * n2_group + g;
       const unsigned n2 = use_bn64 ? (n2_eff >> 1u) : n2_eff;
       if (use_bn64 && d.bm <= 64u) {
+#if (WEAVE_BLOCK_M_L2) == 16 || (WEAVE_BLOCK_M_L2) == 32
+        // WEAVE_BLOCK_M_L2 = C cap on the BN64 small-tile path: tiles with
+        // bm > C run as C-row chunks of the BM=C BN64 kernel (ids / weights /
+        // row offset advanced by r_off, rows = chunk, same n2_eff).
+        if (d.bm > (WEAVE_BLOCK_M_L2)) {
+          #pragma clang loop unroll(disable)
+          for (unsigned r_off = 0u; r_off < d.valid_rows; r_off += (WEAVE_BLOCK_M_L2)) {
+            const unsigned r_rem = d.valid_rows - r_off;
+            const unsigned chunk = (r_rem > (WEAVE_BLOCK_M_L2)) ? (WEAVE_BLOCK_M_L2) : r_rem;
+            const unsigned rs_c = d.row_start + r_off;
+            weave_s2_small_1x4_bn64<(WEAVE_BLOCK_M_L2)>(ids + r_off, (int32_t)d.expert_id,
+                reinterpret_cast<const uint8_t*>(ck.ck_quant_output),
+                reinterpret_cast<const uint8_t*>(o.ck_w2),
+                reinterpret_cast<const float*>(ck.ck_quant_scale),
+                reinterpret_cast<const float*>(o.ck_w2_scale), weights + rs_c,
+                reinterpret_cast<uint16_t*>(o.gemm2_output), rs_c, chunk, n2_eff, run,
+                o.hidden, ck.ck_intermediate, arena);
+          }
+        } else
+#endif
         if (d.bm == 16u) {
           weave_s2_small_1x4_bn64<16u>(ids, (int32_t)d.expert_id,
               reinterpret_cast<const uint8_t*>(ck.ck_quant_output),
@@ -1002,7 +1134,30 @@ __device__ __forceinline__ void weave_v4_gemm2_direct(
         }
       } else if (use_bn64 && (n2_eff & 1u) != 0u) {
         // Odd half of >=128 row tile already computed by even half (BN=128)
-      } else if (split_128 && (d.bm == 128u || d.bm == 256u)) {
+      }
+#if (WEAVE_BLOCK_M_L2) != 0
+      // WEAVE_BLOCK_M_L2 = C: Stage-2 execution blockM cap (independent of
+      // WEAVE_BLOCK_M_L1).  Placed after the BN64 branches so their claim
+      // semantics are untouched; tiles with bm > C run as C-row chunks of the
+      // BM=C kernel (same convention as the split_128 loop below).  C = 128
+      // defers to that 64-row loop under the 8-wave LDS halving.
+      else if (d.bm > (WEAVE_BLOCK_M_L2) && ((WEAVE_BLOCK_M_L2) <= 64u || !split_128)) {
+        #pragma clang loop unroll(disable)
+        for (unsigned r_off = 0u; r_off < d.valid_rows; r_off += (WEAVE_BLOCK_M_L2)) {
+          const unsigned r_rem = d.valid_rows - r_off;
+          const unsigned chunk = (r_rem > (WEAVE_BLOCK_M_L2)) ? (WEAVE_BLOCK_M_L2) : r_rem;
+          const unsigned rs_c = d.row_start + r_off;
+          weave_dispatch_stage2_bk64<(WEAVE_BLOCK_M_L2)>(ids + r_off, (int32_t)d.expert_id,
+              reinterpret_cast<const uint8_t*>(ck.ck_quant_output),
+              reinterpret_cast<const uint8_t*>(o.ck_w2),
+              reinterpret_cast<const float*>(ck.ck_quant_scale),
+              reinterpret_cast<const float*>(o.ck_w2_scale), weights + rs_c,
+              reinterpret_cast<uint16_t*>(o.gemm2_output), rs_c, chunk, n2, run,
+              o.hidden, ck.ck_intermediate, arena);
+        }
+      }
+#endif
+      else if (split_128 && (d.bm == 128u || d.bm == 256u)) {
         #pragma clang loop unroll(disable)
         for (unsigned r_off = 0u; r_off < d.valid_rows; r_off += 64u) {
           const unsigned r_rem = d.valid_rows - r_off;
@@ -1152,6 +1307,51 @@ __device__ __forceinline__ void weave_v4_gemm2_direct(
   }
 }
 
+#if WEAVE_SM0_STREAM_SCHED
+// WEAVE_SM0_STREAM_SCHED=1: CTA 0 comm waves (Group 1, waves 4..7) stream the
+// ingress side.  In M-tile order they wait until every row of the tile has
+// landed in the receive pool and publish the per-launch a_tile_ready bit, so
+// the GEMM groups find the cached bit and skip their own system-scope spin.
+// This is exactly the producer half of the cached-ready protocol in
+// weave_v4_gemm1_direct (validated wait -> agent-scope release of 1); every
+// thread of the group always takes the same path, so the 4-wave LDS barrier
+// inside weave_wait_tile_payload_ready stays convergent.
+__device__ __forceinline__ void v1864_sm0_ingress_stream(
+    const V968DispatchExt& env, const V983Ov1Ext& o) {
+  const V964DispatchExt& e = env.base;
+  const V968CkExt& ck = env.ck;
+  const volatile WeaveTilePlanTable* plan =
+      reinterpret_cast<const volatile WeaveTilePlanTable*>(ck.ck_a);
+  const auto* tiles = reinterpret_cast<const WeaveMTileDesc*>(ck.ck_a + 64u);
+  const unsigned total_m_tiles = __builtin_amdgcn_readfirstlane(plan->total_m_tiles);
+  const unsigned run = __builtin_amdgcn_readfirstlane(plan->total_padded_rows);
+  if (total_m_tiles == 0u || run == 0u) return;
+  const unsigned pad_gather = __builtin_amdgcn_readfirstlane(plan->pad_gather_slot);
+  const int32_t* stage1_ids = reinterpret_cast<const int32_t*>(ck.ck_sorted_token_ids);
+  const unsigned* recv_ready = reinterpret_cast<const unsigned*>(o.recv_payload_ready);
+  auto* trace = reinterpret_cast<unsigned long long*>(o.trace);
+  #pragma clang loop unroll(disable)
+  for (unsigned mt = 0u; mt < total_m_tiles; ++mt) {
+    const WeaveMTileDesc d_raw = tiles[mt];
+    WeaveMTileDesc d;
+    d.expert_id  = __builtin_amdgcn_readfirstlane(d_raw.expert_id);
+    d.row_start  = __builtin_amdgcn_readfirstlane(d_raw.row_start);
+    d.bm         = static_cast<uint16_t>(__builtin_amdgcn_readfirstlane(d_raw.bm));
+    d.valid_rows = static_cast<uint16_t>(__builtin_amdgcn_readfirstlane(d_raw.valid_rows));
+    d.tile_idx   = __builtin_amdgcn_readfirstlane(d_raw.tile_idx);
+    if (!weave_wait_tile_payload_ready(recv_ready, stage1_ids, d, pad_gather,
+                                       trace ? trace + 16u + 14u : nullptr,
+                                       reinterpret_cast<unsigned*>(e.error))) {
+      return;
+    }
+    if ((threadIdx.x & 255u) == 0u) {
+      __hip_atomic_store(reinterpret_cast<unsigned*>(o.a_tile_ready) + mt, 1u,
+                         __ATOMIC_RELEASE, __HIP_MEMORY_SCOPE_AGENT);
+    }
+  }
+}
+#endif
+
 extern "C" __global__ void __launch_bounds__(512,1)
 v1864_ov1_runtime_roles(V983Envelope envelope) {
   // ABI-preserving on-demand kernarg access: the by-value parameter keeps the
@@ -1169,8 +1369,11 @@ v1864_ov1_runtime_roles(V983Envelope envelope) {
   const unsigned wave = tid >> 6u;
   auto* phase_arena = g_v1262_phase_arena;
   auto* trace = (unsigned long long*)o.trace;
+  // 8-0: CTAs [0, V1864_GEMM_CTAS) are 8-wave compute CUs, the last
+  // V1864_8_0_COMM_CTAS CTAs (16 unless WEAVE_DISPATCH_ACTIVE_SMS names the
+  // count) are dedicated 8-wave comm CUs.
   const V1864Roles roles = (WEAVE_CU_WAVE_SPLIT == 3)
-      ? V1864Roles{64u, 64u, 16u}
+      ? V1864Roles{V1864_GEMM_CTAS, V1864_GEMM_CTAS, V1864_8_0_COMM_CTAS}
       : V1864Roles{80u, 0u, 80u};
   // Fix K5: strictly enforce 80x512 persistent grid geometry BEFORE any trace access!
   if (gridDim.x != 80u || gridDim.y != 1u || gridDim.z != 1u ||
@@ -1221,10 +1424,13 @@ v1864_ov1_runtime_roles(V983Envelope envelope) {
   //   * 4-4: 4 comm + 4 compute waves (waves 0..3 Compute, waves 4..7 Comm)
   //   * 8-0: 8 comm + 0 compute waves on dedicated communication CUs
   // =========================================================================
-  const bool is_comm_only_cu = (WEAVE_CU_WAVE_SPLIT == 3) && (cta >= roles.comp_ctas);
+  const bool is_comm_only_cu = (WEAVE_CU_WAVE_SPLIT == 3) && (cta >= roles.compute_ctas);
+  // 8-0: compute CUs run 8 compute waves (waves 4..7 join GEMM right after the
+  // local plan); the dedicated comm CUs never enter GEMM.
   const bool use_8wave = (WEAVE_CU_WAVE_SPLIT == 1) ? true
-      : ((WEAVE_CU_WAVE_SPLIT == 2 || WEAVE_CU_WAVE_SPLIT == 3) ? false
-         : (e.t_local >= WEAVE_AMD_8WAVE_MIN_TOK));
+      : ((WEAVE_CU_WAVE_SPLIT == 3) ? !is_comm_only_cu
+         : ((WEAVE_CU_WAVE_SPLIT == 2) ? false
+            : (e.t_local >= WEAVE_AMD_8WAVE_MIN_TOK)));
   if (wave < 4u && !is_comm_only_cu) {
     // COMPUTE half (Group 0, waves 0..3): 80-CTA parallel route plan then direct-gather GEMM1 + GEMM2.
     FI_BG(V1988_FI_PHASE, V1988_EV_ROUTE_PLAN, cta);
@@ -1274,8 +1480,32 @@ v1864_ov1_runtime_roles(V983Envelope envelope) {
   } else {
     // COMM half (Group 1, waves 4..7): ballot local plan + register-direct dispatch,
     // then dynamically transition into Group-1 Compute when use_8wave == true!
+#if WEAVE_CU_WAVE_SPLIT == 3
+    // 8-0 dedicated comm CU, waves 0..3: the 80-CTA route plan needs every CTA,
+    // then these waves join the dispatch payload stream (no GEMM on this CU).
+    if (wave < 4u) {
+      FI_BG(V1988_FI_PHASE, V1988_EV_ROUTE_PLAN, cta);
+      const bool rp_ok_comm = v983_route_plan_parallel_80cta(env, o, phase_arena);
+      FI_EG(V1988_FI_PHASE, V1988_EV_ROUTE_PLAN, cta);
+      if (!rp_ok_comm) {
+        FI_CLOSE();
+        return;
+      }
+    }
+#endif
     v983_local_plan_4wave(env, o, roles FI_CTX_ARG);
     v983_dispatch_4wave(env, o, roles FI_CTX_ARG);
+#if WEAVE_SM0_STREAM_SCHED
+    // CTA 0 comm waves: dedicated ingress stream instead of GEMM group 1.
+    if (cta == 0u) {
+      if (weave_v4_group_no_error(reinterpret_cast<const unsigned*>(e.error), phase_arena) &&
+          weave_v4_wait_eq1_4wave(reinterpret_cast<const unsigned*>(o.plan_flags) + 1u,
+                                  trace ? trace + 16u + 15u : nullptr,
+                                  reinterpret_cast<unsigned*>(e.error), 211u, phase_arena)) {
+        v1864_sm0_ingress_stream(env, o);
+      }
+    } else
+#endif
     if (use_8wave && weave_v4_group_no_error(reinterpret_cast<const unsigned*>(e.error), phase_arena)) {
       if (weave_v4_wait_eq1_4wave(reinterpret_cast<const unsigned*>(o.plan_flags) + 1u,
                                   trace ? trace + 16u + cta * 16u + 15u : nullptr,
@@ -1289,8 +1519,9 @@ v1864_ov1_runtime_roles(V983Envelope envelope) {
   }
 
 #if WEAVE_OVERLAP_PIPELINE == 0
-  // Bulk-synchronous (-S-T ablation): wait for all 80 CTAs to complete GEMM2 before Combine
-  if (!weave_comm_wave_wait_ge(reinterpret_cast<const unsigned*>(o.plan_flags) + 7u, 80u,
+  // Bulk-synchronous (-S-T ablation): wait for every GEMM CTA (80, or the
+  // compute CUs under 8-0) to complete GEMM2 before Combine
+  if (!weave_comm_wave_wait_ge(reinterpret_cast<const unsigned*>(o.plan_flags) + 7u, V1864_GEMM_CTAS,
                                trace ? trace + 16u + cta * 16u + 14u : nullptr,
                                reinterpret_cast<unsigned*>(e.error), 214u)) {
     FI_CLOSE();

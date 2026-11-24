@@ -293,6 +293,10 @@ CUTLASS_DEVICE void st_rel(const uint64_t* ptr, const uint64_t value) {
     asm volatile("st.release.gpu.global.u64 [%0], %1;" :: "l"(ptr), "l"(value) : "memory");
 }
 
+CUTLASS_DEVICE void st_rel(const uint32_t* ptr, const uint32_t value) {
+    asm volatile("st.release.gpu.global.u32 [%0], %1;" :: "l"(ptr), "r"(value) : "memory");
+}
+
 CUTLASS_DEVICE void red_add(const int* ptr, const int& value) {
     asm volatile("red.gpu.global.add.s32 [%0], %1;" :: "l"(ptr), "r"(value));
 }
@@ -313,6 +317,10 @@ CUTLASS_DEVICE void red_xor_rel(const uint64_t* ptr, const uint64_t& value) {
     asm volatile("red.release.gpu.global.xor.b64 [%0], %1;" :: "l"(ptr), "l"(value) : "memory");
 }
 
+CUTLASS_DEVICE void red_xor_rel(const uint32_t* ptr, const uint32_t& value) {
+    asm volatile("red.release.gpu.global.xor.b32 [%0], %1;" :: "l"(ptr), "r"(value) : "memory");
+}
+
 CUTLASS_DEVICE void st_rel_sys(const uint64_t* ptr, const uint64_t& value) {
     asm volatile("st.release.sys.global.u64 [%0], %1;" :: "l"(ptr), "l"(value) : "memory");
 }
@@ -329,6 +337,14 @@ CUTLASS_DEVICE void red_add_rel_sys(const int* ptr, const int& value) {
     asm volatile("red.release.sys.global.add.s32 [%0], %1;" :: "l"(ptr), "r"(value));
 }
 
+CUTLASS_DEVICE void red_add_rel_sys(const uint32_t* ptr, const uint32_t& value) {
+    // Fire-and-forget sys-scope release reduction.  A cumulative
+    // release: every write that happens-before it (own program order plus
+    // release/acquire chains this thread already observed) is system-visible
+    // before the reduction lands, with no warp-blocking fence.
+    asm volatile("red.release.sys.global.add.u32 [%0], %1;" :: "l"(ptr), "r"(value) : "memory");
+}
+
 CUTLASS_DEVICE void fence_acq_rel_sys() {
     // Sys-scope fence: orders prior NVLink-remote writes before later ops.
     asm volatile("fence.acq_rel.sys;" ::: "memory");
@@ -342,6 +358,11 @@ CUTLASS_DEVICE uint16_t ld_acq_sys(const uint16_t* ptr) {
 
 CUTLASS_DEVICE void st_relaxed_sys(const uint16_t* ptr, const uint16_t& value) {
     asm volatile("st.L1::no_allocate.relaxed.sys.global.u16 [%0], %1;" :: "l"(ptr), "h"(value) : "memory");
+}
+
+CUTLASS_DEVICE void st_relaxed_sys(const uint32_t* ptr, const uint32_t& value) {
+    // u32 D6 readiness flag publication (epoch value store).
+    asm volatile("st.L1::no_allocate.relaxed.sys.global.u32 [%0], %1;" :: "l"(ptr), "r"(value) : "memory");
 }
 
 CUTLASS_DEVICE void st_rel_sys(const uint16_t* ptr, const uint16_t& value) {
@@ -372,6 +393,27 @@ CUTLASS_DEVICE uint64_t ld_acq_gpu(const uint64_t* ptr) {
     uint64_t ret;
     asm volatile("ld.acquire.gpu.global.u64 %0, [%1];" : "=l"(ret) : "l"(ptr) : "memory");
     return ret;
+}
+
+/// CTA-scope shared-memory control words (per-SM private Reduce tile cursor)
+CUTLASS_DEVICE uint32_t atomic_add_shared(const uint32_t* ptr, const uint32_t& value) {
+    // Relaxed CTA-scope RMW: atomicity alone makes every returned index unique.
+    uint32_t ret;
+    asm volatile("atom.relaxed.cta.shared::cta.add.u32 %0, [%1], %2;"
+                 : "=r"(ret) : "l"(__cvta_generic_to_shared(ptr)), "r"(value) : "memory");
+    return ret;
+}
+
+CUTLASS_DEVICE uint32_t ld_acq_shared(const uint32_t* ptr) {
+    uint32_t ret;
+    asm volatile("ld.acquire.cta.shared::cta.u32 %0, [%1];"
+                 : "=r"(ret) : "l"(__cvta_generic_to_shared(ptr)) : "memory");
+    return ret;
+}
+
+CUTLASS_DEVICE void st_rel_shared(const uint32_t* ptr, const uint32_t& value) {
+    asm volatile("st.release.cta.shared::cta.u32 [%0], %1;"
+                 :: "l"(__cvta_generic_to_shared(ptr)), "r"(value) : "memory");
 }
 
 /// Predicated loads

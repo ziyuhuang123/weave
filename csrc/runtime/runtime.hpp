@@ -10,6 +10,7 @@
 #include <deep_jit/utils/env.hpp>
 #include <deep_jit/utils/lazy.hpp>
 
+#include "../jit/compile_only.hpp"
 #include "../utils/exception.hpp"
 #include "jit.hpp"
 
@@ -73,13 +74,14 @@ public:
     }
 
     void set_num_sms(const int& new_num_sms) {
-        DG_HOST_ASSERT(0 < new_num_sms and new_num_sms <= jit->device.get_num_sms());
+        DG_HOST_ASSERT(0 < new_num_sms and
+                       (new_num_sms <= jit->device.get_num_sms() or compile_only_target_num_sms().has_value()));
         num_sms = new_num_sms;
     }
 
     int get_num_sms() {
         if (num_sms == 0)
-            num_sms = jit->device.get_num_sms();
+            num_sms = compile_only_target_num_sms().value_or(jit->device.get_num_sms());
         return num_sms;
     }
 

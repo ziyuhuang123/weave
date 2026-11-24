@@ -249,9 +249,20 @@ __device__ __forceinline__ void v983_local_plan_4wave(
   const bool weave_policy_ok = weave_decision.magic == weave::kPolicyMagic &&
       weave_decision.version == weave::kPolicyVersion && weave_decision.valid != 0u;
   const unsigned kBatchBase = (e.t_local <= 32u) ? 2u : ((e.t_local <= 128u) ? 4u : ((e.t_local <= 512u) ? 16u : 64u));
+#if defined(WEAVE_V_HEAD) && (WEAVE_V_HEAD != 0u) && (WEAVE_V_HEAD != 0xffffffffu)
+  // Compile-time WEAVE_V_HEAD override (MI308X EP16): CTAs 32..79 waves 4..7 run
+  // this local plan concurrently with the CTA-0 policy publish, so reading
+  // g_weave_policy_control here can observe a stale decision from the previous
+  // launch.  Use the compile-time value directly (shrink-only, identical
+  // semantics to the policy path below; kBatch <= kBatchBase <= 64 lanes).
+  const unsigned kBatch = (static_cast<unsigned>(WEAVE_V_HEAD) < kBatchBase)
+      ? static_cast<unsigned>(WEAVE_V_HEAD) : kBatchBase;
+  (void)weave_policy_ok;
+#else
   const unsigned kBatch = (weave_policy_ok && weave_decision.selected_v_head > 0u &&
                            weave_decision.selected_v_head < kBatchBase)
       ? weave_decision.selected_v_head : kBatchBase;
+#endif
 
   for (;;) {
     unsigned first = 0u;
@@ -391,10 +402,24 @@ __device__ __forceinline__ void v983_dispatch_4wave(
   const unsigned wave = tid >> 6u;
   const unsigned lane = tid & 63u;
 
+#if defined(WEAVE_DISPATCH_ACTIVE_SMS) && (WEAVE_DISPATCH_ACTIVE_SMS > 0) && (WEAVE_DISPATCH_ACTIVE_SMS < 48)
+  // WEAVE_DISPATCH_ACTIVE_SMS = D (0 < D < 48): only dispatch-capable CTAs
+  // 32..32+D-1 pull/push payload; the other CTAs (still running the local plan)
+  // skip dispatch.  Nothing waits for a dispatch-worker arrival count: payload
+  // rows are claimed from the bucket_cursor atomic (until token >= t_local),
+  // the meta loop below strides over all `world` destinations with
+  // kCommWorkers = 4*D, and readiness is per-slot/per-destination words.
+  constexpr unsigned kDispatchCtas = static_cast<unsigned>(WEAVE_DISPATCH_ACTIVE_SMS);
+  if (wave < 4u || cta < 32u || cta >= 32u + kDispatchCtas) return;
+
+  const unsigned comm_worker = (cta - 32u) * 4u + (wave - 4u);
+  constexpr unsigned kCommWorkers = kDispatchCtas * 4u;
+#else
   if (wave < 4u || cta < 32u || cta >= V1864_CTAS) return;
 
   const unsigned comm_worker = (cta - 32u) * 4u + (wave - 4u);
   constexpr unsigned kCommWorkers = 192u;
+#endif
   auto* trace = reinterpret_cast<unsigned long long*>(o.trace);
   auto* bytes = reinterpret_cast<unsigned long long*>(o.byte_counters);
   auto* flags = reinterpret_cast<unsigned*>(o.plan_flags);
@@ -564,7 +589,19 @@ __device__ __forceinline__ void v983_dispatch_4wave(
           if (byte_offset < hidden) {
             auto* dstp = reinterpret_cast<unsigned char*>(peer_payload[dst]) +
                          static_cast<uint64_t>(slot) * hidden + byte_offset;
+#if defined(WEAVE_SELECTIVE_DEDUP) && (WEAVE_SELECTIVE_DEDUP == 0)
+            // Per-hit traffic emulation (same lm/nexp lookup as the prequantized
+            // branch above): repeat the volatile payload store nexp times.
+            const auto* lm = reinterpret_cast<const V809Meta*>(
+                reinterpret_cast<const uint64_t*>(e.local_meta_table)[dst] +
+                V809_META_HEADER + static_cast<uint64_t>(slot) * V809_META_STRIDE);
+            for (unsigned dup = 0u; dup < lm->nexp; ++dup) {
+              volatile unsigned* vdst = reinterpret_cast<volatile unsigned*>(dstp);
+              vdst[0] = packed_fp8.x; vdst[1] = packed_fp8.y;
+            }
+#else
             *reinterpret_cast<uint2*>(dstp) = packed_fp8;
+#endif
           }
           if (lane_in_group == 0u && global_group_idx < scale_groups) {
             auto* dst_scale = reinterpret_cast<float*>(peer_scale[dst]) +

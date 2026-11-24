@@ -129,9 +129,14 @@ public:
         const auto& knobs = args.config.knobs;
         // Axis 1 (D1)
         const int d1_g = get_weave_env<int>("WEAVE_READY_GROUP_SIZE", "DG_TUNE_D1_G", "DG_ISOLATED_D1_G", 0);
+        DG_HOST_ASSERT(d1_g >= 0);
         // Axis 2 (D2)
         const int d2_mode = get_weave_env<int>("WEAVE_WARP_SPLIT_MODE", "DG_TUNE_D2_MODE", "DG_ISOLATED_D2_MODE", 0);
         const int d2_reg_pull_bytes = get_weave_env<int>("WEAVE_REG_PULL_BYTES", "DG_TUNE_D2_REG_PULL_BYTES", "DG_ISOLATED_D2_REG_PULL_BYTES", 0);
+        // The register-direct pull only implements the three documented per-warp
+        // chunk widths (8 / 16 / 32 uint4 registers per thread).
+        DG_HOST_ASSERT(d2_reg_pull_bytes == 0 or d2_reg_pull_bytes == 1024 or
+                       d2_reg_pull_bytes == 2048 or d2_reg_pull_bytes == 4096);
         const int d2_d8_sm_limit = get_weave_env<int>("WEAVE_HETERO_SM_LIMIT", "DG_ISOLATED_D2_D8_SM_LIMIT", nullptr, 74);
         const int d2_disp_regs = get_weave_env<int>("WEAVE_DISP_REGS", "DG_ISOLATED_D2_DISP_REGS", nullptr, 0);
         const int d2_epi_regs = get_weave_env<int>("WEAVE_EPI_REGS", "DG_ISOLATED_D2_EPI_REGS", nullptr, 0);
@@ -139,18 +144,17 @@ public:
         const int d3_bm = get_weave_env<int>("WEAVE_BLOCK_M", "DG_TUNE_D3_BM", "DG_D3_BM", 0);
         const int d3_bn = get_weave_env<int>("WEAVE_BLOCK_N", "DG_TUNE_D3_BN", "DG_D3_BN", 0);
         const int d3_bk = get_weave_env<int>("WEAVE_BLOCK_K", "DG_TUNE_D3_BK", "DG_D3_BK", 0);
-        const int d3_store_m = get_weave_env<int>("WEAVE_STORE_BLOCK_M", "DG_TUNE_D3_STORE_M", "DG_D3_STORE_M", args.config.store_block_m_l1);
-        const int d3_store_m_l2 = get_weave_env<int>("WEAVE_STORE_BLOCK_M_L2", "DG_TUNE_D3_STORE_M_L2", "DG_D3_STORE_M_L2", args.config.store_block_m_l2);
-        const bool decoupled_l1_l2_bm =
-            knobs.block_m_l1 > 0u and knobs.block_m_l2 > 0u and knobs.block_m_l1 != knobs.block_m_l2;
-        const int d3_dyn_epi = get_weave_env<int>(
-            "WEAVE_DYN_EPILOGUE", "DG_TUNE_D3_DYN_EPI", "DG_D3_DYN_EPI", decoupled_l1_l2_bm ? 2 : 0);
-        const int d3_dyn_tma_a = get_weave_env<int>(
-            "WEAVE_DYN_TMA_A", "DG_TUNE_D3_DYN_TMA_A", "DG_D3_DYN_TMA_A",
-            (decoupled_l1_l2_bm and args.d3_has_extra_tmas) ? 2 : 0);
+        // Store heights, dynamic epilogue / TMA-A and the BM ladder are resolved once
+        // in get_mega_moe_config (MegaMoECodegen); the SMEM planner, the TMA boxes and
+        // these macros therefore always agree.
+        const auto& codegen = args.config.codegen;
+        const int d3_store_m = args.config.store_block_m_l1;
+        const int d3_store_m_l2 = args.config.store_block_m_l2;
+        const int d3_dyn_epi = codegen.dyn_epi;
+        const int d3_dyn_tma_a = codegen.dyn_tma_a;
+        DG_HOST_ASSERT(args.d3_has_extra_tmas == codegen.has_extra_tmas);
         const int d3_overlap_smem = get_weave_env<int>("WEAVE_OVERLAP_EXPERT_SMEM", "DG_TUNE_D3_OVERLAP_SMEM", "DG_D3_OVERLAP_EXPERT_SMEM", 0);
-        const int d3_expert_step_mode = get_weave_env<int>("WEAVE_EXPERT_STEP_MODE", "DG_TUNE_D3_EXPERT_STEP_MODE", "DG_D3_EXPERT_STEP_MODE",
-                                                          (knobs.adapt_bm != 0u) ? 1 : 0);
+        const int d3_expert_step_mode = codegen.expert_step_mode;
         const int d3_accum_stages = get_weave_env<int>("WEAVE_ACCUM_STAGES", "DG_D3_ACCUM_STAGES", "DG_MEGA_ACCUM_STAGES", 2);
         const int d3_tma_store_stages = get_weave_env<int>("WEAVE_TMA_STORE_STAGES", "DG_D3_TMA_STORE_STAGES", "DG_MEGA_TMA_STORE_STAGES", 2);
         const int d3_sched_stages = get_weave_env<int>("WEAVE_SCHED_STAGES", "DG_TUNE_D3_SCHED_STAGES", "DG_D3_SCHED_STAGES", 2);
@@ -169,39 +173,44 @@ public:
             ? (public_dedup == 1 ? 2 : 0)
             : get_weave_env<int>("DG_TUNE_D5_DEDUP", "DG_ISOLATED_D5_DEDUP", nullptr, 0);
         const int d5_sched = get_weave_env<int>("WEAVE_DEDUP_SCHED", "DG_TUNE_D5_SCHED", "DG_ISOLATED_D5_SCHED", (d5_dedup == 2) ? 1 : 0);
-        // Axis 6 (D6)
-        const int chunk_to_d6_g = (knobs.combine_sync_chunk >= 128u) ? 8 :
-                                  ((knobs.combine_sync_chunk >= 64u) ? 4 :
-                                  ((knobs.combine_sync_chunk >= 32u) ? 2 :
-                                  ((knobs.combine_sync_chunk >= 16u) ? 1 : 0)));
-        const int auto_d6_g = (chunk_to_d6_g > 0) ? chunk_to_d6_g :
-                              ((knobs.early_stream_reduce != 0u or knobs.reduce_warps > 0u) ? 2 : 0);
-        const int d6_g = get_weave_env<int>("WEAVE_COMBINE_GROUP_TILES", "DG_TUNE_D6_G", "DG_ISOLATED_D6_G", auto_d6_g);
-        const int d6_rw = get_weave_env<int>("WEAVE_COMBINE_REDUCE_WARPS", "DG_TUNE_D6_REDUCE_WARPS", "DG_ISOLATED_D6_REDUCE_WARPS", 0);
-        // Axis 7 (D7)
-        const int d7_scatter_mode = get_weave_env<int>("WEAVE_SCATTER_MODE", "DG_TUNE_D7_SCATTER_MODE", nullptr, -1);
-        // Derived from the strict binary ownership + staging knobs unless an
-        // explicit WEAVE_SCATTER_MODE pins the executor:
-        //   epilogue_only            -> 0 (epilogue issues remote stores)
-        //   comm_only + smem         -> 1 (SMEM handoff to dispatch warps)
-        //   comm_only + hbm_dedup    -> 3 (bf16x2 dedup + HBM scatter queue)
-        const int derived_scatter_mode =
-            knobs.scatter_owner == 0u ? 0 : (knobs.scatter_staging == 2u ? 3 : 1);
-        int d7_isolated_scatter = get_weave_env<int>("WEAVE_SCATTER_MODE", "DG_ISOLATED_D7_SCATTER", nullptr,
-                                                     (d7_scatter_mode >= 0) ? d7_scatter_mode : derived_scatter_mode);
-        if (knobs.local_scatter_dedup != 0u)
-            d7_isolated_scatter = 3;  // local bf16x2 dedup + HBM scatter queue
+        // Axis 6 (D6): group size and reduce warps resolved in MegaMoECodegen
+        // (COMBINE_SYNC_CHUNK > 0 without WEAVE_REDUCE_WARPS defaults to the
+        // all-warp combine reduce, d6_rw = 16).
+        const int d6_g = codegen.d6_g;
+        const int d6_rw = codegen.d6_rw;
+        // Axis 7 (D7): executor resolved in MegaMoECodegen from the strict binary
+        // ownership + staging knobs unless an explicit WEAVE_SCATTER_MODE pins it:
+        //   epilogue_only                    -> 0 (epilogue issues remote stores)
+        //   comm_only + smem                 -> 1 (SMEM handoff to dispatch warps)
+        //   epilogue_only + local dedup      -> 2 (epilogue bf16x2 local dedup)
+        //   comm_only + hbm_dedup / dedup    -> 3 (bf16x2 dedup + HBM scatter queue)
+        const int d7_isolated_scatter = codegen.d7_scatter_mode;
         DG_HOST_ASSERT(d7_isolated_scatter >= 0 and d7_isolated_scatter <= 3);
         // The emitted ownership/staging always agree with the final executor,
         // so an explicit WEAVE_SCATTER_MODE cannot produce a mixed owner.
         const int emitted_scatter_owner = (d7_isolated_scatter == 1 or d7_isolated_scatter == 3) ? 1 : 0;
         const int emitted_scatter_staging = d7_isolated_scatter == 3 ? 2 : (d7_isolated_scatter == 1 ? 1 : 0);
         DG_HOST_ASSERT(knobs.scatter_owner == 0u or emitted_scatter_owner == 1);
-        const int d7_smem_alias = get_weave_env<int>("WEAVE_SCATTER_SMEM_ALIAS", "DG_TUNE_D7_SMEM_ALIAS", nullptr, 1);
+        const int d7_smem_alias = codegen.d7_smem_alias;
         const int d7_warps = get_weave_env<int>("WEAVE_SCATTER_WARPS", "DG_TUNE_D7_WARPS", "DG_TUNE_D7_SCATTER_WARPS", get_env<int>("DG_SCATTER_WARPS", 0));
-        const int d7_handoff_wait = get_weave_env<int>("WEAVE_SCATTER_HANDOFF_WAIT", "DG_TUNE_D7_HANDOFF_WAIT", nullptr, 1);
+        DG_HOST_ASSERT(d7_warps == 0 or d7_warps == 4 or d7_warps == 8);
+        // The D5 dedup pull (d5_dedup == 2) rendezvouses all dispatch warps
+        // grid-wide mid-pull, which the strict handoff's between-pull drain
+        // cannot cover: it falls back to wait = 2 (handoff once the pull ends).
+        const bool d7_strict_fallback = codegen.d7_handoff_wait == 3 and d5_dedup == 2;
+        if (d7_strict_fallback)
+            printf("WEAVE_SCATTER_OWNER=comm_only: WEAVE_DEDUP_MODE=1 falls back to handoff wait 2\n");
+        const int d7_handoff_wait = d7_strict_fallback ? 2 : codegen.d7_handoff_wait;
         const int d7_active_sms = get_weave_env<int>("WEAVE_SCATTER_ACTIVE_SMS", "DG_D7_ACTIVE_SMS", nullptr,
                                                     static_cast<int>(knobs.scatter_active_sms));
+        // WEAVE_SCATTER_ACTIVE_SMS (K) and WEAVE_DISPATCH_ACTIVE_SMS (D) are
+        // independent compile-time sets: dispatch pulls on SMs [0, D), the HBM
+        // scatter queue drains on the K SMs with (sm * K) % num_sms < K.  K only
+        // shapes the HBM-queue executor (D7 mode 3, WEAVE_SCATTER_STAGING=hbm_dedup);
+        // the SMEM handoff ring (mode 1) is drained by every SM's own comm warps.
+        if (d7_active_sms > 0 and d7_isolated_scatter != 3 and get_env<int>("DG_JIT_DEBUG", 0))
+            printf("WEAVE_SCATTER_ACTIVE_SMS=%d only applies to WEAVE_SCATTER_STAGING=hbm_dedup (D7 mode %d drains per SM)\n",
+                   d7_active_sms, d7_isolated_scatter);
         const int enable_multicast = get_weave_env<int>("WEAVE_ENABLE_MULTICAST", nullptr, nullptr, 1);
 
         // Locality-domain routing is only valid when every queue can be split
@@ -210,11 +219,19 @@ public:
         const int num_l2_clusters = args.hidden / (args.config.block_n * 2);
         const int num_shared_l1_clusters = args.num_shared_experts > 0
             ? (args.intermediate_hidden * 2 * args.num_shared_experts) / (args.config.block_n * 2) : 0;
+        // 0 = auto: like the upstream kernel (`kNumLocalityDomains`), split the
+        // task queues into the two device locality domains whenever every
+        // queue halves evenly; an explicit 1 keeps a single domain.  The
+        // upstream build always runs two domains on this shape (16 L1 / 28 L2
+        // N clusters), each die streaming one contiguous half of every expert's
+        // weight columns, whereas the auto=1 default here made all 74 cluster
+        // leaders hammer one task counter and spread every m-block across
+        // both dies.
         const int requested_locality_domains =
             get_weave_env<int>("WEAVE_LOCALITY_DOMAINS", "DG_LOCALITY_DOMAINS", nullptr, 0);
-        const bool use_locality_domains = requested_locality_domains != 0 and
+        const bool use_locality_domains = requested_locality_domains != 1 and
             num_l1_clusters % 2 == 0 and num_l2_clusters % 2 == 0 and num_shared_l1_clusters % 2 == 0;
-        if (requested_locality_domains != 0 and not use_locality_domains)
+        if (requested_locality_domains > 1 and not use_locality_domains)
             printf("WEAVE_LOCALITY_DOMAINS disabled: L1/L2 cluster counts (%d, %d) do not split evenly\n",
                    num_l1_clusters, num_l2_clusters);
 
@@ -239,20 +256,30 @@ public:
         knob_macros << "#define WEAVE_DISPATCH_WARPS " << (args.config.num_dispatch_threads / 32) << "\n";
         knob_macros << "#define WEAVE_REDUCE_WARPS " << knobs.reduce_warps << "\n";
         knob_macros << "#define WEAVE_SM0_STREAM_SCHED " << knobs.sm0_stream_sched << "\n";
+        knob_macros << "#define WEAVE_RUNTIME_POLICY " << (knobs.sm0_stream_sched != 0u ? 1 : 0) << "\n";
         knob_macros << "#define WEAVE_L2_KBLOCK_DEP " << knobs.l2_kblock_dep << "\n";
         knob_macros << "#define WEAVE_RING_BLOCKS " << knobs.ring_blocks << "\n";
         knob_macros << "#define WEAVE_EARLY_STREAM_REDUCE " << knobs.early_stream_reduce << "\n";
         knob_macros << "#define WEAVE_TMEM_PIPELINE_MODE " << args.config.tmem_pipeline_mode << "\n";
         knob_macros << "#define WEAVE_HEAD_PULL_CHUNK " << knobs.head_pull_chunk << "\n";
         knob_macros << "#define WEAVE_LOCAL_SCATTER_DEDUP " << knobs.local_scatter_dedup << "\n";
-        knob_macros << "#define WEAVE_ADAPT_BM " << knobs.adapt_bm << "\n";
+        // WEAVE_ADAPT_GEMM_CONFIG (legacy WEAVE_ADAPT_BM) is a host-side tuple
+        // selector; the device macro only flags the internal per-expert
+        // sub-tile ladder (WEAVE_EXPERT_STEP_MODE diagnostic).
+        knob_macros << "#define WEAVE_ADAPT_BM " << ((d3_expert_step_mode > 0 and knobs.adapt_bm != 0u) ? 1 : 0) << "\n";
         knob_macros << "#define WEAVE_BLOCK_M_L1 " << knobs.block_m_l1 << "\n";
         knob_macros << "#define WEAVE_BLOCK_M_L2 " << knobs.block_m_l2 << "\n";
-        knob_macros << "#define WEAVE_STORE_BLOCK_M_L1 " << args.config.store_block_m_l1 << "\n";
+        knob_macros << "#define WEAVE_STORE_BLOCK_M_L1 " << ((d3_dyn_epi == 2) ? 16 : args.config.store_block_m_l1) << "\n";
+        // The kernel static-asserts that its SharedStorage fits this budget.
+        knob_macros << "#define WEAVE_HOST_SMEM_BYTES " << args.config.smem_size << "u\n";
         knob_macros << "#define WEAVE_DISPATCH_ACTIVE_SMS " << knobs.dispatch_active_sms << "\n";
         knob_macros << "#define WEAVE_SCATTER_OWNER " << emitted_scatter_owner << "\n";
         knob_macros << "#define WEAVE_SCATTER_STAGING " << emitted_scatter_staging << "\n";
         knob_macros << "#define WEAVE_COMBINE_SYNC_CHUNK " << knobs.combine_sync_chunk << "\n";
+        // Internal fused SharedLinear2 + INT7 codegen switch, derived from
+        // the existing WEAVE_* preset above (never a public knob).
+        knob_macros << "#define WEAVE_FUSED_SHARED_INT7 "
+                    << (args.config.codegen.fused_shared_int7 ? 1 : 0) << "\n";
         uint32_t eff_epi_reg_stages = weave::resolve_epi_reg_stages(
             knobs, static_cast<uint32_t>(d3_bm > 0 ? d3_bm : args.config.block_m),
             static_cast<uint32_t>(args.config.tmem_pipeline_mode));
@@ -261,9 +288,62 @@ public:
         const int eff_block_n = d3_bn > 0 ? d3_bn : args.config.block_n;
         if (knobs.epi_reg_stages == 0u and (eff_block_n > 128 or d3_dyn_epi != 0))
             eff_epi_reg_stages = 1u;
+        // SM103 0-spill safety clamp: BLOCK_M = 128 (store 32/32) with the two-stage
+        // epilogue register prefetch compiled to 128 regs with 208 B spill stores /
+        // 304 B spill loads in the V3 ptxas probe (sm_103a), while BM = 128 + epi 1,
+        // BM = 96 + epi 2 and BM = 80 + epi 2 all compile to 128 regs / 0 spill.  A manual request for 2 (via
+        // WEAVE_GEMM1_CONFIG / WEAVE_GEMM2_CONFIG ...:EPI or WEAVE_EPI_REG_STAGES)
+        // at BM = 128 is therefore clamped to 1 (the adaptive default never
+        // selects 2 at BM = 128, see weave::resolve_epi_reg_stages).
+        const int eff_block_m_for_epi = d3_bm > 0 ? d3_bm : args.config.block_m;
+        if (eff_block_m_for_epi == 128 and eff_epi_reg_stages == 2u) {
+            static bool warned_bm128_epi2 = false;
+            if (not warned_bm128_epi2) {
+                printf("[weave] SM103 BLOCK_M=128: epi_reg_stages=2 spills (208 B); clamped to 1 (0-spill)\n");
+                warned_bm128_epi2 = true;
+            }
+            eff_epi_reg_stages = 1u;
+        }
         knob_macros << "#define WEAVE_EPI_REG_STAGES " << eff_epi_reg_stages << "\n";
         knob_macros << "#define WEAVE_SCHED_L2_RATIO " << knobs.sched_l2_ratio << "\n";
         knob_macros << "#define WEAVE_REG_BALANCE " << knobs.reg_balance << "\n";
+        // Internal ablation switch (not a public knob): compile the all-16-warp
+        // Head Dispatch out so the dispatch-only opening can be measured.
+        knob_macros << "#define DG_TUNE_HEAD16_OFF " << (get_env<int>("DG_TUNE_HEAD16_OFF", 0) != 0 ? 1 : 0) << "\n";
+        // Internal A/B diagnostic (not a public knob): DG_TUNE_HEAD_BLOCKING=1
+        // restores the V2 all-16-warp blocking head (W04..W07 join the head).
+        if (get_env<int>("DG_TUNE_HEAD_BLOCKING", 0) != 0)
+            knob_macros << "#define DG_HEAD_NONBLOCKING 0\n";
+        // Internal diagnostic (not a public knob): cap the Head Dispatch window
+        // in tokens (0 = derived from WEAVE_V_HEAD / the auto rule).
+        // Internal diagnostic (not a public knob): L2 warm-up of the first N
+        // experts' L1 weights during the NVLink-bound Opening.
+        if (get_env<int>("DG_TUNE_L2_PREFETCH_EXPERTS", 0) > 0)
+            knob_macros << "#define DG_L2_PREFETCH_EXPERTS " << get_env<int>("DG_TUNE_L2_PREFETCH_EXPERTS", 0) << "\n";
+        if (get_env<int>("DG_TUNE_L2_PREFETCH_DIST", 0) > 0)
+            knob_macros << "#define DG_L2_PREFETCH_DIST " << get_env<int>("DG_TUNE_L2_PREFETCH_DIST", 0) << "\n";
+        if (get_env<int>("DG_TUNE_HEAD_TOKENS", 0) > 0)
+            knob_macros << "#define DG_P1_HEAD_TOKENS " << get_env<int>("DG_TUNE_HEAD_TOKENS", 0) << "u\n";
+        // Internal diagnostics (not public knobs): cooperative head tokens per
+        // CTA per round (default 1), and DG_TUNE_REDUCE_GAP=0 to restore the
+        // dedicated Middle Reduce warps under strict comm_only.
+        if (get_env<int>("DG_TUNE_HEAD_TOK", 0) > 0)
+            knob_macros << "#define DG_HEAD_TOK " << get_env<int>("DG_TUNE_HEAD_TOK", 0) << "u\n";
+        if (get_env<int>("DG_TUNE_REDUCE_GAP", 1) == 0)
+            knob_macros << "#define DG_REDUCE_GAP 0\n";
+        // All-16 tail A/B diagnostics: DG_TUNE_ALL16_DEFER=0 restores SM 0's
+        // in-place cleanup barrier wait, DG_TUNE_ALL16_SUB=1024|2048 pins the
+        // tail sub-chunk size.
+        if (get_env<int>("DG_TUNE_ALL16_DEFER", 1) == 0)
+            knob_macros << "#define DG_ALL16_DEFER_CLEAN_WAIT 0\n";
+        if (get_env<int>("DG_TUNE_ALL16_SUB", 0) > 0)
+            knob_macros << "#define DG_ALL16_SUB_BYTES " << get_env<int>("DG_TUNE_ALL16_SUB", 0) << "\n";
+        // Instrumented capture variant: enable the tile-granularity %globaltimer
+        // profiler without perturbing any scheduling knob.  The legacy trigger
+        // (WEAVE_SHARED_L2_EARLY_BLOCKS=77) also changes the scheduler, so it
+        // cannot instrument an otherwise unchanged timed config.
+        if (get_env<int>("WEAVE_PROFILER_LEVEL", 0) > 0)
+            knob_macros << "#define DG_MEGA_TILE_PROF 1\n";
 
         return fmt::format(R"(
 {}
@@ -464,10 +544,6 @@ static void sm100_fp8_fp4_mega_moe(
     const auto shared_intermediate_hidden = intermediate_hidden * num_shared_experts;
     const auto num_sms = device_runtime->get_num_sms();
 
-    const int d3_dyn_epi = get_weave_env<int>("WEAVE_DYN_EPILOGUE", "DG_TUNE_D3_DYN_EPI", "DG_D3_DYN_EPI", 0);
-    const int d3_dyn_tma_a = get_weave_env<int>("WEAVE_DYN_TMA_A", "DG_TUNE_D3_DYN_TMA_A", "DG_D3_DYN_TMA_A", 0);
-    const bool d3_has_extra_tmas = (d3_dyn_epi == 2) or (d3_dyn_tma_a > 0);
-
     const int selected_profile_mode = profile_mode.has_value()
         ? static_cast<int>(*profile_mode) : 0;
     DG_HOST_ASSERT(0 <= selected_profile_mode and selected_profile_mode <= 2);
@@ -480,7 +556,10 @@ static void sm100_fp8_fp4_mega_moe(
         num_ranks, num_experts, num_experts_per_rank,
         num_max_tokens_per_rank, num_tokens, num_topk, hidden, intermediate_hidden,
         num_ring_tokens, num_sf_ring_tokens,
-        MmaKind::MXFP8FP4);
+        MmaKind::MXFP8FP4, num_shared_experts);
+    // m8/m16 descriptors exist (and are kernel parameters) exactly when the
+    // resolved codegen uses dyn-epi 2 or dynamic TMA-A boxes.
+    const bool d3_has_extra_tmas = config.codegen.has_extra_tmas;
 
     constexpr int kGranK = 32;
     const int sf_smem_outer_dim = config.block_k / (kGranK * 4);

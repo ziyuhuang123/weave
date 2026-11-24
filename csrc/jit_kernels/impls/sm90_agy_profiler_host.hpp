@@ -42,18 +42,25 @@ struct HostLaunchMeta {
 };
 
 inline std::atomic<int>& mode_override_ref() {
-    // -1 = read from AGY_PROF environment variable; 0/1/2 = explicit override via PyBind
+    // -1 = read the recorder level from the environment; 0/1/2 = explicit override via PyBind
     static std::atomic<int> v{-1};
     return v;
+}
+
+// Recorder level from the environment.  WEAVE_PROFILER_LEVEL (the switch name the
+// SM103 / MI308X recorders already use) wins; AGY_PROF is the legacy SM90 spelling.
+inline int get_env_mode() {
+    const char* s = std::getenv("WEAVE_PROFILER_LEVEL");
+    if (s == nullptr || *s == '\0') s = std::getenv("AGY_PROF");
+    if (s == nullptr || *s == '\0' || *s == '0') return 0;
+    const int parsed = std::atoi(s);
+    return parsed > 0 ? parsed : 0;
 }
 
 inline int get_mode() {
     const int ov = mode_override_ref().load(std::memory_order_relaxed);
     if (ov >= 0) return ov;
-    const char* s = std::getenv("AGY_PROF");
-    if (s == nullptr || *s == '\0' || *s == '0') return 0;
-    const int parsed = std::atoi(s);
-    return parsed > 0 ? parsed : 0;
+    return get_env_mode();
 }
 
 inline void reset_current_device();
@@ -100,7 +107,8 @@ inline uint64_t* ensure_and_clear_buffer(int device_idx, cudaStream_t stream) {
             return nullptr;
         }
     }
-    const char* skip_clr = std::getenv("AGY_PROF_SKIP_AUTO_CLEAR");
+    const char* skip_clr = std::getenv("WEAVE_PROFILER_SKIP_AUTO_CLEAR");
+    if (skip_clr == nullptr || *skip_clr == '\0') skip_clr = std::getenv("AGY_PROF_SKIP_AUTO_CLEAR");
     if (skip_clr == nullptr || *skip_clr == '\0' || *skip_clr == '0') {
         cudaMemsetAsync(slot.dev_ptr, 0, slot.nbytes, stream);
     }

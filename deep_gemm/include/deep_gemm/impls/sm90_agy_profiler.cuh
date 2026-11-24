@@ -40,7 +40,7 @@ constexpr uint64_t kAgyProfMagic      = 0x314652505947415full;  // "_AGYPRF1"
 constexpr uint32_t kAgyProfVersion    = 1u;
 constexpr uint32_t kAgyProfMaxSMs     = 136u;
 constexpr uint32_t kAgyProfNumTracks  = 8u;
-constexpr uint32_t kAgyProfTrackCap   = 512u;
+constexpr uint32_t kAgyProfTrackCap   = 2048u;
 
 struct alignas(16) AgyFiRec {
     uint64_t t;
@@ -362,6 +362,25 @@ __device__ __forceinline__ void agy_prof_emit_now(
         } \
     } while (0)
 
+// v10 all-warp Head Dispatch: a NON-dispatch warp (TMA-A / TMA-B / Math+Epi WG)
+// pulling its opening token(s) reports one "communication / pull" span (aux=2,
+// the same Dispatch_Pull stage as the dispatch warps) on its own role track.
+#define AGY_PROF_HEAD_PULL_BEGIN(MegaMoEPhaseT, sm_idx_, track_, emit_) \
+    do { \
+        if ((emit_) && agy_prof_raw_ptr != nullptr && (sm_idx_) < kAgyProfMaxSMs) { \
+            agy_prof_emit_rec(AGY_PROF_RESOLVE_SLOT_PTR(MegaMoEPhaseT), (sm_idx_), (track_), \
+                              agy_prof_globaltimer_ns(), kAgyEvCommunication, 2u); \
+        } \
+    } while (0)
+
+#define AGY_PROF_HEAD_PULL_END(MegaMoEPhaseT, sm_idx_, track_, emit_) \
+    do { \
+        if ((emit_) && agy_prof_raw_ptr != nullptr && (sm_idx_) < kAgyProfMaxSMs) { \
+            agy_prof_emit_rec(AGY_PROF_RESOLVE_SLOT_PTR(MegaMoEPhaseT), (sm_idx_), (track_), \
+                              agy_prof_globaltimer_ns(), kAgyEvCommunication | kAgyFiTagEnd, 2u); \
+        } \
+    } while (0)
+
 #define AGY_PROF_AFTER_PULL(MegaMoEPhaseT, sm_idx_, warp_idx_, lane_idx_, num_disp_warps_, is_fused_) \
     do { \
         if ((lane_idx_) == 0u && agy_prof_raw_ptr != nullptr && (sm_idx_) < kAgyProfMaxSMs) { \
@@ -567,6 +586,24 @@ __device__ __forceinline__ void agy_prof_emit_now(
         } \
     } while (0)
 
+// All-warp tail Combine on the TMA-A / TMA-B tracks (emitted before TMA_CLOSE
+// so the reduction segment stays inside the open track lane).
+#define AGY_PROF_TMA_COMB_BEGIN(MegaMoEPhaseT, sm_idx_, lane_idx_, track_const_) \
+    do { \
+        if ((lane_idx_) == 0u && agy_prof_raw_ptr != nullptr && (sm_idx_) < kAgyProfMaxSMs) { \
+            agy_prof_emit_now(AGY_PROF_RESOLVE_SLOT_PTR(MegaMoEPhaseT), (sm_idx_), (track_const_), \
+                kAgyEvReduction, 0u); \
+        } \
+    } while (0)
+
+#define AGY_PROF_TMA_COMB_END(MegaMoEPhaseT, sm_idx_, lane_idx_, track_const_) \
+    do { \
+        if ((lane_idx_) == 0u && agy_prof_raw_ptr != nullptr && (sm_idx_) < kAgyProfMaxSMs) { \
+            agy_prof_emit_now(AGY_PROF_RESOLVE_SLOT_PTR(MegaMoEPhaseT), (sm_idx_), (track_const_), \
+                kAgyEvReduction | kAgyFiTagEnd, 0u); \
+        } \
+    } while (0)
+
 #define AGY_PROF_TMA_A_COUNT_TILE(MegaMoEPhaseT, sm_idx_, lane_idx_, is_l1_) \
     do { \
         if ((lane_idx_) == 0u && agy_prof_raw_ptr != nullptr && (sm_idx_) < kAgyProfMaxSMs) { \
@@ -736,6 +773,8 @@ __device__ __forceinline__ void agy_prof_emit_now(
 #define AGY_PROF_AFTER_BAR1(...)                 ((void)0)
 #define AGY_PROF_BEFORE_PULL(...)                ((void)0)
 #define AGY_PROF_AFTER_PULL(...)                 ((void)0)
+#define AGY_PROF_HEAD_PULL_BEGIN(...)            ((void)0)
+#define AGY_PROF_HEAD_PULL_END(...)              ((void)0)
 #define AGY_PROF_ROLE_PHASE_BEGIN(...)           ((void)0)
 #define AGY_PROF_ROLE_PHASE_END(...)             ((void)0)
 #define AGY_PROF_ROLE_SYNC_BEGIN(...)            ((void)0)
@@ -748,6 +787,8 @@ __device__ __forceinline__ void agy_prof_emit_now(
 #define AGY_PROF_DISP_COMB_END(...)              ((void)0)
 #define AGY_PROF_TMA_OPEN(...)                   ((void)0)
 #define AGY_PROF_TMA_CLOSE(...)                  ((void)0)
+#define AGY_PROF_TMA_COMB_BEGIN(...)             ((void)0)
+#define AGY_PROF_TMA_COMB_END(...)               ((void)0)
 #define AGY_PROF_TMA_A_COUNT_TILE(...)           ((void)0)
 #define AGY_PROF_TMA_TILE_LOAD_BEGIN(...)        ((void)0)
 #define AGY_PROF_TMA_TILE_LOAD_END(...)          ((void)0)

@@ -153,6 +153,11 @@ static Sm90MoeLoad get_sm90_moe_load(const Sm90MoeHeuristicInput& input) {
 
 struct AgySm90KnobSpec {
     bool enabled = false;
+    // True only for the pure 21-knob path (kUnifiedWeaveSm90Skeleton*): its
+    // global tile keys are the golden BLOCK_M=64 profile and must yield to an
+    // explicit per-phase WEAVE_BLOCK_M_L1 / _L2 (see select_mega_moe_sm90).
+    // Never part of raw / raw_hash, so it does not perturb the JIT cache tag.
+    bool unified_skeleton = false;
     std::string raw;
     uint64_t raw_hash = 0;
     std::vector<std::pair<std::string, std::string>> kv;
@@ -201,8 +206,18 @@ struct AgySm90KnobSpec {
         const bool hbm_scat = get_int("hbm_scat", get_int("hbm_scatter_queue", 0)) > 0;
         const int scatter_sms = get_int("scatter_sms", get_int("scatter_active_sms", 0));
         const bool legacy_disp = legacy_scatter_role_disp();
+        const bool explicit_epi_owner = get_int("scatter_owner_epi", 0) > 0;
+        const bool explicit_reg_staging = get_int("scatter_staging_reg", 0) > 0;
+        // comm_only (explicit, or implied by WEAVE_SCATTER_WARPS) needs a staged
+        // handoff: default to the SMEM ring.  WEAVE_REDUCE_WARPS rides the same
+        // SMEM ring: the streaming Reduce warps publish per-token NVLink arrival
+        // counts straight from the comm-owned scatter, so they no longer need the
+        // HBM dedup queue (which would drop the engine off the fastest path).
+        const bool comm_req = not explicit_epi_owner and
+            (get_int("scatter_owner", 0) == 1 or get_int("scatter_warps", 0) > 0 or
+             get_int("comb_warps", 0) > 0);
         const int def_staging = (local_dedup or hbm_scat or (scatter_sms > 0 and not legacy_disp))
-            ? 2 : (legacy_disp ? 1 : 0);
+            ? 2 : ((legacy_disp or (comm_req and not explicit_reg_staging)) ? 1 : 0);
         const int staging = get_int("scatter_staging", def_staging);
         DG_HOST_ASSERT(staging >= 0 and staging <= 2);
         // The HBM queue / local dedup switches select hbm_dedup; an explicit
@@ -220,7 +235,8 @@ struct AgySm90KnobSpec {
         const int staging = resolved_scatter_staging();
         const int scatter_sms = get_int("scatter_sms", get_int("scatter_active_sms", 0));
         const bool legacy_disp = legacy_scatter_role_disp();
-        const int def_owner = (staging != 0 or legacy_disp or scatter_sms > 0) ? 1 : 0;
+        const int def_owner = get_int("scatter_owner_epi", 0) > 0
+            ? 0 : ((staging != 0 or legacy_disp or scatter_sms > 0) ? 1 : 0);
         const int owner = get_int("scatter_owner", def_owner);
         DG_HOST_ASSERT(owner == 0 or owner == 1);
         DG_HOST_ASSERT(staging == 0 or owner == 1);
@@ -232,7 +248,90 @@ struct AgySm90KnobSpec {
     bool is_scatter_role_disp() const {
         return enabled and resolved_scatter_owner() == 1;
     }
+
+    // Dedicated streaming Reduce warps.  On the fused comm_owned SMEM engine the
+    // scatter warps publish per-token NVLink arrival counts, so two Reduce warps
+    // are the default of the private-spec engine: they fit the 4-WG register
+    // grant while leaving the V8 scatter warp count untouched.  The pure 21-knob
+    // skeleton (unified_skeleton) defaults to 0 instead: on 4xH20 EP4 (ebd2f8d,
+    // ABBA) R=2 measured 3431.5 us vs 2221.6 us at S=1024 and the unset-knob
+    // default p21 10285 us vs 5249.7 us at S=4096, so streaming Reduce is opt-in
+    // there.  An explicit WEAVE_REDUCE_WARPS always wins.
+    int resolved_comb_warps() const {
+        if (not enabled) return 0;
+        // The public knob documents 0 as "off (tail-only Combine)"; an explicit
+        // zero must win over the engine default even though the spec parser
+        // drops zero-valued env knobs.
+        const char* raw = std::getenv("WEAVE_REDUCE_WARPS");
+        if (raw != nullptr and *raw != '\0' and std::strcmp(raw, "0") == 0)
+            return 0;
+        const bool smem_stream_engine = get_int("fused", 0) > 0 and
+            resolved_scatter_owner() == 1 and resolved_scatter_staging() == 1;
+        const int warps = get_int("comb_warps", (smem_stream_engine and not unified_skeleton) ? 2 : 0);
+        // The comm-owned SMEM handoff needs at least one scatter warp left over,
+        // and the CTA dispatch group caps at 8 warps: 8 Reduce warps would starve
+        // the scatter.  Fail closed instead of emitting an unlaunchable kernel.
+        DG_HOST_ASSERT(not smem_stream_engine or warps <= 4);
+        return warps;
+    }
 };
+
+// WEAVE_CU_WAVE_SPLIT on SM90 (H20).  The public knob is the per-unit "wave"
+// split; MI308X reads it as the per-CU (comm - compute) wavefront ratio.  SM90
+// has no CU wavefronts, so on the H20 host the same knob selects the fused
+// engine's L1/L2 *expert-wave* split, i.e. the two internal spec keys
+// interleave (L1/L2 wave interleave mode) and epw (experts per wave):
+//   unset, "auto", "0"  -> engine default of the fused kernel: the barrier-free
+//                          Lag-W task queue (interleave=7, see
+//                          resolve_sm90_fused_interleave_mode) with a shape-derived
+//                          lead W (taskq_lag, see get_agy_sm90_spec); there is no
+//                          interleave-off (all-L1 -> grid_sync -> all-L2) schedule
+//                          any more                               [schema: 0 = auto]
+//   "E"  (E >= 4)       -> interleave=5 (per-wave [L1(w), L2(w)]), epw=E
+//   "M-E" (M in 5/6,E>=1)-> interleave=M, epw=E ("0-E" = default mode, epw=E;
+//                          modes 1..4 are rejected on the fused kernel)
+//   "7-W" (W>=1)        -> v11 lag-W expert task queue: interleave=7 with ONE flat
+//                          task stream L1(0..W-1), L2(0), L1(W), L2(1), ... (no expert
+//                          waves, so epw stays E_local); W is the L1 lead in experts
+//                          and rides the internal spec key taskq_lag
+// The MI308X integer codes 1/2/3 have no SM90 meaning and fail closed, as does
+// any other spelling ("8-0" parses as mode 8 and is rejected).  No new knob:
+// the 21-knob surface is unchanged.
+struct Sm90WaveSplitRequest {
+    bool set = false;
+    int interleave = 0;
+    int epw = 0;
+};
+
+static Sm90WaveSplitRequest parse_sm90_cu_wave_split_env() {
+    Sm90WaveSplitRequest req;
+    const char* raw = std::getenv("WEAVE_CU_WAVE_SPLIT");
+    if (raw == nullptr or *raw == '\0' or std::strcmp(raw, "auto") == 0 or std::strcmp(raw, "0") == 0)
+        return req;
+    char* end = nullptr;
+    const long first = std::strtol(raw, &end, 10);
+    DG_HOST_ASSERT(end != raw and "WEAVE_CU_WAVE_SPLIT must be auto, E or M-E on SM90");
+    if (*end == '\0') {
+        DG_HOST_ASSERT(first >= 4 and first <= 1024 and
+                       "WEAVE_CU_WAVE_SPLIT=E on SM90 needs E >= 4 (1/2/3 are MI308X codes)");
+        req.set = true;
+        req.interleave = 5;
+        req.epw = static_cast<int>(first);
+        return req;
+    }
+    DG_HOST_ASSERT(*end == '-' and "WEAVE_CU_WAVE_SPLIT must be auto, E or M-E on SM90");
+    const char* second_str = end + 1;
+    char* end2 = nullptr;
+    const long second = std::strtol(second_str, &end2, 10);
+    DG_HOST_ASSERT(end2 != second_str and *end2 == '\0' and
+                   "WEAVE_CU_WAVE_SPLIT must be auto, E or M-E on SM90");
+    DG_HOST_ASSERT(first >= 0 and first <= 7 and second >= 1 and second <= 1024 and
+                   "WEAVE_CU_WAVE_SPLIT=M-E on SM90 needs interleave mode 0..7 and epw (or lag) >= 1");
+    req.set = true;
+    req.interleave = static_cast<int>(first);
+    req.epw = static_cast<int>(second);
+    return req;
+}
 
 static AgySm90KnobSpec parse_agy_sm90_spec_string(const char* raw_str) {
     AgySm90KnobSpec spec;
@@ -280,7 +379,11 @@ static AgySm90KnobSpec parse_agy_sm90_spec_string(const char* raw_str) {
     append_weave_env("pipe_wgmma", "WEAVE_PIPE_WGMMA", "AGY_PIPE_WGMMA");
     append_weave_env("swap_pipe", "WEAVE_SWAP_PIPE", "AGY_SWAP_PIPE");
     append_weave_env("fast_pull", "WEAVE_FAST_PULL", "AGY_FAST_PULL");
-    append_weave_env("adapt_bm", "WEAVE_ADAPT_BM", "AGY_ADAPT_BM");
+    // v13: WEAVE_ADAPT_GEMM_CONFIG (legacy alias WEAVE_ADAPT_BM) is a HOST-only
+    // whole-tuple GEMM1/GEMM2 config selector (select_weave_gemm_config_tuple);
+    // the device-side per-expert BLOCK_M sub-tiling it used to switch on is now
+    // reachable only through the internal spec key adapt_bm_dev.
+    append_weave_env("adapt_bm", "WEAVE_ADAPT_GEMM_CONFIG", "WEAVE_ADAPT_BM", "AGY_ADAPT_BM");
     append_weave_env("hbm_scat", "WEAVE_HBM_SCATTER_QUEUE", "AGY_HBM_SCAT");
     append_weave_env("scatter_sms", "WEAVE_SCATTER_ACTIVE_SMS", "AGY_SCATTER_ACTIVE_SMS");
     append_weave_env("dispatch_warps", "WEAVE_DISPATCH_WARPS", "AGY_DISPATCH_WARPS");
@@ -289,18 +392,24 @@ static AgySm90KnobSpec parse_agy_sm90_spec_string(const char* raw_str) {
     append_weave_env("ring_blocks", "WEAVE_RING_BLOCKS", "AGY_RING_BLOCKS");
     append_weave_env("early_stream", "WEAVE_EARLY_STREAM_REDUCE", "AGY_EARLY_STREAM_REDUCE");
     append_weave_env("head_pull_chunk", "WEAVE_HEAD_PULL_CHUNK", "AGY_HEAD_PULL_CHUNK");
+    // v10 internal A/B alias (not one of the 21 public knobs): hot/cold expert order.
+    append_weave_env("hot_cold", "WEAVE_HOT_COLD", "AGY_HOT_COLD");
     append_weave_env("local_dedup", "WEAVE_LOCAL_SCATTER_DEDUP", "AGY_LOCAL_SCATTER_DEDUP");
     append_weave_env("dispatch_sms", "WEAVE_DISPATCH_ACTIVE_SMS");
     append_weave_env("comb_sync_chunk", "WEAVE_COMBINE_SYNC_CHUNK");
     append_weave_env("epi_reg_stages", "WEAVE_EPI_REG_STAGES");
-    append_weave_env("l1_bm", "WEAVE_BLOCK_M_L1");
-    append_weave_env("l2_bm", "WEAVE_BLOCK_M_L2");
+    // v13: WEAVE_GEMM1_CONFIG / WEAVE_GEMM2_CONFIG (legacy aliases
+    // WEAVE_BLOCK_M_L1 / _L2) pin a phase's whole matched GEMM tuple by its BM.
+    append_weave_env("l1_bm", "WEAVE_GEMM1_CONFIG", "WEAVE_BLOCK_M_L1");
+    append_weave_env("l2_bm", "WEAVE_GEMM2_CONFIG", "WEAVE_BLOCK_M_L2");
     append_weave_env("l1_bn", "WEAVE_BLOCK_N_L1");
     append_weave_env("l2_bn", "WEAVE_BLOCK_N_L2");
     append_weave_env("l1_wgs", "WEAVE_WAGS_L1");
     append_weave_env("l2_wgs", "WEAVE_WAGS_L2");
     append_weave_env("inline_roles", "WEAVE_INLINE_ROLES");
-    // Named enum knobs: the spec carries the integer code.
+    // Named enum knobs: the spec carries the integer code.  Unlike the numeric
+    // knobs, an explicit code 0 is meaningful (epilogue_only / reg_2stage /
+    // formula), so it must be published instead of being treated as "unset".
     auto append_named_env = [&](const char* key, const char* primary,
                                 std::initializer_list<const char*> names) {
         const char* val = std::getenv(primary);
@@ -309,9 +418,12 @@ static AgySm90KnobSpec parse_agy_sm90_spec_string(const char* raw_str) {
         int code = 0;
         for (const char* candidate : names) {
             if (std::strcmp(val, candidate) == 0) {
-                const std::string code_str = std::to_string(code);
-                // Code 0 is the default and is never appended (see append_env_knob).
-                append_env_knob(key, code_str.c_str());
+                const std::string needle = std::string(key) + "=";
+                if (combined.find(needle) == std::string::npos) {
+                    if (not combined.empty())
+                        combined += ",";
+                    combined += needle + std::to_string(code);
+                }
                 return;
             }
             ++code;
@@ -320,7 +432,55 @@ static AgySm90KnobSpec parse_agy_sm90_spec_string(const char* raw_str) {
     };
     append_named_env("scatter_owner", "WEAVE_SCATTER_OWNER", {"epilogue_only", "comm_only"});
     append_named_env("scatter_staging", "WEAVE_SCATTER_STAGING", {"reg_2stage", "smem", "hbm_dedup"});
+    // Explicit code-0 choices are otherwise indistinguishable from "unset" because
+    // code 0 is never appended; record them so SCATTER_WARPS / REDUCE_WARPS defaults
+    // (comm_only + staged scatter) never override an explicit user choice.
+    if (const char* so = std::getenv("WEAVE_SCATTER_OWNER");
+        so != nullptr and (std::strcmp(so, "0") == 0 or std::strcmp(so, "epilogue_only") == 0))
+        append_env_knob("scatter_owner_epi", "1");
+    if (const char* st = std::getenv("WEAVE_SCATTER_STAGING");
+        st != nullptr and (std::strcmp(st, "0") == 0 or std::strcmp(st, "reg_2stage") == 0))
+        append_env_knob("scatter_staging_reg", "1");
+    // WEAVE_REG_PULL_BYTES: explicit 0 = TMA SMEM staging pull for every token
+    // (fast register pull path off); 1024/2048/4096 = register-direct chunk bytes.
+    if (const char* rp = std::getenv("WEAVE_REG_PULL_BYTES"); rp != nullptr and *rp != '\0') {
+        if (std::strcmp(rp, "0") == 0)
+            append_env_knob("reg_pull_off", "1");
+        else
+            append_env_knob("reg_pull_bytes", rp);
+    }
     append_named_env("ready_queue", "WEAVE_READY_QUEUE", {"formula", "sm0_fifo"});
+    // WEAVE_COMBINE_SYNC_CHUNK documents 0 as "global barrier".  append_env_knob
+    // drops zero values, and comb_sync_chunk defaults to 64 whenever Reduce warps
+    // are on, so an explicit 0 must be published to win over that default.
+    const auto has_spec_key = [&](const char* key) {
+        const std::string needle = std::string(key) + "=";
+        return combined.rfind(needle, 0) == 0 or
+               combined.find("," + needle) != std::string::npos;
+    };
+    if (const char* cs = std::getenv("WEAVE_COMBINE_SYNC_CHUNK");
+        cs != nullptr and std::strcmp(cs, "0") == 0 and not has_spec_key("comb_sync_chunk")) {
+        if (not combined.empty())
+            combined += ",";
+        combined += "comb_sync_chunk=0";
+    }
+    // WEAVE_CU_WAVE_SPLIT -> interleave / epw (explicit zeros kept); like every
+    // other env knob it only fills keys the spec string did not pin.
+    if (const auto wave = parse_sm90_cu_wave_split_env(); wave.set) {
+        if (not has_spec_key("interleave")) {
+            if (not combined.empty())
+                combined += ",";
+            combined += "interleave=" + std::to_string(wave.interleave);
+        }
+        // Mode 7 has no expert waves: its E is the task-queue lag W, so the
+        // engine keeps epw = E_local and the lag rides its own internal key.
+        const char* e_key = wave.interleave == 7 ? "taskq_lag" : "epw";
+        if (not has_spec_key(e_key)) {
+            if (not combined.empty())
+                combined += ",";
+            combined += std::string(e_key) + "=" + std::to_string(wave.epw);
+        }
+    }
     if (const char* rq = std::getenv("WEAVE_READY_QUEUE");
         rq != nullptr and (std::strcmp(rq, "0") == 0 or std::strcmp(rq, "formula") == 0)) {
         append_env_knob("ready_queue_formula", "1");
@@ -350,6 +510,44 @@ static AgySm90KnobSpec parse_agy_sm90_spec_string(const char* raw_str) {
         }
         if (comma == std::string::npos) break;
         pos = comma + 1;
+    }
+    // Fail closed on the public WEAVE_* values carried by the spec.  The
+    // internal auto-regime keys (bm / bn / wgs / disp_warps / ...) keep their
+    // own historically validated ranges and are deliberately not restricted.
+    for (const auto& item : spec.kv) {
+        const std::string& key = item.first;
+        const std::string& value = item.second;
+        const auto one_of = [&](std::initializer_list<long> allowed) {
+            char* end = nullptr;
+            const long v = std::strtol(value.c_str(), &end, 10);
+            DG_HOST_ASSERT(end != value.c_str() and *end == '\0');
+            bool ok = false;
+            for (const long a : allowed)
+                ok = ok or (v == a);
+            DG_HOST_ASSERT(ok);
+        };
+        const auto non_negative = [&]() {
+            char* end = nullptr;
+            const long v = std::strtol(value.c_str(), &end, 10);
+            DG_HOST_ASSERT(end != value.c_str() and *end == '\0' and v >= 0);
+        };
+        if (key == "dispatch_warps" or key == "scatter_warps")
+            one_of({0, 4, 8});
+        else if (key == "comb_warps")
+            one_of({0, 1, 2, 4, 8});
+        else if (key == "comb_sync_chunk")
+            one_of({0, 16, 32, 64, 128});
+        else if (key == "scatter_owner" or key == "ready_queue" or
+                 key == "adapt_bm" or key == "adapt_bm_dev" or key == "reg_balance" or
+                 key == "local_dedup" or key == "dedup_disp" or key == "sm0_sched")
+            one_of({0, 1});
+        else if (key == "scatter_staging")
+            one_of({0, 1, 2});
+        else if (key == "l1_bm" or key == "l2_bm")
+            one_of({0, 16, 32, 64, 80, 96, 128, 192, 240, 256});
+        else if (key == "meta_g" or key == "v_head" or
+                 key == "dispatch_sms" or key == "scatter_sms")
+            non_negative();
     }
     return spec;
 }
@@ -388,12 +586,17 @@ struct AgyAutoRegimeSelector {
         "fast_host=1,fused=1,compact=1,dyn=1,alias=1,bm=32,bn=256,bk=128,wgs=4,swap=1,stages=0,pipe_wgmma=1,fast_pull=1,dedup_disp=1,reg_comb=1";
 
     // R3: Compute-bound / heavy prefill (routed_tokens > 64 * local_experts)
+    // BN=256 fused tiers carry the same measured H20 Swap-AB engine as the pure
+    // 21-knob skeleton: 4 compute WGs, N-major L1+L2, swap_pipe=0, no bf16
+    // accumulation.  WEAVE_SWIZZLE_TILES stays unset because the 2D group raster
+    // measured slower once l1_nmajor/l2_nmajor were restored (S=1024: 2238 us ->
+    // 2196 us with the swizzle off); it remains available for other shapes.
     static constexpr const char* kLargeShallowKBm128 =
         "fast_host=1,fused=1,compact=1,dyn=1,alias=1,bm=128,bn=128,bk=128,wgs=2,disp_warps=6,bf16_acc=1,stages=0,pipe_wgmma=1,fast_pull=1,dedup_disp=1,dedup_scat=1,reg_comb=1";
     static constexpr const char* kLargeFusedBn256HighDup =
-        "fast_host=1,fused=1,compact=1,dyn=1,alias=1,bm=64,bn=256,bk=128,wgs=2,disp_warps=6,bf16_acc=1,stages=0,pipe_wgmma=1,fast_pull=1,dedup_disp=1,dedup_scat=1,reg_comb=1";
+        "fast_host=1,fused=1,compact=1,dyn=1,alias=1,bm=64,adapt_bm=1,bf16_acc=0,bn=256,bk=128,wgs=4,swap=1,l1_nmajor=1,l2_nmajor=1,stages=0,swap_pipe=0,fast_swap_epi=1,rank_cache=1,fast_clean=1,fast_pull=1,dedup_disp=1,dedup_tier=1,reg_comb=1,fast_comb=1,all_idle_comb=1";
     static constexpr const char* kLargeFusedBn256LowDup =
-        "fast_host=1,fused=1,compact=1,dyn=1,alias=1,bm=64,bn=256,bk=128,wgs=2,disp_warps=6,bf16_acc=1,stages=0,pipe_wgmma=1,fast_pull=1,dedup_disp=1,reg_comb=1";
+        "fast_host=1,fused=1,compact=1,dyn=1,alias=1,bm=64,adapt_bm=1,bf16_acc=0,bn=256,bk=128,wgs=4,swap=1,l1_nmajor=1,l2_nmajor=1,stages=0,swap_pipe=0,fast_swap_epi=1,rank_cache=1,fast_clean=1,fast_pull=1,dedup_disp=1,dedup_tier=1,reg_comb=1,fast_comb=1,all_idle_comb=1";
     static constexpr const char* kLargeSplitL1Bn512 =
         "fast_host=1,dyn=1,alias=1,l2_nodisp=1,bm=64,l1_bn=512,l1_wgs=4,l2_bn=256,l2_wgs=2,bk=128,disp_warps=4,bf16_acc=1,direct_l2=1,l2_nmajor=1,cleanup=1,stages=0,pipe_wgmma=1,fast_pull=1,dedup_disp=1,reg_comb=1";
 
@@ -468,15 +671,86 @@ static bool has_any_public_weave_sm90_env() {
             "WEAVE_DISPATCH_ACTIVE_SMS", "WEAVE_SCATTER_ACTIVE_SMS",
             "WEAVE_SM0_STREAM_SCHED", "WEAVE_DISPATCH_WARPS",
             "WEAVE_SCATTER_WARPS", "WEAVE_REDUCE_WARPS", "WEAVE_REG_BALANCE",
+            "WEAVE_CU_WAVE_SPLIT",
             "WEAVE_V_HEAD", "WEAVE_READY_GROUP_SIZE", "WEAVE_READY_QUEUE",
             "WEAVE_SCATTER_OWNER", "WEAVE_COMBINE_SYNC_CHUNK",
             "WEAVE_ADAPT_BM", "WEAVE_BLOCK_M_L1", "WEAVE_BLOCK_M_L2",
-            "WEAVE_DEDUP_MODE", "WEAVE_SCATTER_STAGING", "WEAVE_LOCAL_SCATTER_DEDUP"}) {
+            "WEAVE_ADAPT_GEMM_CONFIG", "WEAVE_GEMM1_CONFIG", "WEAVE_GEMM2_CONFIG",
+            "WEAVE_DEDUP_MODE", "WEAVE_SCATTER_STAGING", "WEAVE_LOCAL_SCATTER_DEDUP",
+            "WEAVE_REG_PULL_BYTES"}) {
         const char* v = std::getenv(name);
         if (v != nullptr and *v != '\0')
             return true;
     }
     return false;
+}
+
+// First non-empty value among a new public name and its legacy aliases.
+static const char* weave_env_first(std::initializer_list<const char*> names) {
+    for (const char* name : names) {
+        const char* v = std::getenv(name);
+        if (v != nullptr and *v != '\0')
+            return v;
+    }
+    return nullptr;
+}
+
+// v13 WEAVE_ADAPT_GEMM_CONFIG: host-side whole-tuple GEMM1 + GEMM2 selection.
+//
+// A "GEMM config tuple" is the complete per-phase GEMM geometry
+//   (BM, BN, BK, swap_ab, #math WGs, smem stages, bf16_scaled_accum, setmaxnreg),
+// named by its BM (the value WEAVE_GEMM1_CONFIG / WEAVE_GEMM2_CONFIG accept):
+//   64  -> canonical Swap-AB 4-WG tile: BM=64, BN=256, BK=128, swap, 4 math WGs
+//          (512 epilogue threads), 4 TMA stages, 96-register math WGs.
+//   128 -> non-swap 2-WG tile: BM=128, BN=128, BK=128, no swap, 2 math WGs
+//          (256 epilogue threads), max legal stages, 128-register math WGs.
+//   16 / 32 -> Swap-AB small-M tiles (BN = widest of 256/128 the phase N divides).
+// BK, stages and setmaxnreg are not separate knobs: BK is 128, stages are the
+// SMEM-budget maximum for that tile, and the register split is the device's
+// max legal setmaxnreg for that thread layout (kDefault*Registers), so pinning
+// the BM pins the whole tuple.  fp32 accumulation (bf16_scaled_accum = 0) on
+// every tuple, as the skeleton bakes bf16_acc=0.
+//
+// Selection input: M_expected = num_tokens * num_ranks * num_topk / num_experts
+// (expected rows per local expert), H = hidden, I = intermediate_hidden:
+//   I <= 1024 and M_expected >= 48            -> 128 / 128 (fused)
+//   I >= 1536 and M_expected <= 24, split ok  -> 32 / 64  (decoupled split launch)
+//   I >= 1536 and M_expected <= 24, fused req -> 64 / 64
+//   otherwise                                 -> 64 / 64  (canonical)
+// "fused required" = a knob that only exists on the fused single-kernel engine
+// is set (WEAVE_CU_WAVE_SPLIT, WEAVE_REDUCE_WARPS > 0, WEAVE_COMBINE_SYNC_CHUNK > 0).
+struct WeaveGemmConfigPick {
+    int l1_bm = 64;
+    int l2_bm = 64;
+};
+
+static bool weave_fused_engine_required() {
+    if (parse_sm90_cu_wave_split_env().set)
+        return true;
+    const char* rw = std::getenv("WEAVE_REDUCE_WARPS");
+    if (rw != nullptr and *rw != '\0' and std::atoi(rw) > 0)
+        return true;
+    const char* cs = std::getenv("WEAVE_COMBINE_SYNC_CHUNK");
+    if (cs != nullptr and *cs != '\0' and std::atoi(cs) > 0)
+        return true;
+    return false;
+}
+
+static WeaveGemmConfigPick select_weave_gemm_config_tuple(const Sm90MoeHeuristicInput& input,
+                                                          const bool fused_required) {
+    WeaveGemmConfigPick pick;
+    const int64_t routed = static_cast<int64_t>(input.num_tokens) * input.num_ranks * input.num_topk;
+    const int64_t m_expected = input.num_experts > 0 ? routed / input.num_experts : 0;
+    const int inter = input.intermediate_hidden;
+    if (inter <= 1024 and m_expected >= 48) {
+        pick.l1_bm = pick.l2_bm = 128;
+    } else if (inter >= 1536 and m_expected <= 24) {
+        if (not fused_required) {
+            pick.l1_bm = 32;
+            pick.l2_bm = 64;
+        }
+    }
+    return pick;
 }
 
 static AgySm90KnobSpec get_agy_sm90_spec(const Sm90MoeHeuristicInput* input = nullptr) {
@@ -494,14 +768,129 @@ static AgySm90KnobSpec get_agy_sm90_spec(const Sm90MoeHeuristicInput* input = nu
         return parse_agy_sm90_spec_string(env_val);
     }
     if (has_any_public_weave_sm90_env()) {
-        // Pure unified WEAVE_* tuning path: start from the neutral fused SM90
-        // MegaMoE skeleton (no forced dedup/scatter/bm opinion) and apply the
-        // explicit WEAVE_* environment variables directly.
+        // Pure unified WEAVE_* tuning path: start from the SM90 fused MegaMoE
+        // skeleton and apply the explicit WEAVE_* environment variables directly.
+        //
+        // kUnifiedWeaveSm90Skeleton is the H20 Swap-AB engine measured on 4xH20
+        // EP4 Qwen3.8-Max (results/h20_ep4_prior_verified.json): S=1024 2177.5 us
+        // (1.489x) and S=4096 5248.7 us (1.183x) versus the official kernel.
+        // It only applies where BN=256 divides the phase N (can_bn256); every
+        // other shape keeps the previous neutral BN=128-capable skeleton.
+        //
+        // swizzle (WEAVE_SWIZZLE_TILES) is deliberately absent: on the restored
+        // N-major engine the L1 2D L2 group raster measured *slower* at S=1024
+        // (2238 us with swizzle=4/2/8 vs 2196 us without, 4xH20 EP4 ABBA), so the
+        // fastest measured combination is the plain N-major raster.  The swizzle
+        // mechanism and its partial-group protection remain in the kernel and can
+        // be re-enabled per shape with swizzle=N in an internal spec.
+        // The L1/L2 wave interleave (interleave / epw) is NOT baked in.  With
+        // it off the resolved epw equals E_local (kNumExpertWaves == 1, "all
+        // L1, then all L2"), which is the measured V8 schedule.  The 276-arm
+        // 4xH20 EP4 ABBA on ebd2f8d measured interleave=5,epw=8 at +9.9%
+        // (S=1024, 2440.7 vs 2221.6 us) and +10.2% (S=4096, 5785.8 vs
+        // 5249.7 us) over interleave off, so the wave split is opt-in through
+        // WEAVE_CU_WAVE_SPLIT (E -> interleave=5,epw=E; M-E -> interleave=M,
+        // epw=E), which parse_agy_sm90_spec_string appends below.
         static constexpr const char* kUnifiedWeaveSm90Skeleton =
-            "fast_host=1,fused=1,interleave=5,epw=8,compact=1,dyn=1,alias=1,"
+            "fast_host=1,fused=1,compact=1,dyn=1,alias=1,"
+            "bm=64,adapt_bm=1,bf16_acc=0,bn=256,bk=128,wgs=4,swap=1,"
+            "l1_nmajor=1,l2_nmajor=1,"
+            "stages=0,swap_pipe=0,fast_swap_epi=1,rank_cache=1,fast_clean=1,"
+            "fast_pull=1,dedup_disp=1,dedup_tier=1,reg_comb=1,fast_comb=1,"
+            "all_idle_comb=1";
+        static constexpr const char* kUnifiedWeaveSm90SkeletonFallback =
+            "fast_host=1,fused=1,compact=1,dyn=1,alias=1,"
             "stages=0,swap_pipe=1,fast_swap_epi=1,rank_cache=1,fast_clean=1,"
             "fast_pull=1,dedup_tier=1,reg_comb=1,fast_comb=1,all_idle_comb=1";
-        return parse_agy_sm90_spec_string(kUnifiedWeaveSm90Skeleton);
+        const bool can_bn256 =
+            input != nullptr and
+            ((2 * input->intermediate_hidden) % 256 == 0) and
+            (input->hidden % 256 == 0);
+        std::string skeleton =
+            can_bn256 ? kUnifiedWeaveSm90Skeleton : kUnifiedWeaveSm90SkeletonFallback;
+        const auto replace_item = [&](const std::string& from, const std::string& to) {
+            const auto pos = skeleton.find(from);
+            DG_HOST_ASSERT(pos != std::string::npos);
+            std::string rep = to;
+            size_t len = from.size();
+            if (rep.empty()) {
+                // Drop the item together with one separating comma.
+                if (pos + len < skeleton.size() and skeleton[pos + len] == ',')
+                    ++len;
+                else if (pos > 0 and skeleton[pos - 1] == ',')
+                    return void(skeleton.erase(pos - 1, len + 1));
+            }
+            skeleton.replace(pos, len, rep);
+        };
+        // The public knobs the skeleton bakes a value for must still win when
+        // they are set explicitly -- including an explicit 0, which the env
+        // appender would otherwise drop:
+        //   * WEAVE_CU_WAVE_SPLIT -> interleave / epw (L1/L2 expert-wave split)
+        //     is appended by parse_agy_sm90_spec_string, since the skeleton no
+        //     longer pins either key;
+        //   * WEAVE_ADAPT_BM=0 / WEAVE_DEDUP_MODE=0 turn the baked adapt_bm /
+        //     dedup_disp off;
+        //   * a decoupled WEAVE_BLOCK_M_L1 != WEAVE_BLOCK_M_L2 is a split L1/L2
+        //     launch, where the fused BLOCK_M=64 adapt-BM table does not exist,
+        //     so the baked adapt_bm=1 yields unless WEAVE_ADAPT_BM=1 is explicit
+        //     (that mix stays fail-closed in get_agy_sm90_jit_defines).
+        const auto env_is = [](const char* name, const char* value) {
+            const char* v = std::getenv(name);
+            return v != nullptr and std::strcmp(v, value) == 0;
+        };
+        const auto env_set = [](const char* name) {
+            const char* v = std::getenv(name);
+            return v != nullptr and *v != '\0';
+        };
+        const char* g1_env = weave_env_first({"WEAVE_GEMM1_CONFIG", "WEAVE_BLOCK_M_L1"});
+        const char* g2_env = weave_env_first({"WEAVE_GEMM2_CONFIG", "WEAVE_BLOCK_M_L2"});
+        const char* adapt_env = weave_env_first({"WEAVE_ADAPT_GEMM_CONFIG", "WEAVE_ADAPT_BM"});
+        const int req_l1_bm = g1_env != nullptr ? std::atoi(g1_env) : 0;
+        const int req_l2_bm = g2_env != nullptr ? std::atoi(g2_env) : 0;
+        const bool decoupled_bm = req_l1_bm > 0 and req_l2_bm > 0 and req_l1_bm != req_l2_bm;
+        (void)env_set;
+        // The split (non-fused) sm90_fp8_mega_moe_l1_impl at BLOCK_M=64 on the
+        // 4-WG Swap-AB tile spills (sm_90a ptxas: 96 registers, 12 B spill
+        // stores / 4 B spill loads), violating the 0-spill 4-WG contract;
+        // BLOCK_M_L1 = 16/32 compile 0-spill.  Fail closed instead of emitting it.
+        DG_HOST_ASSERT(not (can_bn256 and decoupled_bm and req_l1_bm == 64) and
+                       "decoupled WEAVE_BLOCK_M_L1=64 split L1 kernel spills at the 4-WG cap; "
+                       "use WEAVE_BLOCK_M_L1 16/32, or equal L1/L2 BLOCK_M (fused)");
+        const bool adapt_off = adapt_env != nullptr and std::strcmp(adapt_env, "0") == 0;
+        if (skeleton.find("adapt_bm=1") != std::string::npos and
+            (adapt_off or (decoupled_bm and adapt_env == nullptr)))
+            replace_item("adapt_bm=1", "");
+        // v13 WEAVE_ADAPT_GEMM_CONFIG (default 1): with neither GEMM phase pinned,
+        // pick the whole matched GEMM1/GEMM2 tuple on the host.  The canonical
+        // 64/64 pick adds nothing (the skeleton already IS that tuple), so its
+        // nvcc input stays byte-identical to the fixed config (ADAPT=0).
+        if (input != nullptr and can_bn256 and not adapt_off and req_l1_bm == 0 and req_l2_bm == 0) {
+            const auto pick = select_weave_gemm_config_tuple(*input, weave_fused_engine_required());
+            if (pick.l1_bm != 64 or pick.l2_bm != 64)
+                skeleton += std::format(",l1_bm={},l2_bm={}", pick.l1_bm, pick.l2_bm);
+        }
+        // Zero-grid_sync fused engine, WEAVE_CU_WAVE_SPLIT unset / auto: the
+        // Lag-W task queue (interleave=7) with a shape-derived lead W.  Measured
+        // on 4xH20 EP4 (warm palindromic ABBA, S=16384 / Max S=4096):
+        //   Qwen3.5-35B  (I=512,  E_local=64):  W=16/24/32/64 -> 1163/1148/1161/1222 us
+        //   Qwen3.5-122B (I=1024, E_local=64):  W=16/32/64    -> 3155/2872/2849 us
+        //   Qwen3.8-Max  (I=2048, E_local=128): W=16/128 (DW4) -> 5330/5109 us
+        // A shallow expert (I <= 512) has short L1 tiles, so a 3/8 E_local lead
+        // already keeps the L2 readiness waits off the critical path; deeper
+        // experts are fastest with all L1 tasks queued first (W = E_local).
+        // An explicit WEAVE_CU_WAVE_SPLIT always wins (it pins taskq_lag/epw).
+        if (input != nullptr and not parse_sm90_cu_wave_split_env().set and
+            input->num_experts_per_rank > 0) {
+            const int e_local = input->num_experts_per_rank;
+            const int lag = input->intermediate_hidden <= 512
+                ? std::max(4, (3 * e_local) / 8) : e_local;
+            skeleton += std::format(",taskq_lag={}", std::min(lag, 1024));
+        }
+        if (skeleton.find("dedup_disp=1") != std::string::npos and env_is("WEAVE_DEDUP_MODE", "0"))
+            replace_item("dedup_disp=1", "");
+        auto spec = parse_agy_sm90_spec_string(skeleton.c_str());
+        spec.unified_skeleton = spec.enabled;
+        return spec;
     }
     if (input != nullptr)
         return make_agy_auto_sm90_spec(*input, false);
@@ -519,6 +908,27 @@ static std::string get_agy_sm90_tag_suffix(const AgySm90KnobSpec& spec) {
 
 static std::string get_agy_sm90_tag_suffix() {
     return get_agy_sm90_tag_suffix(get_agy_sm90_spec());
+}
+
+// Zero-grid_sync fused engine: the fused single-kernel SM90 MegaMoE has exactly
+// ONE L1/L2 execution path, the barrier-free K-block-bitmap interleave (modes
+// 5/6/7; every L2 tile waits only on the readiness bits of the L1 tiles it
+// consumes).  The old "all L1 -> 78-SM grid_sync -> all L2" schedule
+// (interleave 0) no longer exists, so an unset / "auto" / "0" request resolves
+// to the default Lag-W task queue (mode 7).  This single resolver feeds the JIT
+// defines AND both host SMEM mirrors, so host and device layouts cannot diverge.
+static constexpr int kSm90FusedDefaultInterleave = 7;
+static int resolve_sm90_fused_interleave_mode(const AgySm90KnobSpec& spec) {
+    if (not spec.enabled or spec.get_int("fused", 0) == 0)
+        return 0;
+    int mode = spec.get_int("interleave", spec.get_int("interleave_l1_l2", 0));
+    if (mode == 0 and spec.get_int("l2_kblock_dep", 0) > 0)
+        mode = 5;
+    if (mode == 0)
+        mode = kSm90FusedDefaultInterleave;
+    DG_HOST_ASSERT(mode >= 5 and mode <= 7 and
+                   "fused SM90 MegaMoE only supports the barrier-free K-block interleave modes 5/6/7");
+    return mode;
 }
 
 static std::string get_agy_sm90_jit_defines(const AgySm90KnobSpec& spec) {
@@ -568,11 +978,22 @@ static std::string get_agy_sm90_jit_defines(const AgySm90KnobSpec& spec) {
     (void)hbm_scat;
     defs += std::format("#define WEAVE_SCATTER_OWNER {}\n", owner);
     defs += std::format("#define WEAVE_SCATTER_STAGING {}\n", staging);
-    const int comb_sync_chunk = spec.get_int("comb_sync_chunk", 0);
+    // WEAVE_REDUCE_WARPS streams the Reduce per ready chunk: default to 64-token
+    // chunks when WEAVE_COMBINE_SYNC_CHUNK is unset.
+    const int comb_sync_chunk = spec.get_int(
+        "comb_sync_chunk", spec.resolved_comb_warps() > 0 ? 64 : 0);
     DG_HOST_ASSERT(comb_sync_chunk == 0 or comb_sync_chunk == 16 or comb_sync_chunk == 32 or
                    comb_sync_chunk == 64 or comb_sync_chunk == 128);
     if (comb_sync_chunk > 0 and use_hbm_dedup)
         defs += std::format("#define WEAVE_COMBINE_SYNC_CHUNK {}\n", comb_sync_chunk);
+    // v10: the H20 SMEM streaming engine (comm_only + smem staging) honours an
+    // explicitly set WEAVE_COMBINE_SYNC_CHUNK: 0 = global barrier only (no
+    // middle streaming Reduce), C > 0 = C-token ownership chunks.  Unset keeps
+    // the v9 token-major partition (the regime default of 64 above is never
+    // written into the spec), so every instantiation without the knob is unchanged;
+    // env and WEAVE_H20_CONFIG spellings stay byte-identical (pure-21 gate).
+    if (spec.has("comb_sync_chunk") and not use_hbm_dedup and spec.resolved_comb_warps() > 0)
+        defs += std::format("#define WEAVE_SMEM_COMB_CHUNK {}u\n", comb_sync_chunk);
     const int dispatch_sms = spec.get_int("dispatch_sms", 0);
     DG_HOST_ASSERT(dispatch_sms >= 0);
     if (dispatch_sms > 0)
@@ -583,7 +1004,7 @@ static std::string get_agy_sm90_jit_defines(const AgySm90KnobSpec& spec) {
         defs += std::format("#define WEAVE_EPI_REG_STAGES {}\n", epi_reg_stages);
     if (spec.has("inline_roles"))
         defs += std::format("#define WEAVE_INLINE_ROLES {}\n", spec.get_int("inline_roles", 1));
-    if (spec.get_int("adapt_bm", 0) > 0) {
+    if (spec.get_int("adapt_bm_dev", 0) > 0) {
         defs += "#define WEAVE_ADAPT_BM 1\n";
         if (spec.get_int("full_nswap", 0) == 0)
             defs += "#define AGY_FULL_NSWAP 1\n";
@@ -594,14 +1015,36 @@ static std::string get_agy_sm90_jit_defines(const AgySm90KnobSpec& spec) {
         defs += "#define AGY_COMPACT_NOTIFY 1\n";
     const bool force_formula = spec.get_int("ready_queue_formula", 0) > 0;
     if ((not force_formula) and
-        (spec.get_int("dyn", 0) > 0 or spec.get_int("ready_queue", 0) > 0 or spec.get_int("adapt_bm", 0) > 0))
+        (spec.get_int("dyn", 0) > 0 or spec.get_int("ready_queue", 0) > 0 or spec.get_int("adapt_bm_dev", 0) > 0))
         defs += "#define WEAVE_DYN_SCHED 1\n";
     if (spec.get_int("pipe_wgmma", 0) > 0)
         defs += "#define WEAVE_PIPE_WGMMA 1\n";
     if (spec.get_int("swap_pipe", 0) > 0)
         defs += "#define WEAVE_SWAP_PIPE 1\n";
-    if (spec.get_int("fast_pull", 0) > 0)
+    const int reg_pull_bytes = spec.get_int("reg_pull_bytes", 0);
+    DG_HOST_ASSERT(reg_pull_bytes == 0 or reg_pull_bytes == 1024 or reg_pull_bytes == 2048 or
+                   reg_pull_bytes == 4096);
+    const bool reg_pull_off = spec.get_int("reg_pull_off", 0) > 0;
+    if ((spec.get_int("fast_pull", 0) > 0 and not reg_pull_off) or reg_pull_bytes > 0)
         defs += "#define WEAVE_FAST_PULL 1\n";
+    if (reg_pull_bytes > 0)
+        defs += std::format("#define WEAVE_REG_PULL_BYTES {}u\n", reg_pull_bytes);
+    const int scatter_warps = spec.get_int("scatter_warps", 0);
+    DG_HOST_ASSERT(scatter_warps >= 0 and scatter_warps <= 8);
+    if (scatter_warps > 0)
+        defs += std::format("#define WEAVE_SCATTER_WARPS {}u\n", scatter_warps);
+    {
+        const int l1_bm = spec.get_int("l1_bm", 0), l2_bm = spec.get_int("l2_bm", 0);
+        if (l1_bm > 0 and l2_bm > 0 and l1_bm != l2_bm) {
+            DG_HOST_ASSERT(spec.get_int("adapt_bm_dev", 0) == 0 and
+                           "device per-expert BLOCK_M sub-tiling (adapt_bm_dev=1) cannot be combined with decoupled WEAVE_BLOCK_M_L1 != WEAVE_BLOCK_M_L2");
+            DG_HOST_ASSERT(std::max(l1_bm, l2_bm) % std::min(l1_bm, l2_bm) == 0 and
+                           "Decoupled WEAVE_BLOCK_M_L1/L2 must divide each other");
+            defs += std::format("#define WEAVE_BLOCK_M_L1 {}\n", l1_bm);
+            defs += std::format("#define WEAVE_BLOCK_M_L2 {}\n", l2_bm);
+            defs += std::format("#define WEAVE_POOL_BLOCK_M {}u\n", std::max(l1_bm, l2_bm));
+        }
+    }
     if (spec.get_int("dedup_disp", 0) > 0)
         defs += "#define WEAVE_DEDUP_DISPATCH 1\n";
     if (spec.get_int("dedup_scat", 0) > 0 or use_hbm_dedup or scatter_sms > 0)
@@ -635,7 +1078,7 @@ static std::string get_agy_sm90_jit_defines(const AgySm90KnobSpec& spec) {
     const int mcast_val = spec.get_int("mcast", 1);
     if (mcast_val == 2 and is_fused) {
         defs += "#define WEAVE_MCAST 2\n";
-        if (spec.get_int("dyn", 0) == 0 and spec.get_int("adapt_bm", 0) == 0)
+        if (spec.get_int("dyn", 0) == 0 and spec.get_int("adapt_bm_dev", 0) == 0)
             defs += "#define WEAVE_DYN_SCHED 1\n";
     }
 
@@ -696,7 +1139,7 @@ static std::string get_agy_sm90_jit_defines(const AgySm90KnobSpec& spec) {
     if (fine_comb_g == 0 and comb_sync_chunk > 0 and not use_hbm_dedup)
         fine_comb_g = comb_sync_chunk / 16;
     const int early_comb = spec.get_int("early_comb", spec.get_int("early_stream", 0));
-    const int comb_warps = spec.get_int("comb_warps", 0);
+    const int comb_warps = spec.resolved_comb_warps();
     const int all_idle_comb = spec.get_int("all_idle_comb", 0);
     if (early_comb > 0 and fine_comb_g == 0)
         fine_comb_g = 2;
@@ -707,19 +1150,24 @@ static std::string get_agy_sm90_jit_defines(const AgySm90KnobSpec& spec) {
     }
     if (early_comb > 0)
         defs += "#define AGY_EARLY_COMB 1\n";
-    if (comb_warps > 0)
+    DG_HOST_ASSERT(comb_warps >= 0 and comb_warps <= 8);
+    if (comb_warps > 0) {
         defs += std::format("#define AGY_COMB_WARPS {}\n", comb_warps);
+        defs += std::format("#define WEAVE_REDUCE_WARPS {}u\n", comb_warps);
+    }
     if (all_idle_comb > 0)
         defs += "#define WEAVE_ALL_IDLE_COMBINE 1\n";
 
     // Expert-Granularity / Expert-Per-Wave / B300 L2KBlockDependency Interleaved L1+L2 atomicAdd (1..6)
-    int interleave_mode = spec.get_int("interleave", spec.get_int("interleave_l1_l2", 0));
-    if (interleave_mode == 0 and spec.get_int("l2_kblock_dep", 0) > 0)
-        interleave_mode = 5;
+    const int interleave_mode = resolve_sm90_fused_interleave_mode(spec);
     if (interleave_mode > 0 and is_fused) {
-        DG_HOST_ASSERT(interleave_mode >= 1 and interleave_mode <= 6);
         defs += std::format("#define WEAVE_INTERLEAVE_L1_L2 {}\n", interleave_mode);
-        if (spec.get_int("dyn", 0) == 0 and spec.get_int("adapt_bm", 0) == 0)
+        if (interleave_mode == 7) {
+            const int lag = spec.get_int("taskq_lag", 4);
+            DG_HOST_ASSERT(lag >= 1 and lag <= 1024);
+            defs += std::format("#define WEAVE_TASKQ_LAG {}u\n", lag);
+        }
+        if (spec.get_int("dyn", 0) == 0 and spec.get_int("adapt_bm_dev", 0) == 0)
             defs += "#define WEAVE_DYN_SCHED 1\n";
     }
 
@@ -728,6 +1176,21 @@ static std::string get_agy_sm90_jit_defines(const AgySm90KnobSpec& spec) {
         defs += "#define WEAVE_SCATTER_ROLE_DISP 1\n";
 
     // Unified single-header kernel: NO AGY_ISO_Px multi-header split!
+    // v10 internal bisection hook (never set by any public arm): WEAVE_DBG_DEFINES=
+    // "A=1;B=0" appends #undef/#define overrides of kernel feature macros, so an A/B
+    // arm is the public configuration plus exactly the listed macro changes.
+    if (const char* dbg = std::getenv("WEAVE_DBG_DEFINES"); dbg != nullptr and dbg[0] != 0) {
+        std::string rest(dbg);
+        while (not rest.empty()) {
+            const auto semi = rest.find(';');
+            const std::string item = rest.substr(0, semi);
+            rest = semi == std::string::npos ? std::string() : rest.substr(semi + 1);
+            const auto eq = item.find('=');
+            if (item.empty() or eq == std::string::npos) continue;
+            const std::string name = item.substr(0, eq), val = item.substr(eq + 1);
+            defs += std::format("#undef {}\n#define {} {}\n", name, name, val);
+        }
+    }
     return defs;
 }
 
@@ -816,7 +1279,10 @@ static bool get_sm90_moe_swapab_pad_ok(const Sm90MoeLoad& load, const int block_
 // still has to pass the pad criterion; otherwise it falls back to 2 WGs (the
 // official BN=128 shape), so n<8 or low pad_frac remains bit-identical.
 static int get_sm90_moe_effective_swapab_epi_wg(const Sm90MoeLoad& load, const int block_m) {
-    const int req = get_sm90_moe_weave_int_env("WEAVE_SWAPAB_EPI_WG", "DG_MOE_SWAPAB_EPI_WG", 2);
+    // H20 Swap-AB default: the wide BN=256 tile with four epilogue warpgroups is
+    // the measured winner (S=1024 1.489x, S=4096 1.183x).  WEAVE_SWAPAB_AUTO=1
+    // still downgrades it to two warpgroups when the padding-waste gate fails.
+    const int req = get_sm90_moe_weave_int_env("WEAVE_SWAPAB_EPI_WG", "DG_MOE_SWAPAB_EPI_WG", 4);
     DG_HOST_ASSERT(req == 2 or req == 4);
     if (req != 4)
         return req;
@@ -971,7 +1437,7 @@ static std::pair<int, int> get_pipeline_config_for_mega_moe_sm90(
     const int wg_block_m = static_cast<int>(wg_layout.block_m);
     const int wg_block_n = static_cast<int>(wg_layout.block_n);
     const int smem_cd_l1 = num_epilogue_warpgroups * wg_block_m * (wg_block_n / 2);  // 1 byte/elem (FP8)
-    const int interleave_pipe = (agy.enabled and is_fused) ? agy.get_int("interleave", agy.get_int("interleave_l1_l2", 0)) : 0;
+    const int interleave_pipe = resolve_sm90_fused_interleave_mode(agy);
     const int hc_pipe = agy.enabled ? agy.get_int("l1_hot_cold", agy.get_int("hot_cold", 0)) : 0;
     const bool use_scat_disp = agy.enabled and agy.is_scatter_role_disp();
     const bool use_hbm_scat = agy.enabled and agy.resolved_scatter_staging() == 2;
@@ -983,6 +1449,15 @@ static std::pair<int, int> get_pipeline_config_for_mega_moe_sm90(
     const int raw_cd_l2 = direct_l2_scatter ? 0 :
         num_epilogue_warpgroups * wg_block_m * l2_smem_stride_n *
             static_cast<int>(sizeof(nv_bfloat16));
+    // Mirror of the device kScatStagingInDispatch: on the fused comm-owned SMEM
+    // handoff the L2 scatter staging tile lives entirely in the dispatch scratch
+    // region (padded to the tile), disjoint from the CD region.
+    const bool scat_staging_in_dispatch = is_fused and use_scat_disp and not use_hbm_scat;
+    if (scat_staging_in_dispatch) {
+        const int raw_scat_l2 = num_epilogue_warpgroups * wg_block_m * wg_block_n *
+            static_cast<int>(sizeof(nv_bfloat16));
+        smem_dispatch_size = std::max(smem_dispatch_size, align(raw_scat_l2, kSmemAlignment));
+    }
     const bool full_l2_smem_staging = (not use_scat_disp) or (use_hbm_scat and is_fused);
     const int smem_cd_l2 = full_l2_smem_staging
         ? raw_cd_l2
@@ -1013,7 +1488,7 @@ static std::pair<int, int> get_pipeline_config_for_mega_moe_sm90(
     //   * dispatch: num_dispatch_warps
     //   * GEMM full + empty: 2 * num_stages
     //   * combine: 2 * num_epilogue_warps
-    const bool use_dyn_sched = agy.enabled and (agy.get_int("dyn", 0) > 0 or agy.get_int("adapt_bm", 0) > 0 or agy.get_int("mcast", 1) == 2 or agy.get_int("static_stride", 0) > 0 or interleave_pipe > 0 or hc_pipe > 0);
+    const bool use_dyn_sched = agy.enabled and (agy.get_int("dyn", 0) > 0 or agy.get_int("adapt_bm_dev", 0) > 0 or agy.get_int("mcast", 1) == 2 or agy.get_int("static_stride", 0) > 0 or interleave_pipe > 0 or hc_pipe > 0);
     const bool use_rank_cache = agy.enabled and
         (agy.get_int("rank_cache", 0) > 0 or agy.get_int("cache_rank_counts", 0) > 0) and
         (not is_linear2_phase or is_fused);
@@ -1103,6 +1578,13 @@ static uint32_t get_sm90_moe_pre_barrier_smem_size_for_combine(
     const int raw_cd_l2 = (config.direct_l2_scatter and not use_scat_disp) ? 0 :
         num_epilogue_warpgroups * wg_bm_c *
         l2_smem_stride_n * static_cast<int>(sizeof(nv_bfloat16));
+    // Second mirror of the device kScatStagingInDispatch (combine-alias budget).
+    const bool scat_staging_in_dispatch = is_fused and use_scat_disp and not use_hbm_scat;
+    if (scat_staging_in_dispatch) {
+        const int raw_scat_l2 = num_epilogue_warpgroups * wg_bm_c * wg_bn_c *
+            static_cast<int>(sizeof(nv_bfloat16));
+        smem_disp = std::max(smem_disp, align(raw_scat_l2, kSmemAlignment));
+    }
     const bool full_l2_smem_staging = (not use_scat_disp) or (use_hbm_scat and is_fused);
     const int smem_cd_l2 = full_l2_smem_staging ? raw_cd_l2 : std::max(0, raw_cd_l2 - smem_disp);
     const int smem_cd_swap_l1 = config.swap_ab ?
@@ -1200,7 +1682,7 @@ static bool is_sm90_moe_phase_config_legal(
     // WG_BLOCK_N=64 is supported only by the swap-AB path.
     if (wg_block_n == 64 and not config.swap_ab)
         return false;
-    const int epi_wg_knob = get_sm90_moe_weave_int_env("WEAVE_SWAPAB_EPI_WG", "DG_MOE_SWAPAB_EPI_WG", 2);
+    const int epi_wg_knob = get_sm90_moe_weave_int_env("WEAVE_SWAPAB_EPI_WG", "DG_MOE_SWAPAB_EPI_WG", 4);
     const bool swap_ab_wide = config.swap_ab and (agy_enabled or epi_wg_knob == 4) and
                               config.block_n == 256 and
                               num_epilogue_warpgroups == 4;
@@ -1255,8 +1737,17 @@ static bool is_sm90_moe_launch_config_legal(
     if (config.l1.num_sms != input.launch_num_sms or
         config.l2.num_sms != input.launch_num_sms)
         return false;
-    if (config.l1.block_m != config.l2.block_m)
-        return false;
+    if (config.l1.block_m != config.l2.block_m) {
+        // Decoupled BLOCK_M_L1 != BLOCK_M_L2 is a split L1/L2 launch whose kernels
+        // share a max(BM) pool granularity and one SF pool stride.
+        if (config.fused_single_kernel)
+            return false;
+        const int bm_lo = std::min(config.l1.block_m, config.l2.block_m);
+        const int bm_hi = std::max(config.l1.block_m, config.l2.block_m);
+        if (bm_lo <= 0 or bm_hi % bm_lo != 0 or
+            config.l1.sf_pool_stride_tokens != config.l2.sf_pool_stride_tokens)
+            return false;
+    }
     if (config.fused_single_kernel) {
         if (config.l1.block_n != config.l2.block_n or
             config.l1.block_k != config.l2.block_k or
@@ -1324,12 +1815,12 @@ static MegaMoESM90Config make_generic_mega_moe_config_sm90(
     DG_HOST_ASSERT(block_m != 64 or block_n != 256 or
                    num_epilogue_warpgroups == 2 or
                    (num_epilogue_warpgroups == 4 and
-                    get_sm90_moe_weave_int_env("WEAVE_SWAPAB_EPI_WG", "DG_MOE_SWAPAB_EPI_WG", 2) == 4));
+                    get_sm90_moe_weave_int_env("WEAVE_SWAPAB_EPI_WG", "DG_MOE_SWAPAB_EPI_WG", 4) == 4));
     const int num_epilogue_threads = num_epilogue_warpgroups * 128;
     const bool swap_ab =
         not conservative and
         (block_n == 128 or
-         get_sm90_moe_weave_int_env("WEAVE_SWAPAB_EPI_WG", "DG_MOE_SWAPAB_EPI_WG", 2) == 4) and
+         get_sm90_moe_weave_int_env("WEAVE_SWAPAB_EPI_WG", "DG_MOE_SWAPAB_EPI_WG", 4) == 4) and
         should_use_swap_ab_for_mega_moe_sm90(
             load, shape_family, block_m, num_epilogue_threads);
 
@@ -1761,11 +2252,22 @@ static Sm90MoeLaunchConfig select_mega_moe_sm90(
         const bool is_fused = (agy.get_int("fused", 0) > 0) and not decoupled_bm;
         result.fused_single_kernel = is_fused;
         auto apply_phase = [&](MegaMoESM90Config& cfg, bool is_l2) {
-            if (agy.get_int("adapt_bm", 0) > 0) {
+            if (agy.get_int("adapt_bm_dev", 0) > 0) {
                 if (not agy.has("bm")) cfg.block_m = 64;
                 if (not agy.has("swap")) cfg.swap_ab = true;
             }
             const char* pfx_bm = is_l2 ? "l2_bm" : "l1_bm";
+            // A fused single-kernel launch shares one BLOCK_M between GEMM1 and GEMM2:
+            // a lone WEAVE_BLOCK_M_L1 or a lone WEAVE_BLOCK_M_L2 selects it for both
+            // phases (setting both L1 and L2 to different values decouples them into
+            // the split L1/L2 launch).  Both phases must resolve the same profile here,
+            // because the fused pipeline depth below is min(L1 stages, L2 stages): an
+            // L2 depth sized for the default BLOCK_M would starve the pre-barrier SMEM
+            // that the Combine alias reuses.
+            if (not is_l2 and is_fused and not agy.has("l1_bm") and agy.has("l2_bm"))
+                pfx_bm = "l2_bm";
+            if (is_l2 and is_fused and agy.has("l1_bm") and not agy.has("l2_bm"))
+                pfx_bm = "l1_bm";
             const char* pfx_bn = is_l2 ? "l2_bn" : "l1_bn";
             const char* pfx_bk = is_l2 ? "l2_bk" : "l1_bk";
             const char* pfx_wgs = is_l2 ? "l2_wgs" : "l1_wgs";
@@ -1774,29 +2276,49 @@ static Sm90MoeLaunchConfig select_mega_moe_sm90(
             const char* pfx_swap = is_l2 ? "l2_swap" : "l1_swap";
 
             if (agy.has("bm")) cfg.block_m = agy.get_int("bm", cfg.block_m);
+            // Pure 21-knob relock: the unified skeleton's global tile keys
+            // (bn / bk / swap / wgs) are the golden BLOCK_M=64 profile, not an
+            // explicit user override.  When a public WEAVE_BLOCK_M_L1 / _L2 asks
+            // this phase for a different BLOCK_M, those skeleton keys must yield
+            // to the synchronous M -> blockN/K/swap/wgs lock below; otherwise a
+            // BLOCK_M=128 phase keeps the BM=64 Swap-AB BN=256 4-WG tile and the
+            // launch is illegal.  An explicit WEAVE_H20_CONFIG never sets
+            // unified_skeleton, so its keys stay authoritative.
+            const bool p21_relock = agy.unified_skeleton and agy.has(pfx_bm) and
+                                    agy.get_int(pfx_bm, 0) != agy.get_int("bm", 64);
+            const auto has_tile = [&](const char* key) {
+                return agy.has(key) and not p21_relock;
+            };
             if (agy.has(pfx_bm)) {
                 cfg.block_m = agy.get_int(pfx_bm, cfg.block_m);
-                // Synchronous M -> blockM profile lock when bn/swap/wgs are not overridden:
-                const bool can_bn256 = ((2 * input.intermediate_hidden) % 256 == 0) and (input.hidden % 256 == 0);
-                if (not agy.has("swap") and not agy.has(pfx_swap))
+                // Synchronous M -> blockM profile lock when bn/swap/wgs are not
+                // overridden.  BN is decided per phase from that phase's own (N, K)
+                // (merged from 7e33e16): GEMM1 (N = 2I, K = H) and GEMM2 (N = H,
+                // K = I) no longer share one BN decision -- each phase keeps the
+                // widest BN its own N divides (the H20 golden shape keeps BN=256 on
+                // both; shapes where only one phase divides 256 now differentiate).
+                // BK stays at the machine-verified 128 unless pinned via l1_bk/l2_bk.
+                const int phase_n = is_l2 ? input.hidden : 2 * input.intermediate_hidden;
+                const bool can_phase_bn256 = (phase_n % 256 == 0);
+                if (not has_tile("swap") and not agy.has(pfx_swap))
                     cfg.swap_ab = (cfg.block_m <= 32);
-                if (not agy.has("bn") and not agy.has(pfx_bn))
-                    cfg.block_n = (cfg.block_m >= 128 or not can_bn256) ? 128 : 256;
-                if (not agy.has("bk") and not agy.has(pfx_bk))
+                if (not has_tile("bn") and not agy.has(pfx_bn))
+                    cfg.block_n = (cfg.block_m >= 128 or not can_phase_bn256) ? 128 : 256;
+                if (not has_tile("bk") and not agy.has(pfx_bk))
                     cfg.block_k = 128;
             }
-            if (agy.has("bn")) cfg.block_n = agy.get_int("bn", cfg.block_n);
+            if (has_tile("bn")) cfg.block_n = agy.get_int("bn", cfg.block_n);
             if (agy.has(pfx_bn)) cfg.block_n = agy.get_int(pfx_bn, cfg.block_n);
-            if (agy.has("bk")) cfg.block_k = agy.get_int("bk", cfg.block_k);
+            if (has_tile("bk")) cfg.block_k = agy.get_int("bk", cfg.block_k);
             if (agy.has(pfx_bk)) cfg.block_k = agy.get_int(pfx_bk, cfg.block_k);
 
-            if (agy.has("swap")) cfg.swap_ab = agy.get_int("swap", cfg.swap_ab ? 1 : 0) > 0;
+            if (has_tile("swap")) cfg.swap_ab = agy.get_int("swap", cfg.swap_ab ? 1 : 0) > 0;
             if (agy.has(pfx_swap)) cfg.swap_ab = agy.get_int(pfx_swap, cfg.swap_ab ? 1 : 0) > 0;
 
             int wgs = cfg.num_epilogue_threads / 128;
-            if (agy.has("wgs")) wgs = agy.get_int("wgs", wgs);
+            if (has_tile("wgs")) wgs = agy.get_int("wgs", wgs);
             if (agy.has(pfx_wgs)) wgs = agy.get_int(pfx_wgs, wgs);
-            else if (not agy.has("wgs")) {
+            else if (not has_tile("wgs")) {
                 if (cfg.swap_ab and (cfg.block_n / 64 == 2 or cfg.block_n / 64 == 4))
                     wgs = cfg.block_n / 64;
                 else if (not cfg.swap_ab and cfg.block_m == 64 and cfg.block_n >= 256)
@@ -1822,22 +2344,107 @@ static Sm90MoeLaunchConfig select_mega_moe_sm90(
                 not agy.has("disp_warps") and not agy.has(pfx_disp)) {
                 disp_warps = 6;
             }
-            if (agy.has("dispatch_warps"))
+            if (agy.has("dispatch_warps")) {
                 disp_warps = agy.get_int("dispatch_warps", disp_warps);
-            if (agy.has("scatter_warps") and is_l2)
-                disp_warps = agy.get_int("scatter_warps", disp_warps);
+            } else {
+                // WEAVE_SCATTER_WARPS / WEAVE_REDUCE_WARPS size the CTA communication
+                // warp group when WEAVE_DISPATCH_WARPS is unset: the scatter warps and
+                // the (last) reduce warps must both fit into it.
+                const int req_scat = (is_l2 or is_fused) ? agy.get_int("scatter_warps", 0) : 0;
+                const int req_red = is_fused ? agy.resolved_comb_warps() : 0;
+                int need = std::max(disp_warps, req_scat);
+                if (req_red > 0) {
+                    // The comm_owned SMEM engine only needs one scatter warp beside
+                    // the Reduce warps, so R=1 keeps the V8 2-warp dispatch group --
+                    // and with it the deeper TMA pipeline, because the dispatch
+                    // send-buffer scratch grows with the dispatch warp count.  The
+                    // HBM queue path keeps its wider floor: its Reduce warps also
+                    // drain the queue.
+                    const bool smem_stream = is_fused and agy.resolved_scatter_owner() == 1 and
+                        agy.resolved_scatter_staging() == 1;
+                    // v11: with WEAVE_SCATTER_WARPS unset every comm warp scatters and
+                    // the Reduce warps are a subset of them (device kStreamGapReduce:
+                    // they reduce in the scatter gaps), so R = 1 or 2 reuses W0/W1 of
+                    // the V8 2-warp group instead of widening it to 4 warps (which cost
+                    // registers and a TMA stage: R=2 measured +12.3% / +7.6% in v10).
+                    const int floor = smem_stream
+                        ? (req_scat == 0 ? std::max(2, req_red) : req_red + std::max(1, req_scat))
+                        : (req_red <= 2 ? 4 : 8);
+                    need = std::max(need, std::min(8, std::max(floor, req_scat + req_red)));
+                }
+                if (need > disp_warps)
+                    disp_warps = need <= 4 ? 4 : 8;
+            }
             if (agy.has("disp_warps"))
                 disp_warps = agy.get_int("disp_warps", disp_warps);
             if (agy.has(pfx_disp))
                 disp_warps = agy.get_int(pfx_disp, disp_warps);
             if (wgs == 4 and disp_warps > 2) {
-                if (agy.has("dispatch_warps") or agy.has("scatter_warps") or agy.has("disp_warps")) {
+                // Keep ALL four compute warpgroups whenever Hopper's quantized CTA
+                // register grant can host them next to the requested comm warp group.
+                // Mirrors the device budget in sm90_fp8_mega_moe.cuh (kNumDispatchRegisters
+                // / kNumNonEpilogueRegisters / kNumEpilogueRegisters vs
+                // kLaunchRegisterGrantUpperBound); dropping to 2 WGs also halves BN under
+                // swap-AB, so it is the last resort, not the default.
+                const int reg_bal = agy.get_int("reg_balance", 0);
+                const int front_regs = agy.get_int("front_regs", reg_bal > 0 ? 40 : 0);
+                const int non_epi_regs_ovr = agy.get_int("non_epi_regs", reg_bal > 0 ? 40 : 0);
+                const int math_regs = agy.get_int("math_regs", 0);
+                auto four_wg_regs_fit = [&](const int disp_try) {
+                    const int disp_threads = disp_try * 32;
+                    const int non_epi_warps_try = ((disp_try % 4) == 2) ? 2 : 4;
+                    const int non_epi_threads = non_epi_warps_try * 32;
+                    const int epi_threads = 512;
+                    const int cta_threads = disp_threads + non_epi_threads + epi_threads;
+                    const int grant = (65536 / cta_threads / 8) * 8 * cta_threads;
+                    // Device expression is an if-else chain: with 512 epilogue threads the
+                    // 192-thread / >=8-warp / boost-front branches are never reached.
+                    const int d_regs = front_regs > 0 ? front_regs : (cta_threads > 640 ? 24 : 32);
+                    const int ne_regs = (non_epi_warps_try == 2) ? d_regs
+                        : (non_epi_regs_ovr > 0 ? non_epi_regs_ovr : 24);
+                    const int e_regs = math_regs > 0 ? math_regs : (cta_threads > 640 ? 104 : 112);
+                    return d_regs * disp_threads + ne_regs * non_epi_threads + e_regs * epi_threads <= grant;
+                };
+                // Ladder floor (merged from 7e33e16, adapted to the V9 stream
+                // engine): never drop below the dispatch warp count published by
+                // WEAVE_DISPATCH_WARPS, nor below the group the resolved Reduce
+                // warps need (same sizing rule as above), so the emitted
+                // WEAVE_REDUCE_WARPS / WEAVE_DISPATCH_WARPS defines always agree
+                // with the launched thread layout.  Without it, R=4 could fall to
+                // a 4-warp group with zero scatter warps left.
+                int floor_w = 2;
+                if (agy.has("dispatch_warps"))
+                    floor_w = std::max(floor_w, agy.get_int("dispatch_warps", floor_w));
+                if (is_fused and agy.resolved_comb_warps() > 0) {
+                    const int req_red_f = agy.resolved_comb_warps();
+                    const int req_scat_f = agy.get_int("scatter_warps", 0);
+                    const bool smem_stream_f = agy.resolved_scatter_owner() == 1 and
+                        agy.resolved_scatter_staging() == 1;
+                    const int need_f = smem_stream_f
+                        ? (req_scat_f == 0 ? std::max(2, req_red_f) : req_red_f + std::max(1, req_scat_f))
+                        : (req_red_f <= 2 ? 4 : 8);
+                    floor_w = std::max(floor_w, std::min(8, need_f));
+                }
+                int keep_disp = 0;
+                for (int cand : {disp_warps, 4, 2}) {
+                    if (cand >= floor_w and cand <= disp_warps and four_wg_regs_fit(cand)) { keep_disp = cand; break; }
+                }
+                if (keep_disp > 0) {
+                    disp_warps = keep_disp;
+                } else if (agy.has("dispatch_warps") or agy.has("scatter_warps") or agy.has("disp_warps") or
+                           agy.has("comb_warps")) {
                     wgs = 2;
                     cfg.num_epilogue_threads = wgs * 128;
                 } else {
                     disp_warps = 2;
                 }
             }
+            // Swap-AB puts the token dimension on WGMMA N with WG_BLOCK_N == 64:
+            // keep BLOCK_N == 64 * wgs unless BLOCK_N was given explicitly
+            // (e.g. ADAPT_BM's BN256 profile once wgs is forced to 2 -> BN128).
+            if (cfg.swap_ab and cfg.block_n != 64 * wgs and
+                not has_tile("bn") and not agy.has(pfx_bn) and (wgs == 2 or wgs == 4))
+                cfg.block_n = 64 * wgs;
 
             int non_epi_warps = ((disp_warps % 4) == 2) ? 2 : 4;
             if (agy.has("non_epi_warps"))
@@ -1848,7 +2455,7 @@ static Sm90MoeLaunchConfig select_mega_moe_sm90(
 
             if (agy.has("direct_l2"))
                 cfg.direct_l2_scatter = agy.get_int("direct_l2", 0) > 0;
-            const int ilv_req = is_fused ? agy.get_int("interleave", agy.get_int("interleave_l1_l2", 0)) : 0;
+            const int ilv_req = resolve_sm90_fused_interleave_mode(agy);
             if ((agy.get_int("dedup_scat", 0) > 0 and ilv_req == 0) or agy.is_scatter_role_disp())
                 cfg.direct_l2_scatter = false;
             if (cfg.swap_ab or (cfg.block_n / wgs) != 128)
@@ -1919,6 +2526,12 @@ static Sm90MoeLaunchConfig select_mega_moe_sm90(
         };
         apply_phase(result.l1, false);
         apply_phase(result.l2, true);
+        if (decoupled_bm) {
+            // L1 writes the post-SwiGLU SF that L2 reads: both phases must agree on
+            // the SF pool stride (the larger of the two BLOCK_M-derived strides).
+            const int sf_stride = std::max(result.l1.sf_pool_stride_tokens, result.l2.sf_pool_stride_tokens);
+            result.l1.sf_pool_stride_tokens = result.l2.sf_pool_stride_tokens = sf_stride;
+        }
         if (is_fused) {
             // Ensure identical CTA pipeline geometry between L1 and L2 in Fused mode
             result.l1.direct_l2_scatter = result.l2.direct_l2_scatter;
@@ -1947,7 +2560,7 @@ static Sm90MoeLaunchConfig select_mega_moe_sm90(
             result.l1.num_stages = result.l2.num_stages = f_st;
             result.l1.smem_size = result.l2.smem_size = f_smem;
         }
-        if (agy.get_int("adapt_bm", 0) > 0 and not agy.has("bf16_acc"))
+        if (agy.get_int("adapt_bm_dev", 0) > 0 and not agy.has("bf16_acc"))
             result.numerical.bf16_scaled_accum = true;
         if (agy.has("bf16_acc"))
             result.numerical.bf16_scaled_accum = agy.get_int("bf16_acc", 0) > 0;

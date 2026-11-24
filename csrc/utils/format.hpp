@@ -5,7 +5,7 @@
 // Root cause: the trimmed weave_unified_cpp csrc references utils/format.hpp,
 // which upstream DeepGEMM (commit 559d79fb) implements as a wrapper over the
 // third-party {fmt} library (<fmt/base.h>, <fmt/format.h>).  {fmt} is NOT
-// present in any build include path on mail-12-wpfast (deep_jit / cutlass /
+// present in any build include path on the reference build host (deep_jit / cutlass /
 // CUDA / cccl all lack it).  Every fmt::format call site in this repository
 // (heuristics/mega_moe.hpp:343, impls/sm100_fp8_fp4_mega_moe.hpp:177, and the
 // restored jit/* headers) uses a literal format string with std-formattable

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <algorithm>
 #include <cmath>
 #include <functional>
 #include <limits>
@@ -11,6 +12,7 @@
 #include "../runtime/runtime.hpp"
 #include "../utils/layout.hpp"
 #include "../jit_kernels/impls/sm100_fp4_fp4_mega_moe.hpp"
+#include "../jit_kernels/heuristics/weave_knob_config.hpp"
 
 namespace deep_gemm::nvfp4 {
 
@@ -28,7 +30,9 @@ static int get_block_m_for_mega_moe(
     DG_HOST_ASSERT(num_topk > 0 and num_topk <= 32);
     const auto [cluster_size, block_m, store_block_m, block_k, num_epilogue_threads] =
         get_block_config_for_mega_moe(num_ranks, num_experts, num_max_tokens_per_rank, num_topk, num_tokens);
-    return block_m;
+    const auto knobs = weave_knobs::from_env(
+        weave::HardwareArch::B300_SM100, weave::PrecisionMode::NVFP4);
+    return resolve_block_m_envelope(knobs, block_m);
 }
 
 static std::tuple<int64_t, std::function<std::tuple<torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor,
@@ -54,11 +58,19 @@ get_symm_buffer_size_for_mega_moe(
     const auto num_max_routed_tokens = num_max_tokens_per_rank * num_ranks * num_active_topk;
     const int shared_intermediate_hidden = intermediate_hidden * num_shared_experts;
 
+    // Verified ring-reuse knob: 0 keeps the auto live-pool derivation, N caps
+    // the live pool of every heuristic block-M candidate at N blocks so the
+    // actual selected BLOCK_M is always covered (mirrors apis/mega_moe.hpp).
+    const auto knobs = weave_knobs::from_env(
+        weave::HardwareArch::B300_SM100, weave::PrecisionMode::NVFP4);
     int num_ring_tokens = 0;
     for (const auto& block_m: layout::nvfp4::kCandidateBlockM) {
         const auto num_pool_blocks = ceil_div(num_max_routed_tokens, block_m) + num_experts_per_rank;
-        const auto num_live_pool_blocks = sched::nvfp4::get_num_max_live_pool_blocks(
+        auto num_live_pool_blocks = sched::nvfp4::get_num_max_live_pool_blocks(
             num_pool_blocks, num_sms, hidden, intermediate_hidden);
+        if (knobs.ring_blocks != 0u)
+            num_live_pool_blocks = std::min(num_live_pool_blocks,
+                                            static_cast<int>(knobs.ring_blocks));
         num_ring_tokens = std::max(num_ring_tokens, num_live_pool_blocks * block_m);
     }
     num_ring_tokens = math::align(num_ring_tokens, layout::nvfp4::kLCMCandidateBlockM);

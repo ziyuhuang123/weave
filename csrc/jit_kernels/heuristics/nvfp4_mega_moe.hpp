@@ -16,6 +16,7 @@
 #include "../../utils/exception.hpp"
 #include "../../utils/math.hpp"
 #include "sm100.hpp"
+#include "weave_knob_config.hpp"
 
 namespace deep_gemm::nvfp4 {
 
@@ -44,6 +45,9 @@ struct MegaMoEConfig {
     // Dispatch pull config
     int num_bytes_per_pull;
 
+    // Unified Weave knob request resolved for this launch.
+    weave::WeaveKnobs knobs;
+
     friend std::ostream& operator << (std::ostream& os, const MegaMoEConfig& config) {
         os << "MegaMoEConfig("
            << "block_m=" << config.block_m << ", block_n=" << config.block_n << ", block_k=" << config.block_k
@@ -57,7 +61,9 @@ struct MegaMoEConfig {
            << ", num_dispatch_threads=" << config.num_dispatch_threads
            << ", num_non_epilogue_threads=" << config.num_non_epilogue_threads
            << ", num_epilogue_threads=" << config.num_epilogue_threads
-           << ", num_bytes_per_pull=" << config.num_bytes_per_pull << ")";
+           << ", num_bytes_per_pull=" << config.num_bytes_per_pull
+           << ", dispatch_warps=" << config.knobs.dispatch_warps
+           << ", ring_blocks=" << config.knobs.ring_blocks << ")";
         return os;
     }
 };
@@ -143,15 +149,56 @@ static std::pair<int, int> get_pipeline_config_for_mega_moe(
     return {num_stages, smem_fixed + num_stages * smem_size_per_stage};
 }
 
+// The NVFP4 kernel compiles one BLOCK_M envelope for both GEMM phases, so
+// distinct L1/L2 requests compile at max(L1, L2); the per-phase requests stay
+// visible to the CTA-0 cost model through the JIT defines.
+static int resolve_block_m_envelope(const weave::WeaveKnobs& knobs, const int block_m_auto) {
+    const int req_bm_l1 = knobs.block_m_l1 != 0u ? static_cast<int>(knobs.block_m_l1) : 0;
+    const int req_bm_l2 = knobs.block_m_l2 != 0u ? static_cast<int>(knobs.block_m_l2) : 0;
+    const int block_m = (req_bm_l1 > 0 and req_bm_l2 > 0)
+        ? std::max(req_bm_l1, req_bm_l2)
+        : static_cast<int>(weave::resolve_block_m(
+              knobs, knobs.block_m_l1, knobs.block_m_l2, static_cast<uint32_t>(block_m_auto)));
+    DG_HOST_ASSERT(std::any_of(
+        layout::nvfp4::kCandidateBlockM, layout::nvfp4::kCandidateBlockM + layout::nvfp4::kNumCandidateBlockMs,
+        [=](const auto& candidate) { return candidate == block_m; })
+    );
+    return block_m;
+}
+
 static MegaMoEConfig get_mega_moe_config(
     const int& num_ranks, const int& num_experts, const int& num_experts_per_rank,
     const int& num_max_tokens_per_rank, const int& num_tokens, const int& num_topk,
     const int& hidden, const int& intermediate_hidden,
     const int& num_ring_tokens,
     const int& num_sf_ring_tokens) {
-    const auto [cluster_size, block_m, store_block_m, block_k, num_epilogue_threads] =
+    const auto [cluster_size, block_m_auto, store_block_m_auto, block_k, num_epilogue_threads] =
         get_block_config_for_mega_moe(num_ranks, num_experts, num_max_tokens_per_rank, num_topk, num_tokens);
+    DG_HOST_ASSERT(num_ring_tokens % block_m_auto == 0);
+
+    // Unified WEAVE_* knob request.
+    const auto knobs = weave_knobs::from_env(
+        weave::HardwareArch::B300_SM100, weave::PrecisionMode::NVFP4);
+    const int block_m = resolve_block_m_envelope(knobs, block_m_auto);
+    int store_block_m = store_block_m_auto;
+    if (block_m != block_m_auto) {
+        store_block_m = block_m <= 16 ? 8 : block_m <= 64 ? 16 : 32;
+    }
+    // One shared store height: asymmetric L1/L2 store requests cannot be
+    // honored by the single STORE_BLOCK_M template and are rejected.
+    DG_HOST_ASSERT(knobs.store_block_m_l1 == 0u or knobs.store_block_m_l2 == 0u or
+                   knobs.store_block_m_l1 == knobs.store_block_m_l2);
+    if (knobs.store_block_m_l1 != 0u)
+        store_block_m = static_cast<int>(knobs.store_block_m_l1);
+    else if (knobs.store_block_m_l2 != 0u)
+        store_block_m = static_cast<int>(knobs.store_block_m_l2);
+    const int num_epi_wgs = std::max(1, num_epilogue_threads / 128);
+    const int wg_bm = block_m / num_epi_wgs;
+    while (store_block_m > 8 and (store_block_m > wg_bm or wg_bm % store_block_m != 0))
+        store_block_m -= 8;
+    store_block_m = std::max(8, store_block_m);
     DG_HOST_ASSERT(num_ring_tokens % block_m == 0);
+
     const int block_n = 128;
     const int load_block_m = block_m / 2;
     const int load_block_n = block_n;
@@ -160,7 +207,9 @@ static MegaMoEConfig get_mega_moe_config(
     const int swizzle_acts_mode = 128;
     const int swizzle_weights_mode = 128;
     const int gran_k = 16;
-    const int num_dispatch_threads = 128;
+    const uint32_t dispatch_warps = weave::resolve_dispatch_warps(knobs, 4u);
+    DG_HOST_ASSERT(dispatch_warps == 4u or dispatch_warps == 8u);
+    const int num_dispatch_threads = static_cast<int>(dispatch_warps) * 32;
     const int num_non_epilogue_threads = 128;
 
     constexpr int kPullThreshold = 4096;
@@ -184,7 +233,8 @@ static MegaMoEConfig get_mega_moe_config(
         swizzle_acts_mode, swizzle_weights_mode,
         num_stages, smem_size,
         num_dispatch_threads, num_non_epilogue_threads, num_epilogue_threads,
-        num_bytes_per_pull
+        num_bytes_per_pull,
+        knobs
     };
 
     if (deep_jit::get_env<int>("DG_PRINT_CONFIGS")) {

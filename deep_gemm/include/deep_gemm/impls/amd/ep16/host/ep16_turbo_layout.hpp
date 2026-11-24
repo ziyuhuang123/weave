@@ -57,8 +57,32 @@ struct Ep16TurboShape {
   uint32_t enable_dispatch_time;  // 64
   uint32_t enable_scatter_time;   // 68
   uint32_t reserved[6];           // 72..96
+  // v59 num_shared_experts > 0 support (zero-overhead when 0):
+  //   reserved[1] = num_shared_experts  in [0, 8].  Shared experts are LOCAL on
+  //   every rank (replicated dense compute): every local token appends N_shared
+  //   pass-local rows to the CK row space (RR must cover them, see
+  //   ep16t_route_rows_recommend); they never ride the dispatch/return network
+  //   (zero TxJob/RxJob/meta/payload traffic), and every shared partial joins
+  //   its token's home combine (host_expected[t] += N_shared).
+  //   reserved[0] stays the WEAVE_RET_CHUNK override; reserved[2..5] stay 0.
 };
 static_assert(sizeof(Ep16TurboShape) == 96, "Ep16TurboShape ABI");
+
+// ---------------------------------------------------------------------------
+// v59 shared-experts accessors.  num_shared_experts == 0 is the default and
+// keeps every layout/plan/byte identical to the legacy ABI.
+// ---------------------------------------------------------------------------
+inline uint32_t ep16t_shared_experts(const Ep16TurboShape& s) {
+  return s.reserved[1] & 0xffu;   // [0, 8]
+}
+inline uint32_t ep16t_shared_rows(const Ep16TurboShape& s) {
+  return ep16t_shared_experts(s) * s.t_local;
+}
+inline uint32_t ep16t_route_rows_recommend(const Ep16TurboShape& s) {
+  // CK row-space recommendation: routed rows + 16*E_local padding + shared rows
+  // (bit-compatible with the legacy formula at N_shared == 0).
+  return s.world * s.capacity * s.topk + 16u * (s.n_experts / s.world) + ep16t_shared_rows(s);
+}
 
 // ---------------------------------------------------------------------------
 // Arena regions (RDMA-visible AND xGMI/IPC-visible).  Identical offsets on
@@ -218,6 +242,13 @@ struct Ep16TurboExternal {
   uint64_t ck_w2_scale;       // f32  [LE][H/128][I/128]
   uint64_t final_output;      // BF16 [t_local][H]
   uint64_t reserved[6];
+  // v59 num_shared_experts > 0 support (validated by ep16_turbo_build_packet;
+  // all null when num_shared_experts == 0 -- the legacy ABI is unchanged):
+  //   reserved[0] = ck_shared_b         FP8  [N_shared][2*I][H]
+  //   reserved[1] = ck_shared_b_scale   f32  [N_shared][2*(I/128)][H/128]
+  //   reserved[2] = ck_shared_w2        FP8  [N_shared][H][I]
+  //   reserved[3] = ck_shared_w2_scale  f32  [N_shared][H/128][I/128]
+  //   reserved[4..5] must stay 0.
 };
 static_assert(sizeof(Ep16TurboExternal) == 128, "Ep16TurboExternal ABI");
 
@@ -281,6 +312,15 @@ static inline int ep16_turbo_validate_shape(const Ep16TurboShape& s, const char*
   EP16T_REQ(s.t_local != 0u, 18, "t_local must be nonzero");
   EP16T_REQ(s.mode != 2u || s.node_tokens >= s.t_local, 19,
             "node_tokens must be >= every source token count");
+  // v59 shared-experts guards: reserved[1] in [0,8], the other spare words 0.
+  EP16T_REQ(s.reserved[1] <= 8u, 21,
+            "num_shared_experts (shape.reserved[1]) must be 0..8");
+  EP16T_REQ(s.reserved[2] == 0u && s.reserved[3] == 0u &&
+            s.reserved[4] == 0u && s.reserved[5] == 0u, 22,
+            "shape.reserved[2..5] must be 0");
+  EP16T_REQ(ep16t_shared_experts(s) == 0u ||
+            s.route_rows >= ep16t_route_rows_recommend(s), 23,
+            "route_rows must cover world*capacity*topk + 16*e_local + shared rows");
   #undef EP16T_REQ
   if (why) *why = msg;
   return rc;

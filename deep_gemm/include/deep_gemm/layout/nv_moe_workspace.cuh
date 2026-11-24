@@ -365,6 +365,22 @@ struct Workspace {
         return math::advance_ptr<uint32_t>(base, 40u);
     }
 
+    // [96..99] (header padding): SM90 fused grid-free Notify SM-entry counter.
+    // Every CTA bumps it once after reading this launch's policy epoch base;
+    // CTA 0 is its sole consumer (waits for kNumSMs, then resets it to 0).
+    CUTLASS_DEVICE
+    uint32_t* get_weave_entry_count_ptr() const {
+        return math::advance_ptr<uint32_t>(base, 96u);
+    }
+
+    // [100..103] (header padding): SM90 fused L1->L2 interleave, number of L1
+    // tiles whose output (and K-block readiness bit) has been published in this
+    // launch.  Reset by CTA 0 in the end-of-kernel workspace clean.
+    CUTLASS_DEVICE
+    uint32_t* get_l1_tiles_done_count_ptr() const {
+        return math::advance_ptr<uint32_t>(base, 100u);
+    }
+
     CUTLASS_DEVICE
     uint64_t* get_expert_send_count_ptr(const uint32_t& expert_idx = 0) const {
         return math::advance_ptr<uint64_t>(base, kNumBarrierSignalBytes) + expert_idx;

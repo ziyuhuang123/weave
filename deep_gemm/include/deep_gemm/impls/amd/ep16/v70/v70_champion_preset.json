@@ -1,0 +1,288 @@
+{
+  "schema": "weave-ep16-v70-champion-preset/v1",
+  "arm": "v70_champion",
+  "label": "V70 Path-B (160x256, 32 KiB dynamic LDS) + 3-Group G1<->G2 Interleaved Zero-Bubble Overlap + Private Cached Scratch Shadow (V70_XSHADOW) + 0-8/4-4/8-0",
+  "launch": {
+    "grid": 160,
+    "block": 256,
+    "dynamic_lds_bytes": 32768
+  },
+  "exact_v70_base_flags": "-DV44_COMBINE=1 -DV44_FASTTOK=1 -DV44_QUIET=1 -DV44_SAFE_ST=2 -DV45_TAIL=1 -DV45_SCAT_CLAIM=16u -DV45_META=1 -DV45_STAGE=1 -DV45_PULL=2 -DV46_SP=1 -DV55_COALESCE_SCHED=1 -DV55_N1G=2 -DV55_N2G=8 -DV55_SWIZZLE=1 -DV55_NOSPEC_G2=1 -DV61_COMM=1 -DV61_G1_1X4=1 -DV61_G2_1X4=2 -DV54_S1_BYPASS_MALL=1 -DV60_L3_SMALL_RAW_SC1=0 -DV62_G2_BN256=3 -DV62_BN256_BM32=1 -DV62_G1_BM32=3 -DV62_G2_SWZ=1 -DV62_G1_STEAL=1 -DV62_BAR_MODE=1 -DV62_G2_BN512=4 -DV62_BN512_BM16=1 -DV62_BN512_BM32=1 -DV62_BN512_BM48=1 -DV70_HR1_8W=1 -DV70_R2X=1 -DV70_R2X_MERGE=1 -DV70_R2X_EARLY_EXIT=1 -DV70_R2X_NOPRE=1 -DV70_R2X_COMPACT=1 -DV70_PATHB=1 -DV70_R2X_44=1 -DV46_N08=0 -DV46_N44=16 -DV70_SCHED_DRAIN_G1=1 -DV70_R6_TAIL_ALL=1 -DV70_PATHB_DENSE_TAIL=0 -DV70_R6_SCAT_STEAL=1 -DV70_R6_SCAT_NOACQ=1 -DV70_R6_SCAT_RLX=1 -DV70_R6_NOACQ_G2DONE=1 -DV70_R6_SCHED=1 -DV70_R6_SCAT_MLP=1 -DV70_R6_HEAD_ACQ=1 -DV70_R6_HEAD_MLP=1 -DV70_R6_HEAD_PUB=1",
+  "exact_v70_e3_flags": "-DV70_R8_SCHED=1 -DV70_R8_2WAVE=1 -DV70_R8_HYB=1 -DV70_R8_HYB_LO=4u -DV70_R8_FT=200u -DV70_E3_SC1_NOBW=1 -DV70_S1_ACQ=1 -DV70_E3_PRIO=1 -DV70_E3_HOIST=1 -DV70_E3_QUIET_HT=1 -DWEAVE_LOCAL_SCATTER_DEDUP=1",
+  "champion_knob_defaults": {
+    "WEAVE_CU_WAVE_SPLIT": "2",
+    "WEAVE_DISPATCH_ACTIVE_SMS": "0",
+    "WEAVE_SCATTER_ACTIVE_SMS": "0",
+    "WEAVE_SM0_STREAM_SCHED": "1",
+    "WEAVE_DISPATCH_WARPS": "8",
+    "WEAVE_SCATTER_WARPS": "4",
+    "WEAVE_REDUCE_WARPS": "0",
+    "WEAVE_V_HEAD": "25",
+    "WEAVE_READY_GROUP_SIZE": "16",
+    "WEAVE_SCATTER_OWNER": "1",
+    "WEAVE_COMBINE_SYNC_CHUNK": "4096",
+    "WEAVE_ADAPT_BM": "1",
+    "R2X_MBSET": "6",
+    "WEAVE_BLOCK_M_L1": "64",
+    "WEAVE_BLOCK_M_L2": "64",
+    "WEAVE_REG_PULL_BYTES": "8192",
+    "WEAVE_DEDUP_MODE": "1",
+    "WEAVE_SCATTER_STAGING": "0"
+  },
+  "expected_co": {
+    "fi0": {
+      "fi_level": 0,
+      "sha256": "9cb80c11e09a1783273c6aca6597bec9b3f622d177a0d7e513641e8675fe9ec6",
+      "bytes": 224408,
+      "strict_isa_gate": {
+        "vgpr_count": 256,
+        "sgpr_count": 106,
+        "vgpr_spill_count": 0,
+        "private_segment_fixed_size": 0,
+        "scratch_ops": 0,
+        "group_segment_fixed_size": 0,
+        "hi_lds_offsets_ge_32768": 0
+      }
+    },
+    "fi2": {
+      "fi_level": 2,
+      "sha256": "8ba834b19952f3048018d9ce66c3f97f38761a771546deff51e1af4c32337f10",
+      "bytes": 244888,
+      "strict_isa_gate": {
+        "vgpr_count": 256,
+        "sgpr_count": 106,
+        "vgpr_spill_count": 0,
+        "private_segment_fixed_size": 0,
+        "scratch_ops": 0,
+        "group_segment_fixed_size": 0,
+        "hi_lds_offsets_ge_32768": 0
+      }
+    }
+  },
+  "source_manifest": {
+    "ep16/v70/common/weave_knobs.hpp": {
+      "sha256_lf": "e083f03c2fdba3e2601c5310386d566e5916fcb42f217bfe72505900fc255437",
+      "bytes_lf": 28142,
+      "origin": "v70_prod_tree"
+    },
+    "ep16/v70/tree/include/direct_gather_and_greedy_tiles.hpp": {
+      "sha256_lf": "3fcd51275f5e7247aff9f475b9fc7540353248253b1bdce5917d695a30b5b211",
+      "bytes_lf": 27108,
+      "origin": "v70_prod_tree"
+    },
+    "ep16/v70/tree/include/ep16_combine.hpp": {
+      "sha256_lf": "4d83430c41d7e2a34a2a623b7e044d7f9e1f554addd87e4041e1c53ebda7fb55",
+      "bytes_lf": 22542,
+      "origin": "v70_prod_tree"
+    },
+    "ep16/v70/tree/include/ep16_fic2_lean.hpp": {
+      "sha256_lf": "d2f4dad303cfe9aec501bc59972e0148652e60096f0f581d4bfdd2ad423f4b35",
+      "bytes_lf": 13868,
+      "origin": "v70_prod_tree"
+    },
+    "ep16/v70/tree/include/ep16_transport.hpp": {
+      "sha256_lf": "64eddb8288c71320fd1b3b65e8b09ffb3189a1667f0fd0f843c5f8d57dd80ae1",
+      "bytes_lf": 22176,
+      "origin": "v70_prod_tree"
+    },
+    "ep16/v70/tree/include/fi_lite_hip.h": {
+      "sha256_lf": "a5cf540fca0d3abc81abae88679f226dcfb0e991a3d3be0d893bba913704e2c2",
+      "bytes_lf": 15815,
+      "origin": "v70_prod_tree"
+    },
+    "ep16/v70/tree/include/gda_mesh.hpp": {
+      "sha256_lf": "ffeacf51546bac0f75db5fd16798aff211a9474416f29509d045c1b74553b909",
+      "bytes_lf": 42300,
+      "origin": "v70_prod_tree"
+    },
+    "ep16/v70/tree/include/gemm_bk64_winner.hpp": {
+      "sha256_lf": "5663acc6621484a29b452c6b7b98d5ba38e3ba82df3797f806902d6f225f379d",
+      "bytes_lf": 173220,
+      "origin": "v70_prod_tree"
+    },
+    "ep16/v70/tree/include/hr1_args.h": {
+      "sha256_lf": "42fd335a63a5742caf87cc766b8d2c08dba8bde1f25438fec34e14d25f90aaea",
+      "bytes_lf": 618,
+      "origin": "v70_prod_tree"
+    },
+    "ep16/v70/tree/include/hr1_gemm_8wave.hpp": {
+      "sha256_lf": "b20a26ce6935c7a5af46ed2bef12ca1f762b42090388326b5d25e94da28f0dc7",
+      "bytes_lf": 37386,
+      "origin": "v70_prod_tree"
+    },
+    "ep16/v70/tree/include/rb43/v43_pf.hpp": {
+      "sha256_lf": "47d57ccc6f82e075c8c8c40f52f77190d4033eb4d005a50c31d018fd0d1b0282",
+      "bytes_lf": 1307,
+      "origin": "v70_prod_tree"
+    },
+    "ep16/v70/tree/include/rb43/v43_util.hpp": {
+      "sha256_lf": "9e9f65601aef80c483f0740b92ad7f99461dba915ace9c84bfaaf3edc78de24d",
+      "bytes_lf": 2152,
+      "origin": "v70_prod_tree"
+    },
+    "ep16/v70/tree/include/sub6_6models_generalize.hpp": {
+      "sha256_lf": "b321a3768878c0cfd6f6d5e8359650664e499fefbff5e8c459110dd350b7f107",
+      "bytes_lf": 9445,
+      "origin": "v70_prod_tree"
+    },
+    "ep16/v70/tree/include/v1262_subwave_barrier.hpp": {
+      "sha256_lf": "5323ef76911c491f1ebc40deb86cd60cf6985067ee20bd06c9a1c36e7ae61117",
+      "bytes_lf": 10193,
+      "origin": "v70_prod_tree"
+    },
+    "ep16/v70/tree/include/v41_dedup_overlap.hpp": {
+      "sha256_lf": "e9796cccd45484b244a22f36de32c18e7f4e0d2e464ffb25f75a80921a6a83c9",
+      "bytes_lf": 66198,
+      "origin": "v70_prod_tree"
+    },
+    "ep16/v70/tree/include/v44_cka.hpp": {
+      "sha256_lf": "3e68559f0b42c4b75e00b41bb8e69fc436cdafe3c9bbd991abcb937e07809d5a",
+      "bytes_lf": 2388,
+      "origin": "v70_prod_tree"
+    },
+    "ep16/v70/tree/include/v44_combine.hpp": {
+      "sha256_lf": "37734efbd93d1902a8f01424c813961641d0985488ed1ed9aef00177f110d551",
+      "bytes_lf": 35526,
+      "origin": "v70_prod_tree"
+    },
+    "ep16/v70/tree/include/v44_safe_st.hpp": {
+      "sha256_lf": "1e93c92cc96b83535bba49ec8c05022d75edbdbdc76964c6df4714abf0ee7d72",
+      "bytes_lf": 2349,
+      "origin": "v70_prod_tree"
+    },
+    "ep16/v70/tree/include/v45_front.hpp": {
+      "sha256_lf": "a5738950f107a69698a4ec0487780109e4f565e8f5ecf04ed1681510ccf954cc",
+      "bytes_lf": 19521,
+      "origin": "v70_prod_tree"
+    },
+    "ep16/v70/tree/include/v45_tail.hpp": {
+      "sha256_lf": "b6f3b8613669dc3498e69144537f05288d173978d31c2f99cdf43e209a204cdc",
+      "bytes_lf": 26701,
+      "origin": "v70_prod_tree"
+    },
+    "ep16/v70/tree/include/v46_run.hpp": {
+      "sha256_lf": "a467747319343d8875a28f3adfa49a86fb0f229a71c2573e270c780cb9a15ccc",
+      "bytes_lf": 158404,
+      "origin": "v70_prod_tree"
+    },
+    "ep16/v70/tree/include/v46_sp.hpp": {
+      "sha256_lf": "7810d0e0b8dc9d139d066605e2da38741eb5842031cac77bfc2d9e6a886d6894",
+      "bytes_lf": 46051,
+      "origin": "v70_prod_tree"
+    },
+    "ep16/v70/tree/include/v54_xcd.hpp": {
+      "sha256_lf": "15875e90ce630ed49bcf0533bb2435bf3bca21be9277e29b8e52503ee91212ac",
+      "bytes_lf": 12149,
+      "origin": "v70_prod_tree"
+    },
+    "ep16/v70/tree/include/v61_s2_pf2.hpp": {
+      "sha256_lf": "c0408e92f9d2f3474d5ffa4d04c95e24d913ccaac90f95d738b54bf307b6f259",
+      "bytes_lf": 11927,
+      "origin": "v70_prod_tree"
+    },
+    "ep16/v70/tree/include/v62_s1_1x4.hpp": {
+      "sha256_lf": "4d3ddfb4a42b8baf564756abcf69556cb4c9a56bfce3a28719aa4e081e7bd27f",
+      "bytes_lf": 13201,
+      "origin": "v70_prod_tree"
+    },
+    "ep16/v70/tree/include/v62_s2_bn256.hpp": {
+      "sha256_lf": "7e242224a37f0ededd93142b5d593606b0c75b015ff6f060db8e05180f223e7a",
+      "bytes_lf": 19035,
+      "origin": "v70_prod_tree"
+    },
+    "ep16/v70/tree/include/v62_s2_bn384.hpp": {
+      "sha256_lf": "f62c1750e3147bc4f12d2e078cf0334a07e3e02abcaf99d038a2f90a7a0027b6",
+      "bytes_lf": 11640,
+      "origin": "v70_prod_tree"
+    },
+    "ep16/v70/tree/include/v62_s2_bn512.hpp": {
+      "sha256_lf": "cdc81ac0d3731c5e80aeab9c66feafe5e7db5c1b6b3e5c428007834d03437f54",
+      "bytes_lf": 12606,
+      "origin": "v70_prod_tree"
+    },
+    "ep16/v70/tree/include/v70_gemm_bm64_8wave.hpp": {
+      "sha256_lf": "8e47ab03be421d8874b8ad78131bb85964be54b11345a638884b79ae28adc19b",
+      "bytes_lf": 20636,
+      "origin": "v70_prod_tree"
+    },
+    "ep16/v70/tree/include/v70_r2_8wave.hpp": {
+      "sha256_lf": "5d4613b9a186fde204de447d22725a4cfd401789fd8149aba03459c2e1f4dc12",
+      "bytes_lf": 22909,
+      "origin": "v70_prod_tree"
+    },
+    "ep16/v70/tree/include/v70_r8.hpp": {
+      "sha256_lf": "2fb57aa0784957c5bb7b4427880ff0565483b60d009c15ddf9347fd644db4efc",
+      "bytes_lf": 20033,
+      "origin": "v70_prod_tree"
+    },
+    "ep16/v70/tree/include/v70_scatter_staging_3path.hpp": {
+      "sha256_lf": "95c85cb34c05f22412118d954dc2f013c4377bc9309500936f6efe990528aaa1",
+      "bytes_lf": 16302,
+      "origin": "v70_prod_tree"
+    },
+    "ep16/v70/tree/include/v70_v46_8wave.hpp": {
+      "sha256_lf": "a903af1ee243c11890b5d8b9713a4ddd8fdd129850fe2776ec8df720be471c4c",
+      "bytes_lf": 59556,
+      "origin": "v70_prod_tree"
+    },
+    "ep16/v70/tree/include/weave_21knobs.hpp": {
+      "sha256_lf": "9a8f9cdd87ff0efeb726a5859d3400f01c4d07f87be1be7bc1acabffcdf914aa",
+      "bytes_lf": 10882,
+      "origin": "v70_prod_tree"
+    },
+    "ep16/v70/tree/include/weave_ck_512_configs.hpp": {
+      "sha256_lf": "30348ce0ff3f0fdb8615846742ac49eae00e5b60d83d5baddf35f14c25810a08",
+      "bytes_lf": 5854,
+      "origin": "v70_prod_tree"
+    },
+    "ep16/v70/tree/include/weave_comm_4wave_turbo.hpp": {
+      "sha256_lf": "f3f1e450bf276ca3380c13767493980aec2864aaa5b0004265d8f9da757a2441",
+      "bytes_lf": 36041,
+      "origin": "v70_prod_tree"
+    },
+    "ep16/v70/tree/include/weave_gemm_400t_v6.hpp": {
+      "sha256_lf": "83cd64435e1d98a3a6d763e1fc1be4832c08e2edfd5a8c4888918ac45342eb95",
+      "bytes_lf": 53147,
+      "origin": "v70_prod_tree"
+    },
+    "ep16/v70/tree/megamoe_amd.hip": {
+      "sha256_lf": "29ae162e086d4d934c24ee94f19f5bf9b48780f3dee1f005843af4b2d47f254a",
+      "bytes_lf": 66905,
+      "origin": "v70_prod_tree"
+    },
+    "third_party_overlay/gemm2_configs_v1010_hip.hpp": {
+      "sha256_lf": "e92aaf8e741ebb672a9a13695d61265a3d54bef9b464c9751297ff52c4ed6e62",
+      "bytes_lf": 3766,
+      "origin": "repo_shared"
+    },
+    "third_party_overlay/m16_packet_support.hpp": {
+      "sha256_lf": "aa278ccf2723644a3aaef2dda3296883b50bdf202434a7bc30e0699912b163de",
+      "bytes_lf": 18454,
+      "origin": "repo_shared"
+    },
+    "third_party_overlay/official_m16_m32_configs_v1262.hpp": {
+      "sha256_lf": "0727e329e4b38f195df7cfe2ca2bf5164e920644409d24c1e98af21f430106c9",
+      "bytes_lf": 4047,
+      "origin": "repo_shared"
+    },
+    "third_party_overlay/v1198_site_trace.hpp": {
+      "sha256_lf": "495787a2b1aa36cf66ff955c5371e0c778880589ad477cf58da89211e03723d0",
+      "bytes_lf": 8864,
+      "origin": "repo_shared"
+    },
+    "third_party_overlay/v956_stage1_body.hpp": {
+      "sha256_lf": "53357aacb5176035249a458920cc5d56f5ab90a2ff60c9a049238be8cf2ccc55",
+      "bytes_lf": 18808,
+      "origin": "repo_shared"
+    }
+  },
+  "external_includes": [
+    "ck/ck.hpp",
+    "ck/tensor_operation/gpu/device/impl/device_moe_gemm_blockscale.hpp",
+    "ck/tensor_operation/gpu/device/tensor_layout.hpp",
+    "ck/tensor_operation/gpu/element/element_wise_operation.hpp",
+    "ck/tensor_operation/gpu/element/unary_element_wise_operation.hpp",
+    "ck/utility/type_convert.hpp",
+    "gemm_moe_ck2stages_common_blockscale.cuh"
+  ]
+}

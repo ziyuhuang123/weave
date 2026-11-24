@@ -31,7 +31,8 @@ Turbo hard constraints (TURBO_ADAPTER_REPORT.md section 6) honoured here:
    ranks: a per-arm deterministic ledger plus dist barriers keep the sixteen
    host sequences in lock-step.
 4. ``capacity`` = t_local (worst case: every local token lands one bucket on
-   one destination); ``route_rows`` = WORLD*capacity*topk + 16*e_local;
+   one destination); ``route_rows`` = WORLD*capacity*topk + 16*e_local
+   (+ t_local*num_shared_experts when the v59 shared-experts ABI is used);
    ``sort_stats[1] <= route_rows`` is asserted after every launch.
 """
 from __future__ import annotations

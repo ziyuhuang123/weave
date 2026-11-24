@@ -20,13 +20,20 @@ CUTLASS_HOST_DEVICE constexpr uint32_t get_sm90_moe_combine_num_chunks(
     const uint64_t one_chunk_bytes =
         static_cast<uint64_t>(num_epilogue_warps) * hidden *
         (2u * input_element_bytes + output_element_bytes);
-    const bool one_chunk_fits =
-        one_chunk_bytes <= smem_before_barriers and
-        hidden <= 32u * kSM90MoeCombineMaxRegistersPerLane;
-    const bool two_chunks_fit =
-        hidden % 2u == 0u and one_chunk_bytes / 2u <= smem_before_barriers and
-        hidden <= 2u * 32u * kSM90MoeCombineMaxRegistersPerLane;
-    return one_chunk_fits ? 1u : (two_chunks_fit ? 2u : 4u);
+    // Double the chunk count until the aliased combine staging fits the pre-barrier
+    // scratch.  A fixed 1/2/4 ladder cannot host 4 epilogue warpgroups at H=8192
+    // together with a wide dispatch warp group: the send buffers shrink the scratch
+    // region below one quarter of the alias.  Every candidate must still distribute
+    // whole 8-element vectors per lane and bound the per-lane register footprint.
+    for (uint32_t chunks = 1u; chunks <= 16u; chunks <<= 1) {
+        const bool fits = one_chunk_bytes / chunks <= smem_before_barriers;
+        const bool regs_ok = hidden <= chunks * 32u * kSM90MoeCombineMaxRegistersPerLane;
+        const bool divides = hidden % chunks == 0u and
+            (hidden / chunks) % (32u * kSM90MoeCombineElemsPerLane) == 0u;
+        if (fits and regs_ok and divides)
+            return chunks;
+    }
+    return 16u;
 }
 
 CUTLASS_HOST_DEVICE constexpr bool is_sm90_moe_combine_vectorization_legal(

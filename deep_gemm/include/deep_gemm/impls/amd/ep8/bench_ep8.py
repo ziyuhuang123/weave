@@ -83,9 +83,9 @@ DEFAULT_MODEL_ORDER = list(MODEL_SPECS.keys())
 DEFAULT_SEQLENS = [16, 128, 1024, 8192, 16384]
 
 # Authoritative measured MI308X baselines (us):
-# Source 1: /home/hengfeng.hzy/weave_new1/weave_v1/rebuttal/baseline/amd/amd_latency_matrix.csv
-# Source 2: /home/hengfeng.hzy/dacsm_amd/paper_grid/dacsm-amdcuA/official_baseline_ep8_table.md
-#           and /home/hengfeng.hzy/dacsm_amd/goals/dacsm-amdbase/baseline_ep8.json
+# Source 1: ./amd_ep8_artifacts
+# Source 2: ./amd_ep8_artifacts
+#           and ./amd_ep8_artifacts
 #           (The authoritative origin of /home/logs/weave_4p4_lab2/tools/d4five_report.py `OFF` values).
 # Source 3: /home/logs/weave_4p4_lab2/HANDOFF_AMD_TO_AGY.txt (vLLM EP8 on DeepSeek-V4-Flash).
 # Official SGLang-EP8 8-GPU table (us) from rebuttal/baseline/amd/amd_strongest_baselines_30cells.csv
@@ -1200,9 +1200,9 @@ def parse_args() -> argparse.Namespace:
                    help="0 = adaptive per S (30 for S<=128, 20 for S=1024, 10 for S>=8192)")
     p.add_argument("--out-dir", type=Path, default=None)
     p.add_argument("--package-root", type=Path,
-                   default=Path("/home/hengfeng.hzy/weave_ep8_fi_work_20261114/package"))
+                   default=Path("./amd_ep8_artifacts"))
     p.add_argument("--routes-dir", type=Path,
-                   default=Path("/home/hengfeng.hzy/weave_new1/weave_v1/rebuttal/amd_ep8_realroute/routes/ep8"))
+                   default=Path("./amd_ep8_artifacts"))
     p.add_argument("--launcher", type=Path, default=None)
     p.add_argument("--ipc-lib", type=Path, default=None)
     p.add_argument("--role-config", type=int, choices=(0, 1, 2), default=0)

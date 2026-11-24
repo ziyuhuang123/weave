@@ -285,14 +285,37 @@
 //
 // These macros are the compile-time defaults carried into JIT configuration.
 // Host dispatchers override them per launch through WeaveKnobs and the
-// per-backend JIT define blocks.  Every macro below is part of the public
-// surface and is documented in docs/TUNABLE_PARAMETERS.md.
+// per-backend JIT define blocks.
+//
+// The public tunable surface is 15 knobs (Spatial 5, Temporal 3,
+// Implementation 7) and is documented in docs/TUNABLE_PARAMETERS.md.  Six
+// former knobs are retired from that surface but stay as INTERNAL compile-time
+// macros whose `#ifndef` fallback below is 0, so every kernel keeps compiling
+// when the host does not emit them:
+//   WEAVE_REDUCE_WARPS, WEAVE_COMBINE_SYNC_CHUNK, WEAVE_REG_BALANCE,
+//   WEAVE_LOCAL_SCATTER_DEDUP, WEAVE_SM0_STREAM_SCHED   -> defaulted in this file
+//   WEAVE_READY_QUEUE                                   -> NOT defaulted here
+// WEAVE_READY_QUEUE has no `#ifndef` in this header on purpose.  Its fallback
+// lives at the use sites, in the alias chain that derives it from
+// DG_TUNE_D4_READYQ / DG_ISOLATED_D4_READYQ and otherwise defines it as 0:
+//   impls/sm100_fp8_fp4_mega_moe.cuh (before the weave_policy_runtime.cuh include
+//   that pulls this header in) and scheduler/mega_moe.cuh.
+// A plain default in this header would be seen first by translation units that
+// include it before those chains and would silently turn a
+// `-DDG_TUNE_D4_READYQ=1` request into 0.
+// Three public knobs have renamed host spellings: WEAVE_ADAPT_BM,
+// WEAVE_BLOCK_M_L1 and WEAVE_BLOCK_M_L2 remain the device-side macro names and
+// the legacy environment aliases of WEAVE_ADAPT_GEMM_CONFIG, WEAVE_GEMM1_CONFIG
+// and WEAVE_GEMM2_CONFIG.
 // =============================================================================
 
 // --- Spatial ---------------------------------------------------------------
 // 0 = auto (4 warps on SM103/H20, 4 on MI308X); 4 or 8 = fixed dispatch warps.
 #ifndef WEAVE_DISPATCH_WARPS
 #define WEAVE_DISPATCH_WARPS 0u
+#endif
+#if WEAVE_DISPATCH_WARPS != 0 && WEAVE_DISPATCH_WARPS != 4 && WEAVE_DISPATCH_WARPS != 8
+#error "WEAVE_DISPATCH_WARPS must be 0 (auto), 4 or 8"
 #endif
 // 0 = every SM/CU participates in scatter; K = only K SMs/CUs drain the queue.
 #ifndef WEAVE_SCATTER_ACTIVE_SMS
@@ -302,6 +325,7 @@
 #ifndef WEAVE_LOCALITY_DOMAINS
 #define WEAVE_LOCALITY_DOMAINS 0u
 #endif
+// Internal (retired from the public surface):
 // 0 = SM 0 communication warps pull like every other SM; 1 = they become the
 // dedicated streaming scheduler lane and the remaining SMs own the pull.
 #ifndef WEAVE_SM0_STREAM_SCHED
@@ -329,11 +353,16 @@
 #endif
 // Dedicated fine-grained streaming Reduce warps carved out of the CTA
 // communication warp group during Middle (0 = off; 1, 2, 4, 8 warps).
+// Cost model: 0 stays bit-identical to Paper Eq. (1)-(3).  With N > 0 the lanes
+// overlap the Combine reduction with T_mid on the spare Middle HBM bandwidth
+// max(0, B_hbm - V_mem / (T_comp * 1000)), shrinking T_tail_reduce, while a
+// CommQueueAsync middle scatter is drained by max(1, N_c - N) comm units.
 #ifndef WEAVE_REDUCE_WARPS
 #define WEAVE_REDUCE_WARPS 0u
 #endif
-#if WEAVE_REDUCE_WARPS > 8
-#error "WEAVE_REDUCE_WARPS must be in [0, 8]"
+#if WEAVE_REDUCE_WARPS != 0 && WEAVE_REDUCE_WARPS != 1 && WEAVE_REDUCE_WARPS != 2 && \
+    WEAVE_REDUCE_WARPS != 4 && WEAVE_REDUCE_WARPS != 8
+#error "WEAVE_REDUCE_WARPS must be 0 (off), 1, 2, 4 or 8"
 #endif
 // Strict binary scatter ownership (never mixed):
 //   0 = epilogue_only: epilogue warps issue the remote FC2 stores directly;
@@ -381,8 +410,8 @@
 #endif
 #if WEAVE_COMBINE_SYNC_CHUNK != 0 && WEAVE_COMBINE_SYNC_CHUNK != 16 && \
     WEAVE_COMBINE_SYNC_CHUNK != 32 && WEAVE_COMBINE_SYNC_CHUNK != 64 && \
-    WEAVE_COMBINE_SYNC_CHUNK != 128
-#error "WEAVE_COMBINE_SYNC_CHUNK must be 0, 16, 32, 64 or 128"
+    WEAVE_COMBINE_SYNC_CHUNK != 128 && WEAVE_COMBINE_SYNC_CHUNK != 896
+#error "WEAVE_COMBINE_SYNC_CHUNK must be 0, 16, 32, 64, 128 or 896"
 #endif
 // Epilogue TMEM -> register pipeline: 0 = auto (2 stages at BM>=240 with a
 // TMEM depth of at least 1.75, else 1); 1 = single buffer; 2 = two register
@@ -412,6 +441,16 @@
 // 0 = fixed per-expert BM; 1 = per-expert dynamic BM ladder.
 #ifndef WEAVE_ADAPT_BM
 #define WEAVE_ADAPT_BM 0u
+#endif
+// Two-Level online tier requests (also consumed by the backend JIT defines).
+// 0 = auto publication group; the CTA-0 OnlineRoutingPolicy adapts 1/2/4/8.
+#ifndef WEAVE_READY_GROUP_SIZE
+#define WEAVE_READY_GROUP_SIZE 0u
+#endif
+// Structural dedup executor code emitted by the JIT (0 = off, 2 = pull dedup
+// + local fanout).  The CTA-0 ABI maps any non-zero code to the binary on pin.
+#ifndef WEAVE_DEDUP_MODE
+#define WEAVE_DEDUP_MODE 0u
 #endif
 // 0 = auto; per-GEMM per-expert block-M envelopes.
 #ifndef WEAVE_BLOCK_M_L1
@@ -491,6 +530,9 @@ enum OverrideBit : uint32_t {
 
 static constexpr uint32_t kAutoU32 = 0xffffffffu;
 
+// Upper bound of the WEAVE_REDUCE_WARPS lane count (mirrors the macro guard).
+static constexpr uint32_t kMaxReduceWarps = 8u;
+
 WEAVE_HOST_DEVICE constexpr uint32_t encode_r_mask(
     uint32_t comm_units, uint32_t comp_units, uint32_t groups,
     bool heterogeneous = false) {
@@ -553,6 +595,15 @@ struct WeaveKnobs {
   uint32_t local_scatter_dedup; // 0/1: bf16x2 L2 atomic dedup before send.
   uint32_t scatter_staging;     // 0 = reg_2stage; 1 = smem; 2 = hbm_dedup.
   uint32_t reg_balance;         // 0/1: SM103 register rebalance (64/56/192).
+
+  // --- Two-Level online tier (Tier 3) --------------------------------------
+  // The public WEAVE_READY_GROUP_SIZE / WEAVE_DEDUP_MODE requests are also
+  // read by the CTA-0 OnlineRoutingPolicy: an explicit value overrides the
+  // routing-adaptive recommendation, kAutoU32 (dedup) / 0 (ready group) means
+  // auto.  The backend JIT define blocks keep consuming the env directly for
+  // the compile-time structure; these fields carry the same request to CTA-0.
+  uint32_t ready_group_size;    // 0 = auto; 1/2/4/8 publication group.
+  uint32_t dedup_mode;          // kAutoU32 = auto; 0 = off; 1 = on.
 };
 WEAVE_HOST_DEVICE constexpr uint32_t default_r_mask_for_arch(
     HardwareArch arch) {
@@ -611,6 +662,8 @@ WEAVE_HOST_DEVICE constexpr WeaveKnobs default_weave_knobs(
       WEAVE_LOCAL_SCATTER_DEDUP,
       WEAVE_SCATTER_STAGING,
       WEAVE_REG_BALANCE,
+      WEAVE_READY_GROUP_SIZE,
+      (WEAVE_DEDUP_MODE != 0u) ? 1u : 0u,
   };
 }
 
@@ -638,6 +691,15 @@ WEAVE_HOST_DEVICE constexpr uint32_t resolve_amd_8wave_min_tok(
     const WeaveKnobs& knobs, uint32_t auto_tokens = WEAVE_DUALGROUP_MIN_TOKENS) {
   return knobs.amd_8wave_min_tok == 0u ? auto_tokens : knobs.amd_8wave_min_tok;
 }
+// Dedicated Middle Reduce warps.  0 = off (paper Eq. (1)-(3) untouched);
+// 1..8 lanes are carved out of the CTA communication warp group.  Runtime
+// values above the validated maximum are clamped instead of over-subscribing
+// the group, so a stray knob can never invent bandwidth.
+WEAVE_HOST_DEVICE constexpr uint32_t resolve_reduce_warps(
+    const WeaveKnobs& knobs) {
+  return knobs.reduce_warps > kMaxReduceWarps ? kMaxReduceWarps
+                                              : knobs.reduce_warps;
+}
 WEAVE_HOST_DEVICE constexpr uint32_t resolve_ring_blocks(
     const WeaveKnobs& knobs, uint32_t auto_blocks) {
   return knobs.ring_blocks == 0u ? auto_blocks : knobs.ring_blocks;
@@ -663,12 +725,15 @@ WEAVE_HOST_DEVICE constexpr uint32_t resolve_epi_reg_stages(
 WEAVE_HOST_DEVICE constexpr uint32_t resolve_block_m(
     const WeaveKnobs& knobs, uint32_t phase_l1, uint32_t phase_l2,
     uint32_t auto_block_m) {
+  (void)knobs;  // BM envelopes are passed explicitly by the caller.
   const uint32_t requested = phase_l2 != 0u ? phase_l2 : phase_l1;
   return requested == 0u ? auto_block_m : requested;
 }
 WEAVE_HOST_DEVICE constexpr uint32_t resolve_store_block_m(
     const WeaveKnobs& knobs, uint32_t phase_l1, uint32_t phase_l2,
     uint32_t auto_l1, uint32_t auto_l2) {
+  (void)knobs;    // Store heights are passed explicitly by the caller.
+  (void)auto_l1;  // GEMM1 auto height is folded into auto_l2 by the caller.
   return phase_l2 != 0u ? phase_l2 : (phase_l1 != 0u ? phase_l1 : auto_l2);
 }
 

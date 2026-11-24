@@ -1,5 +1,30 @@
 #pragma once
 
+// Verified architectural knobs consumed by this translation unit.  Host
+// dispatchers always define them explicitly; the defaults keep direct header
+// users on the historical behavior.
+#ifndef WEAVE_DISPATCH_WARPS
+#define WEAVE_DISPATCH_WARPS 0
+#endif
+#ifndef WEAVE_SM0_STREAM_SCHED
+#define WEAVE_SM0_STREAM_SCHED 0
+#endif
+#ifndef WEAVE_RING_BLOCKS
+#define WEAVE_RING_BLOCKS 0
+#endif
+#ifndef WEAVE_DISPATCH_ACTIVE_SMS
+#define WEAVE_DISPATCH_ACTIVE_SMS 0
+#endif
+#ifndef WEAVE_BLOCK_M_L1
+#define WEAVE_BLOCK_M_L1 0
+#endif
+#ifndef WEAVE_BLOCK_M_L2
+#define WEAVE_BLOCK_M_L2 0
+#endif
+#ifndef WEAVE_STORE_BLOCK_M_L1
+#define WEAVE_STORE_BLOCK_M_L1 0
+#endif
+
 #include <cstdint>
 #include <cutlass/arch/barrier.h>
 #include <cutlass/arch/reg_reconfig.h>
@@ -12,6 +37,7 @@
 #include <deep_gemm/layout/mega_moe.cuh>
 #include <deep_gemm/mma/sm100.cuh>
 #include <deep_gemm/scheduler/mega_moe.cuh>
+#include <deep_gemm/scheduler/weave_policy_runtime.cuh>
 #include <deep_gemm/ptx/tcgen05.cuh>
 #include <deep_gemm/ptx/tma.cuh>
 #include <deep_gemm/ptx/utils.cuh>
@@ -73,6 +99,16 @@ sm100_bf16_mega_moe_impl(void* y,
     DG_STATIC_ASSERT(kNumNonEpilogueThreads == 128, "Invalid number of MMA non-epilogue threads");
     DG_STATIC_ASSERT(kNumEpilogueThreads % 128 == 0, "Invalid number of MMA epilogue and combine threads");
     DG_STATIC_ASSERT(kNumExperts % kNumRanks == 0, "Invalid number of experts or ranks");
+    DG_STATIC_ASSERT(WEAVE_DISPATCH_WARPS == 0 or WEAVE_DISPATCH_WARPS == kNumDispatchWarps,
+                     "WEAVE_DISPATCH_WARPS disagrees with the launch thread layout");
+    DG_STATIC_ASSERT(WEAVE_RING_BLOCKS == 0 or WEAVE_RING_BLOCKS == kNumRingBlocks,
+                     "WEAVE_RING_BLOCKS must match the allocated ring");
+    DG_STATIC_ASSERT(WEAVE_BLOCK_M_L1 == 0 or WEAVE_BLOCK_M_L1 <= BLOCK_M,
+                     "WEAVE_BLOCK_M_L1 exceeds compiled BLOCK_M envelope");
+    DG_STATIC_ASSERT(WEAVE_BLOCK_M_L2 == 0 or WEAVE_BLOCK_M_L2 <= BLOCK_M,
+                     "WEAVE_BLOCK_M_L2 exceeds compiled BLOCK_M envelope");
+    DG_STATIC_ASSERT(WEAVE_STORE_BLOCK_M_L1 == 0 or WEAVE_STORE_BLOCK_M_L1 == STORE_BLOCK_M,
+                     "WEAVE_STORE_BLOCK_M_L1 disagrees with the compiled store tile");
 
     // Thread indices
     const bool is_leader_cta = cute::block_rank_in_cluster() == 0;
@@ -172,10 +208,21 @@ sm100_bf16_mega_moe_impl(void* y,
         Barrier combine_barriers[kNumEpilogueWarps * 2];
         Barrier task_info_full_barriers[kNumScheduleStages];
         Barrier task_info_empty_barriers[kNumScheduleStages];
+        // Weave CTA-0 decision, copied once per CTA after the live histogram
+        // publication barrier. Kept outside every DeepGEMM task-info slot.
+        weave::PolicyDecision weave_policy;
+        uint32_t weave_policy_ready;
+        uint32_t weave_epoch_base;
         uint32_t tmem_ptr_in_smem;
     };
     constexpr uint32_t kNumReusableSmemBytes = offsetof(SharedStorage, dispatch_barriers);
     SharedStorage &shared_storage = *reinterpret_cast<SharedStorage*>(smem_buffer);
+    if (thread_idx == 0u) {
+        auto* const control = workspace.get_weave_policy_control_ptr();
+        shared_storage.weave_epoch_base =
+            *reinterpret_cast<volatile uint32_t*>(&control->published_epoch);
+        shared_storage.weave_policy_ready = 0u;
+    }
 
     // Send buffers
     constexpr auto pull_layout = layout::Data(kNumBytesPerPull);
@@ -348,6 +395,8 @@ sm100_bf16_mega_moe_impl(void* y,
         if (sm_idx == 0) {
             // Push this launch's grid index to every peer for tagging combine readiness; +1 differs from a zeroed workspace
             DG_STATIC_ASSERT(kNumRanks <= kNumDispatchThreads, "Insufficient threads for the grid index push");
+            DG_STATIC_ASSERT(kNumRanks <= layout::Workspace::kNumMaxCombineReadyRanks,
+                             "Per-peer combine-ready tags support at most kNumMaxCombineReadyRanks ranks");
             if (thread_idx < kNumRanks)
                 *sym_buffer.map(workspace.get_peer_grid_idx_ptr(sym_buffer.rank_idx), thread_idx) = ptx::get_grid_idx() + 1;
             __syncwarp();
@@ -376,6 +425,46 @@ sm100_bf16_mega_moe_impl(void* y,
             /* After the NVLink barrier, there is a grid sync */ true
         );
 
+        // -----------------------------------------------------------------
+        // Weave CTA-0 runtime selection.  expert_recv_count_sum is live
+        // after the post-dispatch NVLink/grid barrier above.  Only thread 0
+        // of CTA 0 evaluates Eq.(1)-(3); every other CTA acquire-waits on
+        // the published epoch and copies the decision.  This rendezvous runs
+        // before the dispatch/epilogue barrier so the epilogue threads never
+        // proceed with a half-published policy.
+        // -----------------------------------------------------------------
+        if (thread_idx == 0u) {
+            auto* const control = workspace.get_weave_policy_control_ptr();
+            const uint32_t weave_epoch = shared_storage.weave_epoch_base + 1u;
+            weave::PolicyDecision decision{};
+            bool policy_ok = false;
+            if (sm_idx == 0u) {
+                const weave::WorkloadSpec wl{
+                    kNumExpertsPerRank,
+                    static_cast<uint32_t>(kHidden),
+                    static_cast<uint32_t>(kIntermediateHidden)};
+                const weave::WeaveKnobs knobs =
+                    weave::default_weave_knobs(weave::HardwareArch::B300_SM100, weave::PrecisionMode::BF16);
+                const uint32_t m_out = weave::count_remote_expert_sends(
+                    workspace, kNumExperts, kNumExpertsPerRank,
+                    static_cast<uint32_t>(sym_buffer.rank_idx));
+                decision = weave::cta0_select_from_packed_hist(
+                    control, weave::HardwareArch::B300_SM100, wl, knobs,
+                    workspace.get_expert_recv_count_sum_ptr(),
+                    0u, m_out, weave_epoch);
+                policy_ok = weave::policy_is_valid(decision);
+            } else {
+                (void) weave::load_published_policy(control);
+                policy_ok = weave::wait_and_copy_policy(
+                    control, weave_epoch, &decision);
+            }
+            if (policy_ok) {
+                shared_storage.weave_policy = decision;
+                shared_storage.weave_policy_ready = 1u;
+            }
+        }
+        ptx::sync_aligned(kNumDispatchThreads, kDispatchBarrierIdx);
+
         // Ensure the epilogue barrier cannot run with the pull barrier
         ptx::sync_unaligned(kNumDispatchThreads + kNumEpilogueThreads, kDispatchWithEpilogueBarrierIdx);
 
@@ -394,8 +483,44 @@ sm100_bf16_mega_moe_impl(void* y,
         // Wait token data arrival
         scheduler.fetch_expert_recv_count();
 
-        constexpr uint32_t kNumGlobalWarps = kNumSMs * kNumDispatchWarps;
-        for (uint32_t token_idx = sm_idx * kNumDispatchWarps + warp_idx; ; token_idx += kNumGlobalWarps) {
+        // Head/middle temporal split from the CTA-0 decision: all dispatch
+        // warps pull the first selected_v_head tasks, then only N_c warps per
+        // SM remain in the pull queue.
+        const bool weave_policy_ok = shared_storage.weave_policy_ready != 0u;
+        const uint32_t weave_comm_warps_per_sm = weave_policy_ok
+            ? weave::r_comm_units(shared_storage.weave_policy.selected_r_mask)
+            : kNumDispatchWarps;
+        const uint32_t active_pull_warps =
+            weave_comm_warps_per_sm == 0u ? 1u :
+            (weave_comm_warps_per_sm < kNumDispatchWarps
+                 ? weave_comm_warps_per_sm : kNumDispatchWarps);
+        const uint32_t selected_v_head = weave_policy_ok
+            ? shared_storage.weave_policy.selected_v_head : 0u;
+        (void) shared_storage.weave_policy.selected_scatter_mode;
+        uint32_t weave_total_tokens = 0u;
+        for (uint32_t weave_e = 0u; weave_e < kNumExpertsPerRank; ++weave_e)
+            weave_total_tokens += scheduler.get_num_tokens(weave_e);
+        const uint32_t head_pull_end = selected_v_head == 0u
+            ? weave_total_tokens
+            : cute::min(selected_v_head, weave_total_tokens);
+
+        // SM 0 streaming scheduler & independent partial-SM dispatch throttle
+        // (mirrors sm100_fp8_fp4_mega_moe): with WEAVE_SM0_STREAM_SCHED = 1,
+        // SM 0 leaves the pull queue and SMs 1..N-1 own the dense warp-start
+        // range; with WEAVE_DISPATCH_ACTIVE_SMS = D > 0, only D SMs pull
+        // remote tokens while the rest proceed to the GEMM / cleanup barriers.
+        constexpr bool kSm0StreamSchedActive = WEAVE_SM0_STREAM_SCHED != 0;
+        constexpr uint32_t kMaxPullSms = kSm0StreamSchedActive ? (kNumSMs - 1u) : kNumSMs;
+        constexpr uint32_t kActiveDispatchSMs =
+            (WEAVE_DISPATCH_ACTIVE_SMS == 0 or static_cast<uint32_t>(WEAVE_DISPATCH_ACTIVE_SMS) > kMaxPullSms)
+                ? kMaxPullSms : static_cast<uint32_t>(WEAVE_DISPATCH_ACTIVE_SMS);
+        const uint32_t pull_sm_idx = kSm0StreamSchedActive
+            ? (sm_idx == 0u ? kNumSMs : sm_idx - 1u) : sm_idx;
+        const uint32_t initial_pull_warp_idx =
+            ((kSm0StreamSchedActive and sm_idx == 0u) or pull_sm_idx >= kActiveDispatchSMs)
+                ? 0xffffffffu : pull_sm_idx * kNumDispatchWarps + warp_idx;
+        constexpr uint32_t kNumGlobalWarps = kActiveDispatchSMs * kNumDispatchWarps;
+        for (uint32_t token_idx = initial_pull_warp_idx; ; token_idx += kNumGlobalWarps) {
             // Advance expert until within the range
             int old_expert_idx = current_expert_idx;
             while (token_idx >= expert_end_idx) {
@@ -412,6 +537,11 @@ sm100_bf16_mega_moe_impl(void* y,
 
             // Finish all tokens
             if (current_expert_idx >= kNumExpertsPerRank)
+                break;
+
+            // Temporal head/middle split: after the head window only
+            // active_pull_warps warps per SM continue pulling.
+            if (token_idx >= head_pull_end and warp_idx >= active_pull_warps)
                 break;
 
             // Load per-rank counts when expert changes

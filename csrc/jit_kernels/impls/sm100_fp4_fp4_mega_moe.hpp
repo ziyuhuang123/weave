@@ -1,8 +1,10 @@
 #pragma once
 
 #include <format>
+#include <sstream>
 #include <torch/python.h>
 
+#include "../../jit/compile_only.hpp"
 #include "../../runtime/runtime.hpp"
 #include "../../utils/exception.hpp"
 #include "runtime_utils.hpp"
@@ -151,7 +153,44 @@ static void sm100_fp4_fp4_mega_moe(
         cumulative_local_expert_recv_stats_ptr = cumulative_local_expert_recv_stats->data_ptr<int>();
 
     const auto num_sms = runtime->get_num_sms();
-    const auto kernel = jit->compile("sm100_fp4_fp4_mega_moe", std::format(R"(
+
+    // Unified knob mirror.  The host resolver already validated these; the
+    // defines below are what the kernel translation unit consumes (CTA-0
+    // cost model via weave::default_weave_knobs, plus the dispatch pull
+    // throttle and the ring / thread-layout static asserts).
+    const auto& knobs = config.knobs;
+    std::ostringstream knob_macros;
+    // Single locality domain: this backend has no SM-domain routing.
+    knob_macros << "#define WEAVE_LOCALITY_DOMAINS 1\n";
+    knob_macros << "#define WEAVE_PRECISION_MODE " << knobs.precision_mode << "u\n";
+    if (knobs.override_v_head != weave::kAutoU32)
+        knob_macros << "#define WEAVE_V_HEAD " << knobs.override_v_head << "u\n";
+    knob_macros << "#define WEAVE_DISPATCH_WARPS " << (config.num_dispatch_threads / 32) << "\n";
+    knob_macros << "#define WEAVE_REDUCE_WARPS " << knobs.reduce_warps << "\n";
+    knob_macros << "#define WEAVE_SM0_STREAM_SCHED " << knobs.sm0_stream_sched << "\n";
+    knob_macros << "#define WEAVE_L2_KBLOCK_DEP " << knobs.l2_kblock_dep << "\n";
+    knob_macros << "#define WEAVE_RING_BLOCKS " << knobs.ring_blocks << "\n";
+    knob_macros << "#define WEAVE_EARLY_STREAM_REDUCE " << knobs.early_stream_reduce << "\n";
+    knob_macros << "#define WEAVE_TMEM_PIPELINE_MODE " << weave_knobs::resolve_tmem_pipeline_mode(
+        knobs, static_cast<uint32_t>(config.block_m)) << "\n";
+    knob_macros << "#define WEAVE_HEAD_PULL_CHUNK " << knobs.head_pull_chunk << "\n";
+    knob_macros << "#define WEAVE_LOCAL_SCATTER_DEDUP " << knobs.local_scatter_dedup << "\n";
+    knob_macros << "#define WEAVE_ADAPT_BM " << knobs.adapt_bm << "\n";
+    knob_macros << "#define WEAVE_BLOCK_M_L1 " << knobs.block_m_l1 << "\n";
+    knob_macros << "#define WEAVE_BLOCK_M_L2 " << knobs.block_m_l2 << "\n";
+    knob_macros << "#define WEAVE_STORE_BLOCK_M_L1 " << config.store_block_m << "\n";
+    knob_macros << "#define WEAVE_DISPATCH_ACTIVE_SMS " << knobs.dispatch_active_sms << "\n";
+    knob_macros << "#define WEAVE_SCATTER_OWNER " << knobs.scatter_owner << "\n";
+    knob_macros << "#define WEAVE_SCATTER_STAGING " << knobs.scatter_staging << "\n";
+    knob_macros << "#define WEAVE_COMBINE_SYNC_CHUNK " << knobs.combine_sync_chunk << "\n";
+    knob_macros << "#define WEAVE_EPI_REG_STAGES " << weave::resolve_epi_reg_stages(
+        knobs, static_cast<uint32_t>(config.block_m),
+        weave_knobs::resolve_tmem_pipeline_mode(knobs, static_cast<uint32_t>(config.block_m))) << "\n";
+    knob_macros << "#define WEAVE_SCHED_L2_RATIO " << knobs.sched_l2_ratio << "\n";
+    knob_macros << "#define WEAVE_REG_BALANCE " << knobs.reg_balance << "\n";
+
+    const std::string kernel_source = std::format(R"(
+{}
 #include <deep_gemm/impls/sm100_fp4_fp4_mega_moe.cuh>
 
 using namespace deep_gemm::nvfp4;
@@ -175,7 +214,8 @@ static void __instantiate_kernel() {{
         {}
     >);
 }};
-)", num_max_tokens_per_rank,
+)", knob_macros.str(),
+        num_max_tokens_per_rank,
         hidden, intermediate_hidden,
         num_experts, num_shared_experts,
         num_topk,
@@ -189,7 +229,15 @@ static void __instantiate_kernel() {{
         config.num_dispatch_threads, config.num_non_epilogue_threads, config.num_epilogue_threads,
         num_sms, num_ranks,
         to_string(activation_clamp),
-        fast_math ? "true" : "false"));
+        fast_math ? "true" : "false");
+
+    // Compile-only mode (`DG_JIT_COMPILE_ONLY=1`): build the cubin but never load or launch it,
+    // so any target arch / SM count can be compiled on any device.
+    if (compile_only_enabled()) {
+        jit->compile_without_load("sm100_fp4_fp4_mega_moe", kernel_source);
+        return;
+    }
+    const auto kernel = jit->compile("sm100_fp4_fp4_mega_moe", kernel_source);
 
     jit->launch(
         kernel, {

@@ -331,8 +331,28 @@ __device__ __forceinline__ void ep16_combine(const V968DispatchExt& env,const V9
 __device__ __forceinline__ void ep16_scatter_reclaim(const V968DispatchExt& env,const V983Ov1Ext& o,const Ep16TurboContext& x,bool dual FI_CTX_PARAM){
  auto& e=env.base;unsigned lane=threadIdx.x&63u;
  const unsigned w=threadIdx.x>>6u;
+#if (WEAVE_SCATTER_ACTIVE_SMS > 0 && WEAVE_SCATTER_ACTIVE_SMS < 80) || WEAVE_CU_WAVE_SPLIT == 3
+ // Restricted reclaim participation (compile-time, uniform):
+ //   WEAVE_SCATTER_ACTIVE_SMS = K (0<K<80): only CTAs < K help;
+ //   WEAVE_CU_WAVE_SPLIT == 3 (8-0): CTAs 0..31 are dedicated comm CUs whose
+ //   waves 0..3 already exited, so only CTAs 32..79 can help.
+ // Reclaim is an ASSIST only: ep16_combine on CTAs 0..31 (waves 5..7) drains
+ // every (src,slot) bucket by CAS-claiming bucket_done nexp->0xffffffff and runs
+ // the node/home reduce tasks on its own, and it keeps polling a bucket/task
+ // claimed by a reclaim worker until bucket_sent/home_done is set.  Workers are
+ // renumbered densely over the participating CTAs so the key/token strides still
+ // cover everything the helpers can take.
+ constexpr unsigned kRecFirst=(WEAVE_CU_WAVE_SPLIT==3)?32u:0u;
+ constexpr unsigned kRecEnd=(WEAVE_SCATTER_ACTIVE_SMS>0 && WEAVE_SCATTER_ACTIVE_SMS<80)?(unsigned)WEAVE_SCATTER_ACTIVE_SMS:80u;
+ if(blockIdx.x<kRecFirst || blockIdx.x>=kRecEnd)return;
+ constexpr unsigned kRecCtas=(kRecEnd>kRecFirst)?(kRecEnd-kRecFirst):0u;
+ constexpr unsigned kRecHi=(kRecEnd>32u)?(kRecEnd-32u):0u; // participating CTAs >=32 (waves 4..7 exist only there)
+ const unsigned worker=(w<4u)?((blockIdx.x-kRecFirst)*4u+w):(kRecCtas*4u+(blockIdx.x-32u)*4u+(w-4u));
+ const unsigned stride=kRecCtas*4u+(dual?kRecHi*4u:0u);
+#else
  const unsigned worker=(w<4u)?(blockIdx.x*4u+w):(320u+(blockIdx.x-32u)*4u+(w-4u));
  const unsigned stride=dual?512u:320u;
+#endif
  __scoped_atomic_thread_fence(__ATOMIC_ACQUIRE,__HIP_MEMORY_SCOPE_AGENT);
  const unsigned total_keys=16u*e.capacity;
  unsigned reclaimed=0u;

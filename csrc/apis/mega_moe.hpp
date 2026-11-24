@@ -20,7 +20,16 @@ namespace deep_gemm::mega {
 static int get_token_alignment_for_mega_moe(const std::string& mma_type = "fp8xfp4") {
     if (mma_type == "fp4xfp4")
         return nvfp4::get_token_alignment_for_mega_moe();
-    return layout::kLCMCandidateBlockM;
+    // The ring only has to be a multiple of the BLOCK_M that is actually
+    // selected.  The default candidate envelope is covered by 1920, so an
+    // unforced build gets the reference producer's ring size; forcing
+    // BLOCK_M=256 (the one candidate 1920 does not divide) widens it.
+    int alignment = layout::kLCMCandidateBlockM;
+    const int forced_block_m = get_weave_env<int>("WEAVE_BLOCK_M", "DG_TUNE_D3_BM", "DG_D3_BM", 0);
+    if (forced_block_m > 0 and alignment % forced_block_m != 0)
+        alignment = static_cast<int>(std::lcm(static_cast<long long>(alignment),
+                                              static_cast<long long>(forced_block_m)));
+    return alignment;
 }
 
 static int get_block_m_for_mega_moe(
@@ -83,6 +92,10 @@ get_symm_buffer_size_for_mega_moe(
         num_ring_tokens = std::max(num_ring_tokens, num_live_pool_blocks * block_m);
     }
     num_ring_tokens = math::align(num_ring_tokens, layout::kLCMCandidateBlockM);
+    // A forced BLOCK_M outside the 1920 envelope (only 256) must divide the ring.
+    if (const int forced_block_m = get_weave_env<int>("WEAVE_BLOCK_M", "DG_TUNE_D3_BM", "DG_D3_BM", 0);
+        forced_block_m > 0 and num_ring_tokens % forced_block_m != 0)
+        num_ring_tokens = math::align(num_ring_tokens, forced_block_m);
 
     // Parse MMA type
     const auto mma_kind = parse_mma_kind(mma_type);
@@ -269,7 +282,8 @@ static void fp8_fp4_mega_moe(
     // Check stats counter
     if (cumulative_local_expert_recv_stats.has_value()) {
         DG_HOST_ASSERT(cumulative_local_expert_recv_stats->scalar_type() == torch::kInt);
-        DG_HOST_ASSERT(cumulative_local_expert_recv_stats->numel() == num_experts_per_rank);
+        // The tile-granularity profiler reuses this tensor as its record buffer.
+        DG_HOST_ASSERT(cumulative_local_expert_recv_stats->numel() >= num_experts_per_rank);
         DG_HOST_ASSERT(cumulative_local_expert_recv_stats->is_contiguous());
     }
 
@@ -385,7 +399,8 @@ static void bf16_mega_moe(
     // Check stats counter
     if (cumulative_local_expert_recv_stats.has_value()) {
         DG_HOST_ASSERT(cumulative_local_expert_recv_stats->scalar_type() == torch::kInt);
-        DG_HOST_ASSERT(cumulative_local_expert_recv_stats->numel() == num_experts_per_rank);
+        // The tile-granularity profiler reuses this tensor as its record buffer.
+        DG_HOST_ASSERT(cumulative_local_expert_recv_stats->numel() >= num_experts_per_rank);
         DG_HOST_ASSERT(cumulative_local_expert_recv_stats->is_contiguous());
     }
 

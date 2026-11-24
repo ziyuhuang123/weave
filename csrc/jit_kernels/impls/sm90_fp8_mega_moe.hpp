@@ -419,12 +419,12 @@ static void sm90_fp8_mega_moe(
     const int wg_block_m = static_cast<int>(wg_layout.block_m);
     const int wg_block_n = static_cast<int>(wg_layout.block_n);
     const int wg_l1_out_block_n = wg_block_n / 2;
-    const bool use_adapt_bm_l1 = agy_spec.enabled and agy_spec.get_int("adapt_bm", 0) > 0 and
+    const bool use_adapt_bm_l1 = agy_spec.enabled and agy_spec.get_int("adapt_bm_dev", 0) > 0 and
                                  l1_config.swap_ab and l1_config.block_m == 64 and
                                  layout::get_sm90_moe_warpgroup_layout(
                                      l1_config.block_m, l1_config.block_n,
                                      l1_config.num_epilogue_threads / 128).split_n;
-    const bool use_adapt_bm_l2 = agy_spec.enabled and agy_spec.get_int("adapt_bm", 0) > 0 and
+    const bool use_adapt_bm_l2 = agy_spec.enabled and agy_spec.get_int("adapt_bm_dev", 0) > 0 and
                                  l2_config.swap_ab and l2_config.block_m == 64 and
                                  layout::get_sm90_moe_warpgroup_layout(
                                      l2_config.block_m, l2_config.block_n,

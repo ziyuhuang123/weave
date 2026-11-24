@@ -2,18 +2,23 @@
 
 #include <algorithm>
 #include <array>
+#include <cctype>
+#include <cerrno>
 #include <chrono>
 #include <cstdio>
 #include <cstdlib>
 #include <iomanip>
 #include <sstream>
 #include <vector>
+#include <limits>
+#include <string>
+#ifndef WEAVE_SURFACE_HOST
 #include <filesystem>
 #include <functional>
 #include <random>
-#include <string>
 #include <memory>
 #include <unistd.h>
+#endif
 
 #include "exception.hpp"
 #include "format.hpp"
@@ -31,9 +36,18 @@ static dtype_t get_env(const std::string& name, const dtype_t& default_value = d
     if constexpr (std::is_same_v<dtype_t, std::string>) {
         return std::string(c_str);
     } else if constexpr (std::is_same_v<dtype_t, int>) {
-        int value;
-        std::sscanf(c_str, "%d", &value);
-        return value;
+        // Fail closed on a malformed integer: the previous sscanf() left the
+        // value indeterminate, so a typo silently produced a random knob.
+        char* end = nullptr;
+        errno = 0;
+        const long parsed = std::strtol(c_str, &end, 10);
+        DG_HOST_ASSERT(errno != ERANGE and end != c_str and
+                       parsed >= std::numeric_limits<int>::min() and
+                       parsed <= std::numeric_limits<int>::max());
+        while (*end != '\0' and std::isspace(static_cast<unsigned char>(*end)))
+            ++end;
+        DG_HOST_ASSERT(*end == '\0');
+        return static_cast<int>(parsed);
     } else {
         DG_HOST_ASSERT(false and "Unexpected type");
     }
@@ -51,13 +65,17 @@ static dtype_t get_weave_env(const char* primary,
                              const char* legacy2 = nullptr,
                              const dtype_t& default_val = dtype_t()) {
     for (const char* name : {primary, legacy1, legacy2}) {
-        if (name != nullptr and std::getenv(name) != nullptr)
+        // An empty value means "unset", matching named_env() and the SM90 spec
+        // parser, so `export WEAVE_X=` never shadows a legacy alias.
+        const char* value = name != nullptr ? std::getenv(name) : nullptr;
+        if (value != nullptr and *value != '\0')
             return get_env<dtype_t>(name, default_val);
     }
     return default_val;
 }
 
 
+#ifndef WEAVE_SURFACE_HOST
 static std::tuple<int, std::string> call_external_command(std::string command) {
     command = command + " 2>&1";
     const auto deleter = [](FILE* f) { if (f) pclose(f); };
@@ -69,9 +87,15 @@ static std::tuple<int, std::string> call_external_command(std::string command) {
     while (fgets(buffer.data(), buffer.size(), pipe.get()))
         output += buffer.data();
     const auto status = pclose(pipe.release());
+#if defined(_WIN32)
+    // pclose() returns the child exit code directly on Windows; the POSIX
+    // status macros are unavailable there.
+    const auto exit_code = status;
+#else
     // NOTES: if the child was killed by a signal (e.g., SIGINT from Ctrl+C),
     // WEXITSTATUS would incorrectly return 0. Treat signal death as failure.
     const auto exit_code = WIFEXITED(status) ? WEXITSTATUS(status) : 128 + WTERMSIG(status);
+#endif
     return {exit_code, output};
 }
 
@@ -100,10 +124,10 @@ static std::filesystem::path make_dirs(const std::filesystem::path& path) {
     const bool created = std::filesystem::create_directories(path, capture);
     if (not (created or capture.value() == 0)) {
         DG_HOST_UNREACHABLE(fmt::format("Failed to make directory: {}, created: {}, value: {}",
-                                        path.c_str(), created, capture.value()));
+                                        path.string(), created, capture.value()));
     }
     if (created and get_env<int>("DG_JIT_DEBUG"))
-        printf("Create directory: %s\n", path.c_str());
+        printf("Create directory: %s\n", path.string().c_str());
     return path;
 }
 
@@ -150,5 +174,7 @@ static void safe_remove_all(const std::filesystem::path& path) {
     }
     std::filesystem::remove(path, ec);
 }
+
+#endif  // WEAVE_SURFACE_HOST
 
 } // deep_gemm
