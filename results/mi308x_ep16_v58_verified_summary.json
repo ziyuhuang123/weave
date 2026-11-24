@@ -1,0 +1,268 @@
+{
+  "schema": "mi308x-ep16-v58-pmc-verified/1",
+  "status": "DONE_VERIFIED",
+  "model": "qwen38max",
+  "model_label": "Qwen3.8-Max-2.4T",
+  "S_global": 16384,
+  "world_size": 16,
+  "nodes": 2,
+  "ranks_per_node": 8,
+  "ep": 16,
+  "kernel_vehicle": "P_fi2_F_COAL68.co (N08,N44,N80)=(4,8,68), FI_LEVEL=2, strict 0-spill 255-VGPR",
+  "co_sha256": "ed9f26751ed2d6aa3cccdc44a5f4ec45986964c192cdb2d546c3be016f7debba",
+  "host_lib_sha256": "65cd68b2a86d9f8355bdf97bb87bea91bc6cd4be5cba19e1e74775cd79283ed3",
+  "gda_turbo_fi_sha256": "c370361c433805a3ead7ea84676d53644f56c6792ca4742fa1c7c2dbf7f74826",
+  "nebula_job": {
+    "task_id": "01a201d9c4c01d2f3f57557a4f4496a4",
+    "tag": "ep16_v58pmc_20261122T060241Z",
+    "queue": "tre_aidev_mi308x",
+    "status": "FINISHED",
+    "containers": {
+      "0": "FINISHED",
+      "1": "FINISHED"
+    },
+    "entry": "job/entry_wp_pmc_v58_ep16.py",
+    "runner": "ep16/run_wp_pmc_v58_ep16.py",
+    "arm_dir": "R/pkg/wp_fi_v58_pmc",
+    "providers": "R/pkg/arms_v57 (Trap-1/2/3 pinned-identical)",
+    "diagnostic_first_job": {
+      "task_id": "01a201c42898e099b375c4444ea49288",
+      "note": "FP64 PASS both passes but DCS force_configure-only path returned HSA_NOT_LOADED (status 22), 0 PMC samples; fixed by loading the sampler via ROCP_TOOL_LIBRARIES so rocprofiler-register intercepts hsa_init."
+    }
+  },
+  "passes": {
+    "A": {
+      "counters": "GRBM_GUI_ACTIVE,SQ_BUSY_CU_CYCLES,TCC_EA0_RDREQ_DRAM,TCC_EA0_WRREQ_DRAM",
+      "pmc_samples": 345,
+      "pmc_errors": 0,
+      "fi_overflow": 0,
+      "rank0_capture_event_us": 10961.274147033691,
+      "fp64": {
+        "correctness": {
+          "ok": true,
+          "ranks": 16,
+          "all_finite": true,
+          "all_elements_checked_global": 134217728,
+          "fp64_reference_on_every_rank": true,
+          "max_rel_l2": 0.011875960185867573,
+          "rel_l2_gate": 0.02,
+          "max_row_rel_l2": 0.025642953153393377,
+          "max_row_rel_l2_gate": 0.05
+        },
+        "captured_output": {
+          "ok": true,
+          "ranks": 16,
+          "all_finite": true,
+          "all_elements_checked_global": 134217728,
+          "fp64_reference_on_every_rank": true,
+          "max_rel_l2": 0.011875959946825321,
+          "rel_l2_gate": 0.02,
+          "max_row_rel_l2": 0.025642953153393377,
+          "max_row_rel_l2_gate": 0.05
+        }
+      },
+      "fi_sha256": "9991eb71cef92aaa40c166eafe79fa5329147fc6fb0c6e4467b55635df58b77e",
+      "clock_probe": {
+        "rc": 0,
+        "wall_khz": 100000,
+        "wall_hz": 100000000,
+        "memrealtime_ticks": 1442514774853406,
+        "memrealtime_ns": 14425147748534060,
+        "host": {
+          "mono_ns": 14425118457317601,
+          "hsa_ns": 14425118457317826
+        },
+        "hsa_minus_memrealtime_ns": -29291216234
+      }
+    },
+    "B": {
+      "counters": "GRBM_GUI_ACTIVE,SQ_VALU_MFMA_BUSY_CYCLES,TCC_EA0_RDREQ_DRAM,TCC_EA0_WRREQ_DRAM",
+      "pmc_samples": 569,
+      "pmc_errors": 0,
+      "fi_overflow": 0,
+      "rank0_capture_event_us": 10993.715286254883,
+      "fp64": {
+        "correctness": {
+          "ok": true,
+          "ranks": 16,
+          "all_finite": true,
+          "all_elements_checked_global": 134217728,
+          "fp64_reference_on_every_rank": true,
+          "max_rel_l2": 0.011875960223443744,
+          "rel_l2_gate": 0.02,
+          "max_row_rel_l2": 0.025642953153393377,
+          "max_row_rel_l2_gate": 0.05
+        },
+        "captured_output": {
+          "ok": true,
+          "ranks": 16,
+          "all_finite": true,
+          "all_elements_checked_global": 134217728,
+          "fp64_reference_on_every_rank": true,
+          "max_rel_l2": 0.011875960160961317,
+          "rel_l2_gate": 0.02,
+          "max_row_rel_l2": 0.025642953153393377,
+          "max_row_rel_l2_gate": 0.05
+        }
+      },
+      "fi_sha256": "31e445c7e389439dc9f2c6ad254d2b691aec6801ec63fa5cc122f74fab2d937e",
+      "clock_probe": {
+        "rc": 0,
+        "wall_khz": 100000,
+        "wall_hz": 100000000,
+        "memrealtime_ticks": 1442523263377677,
+        "memrealtime_ns": 14425232633776770,
+        "host": {
+          "mono_ns": 14425203343144302,
+          "hsa_ns": 14425203343144604
+        },
+        "hsa_minus_memrealtime_ns": -29290632166
+      }
+    }
+  },
+  "counter_inventory": {
+    "filter": "GMI|XGMI|RDMA|TCC_EA0",
+    "via": "rocprofv3 --list-avail",
+    "matching_counter_count": 41,
+    "note": "rocprofiler-sdk available counters on this 2-node Nebula image (ROCm 7.2 gfx942); no dedicated xGMI data counter exists, TCC_EA0_*REQ_DRAM is the DRAM landing proxy used for the communication curve"
+  },
+  "trace": {
+    "path": "deliverables/mi308x_ep16_qwen38max_S16384.sw_hw.perfetto.json.gz",
+    "sha256": "ccc3affb1e0544602c4641395ff42f6f52a605cbcfae327240513fee1058fc51",
+    "bytes": 270548,
+    "sw_window_us": 10928.48,
+    "sw_slices_plotted": 24895,
+    "dropped_wait": 4,
+    "stage_counts": {
+      "Dispatch / Pull": 1335,
+      "Route / Sync": 592,
+      "L1 GEMM (FC1+SwiGLU)": 6752,
+      "L2 GEMM (FC2)": 6752,
+      "Combine / Reduce": 2048,
+      "Scatter": 7416
+    }
+  },
+  "hardware_curves": {
+    "compute": {
+      "name": "compute_util [FP8 Matrix Core % of 606.2T]",
+      "label": "Compute \u2014 FP8 Matrix Core % of 606.2T",
+      "points": 141,
+      "ts_min": 78.215,
+      "ts_max": 10846.963,
+      "min": 0.0,
+      "max": 32.084
+    },
+    "hbm": {
+      "name": "memory_util [HBM3 Bandwidth % of 3684GB/s]",
+      "label": "HBM \u2014 HBM3 Bandwidth % of 3684GB/s",
+      "points": 141,
+      "ts_min": 76.835,
+      "ts_max": 10918.985,
+      "min": 0.183,
+      "max": 22.69
+    },
+    "comm": {
+      "name": "communication_util [xGMI P2P % of 287.2GB/s]",
+      "label": "xGMI \u2014 P2P % of 287.2GB/s",
+      "points": 141,
+      "ts_min": 76.835,
+      "ts_max": 10918.985,
+      "min": 0.484,
+      "max": 34.057
+    },
+    "active": {
+      "name": "sm_active [Active MI308X CUs % of 80]",
+      "label": "Active \u2014 CUs % of 80",
+      "points": 141,
+      "ts_min": 76.835,
+      "ts_max": 10918.985,
+      "min": 44.309,
+      "max": 100.0
+    }
+  },
+  "samples_per_curve": 141,
+  "curve_std": {
+    "compute": 10.1145,
+    "hbm": 6.8072,
+    "comm": 5.6735,
+    "active": 4.673
+  },
+  "panel_c": {
+    "representative_cta": 7,
+    "representative_cu": "CU 00 (XCC0-SE2-CU0, CTA 07, 4/4 Hybrid)",
+    "cta_regimes": {
+      "N08_pure_comm": 4,
+      "N44_hybrid": 8,
+      "N80_dual_compute": 68
+    },
+    "tracks": [
+      "W00..W03 (Compute / Combine)",
+      "W04..W07 (Comm / Scatter -> Streaming Reduce)"
+    ],
+    "tail_combine_start_us": 9315.03,
+    "streaming_slices": 975,
+    "unit0_streaming_tracks": [
+      4,
+      5,
+      6,
+      7
+    ],
+    "unit0_streaming_slices": 66,
+    "cu0_reduce_waves": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7
+    ],
+    "reduce_pixel_probes_ok": 76
+  },
+  "validation": {
+    "ok": true,
+    "errors": [],
+    "warnings": [],
+    "display_strings_audited": 40,
+    "trace_visible_strings_audited": 754,
+    "metadata_strings_audited": 37
+  },
+  "render": {
+    "png": "docs/figures/weaveprofiler_mi308x_timeline.png",
+    "px": [
+      3520,
+      2244
+    ],
+    "bytes": 386830,
+    "banner_free": true
+  },
+  "cpu_gates": {
+    "validate_self_test": "30/30 passed",
+    "validate_regression": "40/40 passed",
+    "knob_schema": "21 entries PASS",
+    "amd_build_knob_dry_run": "41/41 passed",
+    "tunable_params_doc": "ALL PASS"
+  },
+  "v58_champion_receipt": {
+    "source": "v58_full5arm.json + v58 clean 4-pass report (transcribed receipt; raw data and timing protocol not checked in)",
+    "six_model_geomean_vs_rccl": 1.4495,
+    "qwen38max_s16384": {
+      "rccl_us": 17842.0,
+      "v58_best_us": 11579.0,
+      "uninstrumented_us": 11578.969
+    }
+  },
+  "patch": {
+    "path": "deliverables/mi308x_ep16_v58.patch",
+    "base_commit": "0223aa4",
+    "endings": "LF",
+    "sha256": "e79b0a1cad3b4a118e8e157a4404f9a3f4e3e600d2e579e6b3ccc5a9f4005a10",
+    "files": [
+      "ablation/export_mi308x_pmc_swhw.py",
+      "ablation/render_weaveprofiler_moe_timeline.py",
+      "docs/figures/weaveprofiler_mi308x_timeline.png",
+      "examples/mi308x_qwen38max_ep16_s16384.sh"
+    ]
+  }
+}

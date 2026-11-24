@@ -49,6 +49,14 @@ CPP_GOLDEN = {
     "mi308x": (526336, 0, 32, 22.103),
 }
 
+# Predicted total microseconds printed by test_reduce_warps() in the same C++
+# test for the same fixture, indexed by WEAVE_REDUCE_WARPS = 0, 2, 4.
+CPP_REDUCE_GOLDEN = {
+    "b300": (14.022, 14.022, 14.022),
+    "h20": (18.107, 18.097, 18.097),
+    "mi308x": (22.103, 22.083, 22.078),
+}
+
 
 def zipf_histogram(total: int, bins: int) -> List[int]:
     if bins <= 0:
@@ -81,13 +89,15 @@ def run() -> Dict:
         ("mi308x", 16, "fp8xfp4"),
     ]
     report = {
-        "schema": "weave-cost-model-validation-3hw/v3",
+        "schema": "weave-cost-model-validation-3hw/v4",
         "model": "deep_gemm/include/deep_gemm/scheduler/weave_cost_model.cuh",
         "python_mirror": "deep_gemm/mega/cost_model.py",
         "routing_source": routing["source"],
         "routing_reality_boundary": routing["reality_boundary"],
         "cpp_golden_match": False,
         "precision_modes": {},
+        "max_runtime_experts": M.MAX_RUNTIME_EXPERTS,
+        "reduce_warps": {},
         "platforms": [],
         "pass": True,
     }
@@ -136,6 +146,103 @@ def run() -> Dict:
         "nvfp4_bytes_and_rate": nv_ok,
         "bf16_bytes_and_rate": bf16_ok,
     }
+
+    # 1c. WEAVE_REDUCE_WARPS: 0 stays bit-identical to Eq.(1)-(3); 2/4 lanes
+    # overlap the Combine reduction with Middle on the spare HBM bandwidth and
+    # carve the middle comm-queue scatter group down to max(1, N_c - N) units.
+    reduce_ok = True
+    reduce_report: Dict[str, Dict] = {}
+    for arch in ("b300", "h20", "mi308x"):
+        hw = M.hardware_for(arch)
+        golden = CPP_REDUCE_GOLDEN[arch]
+        totals = {}
+        for idx, rw in enumerate((0, 2, 4)):
+            b = M.select_policy(arch, wl, m_e, 23, 17, reduce_warps=rw)
+            totals[str(rw)] = round(b.t_total_us, 4)
+            if abs(b.t_total_us - golden[idx]) > 0.002:
+                reduce_ok = False
+                print(f"[FAIL] C++ reduce-warps golden mismatch {arch} "
+                      f"rw={rw}: {b.t_total_us:.4f} vs {golden[idx]:.3f}")
+        for cand in M.CANDIDATES[arch]:
+            for s in (0, 1):
+                base = M.evaluate(arch, wl, cand, s, m_e, 23, 17)
+                prev_tail = base.t_tail_reduce_us
+                for rw in (2, 4):
+                    br = M.evaluate(arch, wl, cand, s, m_e, 23, 17,
+                                    reduce_warps=rw)
+                    checks = [
+                        br.f_gemm_flops == base.f_gemm_flops,
+                        br.v_mem_bytes == base.v_mem_bytes,
+                        br.v_epi_bytes == base.v_epi_bytes,
+                        br.t_mma_us == base.t_mma_us,
+                        br.t_epi_us == base.t_epi_us,
+                        br.t_comp_us == base.t_comp_us,
+                        br.t_pull_us == base.t_pull_us,
+                        br.v_head == base.v_head,
+                        br.t_tail_reduce_us <= prev_tail + 1e-9,
+                        br.t_total_us == hw.t_head_us + br.t_mid_us + br.t_tail_reduce_us,
+                    ]
+                    if s == 0:
+                        checks += [br.t_scat_us == base.t_scat_us,
+                                   br.t_mid_us == base.t_mid_us,
+                                   br.t_total_us <= base.t_total_us + 1e-9]
+                    else:
+                        eff = cand.comm_units or cand.comp_units
+                        units = max(1, eff - rw)
+                        b_scat = min(hw.b_link_gbps,
+                                     max(1.0, float(hw.num_sms_or_cus * units) *
+                                         hw.b_scat_comm_per_unit_gbps))
+                        expect_scat = 17 * wl.hidden * hw.out_bytes / (b_scat * 1000.0)
+                        checks += [abs(br.t_scat_us - expect_scat) <=
+                                   1e-9 * max(1.0, expect_scat),
+                                   br.t_scat_us >= base.t_scat_us - 1e-12]
+                    if not all(checks):
+                        reduce_ok = False
+                        print(f"[FAIL] reduce-warps invariant {arch} "
+                              f"c{cand.comm_units}_{cand.comp_units} s{s} rw={rw}")
+                    prev_tail = br.t_tail_reduce_us
+        reduce_report[arch] = {
+            "predicted_total_us": totals,
+            "cpp_golden_total_us": list(golden),
+        }
+    report["reduce_warps"] = reduce_report
+    report["reduce_warps_invariants"] = {
+        "zero_bit_identical": M.select_policy("b300", wl, m_e, 23, 17).t_total_us ==
+                              M.select_policy("b300", wl, m_e, 23, 17,
+                                              reduce_warps=0).t_total_us,
+        "cpp_golden_match": reduce_ok,
+    }
+    report["pass"] = report["pass"] and reduce_ok
+
+    # 1d. kMaxRuntimeExperts = 256: every 128 < E_local <= 256 workload must
+    # still select a valid policy (the C++ rail rejects only E_local > 256).
+    experts_ok = M.MAX_RUNTIME_EXPERTS == 256
+    if not experts_ok:
+        print("[FAIL] MAX_RUNTIME_EXPERTS must mirror weave::kMaxRuntimeExperts=256")
+    experts_report: Dict[str, List[int]] = {}
+    for arch in ("b300", "h20", "mi308x"):
+        checked = []
+        for experts in (128, 129, 192, 256):
+            wl_e = M.WorkloadSpec(experts, 2048, 512)
+            m_hist = [e % 5 for e in range(experts)]
+            total_e = sum(m_hist)
+            for rw in (0, 4):
+                b = M.select_policy(arch, wl_e, m_hist, total_e + 13, total_e,
+                                    reduce_warps=rw)
+                ok = (b.total_tokens == total_e and b.v_head > 0 and
+                      b.scatter_mode in (0, 1) and b.t_total_us > 0.0 and
+                      math.isfinite(b.t_total_us))
+                if not ok:
+                    experts_ok = False
+                    print(f"[FAIL] E_local={experts} rw={rw} on {arch}: {b}")
+            checked.append(experts)
+        experts_report[arch] = checked
+    report["experts_256"] = {
+        "max_runtime_experts": M.MAX_RUNTIME_EXPERTS,
+        "local_experts_checked": experts_report,
+        "pass": experts_ok,
+    }
+    report["pass"] = report["pass"] and experts_ok
 
     # 2. Replay each real routing aggregate across every architecture.
     by_arch: Dict[str, List[Dict]] = {}
@@ -205,6 +312,10 @@ def run() -> Dict:
         print("[FAIL] MI308X EP16 expected comm scatter on all replay cells")
 
     print(f"[PASS] C++ golden cross-check: {golden_ok}")
+    print(f"[PASS] WEAVE_REDUCE_WARPS 0/2/4 cross-language golden + invariants: {reduce_ok}")
+    for arch, row in reduce_report.items():
+        print(f"       {arch}: total_us={row['predicted_total_us']}")
+    print(f"[PASS] E_local<=256 (128/129/192/256) selection: {experts_ok}")
     for p in report["platforms"]:
         print(f"[PASS] {p['platform']}: cells={p['evaluated_cells']} "
               f"selection_counts={p['selection_counts']}")

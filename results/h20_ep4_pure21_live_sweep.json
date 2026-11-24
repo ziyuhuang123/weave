@@ -1,0 +1,2908 @@
+{
+ "schema": "weave-h20-ep4-pure21-live-sweep/v1",
+ "device": "4x NVIDIA H20, EP4 (exclusive 4-GPU lock per batch)",
+ "model": "Qwen3.8-Max MoE layer, E=512, topk=10, H=8192, I=2048, num_shared_experts=0",
+ "method": "palindromic ABBA, cuda-event per launch, max over ranks; full-output accuracy vs FP32 reference on randn inputs (calc_diff < 1e-3, cos > 0.999, exact recv stats, repeat/stress calc_diff < 1e-3 vs the first launch; NOT bitwise: every Weave 4-WG Swap-AB arm shows ~1e-8 (BF16 LSB-level) repeat-launch differences while official is exactly 0.0, root cause not yet located)",
+ "pure21": "every candidate arm sets only public WEAVE_* knobs; v8base (WEAVE_H20_CONFIG) is an internal cross-commit anchor only",
+ "winner": {
+  "arm": "bm32_64",
+  "env": {
+   "WEAVE_SCATTER_OWNER": "comm_only",
+   "WEAVE_SCATTER_STAGING": "smem",
+   "WEAVE_BLOCK_M_L1": "32",
+   "WEAVE_BLOCK_M_L2": "64"
+  },
+  "per_S": {
+   "1024": {
+    "paired": [
+     {
+      "batch": "o2",
+      "bm32_64_us": 2177.728,
+      "p21_us": 2234.688,
+      "v8base_us": 2235.136,
+      "official_us": 3280.432,
+      "delta_vs_p21_pct": -2.55,
+      "vs_official": 1.5064
+     },
+     {
+      "batch": "c1",
+      "bm32_64_us": 2173.84,
+      "p21_us": 2235.024,
+      "v8base_us": 2233.456,
+      "official_us": 3290.64,
+      "delta_vs_p21_pct": -2.74,
+      "vs_official": 1.5137
+     },
+     {
+      "batch": "o5",
+      "bm32_64_us": 2182.864,
+      "p21_us": 2231.984,
+      "v8base_us": 2232.432,
+      "official_us": 3245.808,
+      "delta_vs_p21_pct": -2.2,
+      "vs_official": 1.4869
+     }
+    ],
+    "median_of_medians_us": 2177.73
+   },
+   "4096": {
+    "paired": [
+     {
+      "batch": "o2",
+      "bm32_64_us": 5272.992,
+      "p21_us": 5285.424,
+      "v8base_us": 5302.336,
+      "official_us": 6142.816,
+      "delta_vs_p21_pct": -0.24,
+      "vs_official": 1.165
+     },
+     {
+      "batch": "c1",
+      "bm32_64_us": 5276.064,
+      "p21_us": 5310.176,
+      "v8base_us": 5310.656,
+      "official_us": 6153.76,
+      "delta_vs_p21_pct": -0.64,
+      "vs_official": 1.1664
+     },
+     {
+      "batch": "o5",
+      "bm32_64_us": 5234.448,
+      "p21_us": 5249.52,
+      "v8base_us": 5247.008,
+      "official_us": 6091.632,
+      "delta_vs_p21_pct": -0.29,
+      "vs_official": 1.1638
+     }
+    ],
+    "median_of_medians_us": 5272.99
+   }
+  }
+ },
+ "batches": [
+  {
+   "batch": "o1",
+   "S": 1024,
+   "note": "sweep1: WEAVE_CU_WAVE_SPLIT {0,8,16,32,64,0-8,0-32} + ADAPT_BM=0",
+   "timing": {
+    "method": "cuda_event_per_launch_max_over_ranks",
+    "warmup": 2,
+    "rounds": 4,
+    "order": "palindromic_ABBA",
+    "samples_per_arm": 8,
+    "wall_s": 0.28
+   },
+   "arms": {
+    "official": {
+     "env": {
+      "WEAVE_FORCE_OFFICIAL": "1"
+     },
+     "internal": false,
+     "median_us": 3308.928,
+     "min_us": 3237.44,
+     "stdev_us": 47.475,
+     "samples": 8,
+     "vs_official": 1.0,
+     "vs_p21_same_batch": 0.6759,
+     "accuracy": {
+      "passed": true,
+      "max_calc_diff": 0.00035859476883404184,
+      "min_cos_sim": 0.9996415376663208,
+      "stats_exact": true,
+      "repeat_diff": 0.0,
+      "stress_diff": 0.0,
+      "max_abs_err": 2.3671875
+     }
+    },
+    "p21": {
+     "env": {
+      "WEAVE_SCATTER_OWNER": "comm_only",
+      "WEAVE_SCATTER_STAGING": "smem",
+      "WEAVE_ADAPT_BM": "1"
+     },
+     "internal": false,
+     "median_us": 2236.528,
+     "min_us": 2229.888,
+     "stdev_us": 29.821,
+     "samples": 8,
+     "vs_official": 1.4795,
+     "vs_p21_same_batch": 1.0,
+     "accuracy": {
+      "passed": true,
+      "max_calc_diff": 0.00035859675278770986,
+      "min_cos_sim": 0.999641478061676,
+      "stats_exact": true,
+      "repeat_diff": 1.8583393490700928e-08,
+      "stress_diff": 1.8408947699555256e-08,
+      "max_abs_err": 2.3671875
+     }
+    },
+    "v8base": {
+     "env": {
+      "WEAVE_SCATTER_OWNER": "comm_only",
+      "WEAVE_SCATTER_STAGING": "smem",
+      "WEAVE_ADAPT_BM": "1",
+      "WEAVE_REDUCE_WARPS": "0",
+      "WEAVE_H20_CONFIG": "fast_host=1,fused=1,compact=1,dyn=1,alias=1,bm=64,adapt_bm=1,bf16_acc=0,bn=256,bk=128,wgs=4,swap=1,stages=0,swap_pipe=0,fast_swap_epi=1,l1_nmajor=1,l2_nmajor=1,rank_cache=1,fast_clean=1,fast_pull=1,dedup_disp=1,dedup_tier=1,reg_comb=1,fast_comb=1,all_idle_comb=1,comb_sync_chunk=0"
+     },
+     "internal": true,
+     "median_us": 2237.12,
+     "min_us": 2226.752,
+     "stdev_us": 9.171,
+     "samples": 8,
+     "vs_official": 1.4791,
+     "vs_p21_same_batch": 0.9997,
+     "accuracy": {
+      "passed": true,
+      "max_calc_diff": 0.0003585932365867128,
+      "min_cos_sim": 0.9996415376663208,
+      "stats_exact": true,
+      "repeat_diff": 8.88394813269855e-09,
+      "stress_diff": 6.573337762993958e-09,
+      "max_abs_err": 2.3671875
+     }
+    },
+    "ws0": {
+     "env": {
+      "WEAVE_SCATTER_OWNER": "comm_only",
+      "WEAVE_SCATTER_STAGING": "smem",
+      "WEAVE_ADAPT_BM": "1",
+      "WEAVE_CU_WAVE_SPLIT": "0"
+     },
+     "internal": false,
+     "median_us": 2238.4,
+     "min_us": 2234.656,
+     "stdev_us": 10.215,
+     "samples": 8,
+     "vs_official": 1.4783,
+     "vs_p21_same_batch": 0.9992,
+     "accuracy": {
+      "passed": true,
+      "max_calc_diff": 0.00035859397563453577,
+      "min_cos_sim": 0.9996415376663208,
+      "stats_exact": true,
+      "repeat_diff": 7.403425317242807e-09,
+      "stress_diff": 2.6642537287457912e-08,
+      "max_abs_err": 2.3671875
+     }
+    },
+    "ws8": {
+     "env": {
+      "WEAVE_SCATTER_OWNER": "comm_only",
+      "WEAVE_SCATTER_STAGING": "smem",
+      "WEAVE_ADAPT_BM": "1",
+      "WEAVE_CU_WAVE_SPLIT": "8"
+     },
+     "internal": false,
+     "median_us": 2449.376,
+     "min_us": 2439.808,
+     "stdev_us": 18.558,
+     "samples": 8,
+     "vs_official": 1.3509,
+     "vs_p21_same_batch": 0.9131,
+     "accuracy": {
+      "passed": true,
+      "max_calc_diff": 0.0003585964155538024,
+      "min_cos_sim": 0.9996415376663208,
+      "stats_exact": true,
+      "repeat_diff": 8.973346843355046e-09,
+      "stress_diff": 7.217254238689463e-09,
+      "max_abs_err": 2.3671875
+     }
+    },
+    "ws16": {
+     "env": {
+      "WEAVE_SCATTER_OWNER": "comm_only",
+      "WEAVE_SCATTER_STAGING": "smem",
+      "WEAVE_ADAPT_BM": "1",
+      "WEAVE_CU_WAVE_SPLIT": "16"
+     },
+     "internal": false,
+     "median_us": 2374.048,
+     "min_us": 2369.44,
+     "stdev_us": 8.372,
+     "samples": 8,
+     "vs_official": 1.3938,
+     "vs_p21_same_batch": 0.9421,
+     "accuracy": {
+      "passed": true,
+      "max_calc_diff": 0.0003585966240285954,
+      "min_cos_sim": 0.999641478061676,
+      "stats_exact": true,
+      "repeat_diff": 9.379972465417552e-09,
+      "stress_diff": 5.3469136895856195e-09,
+      "max_abs_err": 2.3671875
+     }
+    },
+    "ws32": {
+     "env": {
+      "WEAVE_SCATTER_OWNER": "comm_only",
+      "WEAVE_SCATTER_STAGING": "smem",
+      "WEAVE_ADAPT_BM": "1",
+      "WEAVE_CU_WAVE_SPLIT": "32"
+     },
+     "internal": false,
+     "median_us": 2332.704,
+     "min_us": 2317.952,
+     "stdev_us": 7.441,
+     "samples": 8,
+     "vs_official": 1.4185,
+     "vs_p21_same_batch": 0.9588,
+     "accuracy": {
+      "passed": true,
+      "max_calc_diff": 0.00035859460708642654,
+      "min_cos_sim": 0.9996415376663208,
+      "stats_exact": true,
+      "repeat_diff": 7.579678218405661e-09,
+      "stress_diff": 1.6877676478621595e-08,
+      "max_abs_err": 2.3671875
+     }
+    },
+    "ws64": {
+     "env": {
+      "WEAVE_SCATTER_OWNER": "comm_only",
+      "WEAVE_SCATTER_STAGING": "smem",
+      "WEAVE_ADAPT_BM": "1",
+      "WEAVE_CU_WAVE_SPLIT": "64"
+     },
+     "internal": false,
+     "median_us": 2328.736,
+     "min_us": 2323.872,
+     "stdev_us": 7.26,
+     "samples": 8,
+     "vs_official": 1.4209,
+     "vs_p21_same_batch": 0.9604,
+     "accuracy": {
+      "passed": true,
+      "max_calc_diff": 0.0003585943159755134,
+      "min_cos_sim": 0.999641478061676,
+      "stats_exact": true,
+      "repeat_diff": 9.086175034589417e-09,
+      "stress_diff": 8.144510621477252e-09,
+      "max_abs_err": 2.3671875
+     }
+    },
+    "ws0_8": {
+     "env": {
+      "WEAVE_SCATTER_OWNER": "comm_only",
+      "WEAVE_SCATTER_STAGING": "smem",
+      "WEAVE_ADAPT_BM": "1",
+      "WEAVE_CU_WAVE_SPLIT": "0-8"
+     },
+     "internal": false,
+     "median_us": 2234.96,
+     "min_us": 2230.688,
+     "stdev_us": 5.791,
+     "samples": 8,
+     "vs_official": 1.4805,
+     "vs_p21_same_batch": 1.0007,
+     "accuracy": {
+      "passed": true,
+      "max_calc_diff": 0.0003585960312469938,
+      "min_cos_sim": 0.999641478061676,
+      "stats_exact": true,
+      "repeat_diff": 7.979768845700619e-09,
+      "stress_diff": 3.392964575965607e-09,
+      "max_abs_err": 2.3671875
+     }
+    },
+    "ws0_32": {
+     "env": {
+      "WEAVE_SCATTER_OWNER": "comm_only",
+      "WEAVE_SCATTER_STAGING": "smem",
+      "WEAVE_ADAPT_BM": "1",
+      "WEAVE_CU_WAVE_SPLIT": "0-32"
+     },
+     "internal": false,
+     "median_us": 2235.024,
+     "min_us": 2232.576,
+     "stdev_us": 7.751,
+     "samples": 8,
+     "vs_official": 1.4805,
+     "vs_p21_same_batch": 1.0007,
+     "accuracy": {
+      "passed": true,
+      "max_calc_diff": 0.0003585936347093588,
+      "min_cos_sim": 0.999641478061676,
+      "stats_exact": true,
+      "repeat_diff": 8.91212081910453e-09,
+      "stress_diff": 2.0310473414220098e-08,
+      "max_abs_err": 2.3671875
+     }
+    },
+    "ab0": {
+     "env": {
+      "WEAVE_SCATTER_OWNER": "comm_only",
+      "WEAVE_SCATTER_STAGING": "smem",
+      "WEAVE_ADAPT_BM": "0"
+     },
+     "internal": false,
+     "median_us": 2212.304,
+     "min_us": 2208.64,
+     "stdev_us": 3.076,
+     "samples": 8,
+     "vs_official": 1.4957,
+     "vs_p21_same_batch": 1.0109,
+     "accuracy": {
+      "passed": true,
+      "max_calc_diff": 0.00035859397382986824,
+      "min_cos_sim": 0.9996415376663208,
+      "stats_exact": true,
+      "repeat_diff": 1.0934961713893188e-08,
+      "stress_diff": 5.730732444142461e-09,
+      "max_abs_err": 2.3671875
+     }
+    }
+   }
+  },
+  {
+   "batch": "o1",
+   "S": 4096,
+   "note": "sweep1: WEAVE_CU_WAVE_SPLIT {0,8,16,32,64,0-8,0-32} + ADAPT_BM=0",
+   "timing": {
+    "method": "cuda_event_per_launch_max_over_ranks",
+    "warmup": 2,
+    "rounds": 4,
+    "order": "palindromic_ABBA",
+    "samples_per_arm": 8,
+    "wall_s": 0.56
+   },
+   "arms": {
+    "official": {
+     "env": {
+      "WEAVE_FORCE_OFFICIAL": "1"
+     },
+     "internal": false,
+     "median_us": 6145.296,
+     "min_us": 6098.784,
+     "stdev_us": 68.105,
+     "samples": 8,
+     "vs_official": 1.0,
+     "vs_p21_same_batch": 0.8597,
+     "accuracy": {
+      "passed": true,
+      "max_calc_diff": 0.0003556971687315169,
+      "min_cos_sim": 0.99964439868927,
+      "stats_exact": true,
+      "repeat_diff": 0.0,
+      "stress_diff": 0.0,
+      "max_abs_err": 2.625
+     }
+    },
+    "p21": {
+     "env": {
+      "WEAVE_SCATTER_OWNER": "comm_only",
+      "WEAVE_SCATTER_STAGING": "smem",
+      "WEAVE_ADAPT_BM": "1"
+     },
+     "internal": false,
+     "median_us": 5283.28,
+     "min_us": 5244.96,
+     "stdev_us": 24.779,
+     "samples": 8,
+     "vs_official": 1.1632,
+     "vs_p21_same_batch": 1.0,
+     "accuracy": {
+      "passed": true,
+      "max_calc_diff": 0.0003556976432181891,
+      "min_cos_sim": 0.99964439868927,
+      "stats_exact": true,
+      "repeat_diff": 3.6116859503110277e-09,
+      "stress_diff": 3.3298392931868648e-09,
+      "max_abs_err": 2.625
+     }
+    },
+    "v8base": {
+     "env": {
+      "WEAVE_SCATTER_OWNER": "comm_only",
+      "WEAVE_SCATTER_STAGING": "smem",
+      "WEAVE_ADAPT_BM": "1",
+      "WEAVE_REDUCE_WARPS": "0",
+      "WEAVE_H20_CONFIG": "fast_host=1,fused=1,compact=1,dyn=1,alias=1,bm=64,adapt_bm=1,bf16_acc=0,bn=256,bk=128,wgs=4,swap=1,stages=0,swap_pipe=0,fast_swap_epi=1,l1_nmajor=1,l2_nmajor=1,rank_cache=1,fast_clean=1,fast_pull=1,dedup_disp=1,dedup_tier=1,reg_comb=1,fast_comb=1,all_idle_comb=1,comb_sync_chunk=0"
+     },
+     "internal": true,
+     "median_us": 5288.496,
+     "min_us": 5252.8,
+     "stdev_us": 33.633,
+     "samples": 8,
+     "vs_official": 1.162,
+     "vs_p21_same_batch": 0.999,
+     "accuracy": {
+      "passed": true,
+      "max_calc_diff": 0.00035569762496212576,
+      "min_cos_sim": 0.99964439868927,
+      "stats_exact": true,
+      "repeat_diff": 2.261285936278057e-09,
+      "stress_diff": 1.794122750364835e-08,
+      "max_abs_err": 2.625
+     }
+    },
+    "ws0": {
+     "env": {
+      "WEAVE_SCATTER_OWNER": "comm_only",
+      "WEAVE_SCATTER_STAGING": "smem",
+      "WEAVE_ADAPT_BM": "1",
+      "WEAVE_CU_WAVE_SPLIT": "0"
+     },
+     "internal": false,
+     "median_us": 5290.592,
+     "min_us": 5253.344,
+     "stdev_us": 38.182,
+     "samples": 8,
+     "vs_official": 1.1616,
+     "vs_p21_same_batch": 0.9986,
+     "accuracy": {
+      "passed": true,
+      "max_calc_diff": 0.0003556959968528117,
+      "min_cos_sim": 0.99964439868927,
+      "stats_exact": true,
+      "repeat_diff": 4.9460315842964064e-09,
+      "stress_diff": 2.6820440313102267e-09,
+      "max_abs_err": 2.625
+     }
+    },
+    "ws8": {
+     "env": {
+      "WEAVE_SCATTER_OWNER": "comm_only",
+      "WEAVE_SCATTER_STAGING": "smem",
+      "WEAVE_ADAPT_BM": "1",
+      "WEAVE_CU_WAVE_SPLIT": "8"
+     },
+     "internal": false,
+     "median_us": 5812.304,
+     "min_us": 5775.552,
+     "stdev_us": 38.967,
+     "samples": 8,
+     "vs_official": 1.0573,
+     "vs_p21_same_batch": 0.909,
+     "accuracy": {
+      "passed": true,
+      "max_calc_diff": 0.00035569596133622206,
+      "min_cos_sim": 0.9996443390846252,
+      "stats_exact": true,
+      "repeat_diff": 1.5247255125139247e-08,
+      "stress_diff": 6.36558250555197e-09,
+      "max_abs_err": 2.625
+     }
+    },
+    "ws16": {
+     "env": {
+      "WEAVE_SCATTER_OWNER": "comm_only",
+      "WEAVE_SCATTER_STAGING": "smem",
+      "WEAVE_ADAPT_BM": "1",
+      "WEAVE_CU_WAVE_SPLIT": "16"
+     },
+     "internal": false,
+     "median_us": 5721.712,
+     "min_us": 5689.408,
+     "stdev_us": 22.242,
+     "samples": 8,
+     "vs_official": 1.074,
+     "vs_p21_same_batch": 0.9234,
+     "accuracy": {
+      "passed": true,
+      "max_calc_diff": 0.0003556976310659099,
+      "min_cos_sim": 0.99964439868927,
+      "stats_exact": true,
+      "repeat_diff": 4.352348481617696e-09,
+      "stress_diff": 1.47426085783664e-08,
+      "max_abs_err": 2.625
+     }
+    },
+    "ws32": {
+     "env": {
+      "WEAVE_SCATTER_OWNER": "comm_only",
+      "WEAVE_SCATTER_STAGING": "smem",
+      "WEAVE_ADAPT_BM": "1",
+      "WEAVE_CU_WAVE_SPLIT": "32"
+     },
+     "internal": false,
+     "median_us": 5467.6,
+     "min_us": 5453.888,
+     "stdev_us": 55.946,
+     "samples": 8,
+     "vs_official": 1.1239,
+     "vs_p21_same_batch": 0.9663,
+     "accuracy": {
+      "passed": true,
+      "max_calc_diff": 0.0003556961041046858,
+      "min_cos_sim": 0.99964439868927,
+      "stats_exact": true,
+      "repeat_diff": 1.6037675520941264e-08,
+      "stress_diff": 1.6440673711315412e-08,
+      "max_abs_err": 2.625
+     }
+    },
+    "ws64": {
+     "env": {
+      "WEAVE_SCATTER_OWNER": "comm_only",
+      "WEAVE_SCATTER_STAGING": "smem",
+      "WEAVE_ADAPT_BM": "1",
+      "WEAVE_CU_WAVE_SPLIT": "64"
+     },
+     "internal": false,
+     "median_us": 5466.96,
+     "min_us": 5421.6,
+     "stdev_us": 21.559,
+     "samples": 8,
+     "vs_official": 1.1241,
+     "vs_p21_same_batch": 0.9664,
+     "accuracy": {
+      "passed": true,
+      "max_calc_diff": 0.0003556955628093439,
+      "min_cos_sim": 0.9996443390846252,
+      "stats_exact": true,
+      "repeat_diff": 4.808840436965056e-09,
+      "stress_diff": 1.5186308210957122e-08,
+      "max_abs_err": 2.625
+     }
+    },
+    "ws0_8": {
+     "env": {
+      "WEAVE_SCATTER_OWNER": "comm_only",
+      "WEAVE_SCATTER_STAGING": "smem",
+      "WEAVE_ADAPT_BM": "1",
+      "WEAVE_CU_WAVE_SPLIT": "0-8"
+     },
+     "internal": false,
+     "median_us": 5283.136,
+     "min_us": 5248.704,
+     "stdev_us": 17.26,
+     "samples": 8,
+     "vs_official": 1.1632,
+     "vs_p21_same_batch": 1.0,
+     "accuracy": {
+      "passed": true,
+      "max_calc_diff": 0.0003556973705656219,
+      "min_cos_sim": 0.9996443390846252,
+      "stats_exact": true,
+      "repeat_diff": 5.4385367320719524e-09,
+      "stress_diff": 7.484069697305529e-09,
+      "max_abs_err": 2.625
+     }
+    },
+    "ws0_32": {
+     "env": {
+      "WEAVE_SCATTER_OWNER": "comm_only",
+      "WEAVE_SCATTER_STAGING": "smem",
+      "WEAVE_ADAPT_BM": "1",
+      "WEAVE_CU_WAVE_SPLIT": "0-32"
+     },
+     "internal": false,
+     "median_us": 5282.208,
+     "min_us": 5245.984,
+     "stdev_us": 19.013,
+     "samples": 8,
+     "vs_official": 1.1634,
+     "vs_p21_same_batch": 1.0002,
+     "accuracy": {
+      "passed": true,
+      "max_calc_diff": 0.0003556957734517363,
+      "min_cos_sim": 0.99964439868927,
+      "stats_exact": true,
+      "repeat_diff": 6.390231788167e-09,
+      "stress_diff": 7.461132933705983e-09,
+      "max_abs_err": 2.625
+     }
+    },
+    "ab0": {
+     "env": {
+      "WEAVE_SCATTER_OWNER": "comm_only",
+      "WEAVE_SCATTER_STAGING": "smem",
+      "WEAVE_ADAPT_BM": "0"
+     },
+     "internal": false,
+     "median_us": 5292.496,
+     "min_us": 5266.656,
+     "stdev_us": 11.828,
+     "samples": 8,
+     "vs_official": 1.1611,
+     "vs_p21_same_batch": 0.9983,
+     "accuracy": {
+      "passed": true,
+      "max_calc_diff": 0.0003556970866371856,
+      "min_cos_sim": 0.99964439868927,
+      "stats_exact": true,
+      "repeat_diff": 6.2042231352421595e-09,
+      "stress_diff": 6.362484761268661e-09,
+      "max_abs_err": 2.625
+     }
+    }
+   }
+  },
+  {
+   "batch": "o2",
+   "S": 1024,
+   "note": "sweep1: BLOCK_M_L1/L2 {64/64,32/64,32/32,16/64,32/16,128/64} + ADAPT_BM=0 R=2",
+   "timing": {
+    "method": "cuda_event_per_launch_max_over_ranks",
+    "warmup": 2,
+    "rounds": 4,
+    "order": "palindromic_ABBA",
+    "samples_per_arm": 8,
+    "wall_s": 0.27
+   },
+   "arms": {
+    "official": {
+     "env": {
+      "WEAVE_FORCE_OFFICIAL": "1"
+     },
+     "internal": false,
+     "median_us": 3280.432,
+     "min_us": 3257.472,
+     "stdev_us": 18.472,
+     "samples": 8,
+     "vs_official": 1.0,
+     "vs_p21_same_batch": 0.6812,
+     "accuracy": {
+      "passed": true,
+      "max_calc_diff": 0.00035859476883404184,
+      "min_cos_sim": 0.9996415376663208,
+      "stats_exact": true,
+      "repeat_diff": 0.0,
+      "stress_diff": 0.0,
+      "max_abs_err": 2.3671875
+     }
+    },
+    "p21": {
+     "env": {
+      "WEAVE_SCATTER_OWNER": "comm_only",
+      "WEAVE_SCATTER_STAGING": "smem",
+      "WEAVE_ADAPT_BM": "1"
+     },
+     "internal": false,
+     "median_us": 2234.688,
+     "min_us": 2229.664,
+     "stdev_us": 9.126,
+     "samples": 8,
+     "vs_official": 1.468,
+     "vs_p21_same_batch": 1.0,
+     "accuracy": {
+      "passed": true,
+      "max_calc_diff": 0.00035859631272794346,
+      "min_cos_sim": 0.9996415376663208,
+      "stats_exact": true,
+      "repeat_diff": 1.9743140455830144e-08,
+      "stress_diff": 7.333333940096054e-09,
+      "max_abs_err": 2.3671875
+     }
+    },
+    "v8base": {
+     "env": {
+      "WEAVE_SCATTER_OWNER": "comm_only",
+      "WEAVE_SCATTER_STAGING": "smem",
+      "WEAVE_ADAPT_BM": "1",
+      "WEAVE_REDUCE_WARPS": "0",
+      "WEAVE_H20_CONFIG": "fast_host=1,fused=1,compact=1,dyn=1,alias=1,bm=64,adapt_bm=1,bf16_acc=0,bn=256,bk=128,wgs=4,swap=1,stages=0,swap_pipe=0,fast_swap_epi=1,l1_nmajor=1,l2_nmajor=1,rank_cache=1,fast_clean=1,fast_pull=1,dedup_disp=1,dedup_tier=1,reg_comb=1,fast_comb=1,all_idle_comb=1,comb_sync_chunk=0"
+     },
+     "internal": true,
+     "median_us": 2235.136,
+     "min_us": 2230.912,
+     "stdev_us": 10.566,
+     "samples": 8,
+     "vs_official": 1.4677,
+     "vs_p21_same_batch": 0.9998,
+     "accuracy": {
+      "passed": true,
+      "max_calc_diff": 0.00035859453674780273,
+      "min_cos_sim": 0.9996414184570312,
+      "stats_exact": true,
+      "repeat_diff": 7.641275501235612e-09,
+      "stress_diff": 7.569556315090153e-09,
+      "max_abs_err": 2.3671875
+     }
+    },
+    "bm64_64": {
+     "env": {
+      "WEAVE_SCATTER_OWNER": "comm_only",
+      "WEAVE_SCATTER_STAGING": "smem",
+      "WEAVE_BLOCK_M_L1": "64",
+      "WEAVE_BLOCK_M_L2": "64"
+     },
+     "internal": false,
+     "median_us": 2239.28,
+     "min_us": 2230.208,
+     "stdev_us": 4.486,
+     "samples": 8,
+     "vs_official": 1.4649,
+     "vs_p21_same_batch": 0.9979,
+     "accuracy": {
+      "passed": true,
+      "max_calc_diff": 0.00035859413030780996,
+      "min_cos_sim": 0.9996415376663208,
+      "stats_exact": true,
+      "repeat_diff": 7.398280321702089e-09,
+      "stress_diff": 6.494994875261284e-09,
+      "max_abs_err": 2.3671875
+     }
+    },
+    "bm32_64": {
+     "env": {
+      "WEAVE_SCATTER_OWNER": "comm_only",
+      "WEAVE_SCATTER_STAGING": "smem",
+      "WEAVE_BLOCK_M_L1": "32",
+      "WEAVE_BLOCK_M_L2": "64"
+     },
+     "internal": false,
+     "median_us": 2177.728,
+     "min_us": 2171.2,
+     "stdev_us": 3.038,
+     "samples": 8,
+     "vs_official": 1.5064,
+     "vs_p21_same_batch": 1.0262,
+     "accuracy": {
+      "passed": true,
+      "max_calc_diff": 0.00035859589816966686,
+      "min_cos_sim": 0.999641478061676,
+      "stats_exact": true,
+      "repeat_diff": 2.8279308339485e-08,
+      "stress_diff": 1.6122408963425983e-08,
+      "max_abs_err": 2.3671875
+     }
+    },
+    "bm32_32": {
+     "env": {
+      "WEAVE_SCATTER_OWNER": "comm_only",
+      "WEAVE_SCATTER_STAGING": "smem",
+      "WEAVE_BLOCK_M_L1": "32",
+      "WEAVE_BLOCK_M_L2": "32"
+     },
+     "internal": false,
+     "median_us": 2312.736,
+     "min_us": 2306.496,
+     "stdev_us": 4.318,
+     "samples": 8,
+     "vs_official": 1.4184,
+     "vs_p21_same_batch": 0.9663,
+     "accuracy": {
+      "passed": true,
+      "max_calc_diff": 0.00035859596062037813,
+      "min_cos_sim": 0.999641478061676,
+      "stats_exact": true,
+      "repeat_diff": 1.5835607380942918e-08,
+      "stress_diff": 7.301755422517431e-09,
+      "max_abs_err": 2.3671875
+     }
+    },
+    "bm16_64": {
+     "env": {
+      "WEAVE_SCATTER_OWNER": "comm_only",
+      "WEAVE_SCATTER_STAGING": "smem",
+      "WEAVE_BLOCK_M_L1": "16",
+      "WEAVE_BLOCK_M_L2": "64"
+     },
+     "internal": false,
+     "median_us": 2431.04,
+     "min_us": 2424.512,
+     "stdev_us": 4.176,
+     "samples": 8,
+     "vs_official": 1.3494,
+     "vs_p21_same_batch": 0.9192,
+     "accuracy": {
+      "passed": true,
+      "max_calc_diff": 0.00035859504847934875,
+      "min_cos_sim": 0.9996415376663208,
+      "stats_exact": true,
+      "repeat_diff": 2.0245509491090274e-08,
+      "stress_diff": 1.1448171410854968e-08,
+      "max_abs_err": 2.3671875
+     }
+    },
+    "bm32_16": {
+     "env": {
+      "WEAVE_SCATTER_OWNER": "comm_only",
+      "WEAVE_SCATTER_STAGING": "smem",
+      "WEAVE_BLOCK_M_L1": "32",
+      "WEAVE_BLOCK_M_L2": "16"
+     },
+     "internal": false,
+     "median_us": 2346.336,
+     "min_us": 2340.32,
+     "stdev_us": 6.016,
+     "samples": 8,
+     "vs_official": 1.3981,
+     "vs_p21_same_batch": 0.9524,
+     "accuracy": {
+      "passed": true,
+      "max_calc_diff": 0.00035859711352959067,
+      "min_cos_sim": 0.9996415376663208,
+      "stats_exact": true,
+      "repeat_diff": 9.152330449069268e-09,
+      "stress_diff": 1.526924497952109e-08,
+      "max_abs_err": 2.3671875
+     }
+    },
+    "bm128_64": {
+     "env": {
+      "WEAVE_SCATTER_OWNER": "comm_only",
+      "WEAVE_SCATTER_STAGING": "smem",
+      "WEAVE_BLOCK_M_L1": "128",
+      "WEAVE_BLOCK_M_L2": "64"
+     },
+     "internal": false,
+     "median_us": 4542.112,
+     "min_us": 4531.104,
+     "stdev_us": 65.303,
+     "samples": 8,
+     "vs_official": 0.7222,
+     "vs_p21_same_batch": 0.492,
+     "accuracy": {
+      "passed": true,
+      "max_calc_diff": 0.00035859476883404184,
+      "min_cos_sim": 0.9996415376663208,
+      "stats_exact": true,
+      "repeat_diff": 0.0,
+      "stress_diff": 0.0,
+      "max_abs_err": 2.3671875
+     }
+    },
+    "ab0r2c64": {
+     "env": {
+      "WEAVE_SCATTER_OWNER": "comm_only",
+      "WEAVE_SCATTER_STAGING": "smem",
+      "WEAVE_ADAPT_BM": "0",
+      "WEAVE_REDUCE_WARPS": "2",
+      "WEAVE_COMBINE_SYNC_CHUNK": "64"
+     },
+     "internal": false,
+     "median_us": 3579.248,
+     "min_us": 3559.2,
+     "stdev_us": 24.702,
+     "samples": 8,
+     "vs_official": 0.9165,
+     "vs_p21_same_batch": 0.6243,
+     "accuracy": {
+      "passed": true,
+      "max_calc_diff": 0.00035859528767201443,
+      "min_cos_sim": 0.9996415972709656,
+      "stats_exact": true,
+      "repeat_diff": 7.95097043759796e-09,
+      "stress_diff": 1.8695062720119893e-08,
+      "max_abs_err": 2.3671875
+     }
+    }
+   }
+  },
+  {
+   "batch": "o2",
+   "S": 4096,
+   "note": "sweep1: BLOCK_M_L1/L2 {64/64,32/64,32/32,16/64,32/16,128/64} + ADAPT_BM=0 R=2",
+   "timing": {
+    "method": "cuda_event_per_launch_max_over_ranks",
+    "warmup": 2,
+    "rounds": 4,
+    "order": "palindromic_ABBA",
+    "samples_per_arm": 8,
+    "wall_s": 0.57
+   },
+   "arms": {
+    "official": {
+     "env": {
+      "WEAVE_FORCE_OFFICIAL": "1"
+     },
+     "internal": false,
+     "median_us": 6142.816,
+     "min_us": 6126.112,
+     "stdev_us": 84.621,
+     "samples": 8,
+     "vs_official": 1.0,
+     "vs_p21_same_batch": 0.8604,
+     "accuracy": {
+      "passed": true,
+      "max_calc_diff": 0.0003556971687315169,
+      "min_cos_sim": 0.99964439868927,
+      "stats_exact": true,
+      "repeat_diff": 0.0,
+      "stress_diff": 0.0,
+      "max_abs_err": 2.625
+     }
+    },
+    "p21": {
+     "env": {
+      "WEAVE_SCATTER_OWNER": "comm_only",
+      "WEAVE_SCATTER_STAGING": "smem",
+      "WEAVE_ADAPT_BM": "1"
+     },
+     "internal": false,
+     "median_us": 5285.424,
+     "min_us": 5278.816,
+     "stdev_us": 70.522,
+     "samples": 8,
+     "vs_official": 1.1622,
+     "vs_p21_same_batch": 1.0,
+     "accuracy": {
+      "passed": true,
+      "max_calc_diff": 0.00035569744700059136,
+      "min_cos_sim": 0.9996443390846252,
+      "stats_exact": true,
+      "repeat_diff": 1.8393298772956257e-08,
+      "stress_diff": 2.2630337603857242e-09,
+      "max_abs_err": 2.625
+     }
+    },
+    "v8base": {
+     "env": {
+      "WEAVE_SCATTER_OWNER": "comm_only",
+      "WEAVE_SCATTER_STAGING": "smem",
+      "WEAVE_ADAPT_BM": "1",
+      "WEAVE_REDUCE_WARPS": "0",
+      "WEAVE_H20_CONFIG": "fast_host=1,fused=1,compact=1,dyn=1,alias=1,bm=64,adapt_bm=1,bf16_acc=0,bn=256,bk=128,wgs=4,swap=1,stages=0,swap_pipe=0,fast_swap_epi=1,l1_nmajor=1,l2_nmajor=1,rank_cache=1,fast_clean=1,fast_pull=1,dedup_disp=1,dedup_tier=1,reg_comb=1,fast_comb=1,all_idle_comb=1,comb_sync_chunk=0"
+     },
+     "internal": true,
+     "median_us": 5302.336,
+     "min_us": 5275.84,
+     "stdev_us": 69.198,
+     "samples": 8,
+     "vs_official": 1.1585,
+     "vs_p21_same_batch": 0.9968,
+     "accuracy": {
+      "passed": true,
+      "max_calc_diff": 0.00035569728494022623,
+      "min_cos_sim": 0.99964439868927,
+      "stats_exact": true,
+      "repeat_diff": 1.8710587412762436e-08,
+      "stress_diff": 1.8308649929466014e-08,
+      "max_abs_err": 2.625
+     }
+    },
+    "bm64_64": {
+     "env": {
+      "WEAVE_SCATTER_OWNER": "comm_only",
+      "WEAVE_SCATTER_STAGING": "smem",
+      "WEAVE_BLOCK_M_L1": "64",
+      "WEAVE_BLOCK_M_L2": "64"
+     },
+     "internal": false,
+     "median_us": 5301.952,
+     "min_us": 5276.864,
+     "stdev_us": 21.838,
+     "samples": 8,
+     "vs_official": 1.1586,
+     "vs_p21_same_batch": 0.9969,
+     "accuracy": {
+      "passed": true,
+      "max_calc_diff": 0.00035569770182730664,
+      "min_cos_sim": 0.9996443390846252,
+      "stats_exact": true,
+      "repeat_diff": 1.9019602004455294e-08,
+      "stress_diff": 1.818579520307395e-08,
+      "max_abs_err": 2.625
+     }
+    },
+    "bm32_64": {
+     "env": {
+      "WEAVE_SCATTER_OWNER": "comm_only",
+      "WEAVE_SCATTER_STAGING": "smem",
+      "WEAVE_BLOCK_M_L1": "32",
+      "WEAVE_BLOCK_M_L2": "64"
+     },
+     "internal": false,
+     "median_us": 5272.992,
+     "min_us": 5256.576,
+     "stdev_us": 17.998,
+     "samples": 8,
+     "vs_official": 1.165,
+     "vs_p21_same_batch": 1.0024,
+     "accuracy": {
+      "passed": true,
+      "max_calc_diff": 0.00035569588745865133,
+      "min_cos_sim": 0.99964439868927,
+      "stats_exact": true,
+      "repeat_diff": 8.703705201007494e-09,
+      "stress_diff": 1.8387592670698893e-08,
+      "max_abs_err": 2.625
+     }
+    },
+    "bm32_32": {
+     "env": {
+      "WEAVE_SCATTER_OWNER": "comm_only",
+      "WEAVE_SCATTER_STAGING": "smem",
+      "WEAVE_BLOCK_M_L1": "32",
+      "WEAVE_BLOCK_M_L2": "32"
+     },
+     "internal": false,
+     "median_us": 5698.432,
+     "min_us": 5688.384,
+     "stdev_us": 22.257,
+     "samples": 8,
+     "vs_official": 1.078,
+     "vs_p21_same_batch": 0.9275,
+     "accuracy": {
+      "passed": true,
+      "max_calc_diff": 0.0003556967605530259,
+      "min_cos_sim": 0.9996442794799805,
+      "stats_exact": true,
+      "repeat_diff": 2.065364368419864e-08,
+      "stress_diff": 1.650757786020307e-08,
+      "max_abs_err": 2.625
+     }
+    },
+    "bm16_64": {
+     "env": {
+      "WEAVE_SCATTER_OWNER": "comm_only",
+      "WEAVE_SCATTER_STAGING": "smem",
+      "WEAVE_BLOCK_M_L1": "16",
+      "WEAVE_BLOCK_M_L2": "64"
+     },
+     "internal": false,
+     "median_us": 6461.472,
+     "min_us": 6414.848,
+     "stdev_us": 39.254,
+     "samples": 8,
+     "vs_official": 0.9507,
+     "vs_p21_same_batch": 0.818,
+     "accuracy": {
+      "passed": true,
+      "max_calc_diff": 0.00035569695970916193,
+      "min_cos_sim": 0.99964439868927,
+      "stats_exact": true,
+      "repeat_diff": 1.9506545712033585e-08,
+      "stress_diff": 2.0267641565041572e-08,
+      "max_abs_err": 2.625
+     }
+    },
+    "bm32_16": {
+     "env": {
+      "WEAVE_SCATTER_OWNER": "comm_only",
+      "WEAVE_SCATTER_STAGING": "smem",
+      "WEAVE_BLOCK_M_L1": "32",
+      "WEAVE_BLOCK_M_L2": "16"
+     },
+     "internal": false,
+     "median_us": 6058.784,
+     "min_us": 6020.832,
+     "stdev_us": 68.152,
+     "samples": 8,
+     "vs_official": 1.0139,
+     "vs_p21_same_batch": 0.8724,
+     "accuracy": {
+      "passed": true,
+      "max_calc_diff": 0.000355697383170539,
+      "min_cos_sim": 0.99964439868927,
+      "stats_exact": true,
+      "repeat_diff": 8.574594367871669e-09,
+      "stress_diff": 1.9553968666485844e-08,
+      "max_abs_err": 2.625
+     }
+    },
+    "bm128_64": {
+     "env": {
+      "WEAVE_SCATTER_OWNER": "comm_only",
+      "WEAVE_SCATTER_STAGING": "smem",
+      "WEAVE_BLOCK_M_L1": "128",
+      "WEAVE_BLOCK_M_L2": "64"
+     },
+     "internal": false,
+     "median_us": 7018.512,
+     "min_us": 6889.664,
+     "stdev_us": 86.833,
+     "samples": 8,
+     "vs_official": 0.8752,
+     "vs_p21_same_batch": 0.7531,
+     "accuracy": {
+      "passed": true,
+      "max_calc_diff": 0.0003556971687315169,
+      "min_cos_sim": 0.99964439868927,
+      "stats_exact": true,
+      "repeat_diff": 0.0,
+      "stress_diff": 0.0,
+      "max_abs_err": 2.625
+     }
+    },
+    "ab0r2c64": {
+     "env": {
+      "WEAVE_SCATTER_OWNER": "comm_only",
+      "WEAVE_SCATTER_STAGING": "smem",
+      "WEAVE_ADAPT_BM": "0",
+      "WEAVE_REDUCE_WARPS": "2",
+      "WEAVE_COMBINE_SYNC_CHUNK": "64"
+     },
+     "internal": false,
+     "median_us": 10925.504,
+     "min_us": 10816.576,
+     "stdev_us": 54.094,
+     "samples": 8,
+     "vs_official": 0.5622,
+     "vs_p21_same_batch": 0.4838,
+     "accuracy": {
+      "passed": true,
+      "max_calc_diff": 0.00035569680595792796,
+      "min_cos_sim": 0.99964439868927,
+      "stats_exact": true,
+      "repeat_diff": 3.5015385035919167e-09,
+      "stress_diff": 4.4310267677261095e-09,
+      "max_abs_err": 2.625
+     }
+    }
+   }
+  },
+  {
+   "batch": "o3",
+   "S": 1024,
+   "note": "sweep1: REDUCE_WARPS {1,2} x COMBINE_SYNC_CHUNK {0,32,64,128}",
+   "timing": {
+    "method": "cuda_event_per_launch_max_over_ranks",
+    "warmup": 2,
+    "rounds": 4,
+    "order": "palindromic_ABBA",
+    "samples_per_arm": 8,
+    "wall_s": 0.37
+   },
+   "arms": {
+    "official": {
+     "env": {
+      "WEAVE_FORCE_OFFICIAL": "1"
+     },
+     "internal": false,
+     "median_us": 3265.84,
+     "min_us": 3235.776,
+     "stdev_us": 19.182,
+     "samples": 8,
+     "vs_official": 1.0,
+     "vs_p21_same_batch": 0.6829,
+     "accuracy": {
+      "passed": true,
+      "max_calc_diff": 0.00035859476883404184,
+      "min_cos_sim": 0.9996415376663208,
+      "stats_exact": true,
+      "repeat_diff": 0.0,
+      "stress_diff": 0.0,
+      "max_abs_err": 2.3671875
+     }
+    },
+    "p21": {
+     "env": {
+      "WEAVE_SCATTER_OWNER": "comm_only",
+      "WEAVE_SCATTER_STAGING": "smem",
+      "WEAVE_ADAPT_BM": "1"
+     },
+     "internal": false,
+     "median_us": 2230.144,
+     "min_us": 2226.144,
+     "stdev_us": 2.257,
+     "samples": 8,
+     "vs_official": 1.4644,
+     "vs_p21_same_batch": 1.0,
+     "accuracy": {
+      "passed": true,
+      "max_calc_diff": 0.00035859618379552316,
+      "min_cos_sim": 0.999641478061676,
+      "stats_exact": true,
+      "repeat_diff": 9.04237251742046e-09,
+      "stress_diff": 8.837876652734167e-09,
+      "max_abs_err": 2.3671875
+     }
+    },
+    "v8base": {
+     "env": {
+      "WEAVE_SCATTER_OWNER": "comm_only",
+      "WEAVE_SCATTER_STAGING": "smem",
+      "WEAVE_ADAPT_BM": "1",
+      "WEAVE_REDUCE_WARPS": "0",
+      "WEAVE_H20_CONFIG": "fast_host=1,fused=1,compact=1,dyn=1,alias=1,bm=64,adapt_bm=1,bf16_acc=0,bn=256,bk=128,wgs=4,swap=1,stages=0,swap_pipe=0,fast_swap_epi=1,l1_nmajor=1,l2_nmajor=1,rank_cache=1,fast_clean=1,fast_pull=1,dedup_disp=1,dedup_tier=1,reg_comb=1,fast_comb=1,all_idle_comb=1,comb_sync_chunk=0"
+     },
+     "internal": true,
+     "median_us": 2227.552,
+     "min_us": 2224.32,
+     "stdev_us": 3.052,
+     "samples": 8,
+     "vs_official": 1.4661,
+     "vs_p21_same_batch": 1.0012,
+     "accuracy": {
+      "passed": true,
+      "max_calc_diff": 0.0003585943735369135,
+      "min_cos_sim": 0.9996415376663208,
+      "stats_exact": true,
+      "repeat_diff": 1.8286953173962672e-08,
+      "stress_diff": 1.8896621822861448e-08,
+      "max_abs_err": 2.3671875
+     }
+    },
+    "r1c0": {
+     "env": {
+      "WEAVE_SCATTER_OWNER": "comm_only",
+      "WEAVE_SCATTER_STAGING": "smem",
+      "WEAVE_ADAPT_BM": "1",
+      "WEAVE_REDUCE_WARPS": "1",
+      "WEAVE_COMBINE_SYNC_CHUNK": "0"
+     },
+     "internal": false,
+     "median_us": 3987.088,
+     "min_us": 3981.6,
+     "stdev_us": 12.018,
+     "samples": 8,
+     "vs_official": 0.8191,
+     "vs_p21_same_batch": 0.5593,
+     "accuracy": {
+      "passed": true,
+      "max_calc_diff": 0.0003585960037164604,
+      "min_cos_sim": 0.9996416568756104,
+      "stats_exact": true,
+      "repeat_diff": 7.395029588685986e-09,
+      "stress_diff": 1.8326106854260615e-08,
+      "max_abs_err": 2.3671875
+     }
+    },
+    "r1c32": {
+     "env": {
+      "WEAVE_SCATTER_OWNER": "comm_only",
+      "WEAVE_SCATTER_STAGING": "smem",
+      "WEAVE_ADAPT_BM": "1",
+      "WEAVE_REDUCE_WARPS": "1",
+      "WEAVE_COMBINE_SYNC_CHUNK": "32"
+     },
+     "internal": false,
+     "median_us": 3986.304,
+     "min_us": 3974.464,
+     "stdev_us": 11.025,
+     "samples": 8,
+     "vs_official": 0.8193,
+     "vs_p21_same_batch": 0.5595,
+     "accuracy": {
+      "passed": true,
+      "max_calc_diff": 0.0003585945541604296,
+      "min_cos_sim": 0.9996415376663208,
+      "stats_exact": true,
+      "repeat_diff": 7.405859814291205e-09,
+      "stress_diff": 2.833355405851279e-08,
+      "max_abs_err": 2.3671875
+     }
+    },
+    "r1c64": {
+     "env": {
+      "WEAVE_SCATTER_OWNER": "comm_only",
+      "WEAVE_SCATTER_STAGING": "smem",
+      "WEAVE_ADAPT_BM": "1",
+      "WEAVE_REDUCE_WARPS": "1",
+      "WEAVE_COMBINE_SYNC_CHUNK": "64"
+     },
+     "internal": false,
+     "median_us": 3988.24,
+     "min_us": 3971.232,
+     "stdev_us": 9.86,
+     "samples": 8,
+     "vs_official": 0.8189,
+     "vs_p21_same_batch": 0.5592,
+     "accuracy": {
+      "passed": true,
+      "max_calc_diff": 0.0003585960486138795,
+      "min_cos_sim": 0.999641478061676,
+      "stats_exact": true,
+      "repeat_diff": 1.9713118915021255e-09,
+      "stress_diff": 5.522473700558805e-09,
+      "max_abs_err": 2.3671875
+     }
+    },
+    "r1c128": {
+     "env": {
+      "WEAVE_SCATTER_OWNER": "comm_only",
+      "WEAVE_SCATTER_STAGING": "smem",
+      "WEAVE_ADAPT_BM": "1",
+      "WEAVE_REDUCE_WARPS": "1",
+      "WEAVE_COMBINE_SYNC_CHUNK": "128"
+     },
+     "internal": false,
+     "median_us": 3986.928,
+     "min_us": 3979.168,
+     "stdev_us": 9.261,
+     "samples": 8,
+     "vs_official": 0.8191,
+     "vs_p21_same_batch": 0.5594,
+     "accuracy": {
+      "passed": true,
+      "max_calc_diff": 0.00035859289836803754,
+      "min_cos_sim": 0.9996415376663208,
+      "stats_exact": true,
+      "repeat_diff": 8.369720694290095e-09,
+      "stress_diff": 8.44759973084308e-09,
+      "max_abs_err": 2.3671875
+     }
+    },
+    "r2c0": {
+     "env": {
+      "WEAVE_SCATTER_OWNER": "comm_only",
+      "WEAVE_SCATTER_STAGING": "smem",
+      "WEAVE_ADAPT_BM": "1",
+      "WEAVE_REDUCE_WARPS": "2",
+      "WEAVE_COMBINE_SYNC_CHUNK": "0"
+     },
+     "internal": false,
+     "median_us": 3574.816,
+     "min_us": 3566.144,
+     "stdev_us": 9.799,
+     "samples": 8,
+     "vs_official": 0.9136,
+     "vs_p21_same_batch": 0.6238,
+     "accuracy": {
+      "passed": true,
+      "max_calc_diff": 0.0003585951328118897,
+      "min_cos_sim": 0.9996415376663208,
+      "stats_exact": true,
+      "repeat_diff": 5.287186688462953e-09,
+      "stress_diff": 5.17211229400516e-09,
+      "max_abs_err": 2.3671875
+     }
+    },
+    "r2c32": {
+     "env": {
+      "WEAVE_SCATTER_OWNER": "comm_only",
+      "WEAVE_SCATTER_STAGING": "smem",
+      "WEAVE_ADAPT_BM": "1",
+      "WEAVE_REDUCE_WARPS": "2",
+      "WEAVE_COMBINE_SYNC_CHUNK": "32"
+     },
+     "internal": false,
+     "median_us": 3586.064,
+     "min_us": 3569.664,
+     "stdev_us": 8.193,
+     "samples": 8,
+     "vs_official": 0.9107,
+     "vs_p21_same_batch": 0.6219,
+     "accuracy": {
+      "passed": true,
+      "max_calc_diff": 0.00035859659496284557,
+      "min_cos_sim": 0.9996415376663208,
+      "stats_exact": true,
+      "repeat_diff": 1.1205967487271096e-08,
+      "stress_diff": 2.837423740409406e-09,
+      "max_abs_err": 2.3671875
+     }
+    },
+    "r2c64": {
+     "env": {
+      "WEAVE_SCATTER_OWNER": "comm_only",
+      "WEAVE_SCATTER_STAGING": "smem",
+      "WEAVE_ADAPT_BM": "1",
+      "WEAVE_REDUCE_WARPS": "2",
+      "WEAVE_COMBINE_SYNC_CHUNK": "64"
+     },
+     "internal": false,
+     "median_us": 3576.736,
+     "min_us": 3570.24,
+     "stdev_us": 13.669,
+     "samples": 8,
+     "vs_official": 0.9131,
+     "vs_p21_same_batch": 0.6235,
+     "accuracy": {
+      "passed": true,
+      "max_calc_diff": 0.0003585951185403058,
+      "min_cos_sim": 0.999641478061676,
+      "stats_exact": true,
+      "repeat_diff": 1.7128010121325588e-08,
+      "stress_diff": 7.581749894569612e-09,
+      "max_abs_err": 2.3671875
+     }
+    },
+    "r2c128": {
+     "env": {
+      "WEAVE_SCATTER_OWNER": "comm_only",
+      "WEAVE_SCATTER_STAGING": "smem",
+      "WEAVE_ADAPT_BM": "1",
+      "WEAVE_REDUCE_WARPS": "2",
+      "WEAVE_COMBINE_SYNC_CHUNK": "128"
+     },
+     "internal": false,
+     "median_us": 3583.664,
+     "min_us": 3568.544,
+     "stdev_us": 16.908,
+     "samples": 8,
+     "vs_official": 0.9113,
+     "vs_p21_same_batch": 0.6223,
+     "accuracy": {
+      "passed": true,
+      "max_calc_diff": 0.0003585948395880001,
+      "min_cos_sim": 0.9996415376663208,
+      "stats_exact": true,
+      "repeat_diff": 9.02012575743072e-09,
+      "stress_diff": 9.224306984911834e-09,
+      "max_abs_err": 2.3671875
+     }
+    }
+   }
+  },
+  {
+   "batch": "o3",
+   "S": 4096,
+   "note": "sweep1: REDUCE_WARPS {1,2} x COMBINE_SYNC_CHUNK {0,32,64,128}",
+   "timing": {
+    "method": "cuda_event_per_launch_max_over_ranks",
+    "warmup": 2,
+    "rounds": 4,
+    "order": "palindromic_ABBA",
+    "samples_per_arm": 8,
+    "wall_s": 0.95
+   },
+   "arms": {
+    "official": {
+     "env": {
+      "WEAVE_FORCE_OFFICIAL": "1"
+     },
+     "internal": false,
+     "median_us": 6087.952,
+     "min_us": 6075.968,
+     "stdev_us": 6.243,
+     "samples": 8,
+     "vs_official": 1.0,
+     "vs_p21_same_batch": 0.8626,
+     "accuracy": {
+      "passed": true,
+      "max_calc_diff": 0.0003556971687315169,
+      "min_cos_sim": 0.99964439868927,
+      "stats_exact": true,
+      "repeat_diff": 0.0,
+      "stress_diff": 0.0,
+      "max_abs_err": 2.625
+     }
+    },
+    "p21": {
+     "env": {
+      "WEAVE_SCATTER_OWNER": "comm_only",
+      "WEAVE_SCATTER_STAGING": "smem",
+      "WEAVE_ADAPT_BM": "1"
+     },
+     "internal": false,
+     "median_us": 5251.584,
+     "min_us": 5242.368,
+     "stdev_us": 6.792,
+     "samples": 8,
+     "vs_official": 1.1593,
+     "vs_p21_same_batch": 1.0,
+     "accuracy": {
+      "passed": true,
+      "max_calc_diff": 0.00035569790838063664,
+      "min_cos_sim": 0.99964439868927,
+      "stats_exact": true,
+      "repeat_diff": 5.500931488100491e-09,
+      "stress_diff": 2.30869556805402e-09,
+      "max_abs_err": 2.625
+     }
+    },
+    "v8base": {
+     "env": {
+      "WEAVE_SCATTER_OWNER": "comm_only",
+      "WEAVE_SCATTER_STAGING": "smem",
+      "WEAVE_ADAPT_BM": "1",
+      "WEAVE_REDUCE_WARPS": "0",
+      "WEAVE_H20_CONFIG": "fast_host=1,fused=1,compact=1,dyn=1,alias=1,bm=64,adapt_bm=1,bf16_acc=0,bn=256,bk=128,wgs=4,swap=1,stages=0,swap_pipe=0,fast_swap_epi=1,l1_nmajor=1,l2_nmajor=1,rank_cache=1,fast_clean=1,fast_pull=1,dedup_disp=1,dedup_tier=1,reg_comb=1,fast_comb=1,all_idle_comb=1,comb_sync_chunk=0"
+     },
+     "internal": true,
+     "median_us": 5250.848,
+     "min_us": 5240.32,
+     "stdev_us": 5.999,
+     "samples": 8,
+     "vs_official": 1.1594,
+     "vs_p21_same_batch": 1.0001,
+     "accuracy": {
+      "passed": true,
+      "max_calc_diff": 0.00035569733331075604,
+      "min_cos_sim": 0.9996443390846252,
+      "stats_exact": true,
+      "repeat_diff": 1.4981520024548445e-08,
+      "stress_diff": 4.926275720684714e-09,
+      "max_abs_err": 2.625
+     }
+    },
+    "r1c0": {
+     "env": {
+      "WEAVE_SCATTER_OWNER": "comm_only",
+      "WEAVE_SCATTER_STAGING": "smem",
+      "WEAVE_ADAPT_BM": "1",
+      "WEAVE_REDUCE_WARPS": "1",
+      "WEAVE_COMBINE_SYNC_CHUNK": "0"
+     },
+     "internal": false,
+     "median_us": 12412.032,
+     "min_us": 12404.544,
+     "stdev_us": 5.962,
+     "samples": 8,
+     "vs_official": 0.4905,
+     "vs_p21_same_batch": 0.4231,
+     "accuracy": {
+      "passed": true,
+      "max_calc_diff": 0.00035569598433327076,
+      "min_cos_sim": 0.9996443390846252,
+      "stats_exact": true,
+      "repeat_diff": 4.291668020961481e-09,
+      "stress_diff": 1.7675238606074117e-08,
+      "max_abs_err": 2.625
+     }
+    },
+    "r1c32": {
+     "env": {
+      "WEAVE_SCATTER_OWNER": "comm_only",
+      "WEAVE_SCATTER_STAGING": "smem",
+      "WEAVE_ADAPT_BM": "1",
+      "WEAVE_REDUCE_WARPS": "1",
+      "WEAVE_COMBINE_SYNC_CHUNK": "32"
+     },
+     "internal": false,
+     "median_us": 12414.192,
+     "min_us": 12394.112,
+     "stdev_us": 12.54,
+     "samples": 8,
+     "vs_official": 0.4904,
+     "vs_p21_same_batch": 0.423,
+     "accuracy": {
+      "passed": true,
+      "max_calc_diff": 0.0003556968922561188,
+      "min_cos_sim": 0.9996443390846252,
+      "stats_exact": true,
+      "repeat_diff": 3.839304207886585e-09,
+      "stress_diff": 4.451245150249861e-09,
+      "max_abs_err": 2.625
+     }
+    },
+    "r1c64": {
+     "env": {
+      "WEAVE_SCATTER_OWNER": "comm_only",
+      "WEAVE_SCATTER_STAGING": "smem",
+      "WEAVE_ADAPT_BM": "1",
+      "WEAVE_REDUCE_WARPS": "1",
+      "WEAVE_COMBINE_SYNC_CHUNK": "64"
+     },
+     "internal": false,
+     "median_us": 12427.536,
+     "min_us": 12395.968,
+     "stdev_us": 33.241,
+     "samples": 8,
+     "vs_official": 0.4899,
+     "vs_p21_same_batch": 0.4226,
+     "accuracy": {
+      "passed": true,
+      "max_calc_diff": 0.0003556958232343588,
+      "min_cos_sim": 0.9996443390846252,
+      "stats_exact": true,
+      "repeat_diff": 4.995798996709766e-09,
+      "stress_diff": 1.4749859444940228e-08,
+      "max_abs_err": 2.625
+     }
+    },
+    "r1c128": {
+     "env": {
+      "WEAVE_SCATTER_OWNER": "comm_only",
+      "WEAVE_SCATTER_STAGING": "smem",
+      "WEAVE_ADAPT_BM": "1",
+      "WEAVE_REDUCE_WARPS": "1",
+      "WEAVE_COMBINE_SYNC_CHUNK": "128"
+     },
+     "internal": false,
+     "median_us": 12437.664,
+     "min_us": 12393.056,
+     "stdev_us": 22.117,
+     "samples": 8,
+     "vs_official": 0.4895,
+     "vs_p21_same_batch": 0.4222,
+     "accuracy": {
+      "passed": true,
+      "max_calc_diff": 0.0003556976978843496,
+      "min_cos_sim": 0.99964439868927,
+      "stats_exact": true,
+      "repeat_diff": 3.3612452821074612e-09,
+      "stress_diff": 4.692056410071643e-09,
+      "max_abs_err": 2.625
+     }
+    },
+    "r2c0": {
+     "env": {
+      "WEAVE_SCATTER_OWNER": "comm_only",
+      "WEAVE_SCATTER_STAGING": "smem",
+      "WEAVE_ADAPT_BM": "1",
+      "WEAVE_REDUCE_WARPS": "2",
+      "WEAVE_COMBINE_SYNC_CHUNK": "0"
+     },
+     "internal": false,
+     "median_us": 10689.728,
+     "min_us": 10679.168,
+     "stdev_us": 39.494,
+     "samples": 8,
+     "vs_official": 0.5695,
+     "vs_p21_same_batch": 0.4913,
+     "accuracy": {
+      "passed": true,
+      "max_calc_diff": 0.00035569601104334936,
+      "min_cos_sim": 0.9996443390846252,
+      "stats_exact": true,
+      "repeat_diff": 2.7166842109238587e-09,
+      "stress_diff": 1.569402230394701e-08,
+      "max_abs_err": 2.625
+     }
+    },
+    "r2c32": {
+     "env": {
+      "WEAVE_SCATTER_OWNER": "comm_only",
+      "WEAVE_SCATTER_STAGING": "smem",
+      "WEAVE_ADAPT_BM": "1",
+      "WEAVE_REDUCE_WARPS": "2",
+      "WEAVE_COMBINE_SYNC_CHUNK": "32"
+     },
+     "internal": false,
+     "median_us": 10694.528,
+     "min_us": 10677.184,
+     "stdev_us": 30.808,
+     "samples": 8,
+     "vs_official": 0.5693,
+     "vs_p21_same_batch": 0.4911,
+     "accuracy": {
+      "passed": true,
+      "max_calc_diff": 0.0003556964263031759,
+      "min_cos_sim": 0.99964439868927,
+      "stats_exact": true,
+      "repeat_diff": 1.615443268043748e-08,
+      "stress_diff": 7.186400585723618e-09,
+      "max_abs_err": 2.625
+     }
+    },
+    "r2c64": {
+     "env": {
+      "WEAVE_SCATTER_OWNER": "comm_only",
+      "WEAVE_SCATTER_STAGING": "smem",
+      "WEAVE_ADAPT_BM": "1",
+      "WEAVE_REDUCE_WARPS": "2",
+      "WEAVE_COMBINE_SYNC_CHUNK": "64"
+     },
+     "internal": false,
+     "median_us": 10691.152,
+     "min_us": 10669.312,
+     "stdev_us": 31.54,
+     "samples": 8,
+     "vs_official": 0.5694,
+     "vs_p21_same_batch": 0.4912,
+     "accuracy": {
+      "passed": true,
+      "max_calc_diff": 0.0003556973672373953,
+      "min_cos_sim": 0.9996443390846252,
+      "stats_exact": true,
+      "repeat_diff": 3.4981928465072087e-09,
+      "stress_diff": 9.81249315135102e-09,
+      "max_abs_err": 2.625
+     }
+    },
+    "r2c128": {
+     "env": {
+      "WEAVE_SCATTER_OWNER": "comm_only",
+      "WEAVE_SCATTER_STAGING": "smem",
+      "WEAVE_ADAPT_BM": "1",
+      "WEAVE_REDUCE_WARPS": "2",
+      "WEAVE_COMBINE_SYNC_CHUNK": "128"
+     },
+     "internal": false,
+     "median_us": 10688.384,
+     "min_us": 10672.16,
+     "stdev_us": 37.982,
+     "samples": 8,
+     "vs_official": 0.5696,
+     "vs_p21_same_batch": 0.4913,
+     "accuracy": {
+      "passed": true,
+      "max_calc_diff": 0.0003556971199610848,
+      "min_cos_sim": 0.99964439868927,
+      "stats_exact": true,
+      "repeat_diff": 4.465595226932351e-09,
+      "stress_diff": 4.025913935556957e-09,
+      "max_abs_err": 2.625
+     }
+    }
+   }
+  },
+  {
+   "batch": "o4",
+   "S": 1024,
+   "note": "sweep1: REDUCE_WARPS 4 x CHUNK {0,32,64,128} + R=2 x WAVE_SPLIT {8,32}",
+   "timing": {
+    "method": "cuda_event_per_launch_max_over_ranks",
+    "warmup": 2,
+    "rounds": 4,
+    "order": "palindromic_ABBA",
+    "samples_per_arm": 8,
+    "wall_s": 0.28
+   },
+   "arms": {
+    "official": {
+     "env": {
+      "WEAVE_FORCE_OFFICIAL": "1"
+     },
+     "internal": false,
+     "median_us": 3258.304,
+     "min_us": 3238.912,
+     "stdev_us": 24.303,
+     "samples": 8,
+     "vs_official": 1.0,
+     "vs_p21_same_batch": 0.6851,
+     "accuracy": {
+      "passed": true,
+      "max_calc_diff": 0.00035859476883404184,
+      "min_cos_sim": 0.9996415376663208,
+      "stats_exact": true,
+      "repeat_diff": 0.0,
+      "stress_diff": 0.0,
+      "max_abs_err": 2.3671875
+     }
+    },
+    "p21": {
+     "env": {
+      "WEAVE_SCATTER_OWNER": "comm_only",
+      "WEAVE_SCATTER_STAGING": "smem",
+      "WEAVE_ADAPT_BM": "1"
+     },
+     "internal": false,
+     "median_us": 2232.32,
+     "min_us": 2226.88,
+     "stdev_us": 19.455,
+     "samples": 8,
+     "vs_official": 1.4596,
+     "vs_p21_same_batch": 1.0,
+     "accuracy": {
+      "passed": true,
+      "max_calc_diff": 0.00035859361926482425,
+      "min_cos_sim": 0.999641478061676,
+      "stats_exact": true,
+      "repeat_diff": 8.271495932632433e-09,
+      "stress_diff": 7.322226269756982e-09,
+      "max_abs_err": 2.3671875
+     }
+    },
+    "v8base": {
+     "env": {
+      "WEAVE_SCATTER_OWNER": "comm_only",
+      "WEAVE_SCATTER_STAGING": "smem",
+      "WEAVE_ADAPT_BM": "1",
+      "WEAVE_REDUCE_WARPS": "0",
+      "WEAVE_H20_CONFIG": "fast_host=1,fused=1,compact=1,dyn=1,alias=1,bm=64,adapt_bm=1,bf16_acc=0,bn=256,bk=128,wgs=4,swap=1,stages=0,swap_pipe=0,fast_swap_epi=1,l1_nmajor=1,l2_nmajor=1,rank_cache=1,fast_clean=1,fast_pull=1,dedup_disp=1,dedup_tier=1,reg_comb=1,fast_comb=1,all_idle_comb=1,comb_sync_chunk=0"
+     },
+     "internal": true,
+     "median_us": 2246.048,
+     "min_us": 2230.368,
+     "stdev_us": 50.086,
+     "samples": 8,
+     "vs_official": 1.4507,
+     "vs_p21_same_batch": 0.9939,
+     "accuracy": {
+      "passed": true,
+      "max_calc_diff": 0.00035859419531036885,
+      "min_cos_sim": 0.9996415376663208,
+      "stats_exact": true,
+      "repeat_diff": 2.6646567619081907e-08,
+      "stress_diff": 1.9513658355840846e-08,
+      "max_abs_err": 2.3671875
+     }
+    },
+    "r4c0": {
+     "env": {
+      "WEAVE_SCATTER_OWNER": "comm_only",
+      "WEAVE_SCATTER_STAGING": "smem",
+      "WEAVE_ADAPT_BM": "1",
+      "WEAVE_REDUCE_WARPS": "4",
+      "WEAVE_COMBINE_SYNC_CHUNK": "0"
+     },
+     "internal": false,
+     "median_us": 3096.864,
+     "min_us": 3076.736,
+     "stdev_us": 14.764,
+     "samples": 8,
+     "vs_official": 1.0521,
+     "vs_p21_same_batch": 0.7208,
+     "accuracy": {
+      "passed": true,
+      "max_calc_diff": 0.0003585948145051754,
+      "min_cos_sim": 0.999641478061676,
+      "stats_exact": true,
+      "repeat_diff": 1.1853430459396463e-08,
+      "stress_diff": 8.598580181207183e-09,
+      "max_abs_err": 2.3671875
+     }
+    },
+    "r4c32": {
+     "env": {
+      "WEAVE_SCATTER_OWNER": "comm_only",
+      "WEAVE_SCATTER_STAGING": "smem",
+      "WEAVE_ADAPT_BM": "1",
+      "WEAVE_REDUCE_WARPS": "4",
+      "WEAVE_COMBINE_SYNC_CHUNK": "32"
+     },
+     "internal": false,
+     "median_us": 3102.768,
+     "min_us": 3082.624,
+     "stdev_us": 26.332,
+     "samples": 8,
+     "vs_official": 1.0501,
+     "vs_p21_same_batch": 0.7195,
+     "accuracy": {
+      "passed": true,
+      "max_calc_diff": 0.00035859470785515324,
+      "min_cos_sim": 0.9996415376663208,
+      "stats_exact": true,
+      "repeat_diff": 9.064444417283823e-09,
+      "stress_diff": 1.1337014993451078e-08,
+      "max_abs_err": 2.3671875
+     }
+    },
+    "r4c64": {
+     "env": {
+      "WEAVE_SCATTER_OWNER": "comm_only",
+      "WEAVE_SCATTER_STAGING": "smem",
+      "WEAVE_ADAPT_BM": "1",
+      "WEAVE_REDUCE_WARPS": "4",
+      "WEAVE_COMBINE_SYNC_CHUNK": "64"
+     },
+     "internal": false,
+     "median_us": 3095.616,
+     "min_us": 3082.144,
+     "stdev_us": 15.805,
+     "samples": 8,
+     "vs_official": 1.0526,
+     "vs_p21_same_batch": 0.7211,
+     "accuracy": {
+      "passed": true,
+      "max_calc_diff": 0.0003585942090359451,
+      "min_cos_sim": 0.9996415376663208,
+      "stats_exact": true,
+      "repeat_diff": 3.6513976287011474e-09,
+      "stress_diff": 3.820159188983041e-09,
+      "max_abs_err": 2.3671875
+     }
+    },
+    "r4c128": {
+     "env": {
+      "WEAVE_SCATTER_OWNER": "comm_only",
+      "WEAVE_SCATTER_STAGING": "smem",
+      "WEAVE_ADAPT_BM": "1",
+      "WEAVE_REDUCE_WARPS": "4",
+      "WEAVE_COMBINE_SYNC_CHUNK": "128"
+     },
+     "internal": false,
+     "median_us": 3089.856,
+     "min_us": 3073.248,
+     "stdev_us": 19.888,
+     "samples": 8,
+     "vs_official": 1.0545,
+     "vs_p21_same_batch": 0.7225,
+     "accuracy": {
+      "passed": true,
+      "max_calc_diff": 0.00035859418211514615,
+      "min_cos_sim": 0.999641478061676,
+      "stats_exact": true,
+      "repeat_diff": 9.802161415883859e-09,
+      "stress_diff": 1.0206330003370567e-08,
+      "max_abs_err": 2.3671875
+     }
+    },
+    "r2c64ws8": {
+     "env": {
+      "WEAVE_SCATTER_OWNER": "comm_only",
+      "WEAVE_SCATTER_STAGING": "smem",
+      "WEAVE_ADAPT_BM": "1",
+      "WEAVE_REDUCE_WARPS": "2",
+      "WEAVE_COMBINE_SYNC_CHUNK": "64",
+      "WEAVE_CU_WAVE_SPLIT": "8"
+     },
+     "internal": false,
+     "median_us": 3449.184,
+     "min_us": 3430.848,
+     "stdev_us": 19.401,
+     "samples": 8,
+     "vs_official": 0.9447,
+     "vs_p21_same_batch": 0.6472,
+     "accuracy": {
+      "passed": true,
+      "max_calc_diff": 0.00035859558502016053,
+      "min_cos_sim": 0.9996414184570312,
+      "stats_exact": true,
+      "repeat_diff": 1.94377062223694e-08,
+      "stress_diff": 1.8269057266984134e-08,
+      "max_abs_err": 2.3671875
+     }
+    },
+    "r2c64ws32": {
+     "env": {
+      "WEAVE_SCATTER_OWNER": "comm_only",
+      "WEAVE_SCATTER_STAGING": "smem",
+      "WEAVE_ADAPT_BM": "1",
+      "WEAVE_REDUCE_WARPS": "2",
+      "WEAVE_COMBINE_SYNC_CHUNK": "64",
+      "WEAVE_CU_WAVE_SPLIT": "32"
+     },
+     "internal": false,
+     "median_us": 3599.12,
+     "min_us": 3579.072,
+     "stdev_us": 29.097,
+     "samples": 8,
+     "vs_official": 0.9053,
+     "vs_p21_same_batch": 0.6202,
+     "accuracy": {
+      "passed": true,
+      "max_calc_diff": 0.0003585948560359542,
+      "min_cos_sim": 0.9996415376663208,
+      "stats_exact": true,
+      "repeat_diff": 1.0748851475561594e-08,
+      "stress_diff": 4.152063359796898e-09,
+      "max_abs_err": 2.3671875
+     }
+    }
+   }
+  },
+  {
+   "batch": "o4",
+   "S": 4096,
+   "note": "sweep1: REDUCE_WARPS 4 x CHUNK {0,32,64,128} + R=2 x WAVE_SPLIT {8,32}",
+   "timing": {
+    "method": "cuda_event_per_launch_max_over_ranks",
+    "warmup": 2,
+    "rounds": 4,
+    "order": "palindromic_ABBA",
+    "samples_per_arm": 8,
+    "wall_s": 0.61
+   },
+   "arms": {
+    "official": {
+     "env": {
+      "WEAVE_FORCE_OFFICIAL": "1"
+     },
+     "internal": false,
+     "median_us": 6098.032,
+     "min_us": 6087.104,
+     "stdev_us": 10.413,
+     "samples": 8,
+     "vs_official": 1.0,
+     "vs_p21_same_batch": 0.8624,
+     "accuracy": {
+      "passed": true,
+      "max_calc_diff": 0.0003556971687315169,
+      "min_cos_sim": 0.99964439868927,
+      "stats_exact": true,
+      "repeat_diff": 0.0,
+      "stress_diff": 0.0,
+      "max_abs_err": 2.625
+     }
+    },
+    "p21": {
+     "env": {
+      "WEAVE_SCATTER_OWNER": "comm_only",
+      "WEAVE_SCATTER_STAGING": "smem",
+      "WEAVE_ADAPT_BM": "1"
+     },
+     "internal": false,
+     "median_us": 5258.96,
+     "min_us": 5249.568,
+     "stdev_us": 7.346,
+     "samples": 8,
+     "vs_official": 1.1596,
+     "vs_p21_same_batch": 1.0,
+     "accuracy": {
+      "passed": true,
+      "max_calc_diff": 0.0003556968512262726,
+      "min_cos_sim": 0.9996443390846252,
+      "stats_exact": true,
+      "repeat_diff": 6.203275115801432e-09,
+      "stress_diff": 4.583709634076172e-09,
+      "max_abs_err": 2.625
+     }
+    },
+    "v8base": {
+     "env": {
+      "WEAVE_SCATTER_OWNER": "comm_only",
+      "WEAVE_SCATTER_STAGING": "smem",
+      "WEAVE_ADAPT_BM": "1",
+      "WEAVE_REDUCE_WARPS": "0",
+      "WEAVE_H20_CONFIG": "fast_host=1,fused=1,compact=1,dyn=1,alias=1,bm=64,adapt_bm=1,bf16_acc=0,bn=256,bk=128,wgs=4,swap=1,stages=0,swap_pipe=0,fast_swap_epi=1,l1_nmajor=1,l2_nmajor=1,rank_cache=1,fast_clean=1,fast_pull=1,dedup_disp=1,dedup_tier=1,reg_comb=1,fast_comb=1,all_idle_comb=1,comb_sync_chunk=0"
+     },
+     "internal": true,
+     "median_us": 5255.84,
+     "min_us": 5239.68,
+     "stdev_us": 8.157,
+     "samples": 8,
+     "vs_official": 1.1602,
+     "vs_p21_same_batch": 1.0006,
+     "accuracy": {
+      "passed": true,
+      "max_calc_diff": 0.00035569724810591286,
+      "min_cos_sim": 0.99964439868927,
+      "stats_exact": true,
+      "repeat_diff": 6.670603069913739e-09,
+      "stress_diff": 5.659992252660118e-09,
+      "max_abs_err": 2.625
+     }
+    },
+    "r4c0": {
+     "env": {
+      "WEAVE_SCATTER_OWNER": "comm_only",
+      "WEAVE_SCATTER_STAGING": "smem",
+      "WEAVE_ADAPT_BM": "1",
+      "WEAVE_REDUCE_WARPS": "4",
+      "WEAVE_COMBINE_SYNC_CHUNK": "0"
+     },
+     "internal": false,
+     "median_us": 7759.36,
+     "min_us": 7745.504,
+     "stdev_us": 24.727,
+     "samples": 8,
+     "vs_official": 0.7859,
+     "vs_p21_same_batch": 0.6778,
+     "accuracy": {
+      "passed": true,
+      "max_calc_diff": 0.00035569795587153674,
+      "min_cos_sim": 0.9996443390846252,
+      "stats_exact": true,
+      "repeat_diff": 3.992967068100484e-09,
+      "stress_diff": 5.84857984264886e-09,
+      "max_abs_err": 2.625
+     }
+    },
+    "r4c32": {
+     "env": {
+      "WEAVE_SCATTER_OWNER": "comm_only",
+      "WEAVE_SCATTER_STAGING": "smem",
+      "WEAVE_ADAPT_BM": "1",
+      "WEAVE_REDUCE_WARPS": "4",
+      "WEAVE_COMBINE_SYNC_CHUNK": "32"
+     },
+     "internal": false,
+     "median_us": 7745.952,
+     "min_us": 7741.024,
+     "stdev_us": 5.963,
+     "samples": 8,
+     "vs_official": 0.7873,
+     "vs_p21_same_batch": 0.6789,
+     "accuracy": {
+      "passed": true,
+      "max_calc_diff": 0.00035569713025096483,
+      "min_cos_sim": 0.9996443390846252,
+      "stats_exact": true,
+      "repeat_diff": 6.571658772713818e-09,
+      "stress_diff": 4.515438689622897e-09,
+      "max_abs_err": 2.625
+     }
+    },
+    "r4c64": {
+     "env": {
+      "WEAVE_SCATTER_OWNER": "comm_only",
+      "WEAVE_SCATTER_STAGING": "smem",
+      "WEAVE_ADAPT_BM": "1",
+      "WEAVE_REDUCE_WARPS": "4",
+      "WEAVE_COMBINE_SYNC_CHUNK": "64"
+     },
+     "internal": false,
+     "median_us": 7751.824,
+     "min_us": 7737.216,
+     "stdev_us": 71.066,
+     "samples": 8,
+     "vs_official": 0.7867,
+     "vs_p21_same_batch": 0.6784,
+     "accuracy": {
+      "passed": true,
+      "max_calc_diff": 0.00035569703548832265,
+      "min_cos_sim": 0.99964439868927,
+      "stats_exact": true,
+      "repeat_diff": 7.034628768387563e-09,
+      "stress_diff": 3.778755308658788e-09,
+      "max_abs_err": 2.625
+     }
+    },
+    "r4c128": {
+     "env": {
+      "WEAVE_SCATTER_OWNER": "comm_only",
+      "WEAVE_SCATTER_STAGING": "smem",
+      "WEAVE_ADAPT_BM": "1",
+      "WEAVE_REDUCE_WARPS": "4",
+      "WEAVE_COMBINE_SYNC_CHUNK": "128"
+     },
+     "internal": false,
+     "median_us": 7746.816,
+     "min_us": 7732.64,
+     "stdev_us": 46.16,
+     "samples": 8,
+     "vs_official": 0.7872,
+     "vs_p21_same_batch": 0.6789,
+     "accuracy": {
+      "passed": true,
+      "max_calc_diff": 0.0003556972051438345,
+      "min_cos_sim": 0.99964439868927,
+      "stats_exact": true,
+      "repeat_diff": 1.6011916681435423e-08,
+      "stress_diff": 4.549218113325537e-09,
+      "max_abs_err": 2.625
+     }
+    },
+    "r2c64ws8": {
+     "env": {
+      "WEAVE_SCATTER_OWNER": "comm_only",
+      "WEAVE_SCATTER_STAGING": "smem",
+      "WEAVE_ADAPT_BM": "1",
+      "WEAVE_REDUCE_WARPS": "2",
+      "WEAVE_COMBINE_SYNC_CHUNK": "64",
+      "WEAVE_CU_WAVE_SPLIT": "8"
+     },
+     "internal": false,
+     "median_us": 10265.744,
+     "min_us": 10252.576,
+     "stdev_us": 8.252,
+     "samples": 8,
+     "vs_official": 0.594,
+     "vs_p21_same_batch": 0.5123,
+     "accuracy": {
+      "passed": true,
+      "max_calc_diff": 0.0003556965480971952,
+      "min_cos_sim": 0.9996442794799805,
+      "stats_exact": true,
+      "repeat_diff": 1.5105091510925206e-08,
+      "stress_diff": 1.565728724450821e-08,
+      "max_abs_err": 2.625
+     }
+    },
+    "r2c64ws32": {
+     "env": {
+      "WEAVE_SCATTER_OWNER": "comm_only",
+      "WEAVE_SCATTER_STAGING": "smem",
+      "WEAVE_ADAPT_BM": "1",
+      "WEAVE_REDUCE_WARPS": "2",
+      "WEAVE_COMBINE_SYNC_CHUNK": "64",
+      "WEAVE_CU_WAVE_SPLIT": "32"
+     },
+     "internal": false,
+     "median_us": 10629.952,
+     "min_us": 10614.976,
+     "stdev_us": 117.143,
+     "samples": 8,
+     "vs_official": 0.5737,
+     "vs_p21_same_batch": 0.4947,
+     "accuracy": {
+      "passed": true,
+      "max_calc_diff": 0.0003556965441799953,
+      "min_cos_sim": 0.99964439868927,
+      "stats_exact": true,
+      "repeat_diff": 3.1154262503108043e-09,
+      "stress_diff": 9.934076672379888e-09,
+      "max_abs_err": 2.625
+     }
+    }
+   }
+  },
+  {
+   "batch": "c1",
+   "S": 1024,
+   "note": "confirm: rounds=8, candidates bm32_64 / ab0 / ws0_32",
+   "timing": {
+    "method": "cuda_event_per_launch_max_over_ranks",
+    "warmup": 2,
+    "rounds": 8,
+    "order": "palindromic_ABBA",
+    "samples_per_arm": 16,
+    "wall_s": 0.3
+   },
+   "arms": {
+    "official": {
+     "env": {
+      "WEAVE_FORCE_OFFICIAL": "1"
+     },
+     "internal": false,
+     "median_us": 3290.64,
+     "min_us": 3255.808,
+     "stdev_us": 26.074,
+     "samples": 16,
+     "vs_official": 1.0,
+     "vs_p21_same_batch": 0.6792,
+     "accuracy": {
+      "passed": true,
+      "max_calc_diff": 0.00035859476883404184,
+      "min_cos_sim": 0.9996415376663208,
+      "stats_exact": true,
+      "repeat_diff": 0.0,
+      "stress_diff": 0.0,
+      "max_abs_err": 2.3671875
+     }
+    },
+    "p21": {
+     "env": {
+      "WEAVE_SCATTER_OWNER": "comm_only",
+      "WEAVE_SCATTER_STAGING": "smem",
+      "WEAVE_ADAPT_BM": "1"
+     },
+     "internal": false,
+     "median_us": 2235.024,
+     "min_us": 2230.528,
+     "stdev_us": 10.14,
+     "samples": 16,
+     "vs_official": 1.4723,
+     "vs_p21_same_batch": 1.0,
+     "accuracy": {
+      "passed": true,
+      "max_calc_diff": 0.000358592854085904,
+      "min_cos_sim": 0.9996415376663208,
+      "stats_exact": true,
+      "repeat_diff": 4.189222746475707e-09,
+      "stress_diff": 2.9425523129233966e-09,
+      "max_abs_err": 2.3671875
+     }
+    },
+    "v8base": {
+     "env": {
+      "WEAVE_SCATTER_OWNER": "comm_only",
+      "WEAVE_SCATTER_STAGING": "smem",
+      "WEAVE_ADAPT_BM": "1",
+      "WEAVE_REDUCE_WARPS": "0",
+      "WEAVE_H20_CONFIG": "fast_host=1,fused=1,compact=1,dyn=1,alias=1,bm=64,adapt_bm=1,bf16_acc=0,bn=256,bk=128,wgs=4,swap=1,stages=0,swap_pipe=0,fast_swap_epi=1,l1_nmajor=1,l2_nmajor=1,rank_cache=1,fast_clean=1,fast_pull=1,dedup_disp=1,dedup_tier=1,reg_comb=1,fast_comb=1,all_idle_comb=1,comb_sync_chunk=0"
+     },
+     "internal": true,
+     "median_us": 2233.456,
+     "min_us": 2228.384,
+     "stdev_us": 10.595,
+     "samples": 16,
+     "vs_official": 1.4733,
+     "vs_p21_same_batch": 1.0007,
+     "accuracy": {
+      "passed": true,
+      "max_calc_diff": 0.0003585931453959912,
+      "min_cos_sim": 0.9996415376663208,
+      "stats_exact": true,
+      "repeat_diff": 1.2890960521261263e-09,
+      "stress_diff": 9.407705059416571e-09,
+      "max_abs_err": 2.3671875
+     }
+    },
+    "bm32_64": {
+     "env": {
+      "WEAVE_SCATTER_OWNER": "comm_only",
+      "WEAVE_SCATTER_STAGING": "smem",
+      "WEAVE_BLOCK_M_L1": "32",
+      "WEAVE_BLOCK_M_L2": "64"
+     },
+     "internal": false,
+     "median_us": 2173.84,
+     "min_us": 2168.064,
+     "stdev_us": 163.714,
+     "samples": 16,
+     "vs_official": 1.5137,
+     "vs_p21_same_batch": 1.0281,
+     "accuracy": {
+      "passed": true,
+      "max_calc_diff": 0.0003585966337478208,
+      "min_cos_sim": 0.999641478061676,
+      "stats_exact": true,
+      "repeat_diff": 1.0180076115418046e-08,
+      "stress_diff": 9.262960287692579e-09,
+      "max_abs_err": 2.3671875
+     }
+    },
+    "ab0": {
+     "env": {
+      "WEAVE_SCATTER_OWNER": "comm_only",
+      "WEAVE_SCATTER_STAGING": "smem",
+      "WEAVE_ADAPT_BM": "0"
+     },
+     "internal": false,
+     "median_us": 2211.248,
+     "min_us": 2205.76,
+     "stdev_us": 200.078,
+     "samples": 16,
+     "vs_official": 1.4881,
+     "vs_p21_same_batch": 1.0108,
+     "accuracy": {
+      "passed": true,
+      "max_calc_diff": 0.0003585940785743036,
+      "min_cos_sim": 0.9996415376663208,
+      "stats_exact": true,
+      "repeat_diff": 7.488363817920174e-09,
+      "stress_diff": 1.5717921741931207e-08,
+      "max_abs_err": 2.3671875
+     }
+    },
+    "ws0_32": {
+     "env": {
+      "WEAVE_SCATTER_OWNER": "comm_only",
+      "WEAVE_SCATTER_STAGING": "smem",
+      "WEAVE_ADAPT_BM": "1",
+      "WEAVE_CU_WAVE_SPLIT": "0-32"
+     },
+     "internal": false,
+     "median_us": 2231.392,
+     "min_us": 2225.536,
+     "stdev_us": 3.835,
+     "samples": 16,
+     "vs_official": 1.4747,
+     "vs_p21_same_batch": 1.0016,
+     "accuracy": {
+      "passed": true,
+      "max_calc_diff": 0.0003585961849779107,
+      "min_cos_sim": 0.999641478061676,
+      "stats_exact": true,
+      "repeat_diff": 3.6167219219507274e-09,
+      "stress_diff": 9.3025909198019e-09,
+      "max_abs_err": 2.3671875
+     }
+    }
+   }
+  },
+  {
+   "batch": "c1",
+   "S": 4096,
+   "note": "confirm: rounds=8, candidates bm32_64 / ab0 / ws0_32",
+   "timing": {
+    "method": "cuda_event_per_launch_max_over_ranks",
+    "warmup": 2,
+    "rounds": 8,
+    "order": "palindromic_ABBA",
+    "samples_per_arm": 16,
+    "wall_s": 0.62
+   },
+   "arms": {
+    "official": {
+     "env": {
+      "WEAVE_FORCE_OFFICIAL": "1"
+     },
+     "internal": false,
+     "median_us": 6153.76,
+     "min_us": 6123.04,
+     "stdev_us": 326.831,
+     "samples": 16,
+     "vs_official": 1.0,
+     "vs_p21_same_batch": 0.8629,
+     "accuracy": {
+      "passed": true,
+      "max_calc_diff": 0.0003556971687315169,
+      "min_cos_sim": 0.99964439868927,
+      "stats_exact": true,
+      "repeat_diff": 0.0,
+      "stress_diff": 0.0,
+      "max_abs_err": 2.625
+     }
+    },
+    "p21": {
+     "env": {
+      "WEAVE_SCATTER_OWNER": "comm_only",
+      "WEAVE_SCATTER_STAGING": "smem",
+      "WEAVE_ADAPT_BM": "1"
+     },
+     "internal": false,
+     "median_us": 5310.176,
+     "min_us": 5271.392,
+     "stdev_us": 339.628,
+     "samples": 16,
+     "vs_official": 1.1589,
+     "vs_p21_same_batch": 1.0,
+     "accuracy": {
+      "passed": true,
+      "max_calc_diff": 0.0003556963489542708,
+      "min_cos_sim": 0.9996443390846252,
+      "stats_exact": true,
+      "repeat_diff": 1.525928072787508e-08,
+      "stress_diff": 7.0658403572565476e-09,
+      "max_abs_err": 2.625
+     }
+    },
+    "v8base": {
+     "env": {
+      "WEAVE_SCATTER_OWNER": "comm_only",
+      "WEAVE_SCATTER_STAGING": "smem",
+      "WEAVE_ADAPT_BM": "1",
+      "WEAVE_REDUCE_WARPS": "0",
+      "WEAVE_H20_CONFIG": "fast_host=1,fused=1,compact=1,dyn=1,alias=1,bm=64,adapt_bm=1,bf16_acc=0,bn=256,bk=128,wgs=4,swap=1,stages=0,swap_pipe=0,fast_swap_epi=1,l1_nmajor=1,l2_nmajor=1,rank_cache=1,fast_clean=1,fast_pull=1,dedup_disp=1,dedup_tier=1,reg_comb=1,fast_comb=1,all_idle_comb=1,comb_sync_chunk=0"
+     },
+     "internal": true,
+     "median_us": 5310.656,
+     "min_us": 5272.96,
+     "stdev_us": 308.09,
+     "samples": 16,
+     "vs_official": 1.1588,
+     "vs_p21_same_batch": 0.9999,
+     "accuracy": {
+      "passed": true,
+      "max_calc_diff": 0.0003556964325094336,
+      "min_cos_sim": 0.9996442794799805,
+      "stats_exact": true,
+      "repeat_diff": 5.787579859806158e-09,
+      "stress_diff": 4.871328895816873e-09,
+      "max_abs_err": 2.625
+     }
+    },
+    "bm32_64": {
+     "env": {
+      "WEAVE_SCATTER_OWNER": "comm_only",
+      "WEAVE_SCATTER_STAGING": "smem",
+      "WEAVE_BLOCK_M_L1": "32",
+      "WEAVE_BLOCK_M_L2": "64"
+     },
+     "internal": false,
+     "median_us": 5276.064,
+     "min_us": 5252.608,
+     "stdev_us": 304.057,
+     "samples": 16,
+     "vs_official": 1.1664,
+     "vs_p21_same_batch": 1.0065,
+     "accuracy": {
+      "passed": true,
+      "max_calc_diff": 0.0003556969663013332,
+      "min_cos_sim": 0.99964439868927,
+      "stats_exact": true,
+      "repeat_diff": 8.263565165478326e-09,
+      "stress_diff": 1.8216760655498376e-08,
+      "max_abs_err": 2.625
+     }
+    },
+    "ab0": {
+     "env": {
+      "WEAVE_SCATTER_OWNER": "comm_only",
+      "WEAVE_SCATTER_STAGING": "smem",
+      "WEAVE_ADAPT_BM": "0"
+     },
+     "internal": false,
+     "median_us": 5330.432,
+     "min_us": 5290.4,
+     "stdev_us": 295.504,
+     "samples": 16,
+     "vs_official": 1.1545,
+     "vs_p21_same_batch": 0.9962,
+     "accuracy": {
+      "passed": true,
+      "max_calc_diff": 0.00035569753272368665,
+      "min_cos_sim": 0.99964439868927,
+      "stats_exact": true,
+      "repeat_diff": 7.455906891884467e-09,
+      "stress_diff": 7.78105757603953e-09,
+      "max_abs_err": 2.625
+     }
+    },
+    "ws0_32": {
+     "env": {
+      "WEAVE_SCATTER_OWNER": "comm_only",
+      "WEAVE_SCATTER_STAGING": "smem",
+      "WEAVE_ADAPT_BM": "1",
+      "WEAVE_CU_WAVE_SPLIT": "0-32"
+     },
+     "internal": false,
+     "median_us": 5329.952,
+     "min_us": 5271.584,
+     "stdev_us": 373.438,
+     "samples": 16,
+     "vs_official": 1.1546,
+     "vs_p21_same_batch": 0.9963,
+     "accuracy": {
+      "passed": true,
+      "max_calc_diff": 0.0003556974495207976,
+      "min_cos_sim": 0.99964439868927,
+      "stats_exact": true,
+      "repeat_diff": 4.777490736351808e-09,
+      "stress_diff": 6.0321659889339685e-09,
+      "max_abs_err": 2.625
+     }
+    }
+   }
+  },
+  {
+   "batch": "o5",
+   "S": 1024,
+   "note": "experiment: Reduce-warp poll backoff build (R>0 kernels only; R=0 kernels unchanged code) + bm32_64 re-measure; backoff measured neutral and was NOT committed",
+   "timing": {
+    "method": "cuda_event_per_launch_max_over_ranks",
+    "warmup": 2,
+    "rounds": 4,
+    "order": "palindromic_ABBA",
+    "samples_per_arm": 8,
+    "wall_s": 0.24
+   },
+   "arms": {
+    "official": {
+     "env": {
+      "WEAVE_FORCE_OFFICIAL": "1"
+     },
+     "internal": false,
+     "median_us": 3245.808,
+     "min_us": 3235.36,
+     "stdev_us": 7.548,
+     "samples": 8,
+     "vs_official": 1.0,
+     "vs_p21_same_batch": 0.6877,
+     "accuracy": {
+      "passed": true,
+      "max_calc_diff": 0.00035859476883404184,
+      "min_cos_sim": 0.9996415376663208,
+      "stats_exact": true,
+      "repeat_diff": 0.0,
+      "stress_diff": 0.0,
+      "max_abs_err": 2.3671875
+     }
+    },
+    "p21": {
+     "env": {
+      "WEAVE_SCATTER_OWNER": "comm_only",
+      "WEAVE_SCATTER_STAGING": "smem",
+      "WEAVE_ADAPT_BM": "1"
+     },
+     "internal": false,
+     "median_us": 2231.984,
+     "min_us": 2229.984,
+     "stdev_us": 1.412,
+     "samples": 8,
+     "vs_official": 1.4542,
+     "vs_p21_same_batch": 1.0,
+     "accuracy": {
+      "passed": true,
+      "max_calc_diff": 0.0003585944692611198,
+      "min_cos_sim": 0.9996415376663208,
+      "stats_exact": true,
+      "repeat_diff": 7.717686600905438e-09,
+      "stress_diff": 9.282941415555968e-09,
+      "max_abs_err": 2.3671875
+     }
+    },
+    "v8base": {
+     "env": {
+      "WEAVE_SCATTER_OWNER": "comm_only",
+      "WEAVE_SCATTER_STAGING": "smem",
+      "WEAVE_ADAPT_BM": "1",
+      "WEAVE_REDUCE_WARPS": "0",
+      "WEAVE_H20_CONFIG": "fast_host=1,fused=1,compact=1,dyn=1,alias=1,bm=64,adapt_bm=1,bf16_acc=0,bn=256,bk=128,wgs=4,swap=1,stages=0,swap_pipe=0,fast_swap_epi=1,l1_nmajor=1,l2_nmajor=1,rank_cache=1,fast_clean=1,fast_pull=1,dedup_disp=1,dedup_tier=1,reg_comb=1,fast_comb=1,all_idle_comb=1,comb_sync_chunk=0"
+     },
+     "internal": true,
+     "median_us": 2232.432,
+     "min_us": 2230.72,
+     "stdev_us": 1.715,
+     "samples": 8,
+     "vs_official": 1.4539,
+     "vs_p21_same_batch": 0.9998,
+     "accuracy": {
+      "passed": true,
+      "max_calc_diff": 0.0003585939036738761,
+      "min_cos_sim": 0.9996415376663208,
+      "stats_exact": true,
+      "repeat_diff": 3.024335559764779e-09,
+      "stress_diff": 1.1433221480672273e-08,
+      "max_abs_err": 2.3671875
+     }
+    },
+    "bm32_64": {
+     "env": {
+      "WEAVE_SCATTER_OWNER": "comm_only",
+      "WEAVE_SCATTER_STAGING": "smem",
+      "WEAVE_BLOCK_M_L1": "32",
+      "WEAVE_BLOCK_M_L2": "64"
+     },
+     "internal": false,
+     "median_us": 2182.864,
+     "min_us": 2175.072,
+     "stdev_us": 4.888,
+     "samples": 8,
+     "vs_official": 1.4869,
+     "vs_p21_same_batch": 1.0225,
+     "accuracy": {
+      "passed": true,
+      "max_calc_diff": 0.0003585950902600388,
+      "min_cos_sim": 0.9996415376663208,
+      "stats_exact": true,
+      "repeat_diff": 2.0494194785669606e-08,
+      "stress_diff": 5.515927270494103e-09,
+      "max_abs_err": 2.3671875
+     }
+    },
+    "r1c64": {
+     "env": {
+      "WEAVE_SCATTER_OWNER": "comm_only",
+      "WEAVE_SCATTER_STAGING": "smem",
+      "WEAVE_ADAPT_BM": "1",
+      "WEAVE_REDUCE_WARPS": "1",
+      "WEAVE_COMBINE_SYNC_CHUNK": "64"
+     },
+     "internal": false,
+     "median_us": 3988.624,
+     "min_us": 3983.296,
+     "stdev_us": 3.563,
+     "samples": 8,
+     "vs_official": 0.8138,
+     "vs_p21_same_batch": 0.5596,
+     "accuracy": {
+      "passed": true,
+      "max_calc_diff": 0.0003585944176189848,
+      "min_cos_sim": 0.9996415376663208,
+      "stats_exact": true,
+      "repeat_diff": 1.944636163209168e-08,
+      "stress_diff": 8.621156677435238e-09,
+      "max_abs_err": 2.3671875
+     }
+    },
+    "r2c64": {
+     "env": {
+      "WEAVE_SCATTER_OWNER": "comm_only",
+      "WEAVE_SCATTER_STAGING": "smem",
+      "WEAVE_ADAPT_BM": "1",
+      "WEAVE_REDUCE_WARPS": "2",
+      "WEAVE_COMBINE_SYNC_CHUNK": "64"
+     },
+     "internal": false,
+     "median_us": 3589.632,
+     "min_us": 3580.064,
+     "stdev_us": 12.126,
+     "samples": 8,
+     "vs_official": 0.9042,
+     "vs_p21_same_batch": 0.6218,
+     "accuracy": {
+      "passed": true,
+      "max_calc_diff": 0.000358594141901869,
+      "min_cos_sim": 0.9996415376663208,
+      "stats_exact": true,
+      "repeat_diff": 1.8163818338301496e-08,
+      "stress_diff": 9.666063838231764e-09,
+      "max_abs_err": 2.3671875
+     }
+    },
+    "r4c64": {
+     "env": {
+      "WEAVE_SCATTER_OWNER": "comm_only",
+      "WEAVE_SCATTER_STAGING": "smem",
+      "WEAVE_ADAPT_BM": "1",
+      "WEAVE_REDUCE_WARPS": "4",
+      "WEAVE_COMBINE_SYNC_CHUNK": "64"
+     },
+     "internal": false,
+     "median_us": 3074.928,
+     "min_us": 3066.176,
+     "stdev_us": 83.093,
+     "samples": 8,
+     "vs_official": 1.0556,
+     "vs_p21_same_batch": 0.7259,
+     "accuracy": {
+      "passed": true,
+      "max_calc_diff": 0.00035859559846829203,
+      "min_cos_sim": 0.9996415376663208,
+      "stats_exact": true,
+      "repeat_diff": 8.241548887788497e-09,
+      "stress_diff": 9.130139977386875e-09,
+      "max_abs_err": 2.3671875
+     }
+    },
+    "r2c64ws8": {
+     "env": {
+      "WEAVE_SCATTER_OWNER": "comm_only",
+      "WEAVE_SCATTER_STAGING": "smem",
+      "WEAVE_ADAPT_BM": "1",
+      "WEAVE_REDUCE_WARPS": "2",
+      "WEAVE_COMBINE_SYNC_CHUNK": "64",
+      "WEAVE_CU_WAVE_SPLIT": "8"
+     },
+     "internal": false,
+     "median_us": 3448.24,
+     "min_us": 3440.896,
+     "stdev_us": 11.89,
+     "samples": 8,
+     "vs_official": 0.9413,
+     "vs_p21_same_batch": 0.6473,
+     "accuracy": {
+      "passed": true,
+      "max_calc_diff": 0.0003585952026636807,
+      "min_cos_sim": 0.9996415376663208,
+      "stats_exact": true,
+      "repeat_diff": 8.843538346070545e-09,
+      "stress_diff": 5.700633742833361e-09,
+      "max_abs_err": 2.3671875
+     }
+    }
+   }
+  },
+  {
+   "batch": "o5",
+   "S": 4096,
+   "note": "experiment: Reduce-warp poll backoff build (R>0 kernels only; R=0 kernels unchanged code) + bm32_64 re-measure; backoff measured neutral and was NOT committed",
+   "timing": {
+    "method": "cuda_event_per_launch_max_over_ranks",
+    "warmup": 2,
+    "rounds": 4,
+    "order": "palindromic_ABBA",
+    "samples_per_arm": 8,
+    "wall_s": 0.56
+   },
+   "arms": {
+    "official": {
+     "env": {
+      "WEAVE_FORCE_OFFICIAL": "1"
+     },
+     "internal": false,
+     "median_us": 6091.632,
+     "min_us": 6086.272,
+     "stdev_us": 15.996,
+     "samples": 8,
+     "vs_official": 1.0,
+     "vs_p21_same_batch": 0.8618,
+     "accuracy": {
+      "passed": true,
+      "max_calc_diff": 0.0003556971687315169,
+      "min_cos_sim": 0.99964439868927,
+      "stats_exact": true,
+      "repeat_diff": 0.0,
+      "stress_diff": 0.0,
+      "max_abs_err": 2.625
+     }
+    },
+    "p21": {
+     "env": {
+      "WEAVE_SCATTER_OWNER": "comm_only",
+      "WEAVE_SCATTER_STAGING": "smem",
+      "WEAVE_ADAPT_BM": "1"
+     },
+     "internal": false,
+     "median_us": 5249.52,
+     "min_us": 5240.448,
+     "stdev_us": 14.257,
+     "samples": 8,
+     "vs_official": 1.1604,
+     "vs_p21_same_batch": 1.0,
+     "accuracy": {
+      "passed": true,
+      "max_calc_diff": 0.0003556973916146733,
+      "min_cos_sim": 0.9996443390846252,
+      "stats_exact": true,
+      "repeat_diff": 4.435507405808892e-09,
+      "stress_diff": 6.596714063888953e-09,
+      "max_abs_err": 2.625
+     }
+    },
+    "v8base": {
+     "env": {
+      "WEAVE_SCATTER_OWNER": "comm_only",
+      "WEAVE_SCATTER_STAGING": "smem",
+      "WEAVE_ADAPT_BM": "1",
+      "WEAVE_REDUCE_WARPS": "0",
+      "WEAVE_H20_CONFIG": "fast_host=1,fused=1,compact=1,dyn=1,alias=1,bm=64,adapt_bm=1,bf16_acc=0,bn=256,bk=128,wgs=4,swap=1,stages=0,swap_pipe=0,fast_swap_epi=1,l1_nmajor=1,l2_nmajor=1,rank_cache=1,fast_clean=1,fast_pull=1,dedup_disp=1,dedup_tier=1,reg_comb=1,fast_comb=1,all_idle_comb=1,comb_sync_chunk=0"
+     },
+     "internal": true,
+     "median_us": 5247.008,
+     "min_us": 5244.928,
+     "stdev_us": 15.668,
+     "samples": 8,
+     "vs_official": 1.161,
+     "vs_p21_same_batch": 1.0005,
+     "accuracy": {
+      "passed": true,
+      "max_calc_diff": 0.00035569679745739435,
+      "min_cos_sim": 0.99964439868927,
+      "stats_exact": true,
+      "repeat_diff": 7.018046144224854e-09,
+      "stress_diff": 1.6384988255069288e-08,
+      "max_abs_err": 2.625
+     }
+    },
+    "bm32_64": {
+     "env": {
+      "WEAVE_SCATTER_OWNER": "comm_only",
+      "WEAVE_SCATTER_STAGING": "smem",
+      "WEAVE_BLOCK_M_L1": "32",
+      "WEAVE_BLOCK_M_L2": "64"
+     },
+     "internal": false,
+     "median_us": 5234.448,
+     "min_us": 5221.984,
+     "stdev_us": 12.099,
+     "samples": 8,
+     "vs_official": 1.1638,
+     "vs_p21_same_batch": 1.0029,
+     "accuracy": {
+      "passed": true,
+      "max_calc_diff": 0.0003556974037023375,
+      "min_cos_sim": 0.9996443390846252,
+      "stats_exact": true,
+      "repeat_diff": 6.7307376339087455e-09,
+      "stress_diff": 7.963463111160252e-09,
+      "max_abs_err": 2.625
+     }
+    },
+    "r1c64": {
+     "env": {
+      "WEAVE_SCATTER_OWNER": "comm_only",
+      "WEAVE_SCATTER_STAGING": "smem",
+      "WEAVE_ADAPT_BM": "1",
+      "WEAVE_REDUCE_WARPS": "1",
+      "WEAVE_COMBINE_SYNC_CHUNK": "64"
+     },
+     "internal": false,
+     "median_us": 12432.848,
+     "min_us": 12386.848,
+     "stdev_us": 23.276,
+     "samples": 8,
+     "vs_official": 0.49,
+     "vs_p21_same_batch": 0.4222,
+     "accuracy": {
+      "passed": true,
+      "max_calc_diff": 0.0003556968605407107,
+      "min_cos_sim": 0.9996443390846252,
+      "stats_exact": true,
+      "repeat_diff": 4.502014094853735e-09,
+      "stress_diff": 1.4790987434842862e-08,
+      "max_abs_err": 2.625
+     }
+    },
+    "r2c64": {
+     "env": {
+      "WEAVE_SCATTER_OWNER": "comm_only",
+      "WEAVE_SCATTER_STAGING": "smem",
+      "WEAVE_ADAPT_BM": "1",
+      "WEAVE_REDUCE_WARPS": "2",
+      "WEAVE_COMBINE_SYNC_CHUNK": "64"
+     },
+     "internal": false,
+     "median_us": 10704.256,
+     "min_us": 10674.112,
+     "stdev_us": 38.067,
+     "samples": 8,
+     "vs_official": 0.5691,
+     "vs_p21_same_batch": 0.4904,
+     "accuracy": {
+      "passed": true,
+      "max_calc_diff": 0.00035569726112838485,
+      "min_cos_sim": 0.9996443390846252,
+      "stats_exact": true,
+      "repeat_diff": 1.561099627345186e-08,
+      "stress_diff": 4.745175474774044e-09,
+      "max_abs_err": 2.625
+     }
+    },
+    "r4c64": {
+     "env": {
+      "WEAVE_SCATTER_OWNER": "comm_only",
+      "WEAVE_SCATTER_STAGING": "smem",
+      "WEAVE_ADAPT_BM": "1",
+      "WEAVE_REDUCE_WARPS": "4",
+      "WEAVE_COMBINE_SYNC_CHUNK": "64"
+     },
+     "internal": false,
+     "median_us": 7750.192,
+     "min_us": 7735.04,
+     "stdev_us": 18.469,
+     "samples": 8,
+     "vs_official": 0.786,
+     "vs_p21_same_batch": 0.6773,
+     "accuracy": {
+      "passed": true,
+      "max_calc_diff": 0.00035569715960792614,
+      "min_cos_sim": 0.99964439868927,
+      "stats_exact": true,
+      "repeat_diff": 7.1097912002215935e-09,
+      "stress_diff": 6.662210449981387e-09,
+      "max_abs_err": 2.625
+     }
+    },
+    "r2c64ws8": {
+     "env": {
+      "WEAVE_SCATTER_OWNER": "comm_only",
+      "WEAVE_SCATTER_STAGING": "smem",
+      "WEAVE_ADAPT_BM": "1",
+      "WEAVE_REDUCE_WARPS": "2",
+      "WEAVE_COMBINE_SYNC_CHUNK": "64",
+      "WEAVE_CU_WAVE_SPLIT": "8"
+     },
+     "internal": false,
+     "median_us": 10265.76,
+     "min_us": 10248.224,
+     "stdev_us": 27.254,
+     "samples": 8,
+     "vs_official": 0.5934,
+     "vs_p21_same_batch": 0.5114,
+     "accuracy": {
+      "passed": true,
+      "max_calc_diff": 0.00035569701357507366,
+      "min_cos_sim": 0.9996443390846252,
+      "stats_exact": true,
+      "repeat_diff": 4.786860241523527e-09,
+      "stress_diff": 7.1458204908836365e-09,
+      "max_abs_err": 2.625
+     }
+    }
+   }
+  }
+ ]
+}

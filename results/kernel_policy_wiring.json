@@ -1,11 +1,11 @@
 {
-  "schema": "weave-kernel-policy-wiring/v3",
+  "schema": "weave-kernel-policy-wiring/v4",
   "pass": true,
   "files": {
     "b300": {
       "exists": true,
       "path": "deep_gemm\\include\\deep_gemm\\impls\\sm100_fp8_fp4_mega_moe.cuh",
-      "bytes": 319630,
+      "bytes": 421580,
       "checks": {
         "scheduler_include": {
           "needle": "scheduler/mega_moe.cuh",
@@ -72,7 +72,7 @@
     "b300_nvfp4": {
       "exists": true,
       "path": "deep_gemm\\include\\deep_gemm\\impls\\sm100_fp4_fp4_mega_moe.cuh",
-      "bytes": 109398,
+      "bytes": 112049,
       "checks": {
         "scheduler_include": {
           "needle": "scheduler/nvfp4_mega_moe.cuh",
@@ -133,13 +133,128 @@
           "expected_count": 1,
           "observed_count": 1,
           "ok": true
+        },
+        "consume_sm0_sched": {
+          "needle": "WEAVE_SM0_STREAM_SCHED",
+          "expected_count": 1,
+          "observed_count": 4,
+          "ok": true
+        },
+        "consume_dispatch_sms": {
+          "needle": "WEAVE_DISPATCH_ACTIVE_SMS",
+          "expected_count": 1,
+          "observed_count": 6,
+          "ok": true
+        },
+        "assert_dispatch_warps": {
+          "needle": "WEAVE_DISPATCH_WARPS disagrees with the launch thread layout",
+          "expected_count": 1,
+          "observed_count": 1,
+          "ok": true
+        },
+        "assert_ring_blocks": {
+          "needle": "WEAVE_RING_BLOCKS must match the allocated ring",
+          "expected_count": 1,
+          "observed_count": 1,
+          "ok": true
+        }
+      }
+    },
+    "b300_bf16": {
+      "exists": true,
+      "path": "deep_gemm\\include\\deep_gemm\\impls\\sm100_bf16_mega_moe.cuh",
+      "bytes": 79073,
+      "checks": {
+        "scheduler_include": {
+          "needle": "scheduler/mega_moe.cuh",
+          "expected_count": 1,
+          "observed_count": 1,
+          "ok": true
+        },
+        "entry": {
+          "needle": "sm100_bf16_mega_moe_impl",
+          "expected_count": 1,
+          "observed_count": 1,
+          "ok": true
+        },
+        "scheduler": {
+          "needle": "sched::MegaMoEScheduler",
+          "expected_count": 1,
+          "observed_count": 1,
+          "ok": true
+        },
+        "include": {
+          "needle": "weave_policy_runtime.cuh",
+          "expected_count": 1,
+          "observed_count": 1,
+          "ok": true
+        },
+        "cta0": {
+          "needle": "cta0_select_from_packed_hist",
+          "expected_count": 1,
+          "observed_count": 1,
+          "ok": true
+        },
+        "consume_r": {
+          "needle": "selected_r_mask",
+          "expected_count": 1,
+          "observed_count": 1,
+          "ok": true
+        },
+        "consume_scatter": {
+          "needle": "selected_scatter_mode",
+          "expected_count": 1,
+          "observed_count": 1,
+          "ok": true
+        },
+        "consume_v_head": {
+          "needle": "selected_v_head",
+          "expected_count": 1,
+          "observed_count": 5,
+          "ok": true
+        },
+        "all_cta_read": {
+          "needle": "load_published_policy",
+          "expected_count": 1,
+          "observed_count": 1,
+          "ok": true
+        },
+        "epoch_wait": {
+          "needle": "wait_and_copy_policy",
+          "expected_count": 1,
+          "observed_count": 1,
+          "ok": true
+        },
+        "consume_sm0_sched": {
+          "needle": "WEAVE_SM0_STREAM_SCHED",
+          "expected_count": 1,
+          "observed_count": 4,
+          "ok": true
+        },
+        "consume_dispatch_sms": {
+          "needle": "WEAVE_DISPATCH_ACTIVE_SMS",
+          "expected_count": 1,
+          "observed_count": 6,
+          "ok": true
+        },
+        "assert_dispatch_warps": {
+          "needle": "WEAVE_DISPATCH_WARPS disagrees with the launch thread layout",
+          "expected_count": 1,
+          "observed_count": 1,
+          "ok": true
+        },
+        "assert_ring_blocks": {
+          "needle": "WEAVE_RING_BLOCKS must match the allocated ring",
+          "expected_count": 1,
+          "observed_count": 1,
+          "ok": true
         }
       }
     },
     "h20": {
       "exists": true,
       "path": "deep_gemm\\include\\deep_gemm\\impls\\sm90_fp8_mega_moe.cuh",
-      "bytes": 432864,
+      "bytes": 537826,
       "checks": {
         "include": {
           "needle": "weave_policy_runtime.cuh",
@@ -174,7 +289,7 @@
         "consume_v_head": {
           "needle": "selected_v_head",
           "expected_count": 1,
-          "observed_count": 5,
+          "observed_count": 4,
           "ok": true
         },
         "all_cta_read": {
@@ -243,7 +358,7 @@
     "mi308x_body": {
       "exists": true,
       "path": "deep_gemm\\include\\deep_gemm\\impls\\amd\\megamoe_amd.hip",
-      "bytes": 60784,
+      "bytes": 69487,
       "checks": {
         "include": {
           "needle": "weave_policy_runtime.cuh",
@@ -317,7 +432,7 @@
     "mi308x_comm": {
       "exists": true,
       "path": "deep_gemm\\include\\deep_gemm\\impls\\amd\\include\\weave_comm_4wave_turbo.hpp",
-      "bytes": 37813,
+      "bytes": 40033,
       "checks": {
         "consume_v_head": {
           "needle": "selected_v_head",
@@ -328,7 +443,147 @@
         "policy_valid": {
           "needle": "weave_policy_ok",
           "expected_count": 1,
-          "observed_count": 2,
+          "observed_count": 3,
+          "ok": true
+        }
+      }
+    },
+    "nvfp4_host": {
+      "exists": true,
+      "path": "csrc\\jit_kernels\\heuristics\\nvfp4_mega_moe.hpp",
+      "bytes": 12375,
+      "checks": {
+        "from_env": {
+          "needle": "weave_knobs::from_env",
+          "expected_count": 1,
+          "observed_count": 3,
+          "ok": true
+        },
+        "dispatch_warps_resolver": {
+          "needle": "weave::resolve_dispatch_warps",
+          "expected_count": 1,
+          "observed_count": 1,
+          "ok": true
+        },
+        "block_m_envelope": {
+          "needle": "resolve_block_m_envelope",
+          "expected_count": 1,
+          "observed_count": 3,
+          "ok": true
+        },
+        "ring_cap": {
+          "needle": "knobs.ring_blocks",
+          "expected_count": 1,
+          "observed_count": 4,
+          "ok": true
+        },
+        "define_precision": {
+          "needle": "#define WEAVE_PRECISION_MODE",
+          "expected_count": 1,
+          "observed_count": 1,
+          "ok": true
+        },
+        "define_v_head": {
+          "needle": "#define WEAVE_V_HEAD",
+          "expected_count": 1,
+          "observed_count": 1,
+          "ok": true
+        },
+        "define_dispatch_warps": {
+          "needle": "#define WEAVE_DISPATCH_WARPS",
+          "expected_count": 1,
+          "observed_count": 1,
+          "ok": true
+        },
+        "define_sm0_sched": {
+          "needle": "#define WEAVE_SM0_STREAM_SCHED",
+          "expected_count": 1,
+          "observed_count": 1,
+          "ok": true
+        },
+        "define_dispatch_sms": {
+          "needle": "#define WEAVE_DISPATCH_ACTIVE_SMS",
+          "expected_count": 1,
+          "observed_count": 1,
+          "ok": true
+        },
+        "define_ring_blocks": {
+          "needle": "#define WEAVE_RING_BLOCKS",
+          "expected_count": 1,
+          "observed_count": 1,
+          "ok": true
+        },
+        "define_block_m_l1": {
+          "needle": "#define WEAVE_BLOCK_M_L1",
+          "expected_count": 1,
+          "observed_count": 1,
+          "ok": true
+        },
+        "define_block_m_l2": {
+          "needle": "#define WEAVE_BLOCK_M_L2",
+          "expected_count": 1,
+          "observed_count": 1,
+          "ok": true
+        }
+      }
+    },
+    "bf16_host": {
+      "exists": true,
+      "path": "csrc\\jit_kernels\\impls\\sm100_bf16_mega_moe.hpp",
+      "bytes": 10573,
+      "checks": {
+        "from_env": {
+          "needle": "weave_knobs::from_env",
+          "expected_count": 1,
+          "observed_count": 1,
+          "ok": true
+        },
+        "define_precision": {
+          "needle": "#define WEAVE_PRECISION_MODE",
+          "expected_count": 1,
+          "observed_count": 1,
+          "ok": true
+        },
+        "define_v_head": {
+          "needle": "#define WEAVE_V_HEAD",
+          "expected_count": 1,
+          "observed_count": 1,
+          "ok": true
+        },
+        "define_dispatch_warps": {
+          "needle": "#define WEAVE_DISPATCH_WARPS",
+          "expected_count": 1,
+          "observed_count": 1,
+          "ok": true
+        },
+        "define_sm0_sched": {
+          "needle": "#define WEAVE_SM0_STREAM_SCHED",
+          "expected_count": 1,
+          "observed_count": 1,
+          "ok": true
+        },
+        "define_dispatch_sms": {
+          "needle": "#define WEAVE_DISPATCH_ACTIVE_SMS",
+          "expected_count": 1,
+          "observed_count": 1,
+          "ok": true
+        },
+        "define_ring_blocks": {
+          "needle": "#define WEAVE_RING_BLOCKS",
+          "expected_count": 1,
+          "observed_count": 1,
+          "ok": true
+        },
+        "define_block_m_l1": {
+          "needle": "#define WEAVE_BLOCK_M_L1",
+          "expected_count": 1,
+          "observed_count": 1,
+          "ok": true
+        },
+        "define_block_m_l2": {
+          "needle": "#define WEAVE_BLOCK_M_L2",
+          "expected_count": 1,
+          "observed_count": 1,
           "ok": true
         }
       }

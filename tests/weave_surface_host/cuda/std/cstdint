@@ -1,0 +1,13 @@
+// Host-only stand-in for a CUDA / PyTorch / CUTLASS header that is absent from a
+// CPU-only checkout (third-party/cutlass and third-party/deep_jit are empty
+// submodules).  It provides ONLY the macros / types that the host-side Weave
+// knob parsing chain references; no CUDA API is ever called by the test.
+// See tests/test_21_weave_knobs_surface.py for the include-order contract.
+#pragma once
+
+#include <cstdint>
+namespace cuda { namespace std {
+using ::int8_t; using ::int16_t; using ::int32_t; using ::int64_t;
+using ::uint8_t; using ::uint16_t; using ::uint32_t; using ::uint64_t;
+using ::intptr_t; using ::uintptr_t; using ::size_t;
+} }

@@ -1,0 +1,10738 @@
+{
+ "schema": "weave-h20-v9-pure21-equivalence/v1",
+ "checks_total": 896,
+ "checks_pass": 896,
+ "pairs": 138,
+ "tokens": [
+  1024,
+  4096
+ ],
+ "rows": [
+  {
+   "arm": "i0e8c0r0",
+   "batch": "grid",
+   "tokens": 1024,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "0",
+    "WEAVE_COMBINE_SYNC_CHUNK": "0",
+    "WEAVE_CU_WAVE_SPLIT": "0-8"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "8",
+   "comb_warps": "0",
+   "defines_sha": "668819cdac96226f"
+  },
+  {
+   "arm": "i0e8c0r0",
+   "batch": "grid",
+   "tokens": 4096,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "0",
+    "WEAVE_COMBINE_SYNC_CHUNK": "0",
+    "WEAVE_CU_WAVE_SPLIT": "0-8"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "8",
+   "comb_warps": "0",
+   "defines_sha": "0fab68070d2f5bd4"
+  },
+  {
+   "arm": "i0e8c0r1",
+   "batch": "grid",
+   "tokens": 1024,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "1",
+    "WEAVE_COMBINE_SYNC_CHUNK": "0",
+    "WEAVE_CU_WAVE_SPLIT": "0-8"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "8",
+   "comb_warps": "1",
+   "defines_sha": "18a8e0bc8c6422bb"
+  },
+  {
+   "arm": "i0e8c0r1",
+   "batch": "grid",
+   "tokens": 4096,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "1",
+    "WEAVE_COMBINE_SYNC_CHUNK": "0",
+    "WEAVE_CU_WAVE_SPLIT": "0-8"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "8",
+   "comb_warps": "1",
+   "defines_sha": "3d91e4e99e554404"
+  },
+  {
+   "arm": "i0e8c0r2",
+   "batch": "grid",
+   "tokens": 1024,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "2",
+    "WEAVE_COMBINE_SYNC_CHUNK": "0",
+    "WEAVE_CU_WAVE_SPLIT": "0-8"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "8",
+   "comb_warps": "2",
+   "defines_sha": "990b3a777682f363"
+  },
+  {
+   "arm": "i0e8c0r2",
+   "batch": "grid",
+   "tokens": 4096,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "2",
+    "WEAVE_COMBINE_SYNC_CHUNK": "0",
+    "WEAVE_CU_WAVE_SPLIT": "0-8"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "8",
+   "comb_warps": "2",
+   "defines_sha": "d070d79e27b43b02"
+  },
+  {
+   "arm": "i0e8c16r0",
+   "batch": "grid",
+   "tokens": 1024,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "0",
+    "WEAVE_COMBINE_SYNC_CHUNK": "16",
+    "WEAVE_CU_WAVE_SPLIT": "0-8"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "8",
+   "comb_warps": "0",
+   "defines_sha": "afe2346f5bb58b41"
+  },
+  {
+   "arm": "i0e8c16r0",
+   "batch": "grid",
+   "tokens": 4096,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "0",
+    "WEAVE_COMBINE_SYNC_CHUNK": "16",
+    "WEAVE_CU_WAVE_SPLIT": "0-8"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "8",
+   "comb_warps": "0",
+   "defines_sha": "0b550f380a508e95"
+  },
+  {
+   "arm": "i0e8c16r1",
+   "batch": "grid",
+   "tokens": 1024,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "1",
+    "WEAVE_COMBINE_SYNC_CHUNK": "16",
+    "WEAVE_CU_WAVE_SPLIT": "0-8"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "8",
+   "comb_warps": "1",
+   "defines_sha": "03388f2bc743cf7f"
+  },
+  {
+   "arm": "i0e8c16r1",
+   "batch": "grid",
+   "tokens": 4096,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "1",
+    "WEAVE_COMBINE_SYNC_CHUNK": "16",
+    "WEAVE_CU_WAVE_SPLIT": "0-8"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "8",
+   "comb_warps": "1",
+   "defines_sha": "47a723b20cd597ec"
+  },
+  {
+   "arm": "i0e8c16r2",
+   "batch": "grid",
+   "tokens": 1024,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "2",
+    "WEAVE_COMBINE_SYNC_CHUNK": "16",
+    "WEAVE_CU_WAVE_SPLIT": "0-8"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "8",
+   "comb_warps": "2",
+   "defines_sha": "023615ca1cc8445f"
+  },
+  {
+   "arm": "i0e8c16r2",
+   "batch": "grid",
+   "tokens": 4096,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "2",
+    "WEAVE_COMBINE_SYNC_CHUNK": "16",
+    "WEAVE_CU_WAVE_SPLIT": "0-8"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "8",
+   "comb_warps": "2",
+   "defines_sha": "622256bbd5ee9923"
+  },
+  {
+   "arm": "i0e8c32r0",
+   "batch": "grid",
+   "tokens": 1024,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "0",
+    "WEAVE_COMBINE_SYNC_CHUNK": "32",
+    "WEAVE_CU_WAVE_SPLIT": "0-8"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "8",
+   "comb_warps": "0",
+   "defines_sha": "f8cf966a304e3dee"
+  },
+  {
+   "arm": "i0e8c32r0",
+   "batch": "grid",
+   "tokens": 4096,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "0",
+    "WEAVE_COMBINE_SYNC_CHUNK": "32",
+    "WEAVE_CU_WAVE_SPLIT": "0-8"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "8",
+   "comb_warps": "0",
+   "defines_sha": "2c5712bc329aab41"
+  },
+  {
+   "arm": "i0e8c32r1",
+   "batch": "grid",
+   "tokens": 1024,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "1",
+    "WEAVE_COMBINE_SYNC_CHUNK": "32",
+    "WEAVE_CU_WAVE_SPLIT": "0-8"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "8",
+   "comb_warps": "1",
+   "defines_sha": "780553319243b226"
+  },
+  {
+   "arm": "i0e8c32r1",
+   "batch": "grid",
+   "tokens": 4096,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "1",
+    "WEAVE_COMBINE_SYNC_CHUNK": "32",
+    "WEAVE_CU_WAVE_SPLIT": "0-8"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "8",
+   "comb_warps": "1",
+   "defines_sha": "41dbae29770eed76"
+  },
+  {
+   "arm": "i0e8c32r2",
+   "batch": "grid",
+   "tokens": 1024,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "2",
+    "WEAVE_COMBINE_SYNC_CHUNK": "32",
+    "WEAVE_CU_WAVE_SPLIT": "0-8"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "8",
+   "comb_warps": "2",
+   "defines_sha": "d178f74c74abda71"
+  },
+  {
+   "arm": "i0e8c32r2",
+   "batch": "grid",
+   "tokens": 4096,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "2",
+    "WEAVE_COMBINE_SYNC_CHUNK": "32",
+    "WEAVE_CU_WAVE_SPLIT": "0-8"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "8",
+   "comb_warps": "2",
+   "defines_sha": "3bed8fd0cb63ce5e"
+  },
+  {
+   "arm": "i0e8c64r0",
+   "batch": "grid",
+   "tokens": 1024,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "0",
+    "WEAVE_COMBINE_SYNC_CHUNK": "64",
+    "WEAVE_CU_WAVE_SPLIT": "0-8"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "8",
+   "comb_warps": "0",
+   "defines_sha": "1026a29c2ac678cc"
+  },
+  {
+   "arm": "i0e8c64r0",
+   "batch": "grid",
+   "tokens": 4096,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "0",
+    "WEAVE_COMBINE_SYNC_CHUNK": "64",
+    "WEAVE_CU_WAVE_SPLIT": "0-8"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "8",
+   "comb_warps": "0",
+   "defines_sha": "da696f184a64daa0"
+  },
+  {
+   "arm": "i0e8c64r1",
+   "batch": "grid",
+   "tokens": 1024,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "1",
+    "WEAVE_COMBINE_SYNC_CHUNK": "64",
+    "WEAVE_CU_WAVE_SPLIT": "0-8"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "8",
+   "comb_warps": "1",
+   "defines_sha": "0713e26c8ea27a88"
+  },
+  {
+   "arm": "i0e8c64r1",
+   "batch": "grid",
+   "tokens": 4096,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "1",
+    "WEAVE_COMBINE_SYNC_CHUNK": "64",
+    "WEAVE_CU_WAVE_SPLIT": "0-8"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "8",
+   "comb_warps": "1",
+   "defines_sha": "7214aeabed3e439a"
+  },
+  {
+   "arm": "i0e8c64r2",
+   "batch": "grid",
+   "tokens": 1024,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "2",
+    "WEAVE_COMBINE_SYNC_CHUNK": "64",
+    "WEAVE_CU_WAVE_SPLIT": "0-8"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "8",
+   "comb_warps": "2",
+   "defines_sha": "b16abcf898b92db8"
+  },
+  {
+   "arm": "i0e8c64r2",
+   "batch": "grid",
+   "tokens": 4096,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "2",
+    "WEAVE_COMBINE_SYNC_CHUNK": "64",
+    "WEAVE_CU_WAVE_SPLIT": "0-8"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "8",
+   "comb_warps": "2",
+   "defines_sha": "51607869404c57d9"
+  },
+  {
+   "arm": "i0e8c128r0",
+   "batch": "grid",
+   "tokens": 1024,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "0",
+    "WEAVE_COMBINE_SYNC_CHUNK": "128",
+    "WEAVE_CU_WAVE_SPLIT": "0-8"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "8",
+   "comb_warps": "0",
+   "defines_sha": "85c90de8ec6d28b5"
+  },
+  {
+   "arm": "i0e8c128r0",
+   "batch": "grid",
+   "tokens": 4096,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "0",
+    "WEAVE_COMBINE_SYNC_CHUNK": "128",
+    "WEAVE_CU_WAVE_SPLIT": "0-8"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "8",
+   "comb_warps": "0",
+   "defines_sha": "66848c7ce8c0696f"
+  },
+  {
+   "arm": "i0e8c128r1",
+   "batch": "grid",
+   "tokens": 1024,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "1",
+    "WEAVE_COMBINE_SYNC_CHUNK": "128",
+    "WEAVE_CU_WAVE_SPLIT": "0-8"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "8",
+   "comb_warps": "1",
+   "defines_sha": "dc30a5b14fcdf610"
+  },
+  {
+   "arm": "i0e8c128r1",
+   "batch": "grid",
+   "tokens": 4096,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "1",
+    "WEAVE_COMBINE_SYNC_CHUNK": "128",
+    "WEAVE_CU_WAVE_SPLIT": "0-8"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "8",
+   "comb_warps": "1",
+   "defines_sha": "87da2c35ecfe5fdf"
+  },
+  {
+   "arm": "i0e8c128r2",
+   "batch": "grid",
+   "tokens": 1024,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "2",
+    "WEAVE_COMBINE_SYNC_CHUNK": "128",
+    "WEAVE_CU_WAVE_SPLIT": "0-8"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "8",
+   "comb_warps": "2",
+   "defines_sha": "bd0aad9717352979"
+  },
+  {
+   "arm": "i0e8c128r2",
+   "batch": "grid",
+   "tokens": 4096,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "2",
+    "WEAVE_COMBINE_SYNC_CHUNK": "128",
+    "WEAVE_CU_WAVE_SPLIT": "0-8"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "8",
+   "comb_warps": "2",
+   "defines_sha": "627615a8c7c33670"
+  },
+  {
+   "arm": "i0e16c0r0",
+   "batch": "grid",
+   "tokens": 1024,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "0",
+    "WEAVE_COMBINE_SYNC_CHUNK": "0",
+    "WEAVE_CU_WAVE_SPLIT": "0-16"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "16",
+   "comb_warps": "0",
+   "defines_sha": "c34cb0bd21e2222e"
+  },
+  {
+   "arm": "i0e16c0r0",
+   "batch": "grid",
+   "tokens": 4096,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "0",
+    "WEAVE_COMBINE_SYNC_CHUNK": "0",
+    "WEAVE_CU_WAVE_SPLIT": "0-16"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "16",
+   "comb_warps": "0",
+   "defines_sha": "d2752ea184ba6b69"
+  },
+  {
+   "arm": "i0e16c0r1",
+   "batch": "grid",
+   "tokens": 1024,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "1",
+    "WEAVE_COMBINE_SYNC_CHUNK": "0",
+    "WEAVE_CU_WAVE_SPLIT": "0-16"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "16",
+   "comb_warps": "1",
+   "defines_sha": "ac5e79b1403d2e75"
+  },
+  {
+   "arm": "i0e16c0r1",
+   "batch": "grid",
+   "tokens": 4096,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "1",
+    "WEAVE_COMBINE_SYNC_CHUNK": "0",
+    "WEAVE_CU_WAVE_SPLIT": "0-16"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "16",
+   "comb_warps": "1",
+   "defines_sha": "bf2a4678545a5b5a"
+  },
+  {
+   "arm": "i0e16c0r2",
+   "batch": "grid",
+   "tokens": 1024,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "2",
+    "WEAVE_COMBINE_SYNC_CHUNK": "0",
+    "WEAVE_CU_WAVE_SPLIT": "0-16"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "16",
+   "comb_warps": "2",
+   "defines_sha": "cebddba7d4e47f3d"
+  },
+  {
+   "arm": "i0e16c0r2",
+   "batch": "grid",
+   "tokens": 4096,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "2",
+    "WEAVE_COMBINE_SYNC_CHUNK": "0",
+    "WEAVE_CU_WAVE_SPLIT": "0-16"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "16",
+   "comb_warps": "2",
+   "defines_sha": "2ea82399919e277a"
+  },
+  {
+   "arm": "i0e16c16r0",
+   "batch": "grid",
+   "tokens": 1024,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "0",
+    "WEAVE_COMBINE_SYNC_CHUNK": "16",
+    "WEAVE_CU_WAVE_SPLIT": "0-16"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "16",
+   "comb_warps": "0",
+   "defines_sha": "9c80691064375370"
+  },
+  {
+   "arm": "i0e16c16r0",
+   "batch": "grid",
+   "tokens": 4096,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "0",
+    "WEAVE_COMBINE_SYNC_CHUNK": "16",
+    "WEAVE_CU_WAVE_SPLIT": "0-16"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "16",
+   "comb_warps": "0",
+   "defines_sha": "ade9566cef494564"
+  },
+  {
+   "arm": "i0e16c16r1",
+   "batch": "grid",
+   "tokens": 1024,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "1",
+    "WEAVE_COMBINE_SYNC_CHUNK": "16",
+    "WEAVE_CU_WAVE_SPLIT": "0-16"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "16",
+   "comb_warps": "1",
+   "defines_sha": "c81eecdbaf86e87d"
+  },
+  {
+   "arm": "i0e16c16r1",
+   "batch": "grid",
+   "tokens": 4096,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "1",
+    "WEAVE_COMBINE_SYNC_CHUNK": "16",
+    "WEAVE_CU_WAVE_SPLIT": "0-16"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "16",
+   "comb_warps": "1",
+   "defines_sha": "e32f6d850d1445a4"
+  },
+  {
+   "arm": "i0e16c16r2",
+   "batch": "grid",
+   "tokens": 1024,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "2",
+    "WEAVE_COMBINE_SYNC_CHUNK": "16",
+    "WEAVE_CU_WAVE_SPLIT": "0-16"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "16",
+   "comb_warps": "2",
+   "defines_sha": "33980f619808f6a2"
+  },
+  {
+   "arm": "i0e16c16r2",
+   "batch": "grid",
+   "tokens": 4096,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "2",
+    "WEAVE_COMBINE_SYNC_CHUNK": "16",
+    "WEAVE_CU_WAVE_SPLIT": "0-16"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "16",
+   "comb_warps": "2",
+   "defines_sha": "0d9262c7224cc9f6"
+  },
+  {
+   "arm": "i0e16c32r0",
+   "batch": "grid",
+   "tokens": 1024,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "0",
+    "WEAVE_COMBINE_SYNC_CHUNK": "32",
+    "WEAVE_CU_WAVE_SPLIT": "0-16"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "16",
+   "comb_warps": "0",
+   "defines_sha": "8076fe32529f4c2a"
+  },
+  {
+   "arm": "i0e16c32r0",
+   "batch": "grid",
+   "tokens": 4096,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "0",
+    "WEAVE_COMBINE_SYNC_CHUNK": "32",
+    "WEAVE_CU_WAVE_SPLIT": "0-16"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "16",
+   "comb_warps": "0",
+   "defines_sha": "b099004b3638d2f5"
+  },
+  {
+   "arm": "i0e16c32r1",
+   "batch": "grid",
+   "tokens": 1024,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "1",
+    "WEAVE_COMBINE_SYNC_CHUNK": "32",
+    "WEAVE_CU_WAVE_SPLIT": "0-16"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "16",
+   "comb_warps": "1",
+   "defines_sha": "61f246770d62d55c"
+  },
+  {
+   "arm": "i0e16c32r1",
+   "batch": "grid",
+   "tokens": 4096,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "1",
+    "WEAVE_COMBINE_SYNC_CHUNK": "32",
+    "WEAVE_CU_WAVE_SPLIT": "0-16"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "16",
+   "comb_warps": "1",
+   "defines_sha": "e6e6675ce1077ec0"
+  },
+  {
+   "arm": "i0e16c32r2",
+   "batch": "grid",
+   "tokens": 1024,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "2",
+    "WEAVE_COMBINE_SYNC_CHUNK": "32",
+    "WEAVE_CU_WAVE_SPLIT": "0-16"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "16",
+   "comb_warps": "2",
+   "defines_sha": "dfbd1aeef71ff8a4"
+  },
+  {
+   "arm": "i0e16c32r2",
+   "batch": "grid",
+   "tokens": 4096,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "2",
+    "WEAVE_COMBINE_SYNC_CHUNK": "32",
+    "WEAVE_CU_WAVE_SPLIT": "0-16"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "16",
+   "comb_warps": "2",
+   "defines_sha": "38b2ff051f87237b"
+  },
+  {
+   "arm": "i0e16c64r0",
+   "batch": "grid",
+   "tokens": 1024,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "0",
+    "WEAVE_COMBINE_SYNC_CHUNK": "64",
+    "WEAVE_CU_WAVE_SPLIT": "0-16"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "16",
+   "comb_warps": "0",
+   "defines_sha": "3a3d01da59bb9180"
+  },
+  {
+   "arm": "i0e16c64r0",
+   "batch": "grid",
+   "tokens": 4096,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "0",
+    "WEAVE_COMBINE_SYNC_CHUNK": "64",
+    "WEAVE_CU_WAVE_SPLIT": "0-16"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "16",
+   "comb_warps": "0",
+   "defines_sha": "59d79b77918defed"
+  },
+  {
+   "arm": "i0e16c64r1",
+   "batch": "grid",
+   "tokens": 1024,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "1",
+    "WEAVE_COMBINE_SYNC_CHUNK": "64",
+    "WEAVE_CU_WAVE_SPLIT": "0-16"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "16",
+   "comb_warps": "1",
+   "defines_sha": "cf2996e4b497bf33"
+  },
+  {
+   "arm": "i0e16c64r1",
+   "batch": "grid",
+   "tokens": 4096,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "1",
+    "WEAVE_COMBINE_SYNC_CHUNK": "64",
+    "WEAVE_CU_WAVE_SPLIT": "0-16"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "16",
+   "comb_warps": "1",
+   "defines_sha": "129def4064d595fd"
+  },
+  {
+   "arm": "i0e16c64r2",
+   "batch": "grid",
+   "tokens": 1024,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "2",
+    "WEAVE_COMBINE_SYNC_CHUNK": "64",
+    "WEAVE_CU_WAVE_SPLIT": "0-16"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "16",
+   "comb_warps": "2",
+   "defines_sha": "c0afd5121c223684"
+  },
+  {
+   "arm": "i0e16c64r2",
+   "batch": "grid",
+   "tokens": 4096,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "2",
+    "WEAVE_COMBINE_SYNC_CHUNK": "64",
+    "WEAVE_CU_WAVE_SPLIT": "0-16"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "16",
+   "comb_warps": "2",
+   "defines_sha": "6abccd22c36974f1"
+  },
+  {
+   "arm": "i0e16c128r0",
+   "batch": "grid",
+   "tokens": 1024,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "0",
+    "WEAVE_COMBINE_SYNC_CHUNK": "128",
+    "WEAVE_CU_WAVE_SPLIT": "0-16"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "16",
+   "comb_warps": "0",
+   "defines_sha": "8fa50141102165a6"
+  },
+  {
+   "arm": "i0e16c128r0",
+   "batch": "grid",
+   "tokens": 4096,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "0",
+    "WEAVE_COMBINE_SYNC_CHUNK": "128",
+    "WEAVE_CU_WAVE_SPLIT": "0-16"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "16",
+   "comb_warps": "0",
+   "defines_sha": "6d96d42f452b11aa"
+  },
+  {
+   "arm": "i0e16c128r1",
+   "batch": "grid",
+   "tokens": 1024,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "1",
+    "WEAVE_COMBINE_SYNC_CHUNK": "128",
+    "WEAVE_CU_WAVE_SPLIT": "0-16"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "16",
+   "comb_warps": "1",
+   "defines_sha": "8ab890657a05dff8"
+  },
+  {
+   "arm": "i0e16c128r1",
+   "batch": "grid",
+   "tokens": 4096,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "1",
+    "WEAVE_COMBINE_SYNC_CHUNK": "128",
+    "WEAVE_CU_WAVE_SPLIT": "0-16"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "16",
+   "comb_warps": "1",
+   "defines_sha": "9e330a49ac20b11b"
+  },
+  {
+   "arm": "i0e16c128r2",
+   "batch": "grid",
+   "tokens": 1024,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "2",
+    "WEAVE_COMBINE_SYNC_CHUNK": "128",
+    "WEAVE_CU_WAVE_SPLIT": "0-16"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "16",
+   "comb_warps": "2",
+   "defines_sha": "1ff2dcedf15cbc10"
+  },
+  {
+   "arm": "i0e16c128r2",
+   "batch": "grid",
+   "tokens": 4096,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "2",
+    "WEAVE_COMBINE_SYNC_CHUNK": "128",
+    "WEAVE_CU_WAVE_SPLIT": "0-16"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "16",
+   "comb_warps": "2",
+   "defines_sha": "bff27f1ea8df96c0"
+  },
+  {
+   "arm": "i0e32c0r0",
+   "batch": "grid",
+   "tokens": 1024,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "0",
+    "WEAVE_COMBINE_SYNC_CHUNK": "0",
+    "WEAVE_CU_WAVE_SPLIT": "0-32"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "32",
+   "comb_warps": "0",
+   "defines_sha": "990177023da518e0"
+  },
+  {
+   "arm": "i0e32c0r0",
+   "batch": "grid",
+   "tokens": 4096,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "0",
+    "WEAVE_COMBINE_SYNC_CHUNK": "0",
+    "WEAVE_CU_WAVE_SPLIT": "0-32"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "32",
+   "comb_warps": "0",
+   "defines_sha": "12787617bc30f755"
+  },
+  {
+   "arm": "i0e32c0r1",
+   "batch": "grid",
+   "tokens": 1024,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "1",
+    "WEAVE_COMBINE_SYNC_CHUNK": "0",
+    "WEAVE_CU_WAVE_SPLIT": "0-32"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "32",
+   "comb_warps": "1",
+   "defines_sha": "4ad952ecf7e29d41"
+  },
+  {
+   "arm": "i0e32c0r1",
+   "batch": "grid",
+   "tokens": 4096,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "1",
+    "WEAVE_COMBINE_SYNC_CHUNK": "0",
+    "WEAVE_CU_WAVE_SPLIT": "0-32"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "32",
+   "comb_warps": "1",
+   "defines_sha": "924907ced14fbc41"
+  },
+  {
+   "arm": "i0e32c0r2",
+   "batch": "grid",
+   "tokens": 1024,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "2",
+    "WEAVE_COMBINE_SYNC_CHUNK": "0",
+    "WEAVE_CU_WAVE_SPLIT": "0-32"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "32",
+   "comb_warps": "2",
+   "defines_sha": "cd8fe9755c1a3326"
+  },
+  {
+   "arm": "i0e32c0r2",
+   "batch": "grid",
+   "tokens": 4096,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "2",
+    "WEAVE_COMBINE_SYNC_CHUNK": "0",
+    "WEAVE_CU_WAVE_SPLIT": "0-32"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "32",
+   "comb_warps": "2",
+   "defines_sha": "30062537208b687f"
+  },
+  {
+   "arm": "i0e32c16r0",
+   "batch": "grid",
+   "tokens": 1024,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "0",
+    "WEAVE_COMBINE_SYNC_CHUNK": "16",
+    "WEAVE_CU_WAVE_SPLIT": "0-32"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "32",
+   "comb_warps": "0",
+   "defines_sha": "9cc1613ca51a8d34"
+  },
+  {
+   "arm": "i0e32c16r0",
+   "batch": "grid",
+   "tokens": 4096,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "0",
+    "WEAVE_COMBINE_SYNC_CHUNK": "16",
+    "WEAVE_CU_WAVE_SPLIT": "0-32"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "32",
+   "comb_warps": "0",
+   "defines_sha": "8f00bd96026c8a6b"
+  },
+  {
+   "arm": "i0e32c16r1",
+   "batch": "grid",
+   "tokens": 1024,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "1",
+    "WEAVE_COMBINE_SYNC_CHUNK": "16",
+    "WEAVE_CU_WAVE_SPLIT": "0-32"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "32",
+   "comb_warps": "1",
+   "defines_sha": "5654bfe9c38be005"
+  },
+  {
+   "arm": "i0e32c16r1",
+   "batch": "grid",
+   "tokens": 4096,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "1",
+    "WEAVE_COMBINE_SYNC_CHUNK": "16",
+    "WEAVE_CU_WAVE_SPLIT": "0-32"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "32",
+   "comb_warps": "1",
+   "defines_sha": "75216fde6c70a82b"
+  },
+  {
+   "arm": "i0e32c16r2",
+   "batch": "grid",
+   "tokens": 1024,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "2",
+    "WEAVE_COMBINE_SYNC_CHUNK": "16",
+    "WEAVE_CU_WAVE_SPLIT": "0-32"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "32",
+   "comb_warps": "2",
+   "defines_sha": "5e5f34cd997308be"
+  },
+  {
+   "arm": "i0e32c16r2",
+   "batch": "grid",
+   "tokens": 4096,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "2",
+    "WEAVE_COMBINE_SYNC_CHUNK": "16",
+    "WEAVE_CU_WAVE_SPLIT": "0-32"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "32",
+   "comb_warps": "2",
+   "defines_sha": "9c4676a15824d87a"
+  },
+  {
+   "arm": "i0e32c32r0",
+   "batch": "grid",
+   "tokens": 1024,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "0",
+    "WEAVE_COMBINE_SYNC_CHUNK": "32",
+    "WEAVE_CU_WAVE_SPLIT": "0-32"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "32",
+   "comb_warps": "0",
+   "defines_sha": "f2e9121411c86f9f"
+  },
+  {
+   "arm": "i0e32c32r0",
+   "batch": "grid",
+   "tokens": 4096,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "0",
+    "WEAVE_COMBINE_SYNC_CHUNK": "32",
+    "WEAVE_CU_WAVE_SPLIT": "0-32"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "32",
+   "comb_warps": "0",
+   "defines_sha": "138650ffebe97b60"
+  },
+  {
+   "arm": "i0e32c32r1",
+   "batch": "grid",
+   "tokens": 1024,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "1",
+    "WEAVE_COMBINE_SYNC_CHUNK": "32",
+    "WEAVE_CU_WAVE_SPLIT": "0-32"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "32",
+   "comb_warps": "1",
+   "defines_sha": "9320becfcb42045b"
+  },
+  {
+   "arm": "i0e32c32r1",
+   "batch": "grid",
+   "tokens": 4096,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "1",
+    "WEAVE_COMBINE_SYNC_CHUNK": "32",
+    "WEAVE_CU_WAVE_SPLIT": "0-32"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "32",
+   "comb_warps": "1",
+   "defines_sha": "fd1daa0732c28936"
+  },
+  {
+   "arm": "i0e32c32r2",
+   "batch": "grid",
+   "tokens": 1024,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "2",
+    "WEAVE_COMBINE_SYNC_CHUNK": "32",
+    "WEAVE_CU_WAVE_SPLIT": "0-32"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "32",
+   "comb_warps": "2",
+   "defines_sha": "be40c16430b24f21"
+  },
+  {
+   "arm": "i0e32c32r2",
+   "batch": "grid",
+   "tokens": 4096,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "2",
+    "WEAVE_COMBINE_SYNC_CHUNK": "32",
+    "WEAVE_CU_WAVE_SPLIT": "0-32"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "32",
+   "comb_warps": "2",
+   "defines_sha": "702fc9ec8b10f3d4"
+  },
+  {
+   "arm": "i0e32c64r0",
+   "batch": "grid",
+   "tokens": 1024,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "0",
+    "WEAVE_COMBINE_SYNC_CHUNK": "64",
+    "WEAVE_CU_WAVE_SPLIT": "0-32"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "32",
+   "comb_warps": "0",
+   "defines_sha": "5fa3186cd15deda8"
+  },
+  {
+   "arm": "i0e32c64r0",
+   "batch": "grid",
+   "tokens": 4096,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "0",
+    "WEAVE_COMBINE_SYNC_CHUNK": "64",
+    "WEAVE_CU_WAVE_SPLIT": "0-32"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "32",
+   "comb_warps": "0",
+   "defines_sha": "e4276ca8f9d89e11"
+  },
+  {
+   "arm": "i0e32c64r1",
+   "batch": "grid",
+   "tokens": 1024,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "1",
+    "WEAVE_COMBINE_SYNC_CHUNK": "64",
+    "WEAVE_CU_WAVE_SPLIT": "0-32"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "32",
+   "comb_warps": "1",
+   "defines_sha": "7f5145e0b8db0fee"
+  },
+  {
+   "arm": "i0e32c64r1",
+   "batch": "grid",
+   "tokens": 4096,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "1",
+    "WEAVE_COMBINE_SYNC_CHUNK": "64",
+    "WEAVE_CU_WAVE_SPLIT": "0-32"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "32",
+   "comb_warps": "1",
+   "defines_sha": "db562f515dc54933"
+  },
+  {
+   "arm": "i0e32c64r2",
+   "batch": "grid",
+   "tokens": 1024,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "2",
+    "WEAVE_COMBINE_SYNC_CHUNK": "64",
+    "WEAVE_CU_WAVE_SPLIT": "0-32"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "32",
+   "comb_warps": "2",
+   "defines_sha": "6ca1a36d69f11a1a"
+  },
+  {
+   "arm": "i0e32c64r2",
+   "batch": "grid",
+   "tokens": 4096,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "2",
+    "WEAVE_COMBINE_SYNC_CHUNK": "64",
+    "WEAVE_CU_WAVE_SPLIT": "0-32"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "32",
+   "comb_warps": "2",
+   "defines_sha": "3c49604e2d329128"
+  },
+  {
+   "arm": "i0e32c128r0",
+   "batch": "grid",
+   "tokens": 1024,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "0",
+    "WEAVE_COMBINE_SYNC_CHUNK": "128",
+    "WEAVE_CU_WAVE_SPLIT": "0-32"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "32",
+   "comb_warps": "0",
+   "defines_sha": "a949d7a3fff278c9"
+  },
+  {
+   "arm": "i0e32c128r0",
+   "batch": "grid",
+   "tokens": 4096,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "0",
+    "WEAVE_COMBINE_SYNC_CHUNK": "128",
+    "WEAVE_CU_WAVE_SPLIT": "0-32"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "32",
+   "comb_warps": "0",
+   "defines_sha": "afe62a68be9d272b"
+  },
+  {
+   "arm": "i0e32c128r1",
+   "batch": "grid",
+   "tokens": 1024,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "1",
+    "WEAVE_COMBINE_SYNC_CHUNK": "128",
+    "WEAVE_CU_WAVE_SPLIT": "0-32"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "32",
+   "comb_warps": "1",
+   "defines_sha": "c9076066759d50e8"
+  },
+  {
+   "arm": "i0e32c128r1",
+   "batch": "grid",
+   "tokens": 4096,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "1",
+    "WEAVE_COMBINE_SYNC_CHUNK": "128",
+    "WEAVE_CU_WAVE_SPLIT": "0-32"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "32",
+   "comb_warps": "1",
+   "defines_sha": "20b6dcfa682da163"
+  },
+  {
+   "arm": "i0e32c128r2",
+   "batch": "grid",
+   "tokens": 1024,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "2",
+    "WEAVE_COMBINE_SYNC_CHUNK": "128",
+    "WEAVE_CU_WAVE_SPLIT": "0-32"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "32",
+   "comb_warps": "2",
+   "defines_sha": "52f59db5ddce9cd3"
+  },
+  {
+   "arm": "i0e32c128r2",
+   "batch": "grid",
+   "tokens": 4096,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "2",
+    "WEAVE_COMBINE_SYNC_CHUNK": "128",
+    "WEAVE_CU_WAVE_SPLIT": "0-32"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "32",
+   "comb_warps": "2",
+   "defines_sha": "f2c8cfe1ed7779d1"
+  },
+  {
+   "arm": "i0e64c0r0",
+   "batch": "grid",
+   "tokens": 1024,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "0",
+    "WEAVE_COMBINE_SYNC_CHUNK": "0",
+    "WEAVE_CU_WAVE_SPLIT": "0-64"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "64",
+   "comb_warps": "0",
+   "defines_sha": "63863d9f8aff4b8d"
+  },
+  {
+   "arm": "i0e64c0r0",
+   "batch": "grid",
+   "tokens": 4096,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "0",
+    "WEAVE_COMBINE_SYNC_CHUNK": "0",
+    "WEAVE_CU_WAVE_SPLIT": "0-64"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "64",
+   "comb_warps": "0",
+   "defines_sha": "2b53ee5a1b0c413d"
+  },
+  {
+   "arm": "i0e64c0r1",
+   "batch": "grid",
+   "tokens": 1024,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "1",
+    "WEAVE_COMBINE_SYNC_CHUNK": "0",
+    "WEAVE_CU_WAVE_SPLIT": "0-64"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "64",
+   "comb_warps": "1",
+   "defines_sha": "283f2a0c124dfc70"
+  },
+  {
+   "arm": "i0e64c0r1",
+   "batch": "grid",
+   "tokens": 4096,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "1",
+    "WEAVE_COMBINE_SYNC_CHUNK": "0",
+    "WEAVE_CU_WAVE_SPLIT": "0-64"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "64",
+   "comb_warps": "1",
+   "defines_sha": "0693dea1ef56f27c"
+  },
+  {
+   "arm": "i0e64c0r2",
+   "batch": "grid",
+   "tokens": 1024,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "2",
+    "WEAVE_COMBINE_SYNC_CHUNK": "0",
+    "WEAVE_CU_WAVE_SPLIT": "0-64"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "64",
+   "comb_warps": "2",
+   "defines_sha": "7136908d16b38705"
+  },
+  {
+   "arm": "i0e64c0r2",
+   "batch": "grid",
+   "tokens": 4096,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "2",
+    "WEAVE_COMBINE_SYNC_CHUNK": "0",
+    "WEAVE_CU_WAVE_SPLIT": "0-64"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "64",
+   "comb_warps": "2",
+   "defines_sha": "4d4c562c8f7adb1d"
+  },
+  {
+   "arm": "i0e64c16r0",
+   "batch": "grid",
+   "tokens": 1024,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "0",
+    "WEAVE_COMBINE_SYNC_CHUNK": "16",
+    "WEAVE_CU_WAVE_SPLIT": "0-64"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "64",
+   "comb_warps": "0",
+   "defines_sha": "a34388b2a455f149"
+  },
+  {
+   "arm": "i0e64c16r0",
+   "batch": "grid",
+   "tokens": 4096,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "0",
+    "WEAVE_COMBINE_SYNC_CHUNK": "16",
+    "WEAVE_CU_WAVE_SPLIT": "0-64"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "64",
+   "comb_warps": "0",
+   "defines_sha": "3efc8aaa118fbfc7"
+  },
+  {
+   "arm": "i0e64c16r1",
+   "batch": "grid",
+   "tokens": 1024,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "1",
+    "WEAVE_COMBINE_SYNC_CHUNK": "16",
+    "WEAVE_CU_WAVE_SPLIT": "0-64"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "64",
+   "comb_warps": "1",
+   "defines_sha": "255190b5bd3db92f"
+  },
+  {
+   "arm": "i0e64c16r1",
+   "batch": "grid",
+   "tokens": 4096,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "1",
+    "WEAVE_COMBINE_SYNC_CHUNK": "16",
+    "WEAVE_CU_WAVE_SPLIT": "0-64"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "64",
+   "comb_warps": "1",
+   "defines_sha": "7635b5c78c94a8b6"
+  },
+  {
+   "arm": "i0e64c16r2",
+   "batch": "grid",
+   "tokens": 1024,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "2",
+    "WEAVE_COMBINE_SYNC_CHUNK": "16",
+    "WEAVE_CU_WAVE_SPLIT": "0-64"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "64",
+   "comb_warps": "2",
+   "defines_sha": "a1fe1ee48b77f735"
+  },
+  {
+   "arm": "i0e64c16r2",
+   "batch": "grid",
+   "tokens": 4096,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "2",
+    "WEAVE_COMBINE_SYNC_CHUNK": "16",
+    "WEAVE_CU_WAVE_SPLIT": "0-64"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "64",
+   "comb_warps": "2",
+   "defines_sha": "31623f2760ef9efd"
+  },
+  {
+   "arm": "i0e64c32r0",
+   "batch": "grid",
+   "tokens": 1024,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "0",
+    "WEAVE_COMBINE_SYNC_CHUNK": "32",
+    "WEAVE_CU_WAVE_SPLIT": "0-64"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "64",
+   "comb_warps": "0",
+   "defines_sha": "ef18b81067b8e6a8"
+  },
+  {
+   "arm": "i0e64c32r0",
+   "batch": "grid",
+   "tokens": 4096,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "0",
+    "WEAVE_COMBINE_SYNC_CHUNK": "32",
+    "WEAVE_CU_WAVE_SPLIT": "0-64"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "64",
+   "comb_warps": "0",
+   "defines_sha": "5425230247a02557"
+  },
+  {
+   "arm": "i0e64c32r1",
+   "batch": "grid",
+   "tokens": 1024,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "1",
+    "WEAVE_COMBINE_SYNC_CHUNK": "32",
+    "WEAVE_CU_WAVE_SPLIT": "0-64"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "64",
+   "comb_warps": "1",
+   "defines_sha": "c6027c6f24d268ad"
+  },
+  {
+   "arm": "i0e64c32r1",
+   "batch": "grid",
+   "tokens": 4096,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "1",
+    "WEAVE_COMBINE_SYNC_CHUNK": "32",
+    "WEAVE_CU_WAVE_SPLIT": "0-64"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "64",
+   "comb_warps": "1",
+   "defines_sha": "cb5b863ed1934110"
+  },
+  {
+   "arm": "i0e64c32r2",
+   "batch": "grid",
+   "tokens": 1024,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "2",
+    "WEAVE_COMBINE_SYNC_CHUNK": "32",
+    "WEAVE_CU_WAVE_SPLIT": "0-64"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "64",
+   "comb_warps": "2",
+   "defines_sha": "0ea593cc8307bc5b"
+  },
+  {
+   "arm": "i0e64c32r2",
+   "batch": "grid",
+   "tokens": 4096,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "2",
+    "WEAVE_COMBINE_SYNC_CHUNK": "32",
+    "WEAVE_CU_WAVE_SPLIT": "0-64"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "64",
+   "comb_warps": "2",
+   "defines_sha": "77d13757607b76e1"
+  },
+  {
+   "arm": "i0e64c64r0",
+   "batch": "grid",
+   "tokens": 1024,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "0",
+    "WEAVE_COMBINE_SYNC_CHUNK": "64",
+    "WEAVE_CU_WAVE_SPLIT": "0-64"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "64",
+   "comb_warps": "0",
+   "defines_sha": "7937405d5191cc9e"
+  },
+  {
+   "arm": "i0e64c64r0",
+   "batch": "grid",
+   "tokens": 4096,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "0",
+    "WEAVE_COMBINE_SYNC_CHUNK": "64",
+    "WEAVE_CU_WAVE_SPLIT": "0-64"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "64",
+   "comb_warps": "0",
+   "defines_sha": "f708615ebbc64b46"
+  },
+  {
+   "arm": "i0e64c64r1",
+   "batch": "grid",
+   "tokens": 1024,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "1",
+    "WEAVE_COMBINE_SYNC_CHUNK": "64",
+    "WEAVE_CU_WAVE_SPLIT": "0-64"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "64",
+   "comb_warps": "1",
+   "defines_sha": "f9d798709a71036f"
+  },
+  {
+   "arm": "i0e64c64r1",
+   "batch": "grid",
+   "tokens": 4096,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "1",
+    "WEAVE_COMBINE_SYNC_CHUNK": "64",
+    "WEAVE_CU_WAVE_SPLIT": "0-64"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "64",
+   "comb_warps": "1",
+   "defines_sha": "2564e5870ff4c82e"
+  },
+  {
+   "arm": "i0e64c64r2",
+   "batch": "grid",
+   "tokens": 1024,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "2",
+    "WEAVE_COMBINE_SYNC_CHUNK": "64",
+    "WEAVE_CU_WAVE_SPLIT": "0-64"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "64",
+   "comb_warps": "2",
+   "defines_sha": "5eedeeabff5b7442"
+  },
+  {
+   "arm": "i0e64c64r2",
+   "batch": "grid",
+   "tokens": 4096,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "2",
+    "WEAVE_COMBINE_SYNC_CHUNK": "64",
+    "WEAVE_CU_WAVE_SPLIT": "0-64"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "64",
+   "comb_warps": "2",
+   "defines_sha": "5a5ad4e563fc8e33"
+  },
+  {
+   "arm": "i0e64c128r0",
+   "batch": "grid",
+   "tokens": 1024,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "0",
+    "WEAVE_COMBINE_SYNC_CHUNK": "128",
+    "WEAVE_CU_WAVE_SPLIT": "0-64"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "64",
+   "comb_warps": "0",
+   "defines_sha": "b929537826b4532d"
+  },
+  {
+   "arm": "i0e64c128r0",
+   "batch": "grid",
+   "tokens": 4096,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "0",
+    "WEAVE_COMBINE_SYNC_CHUNK": "128",
+    "WEAVE_CU_WAVE_SPLIT": "0-64"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "64",
+   "comb_warps": "0",
+   "defines_sha": "8703c6eb01a776ef"
+  },
+  {
+   "arm": "i0e64c128r1",
+   "batch": "grid",
+   "tokens": 1024,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "1",
+    "WEAVE_COMBINE_SYNC_CHUNK": "128",
+    "WEAVE_CU_WAVE_SPLIT": "0-64"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "64",
+   "comb_warps": "1",
+   "defines_sha": "a7ec4aafc96cc7c4"
+  },
+  {
+   "arm": "i0e64c128r1",
+   "batch": "grid",
+   "tokens": 4096,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "1",
+    "WEAVE_COMBINE_SYNC_CHUNK": "128",
+    "WEAVE_CU_WAVE_SPLIT": "0-64"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "64",
+   "comb_warps": "1",
+   "defines_sha": "845e8179c9abd07e"
+  },
+  {
+   "arm": "i0e64c128r2",
+   "batch": "grid",
+   "tokens": 1024,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "2",
+    "WEAVE_COMBINE_SYNC_CHUNK": "128",
+    "WEAVE_CU_WAVE_SPLIT": "0-64"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "64",
+   "comb_warps": "2",
+   "defines_sha": "ff3781e86ac05ee4"
+  },
+  {
+   "arm": "i0e64c128r2",
+   "batch": "grid",
+   "tokens": 4096,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "2",
+    "WEAVE_COMBINE_SYNC_CHUNK": "128",
+    "WEAVE_CU_WAVE_SPLIT": "0-64"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "64",
+   "comb_warps": "2",
+   "defines_sha": "67fc353c7b3238ff"
+  },
+  {
+   "arm": "i5e8c0r0",
+   "batch": "grid",
+   "tokens": 1024,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "0",
+    "WEAVE_COMBINE_SYNC_CHUNK": "0",
+    "WEAVE_CU_WAVE_SPLIT": "8"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "8",
+   "comb_warps": "0",
+   "defines_sha": "5f14c7704dc60e43"
+  },
+  {
+   "arm": "i5e8c0r0",
+   "batch": "grid",
+   "tokens": 4096,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "0",
+    "WEAVE_COMBINE_SYNC_CHUNK": "0",
+    "WEAVE_CU_WAVE_SPLIT": "8"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "8",
+   "comb_warps": "0",
+   "defines_sha": "94166205d020c0ea"
+  },
+  {
+   "arm": "i5e8c0r1",
+   "batch": "grid",
+   "tokens": 1024,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "1",
+    "WEAVE_COMBINE_SYNC_CHUNK": "0",
+    "WEAVE_CU_WAVE_SPLIT": "8"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "8",
+   "comb_warps": "1",
+   "defines_sha": "505d19711fdda80e"
+  },
+  {
+   "arm": "i5e8c0r1",
+   "batch": "grid",
+   "tokens": 4096,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "1",
+    "WEAVE_COMBINE_SYNC_CHUNK": "0",
+    "WEAVE_CU_WAVE_SPLIT": "8"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "8",
+   "comb_warps": "1",
+   "defines_sha": "e5f263ca02222e67"
+  },
+  {
+   "arm": "i5e8c0r2",
+   "batch": "grid",
+   "tokens": 1024,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "2",
+    "WEAVE_COMBINE_SYNC_CHUNK": "0",
+    "WEAVE_CU_WAVE_SPLIT": "8"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "8",
+   "comb_warps": "2",
+   "defines_sha": "a9fb842c1d99b3d8"
+  },
+  {
+   "arm": "i5e8c0r2",
+   "batch": "grid",
+   "tokens": 4096,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "2",
+    "WEAVE_COMBINE_SYNC_CHUNK": "0",
+    "WEAVE_CU_WAVE_SPLIT": "8"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "8",
+   "comb_warps": "2",
+   "defines_sha": "05b39d881c4f6d3b"
+  },
+  {
+   "arm": "i5e8c16r0",
+   "batch": "grid",
+   "tokens": 1024,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "0",
+    "WEAVE_COMBINE_SYNC_CHUNK": "16",
+    "WEAVE_CU_WAVE_SPLIT": "8"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "8",
+   "comb_warps": "0",
+   "defines_sha": "d83adb4c11c71f38"
+  },
+  {
+   "arm": "i5e8c16r0",
+   "batch": "grid",
+   "tokens": 4096,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "0",
+    "WEAVE_COMBINE_SYNC_CHUNK": "16",
+    "WEAVE_CU_WAVE_SPLIT": "8"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "8",
+   "comb_warps": "0",
+   "defines_sha": "725560e377a4f624"
+  },
+  {
+   "arm": "i5e8c16r1",
+   "batch": "grid",
+   "tokens": 1024,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "1",
+    "WEAVE_COMBINE_SYNC_CHUNK": "16",
+    "WEAVE_CU_WAVE_SPLIT": "8"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "8",
+   "comb_warps": "1",
+   "defines_sha": "8a28d566d70974f4"
+  },
+  {
+   "arm": "i5e8c16r1",
+   "batch": "grid",
+   "tokens": 4096,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "1",
+    "WEAVE_COMBINE_SYNC_CHUNK": "16",
+    "WEAVE_CU_WAVE_SPLIT": "8"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "8",
+   "comb_warps": "1",
+   "defines_sha": "62f9c228cae71d41"
+  },
+  {
+   "arm": "i5e8c16r2",
+   "batch": "grid",
+   "tokens": 1024,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "2",
+    "WEAVE_COMBINE_SYNC_CHUNK": "16",
+    "WEAVE_CU_WAVE_SPLIT": "8"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "8",
+   "comb_warps": "2",
+   "defines_sha": "943681c70c645de1"
+  },
+  {
+   "arm": "i5e8c16r2",
+   "batch": "grid",
+   "tokens": 4096,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "2",
+    "WEAVE_COMBINE_SYNC_CHUNK": "16",
+    "WEAVE_CU_WAVE_SPLIT": "8"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "8",
+   "comb_warps": "2",
+   "defines_sha": "ea12c1d71dcd0e20"
+  },
+  {
+   "arm": "i5e8c32r0",
+   "batch": "grid",
+   "tokens": 1024,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "0",
+    "WEAVE_COMBINE_SYNC_CHUNK": "32",
+    "WEAVE_CU_WAVE_SPLIT": "8"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "8",
+   "comb_warps": "0",
+   "defines_sha": "22c83ca3e760f9ce"
+  },
+  {
+   "arm": "i5e8c32r0",
+   "batch": "grid",
+   "tokens": 4096,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "0",
+    "WEAVE_COMBINE_SYNC_CHUNK": "32",
+    "WEAVE_CU_WAVE_SPLIT": "8"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "8",
+   "comb_warps": "0",
+   "defines_sha": "fd5541e2608522e3"
+  },
+  {
+   "arm": "i5e8c32r1",
+   "batch": "grid",
+   "tokens": 1024,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "1",
+    "WEAVE_COMBINE_SYNC_CHUNK": "32",
+    "WEAVE_CU_WAVE_SPLIT": "8"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "8",
+   "comb_warps": "1",
+   "defines_sha": "e9d21353847fb225"
+  },
+  {
+   "arm": "i5e8c32r1",
+   "batch": "grid",
+   "tokens": 4096,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "1",
+    "WEAVE_COMBINE_SYNC_CHUNK": "32",
+    "WEAVE_CU_WAVE_SPLIT": "8"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "8",
+   "comb_warps": "1",
+   "defines_sha": "0f514b1733cbafbd"
+  },
+  {
+   "arm": "i5e8c32r2",
+   "batch": "grid",
+   "tokens": 1024,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "2",
+    "WEAVE_COMBINE_SYNC_CHUNK": "32",
+    "WEAVE_CU_WAVE_SPLIT": "8"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "8",
+   "comb_warps": "2",
+   "defines_sha": "009169dbbf0309db"
+  },
+  {
+   "arm": "i5e8c32r2",
+   "batch": "grid",
+   "tokens": 4096,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "2",
+    "WEAVE_COMBINE_SYNC_CHUNK": "32",
+    "WEAVE_CU_WAVE_SPLIT": "8"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "8",
+   "comb_warps": "2",
+   "defines_sha": "13eb8580b532ce3a"
+  },
+  {
+   "arm": "i5e8c64r0",
+   "batch": "grid",
+   "tokens": 1024,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "0",
+    "WEAVE_COMBINE_SYNC_CHUNK": "64",
+    "WEAVE_CU_WAVE_SPLIT": "8"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "8",
+   "comb_warps": "0",
+   "defines_sha": "e870fb4db07a2bbc"
+  },
+  {
+   "arm": "i5e8c64r0",
+   "batch": "grid",
+   "tokens": 4096,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "0",
+    "WEAVE_COMBINE_SYNC_CHUNK": "64",
+    "WEAVE_CU_WAVE_SPLIT": "8"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "8",
+   "comb_warps": "0",
+   "defines_sha": "61fb0cd3e0c30edd"
+  },
+  {
+   "arm": "i5e8c64r1",
+   "batch": "grid",
+   "tokens": 1024,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "1",
+    "WEAVE_COMBINE_SYNC_CHUNK": "64",
+    "WEAVE_CU_WAVE_SPLIT": "8"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "8",
+   "comb_warps": "1",
+   "defines_sha": "c945a629b7da5237"
+  },
+  {
+   "arm": "i5e8c64r1",
+   "batch": "grid",
+   "tokens": 4096,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "1",
+    "WEAVE_COMBINE_SYNC_CHUNK": "64",
+    "WEAVE_CU_WAVE_SPLIT": "8"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "8",
+   "comb_warps": "1",
+   "defines_sha": "27257356c2f05468"
+  },
+  {
+   "arm": "i5e8c64r2",
+   "batch": "grid",
+   "tokens": 1024,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "2",
+    "WEAVE_COMBINE_SYNC_CHUNK": "64",
+    "WEAVE_CU_WAVE_SPLIT": "8"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "8",
+   "comb_warps": "2",
+   "defines_sha": "1aae87f7a2abbebf"
+  },
+  {
+   "arm": "i5e8c64r2",
+   "batch": "grid",
+   "tokens": 4096,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "2",
+    "WEAVE_COMBINE_SYNC_CHUNK": "64",
+    "WEAVE_CU_WAVE_SPLIT": "8"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "8",
+   "comb_warps": "2",
+   "defines_sha": "4aed423f6b1e9be8"
+  },
+  {
+   "arm": "i5e8c128r0",
+   "batch": "grid",
+   "tokens": 1024,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "0",
+    "WEAVE_COMBINE_SYNC_CHUNK": "128",
+    "WEAVE_CU_WAVE_SPLIT": "8"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "8",
+   "comb_warps": "0",
+   "defines_sha": "07e93958ae731702"
+  },
+  {
+   "arm": "i5e8c128r0",
+   "batch": "grid",
+   "tokens": 4096,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "0",
+    "WEAVE_COMBINE_SYNC_CHUNK": "128",
+    "WEAVE_CU_WAVE_SPLIT": "8"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "8",
+   "comb_warps": "0",
+   "defines_sha": "1debd09793a9f3a3"
+  },
+  {
+   "arm": "i5e8c128r1",
+   "batch": "grid",
+   "tokens": 1024,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "1",
+    "WEAVE_COMBINE_SYNC_CHUNK": "128",
+    "WEAVE_CU_WAVE_SPLIT": "8"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "8",
+   "comb_warps": "1",
+   "defines_sha": "46dc26c4ce387580"
+  },
+  {
+   "arm": "i5e8c128r1",
+   "batch": "grid",
+   "tokens": 4096,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "1",
+    "WEAVE_COMBINE_SYNC_CHUNK": "128",
+    "WEAVE_CU_WAVE_SPLIT": "8"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "8",
+   "comb_warps": "1",
+   "defines_sha": "eaa51e6c37a21ee4"
+  },
+  {
+   "arm": "i5e8c128r2",
+   "batch": "grid",
+   "tokens": 1024,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "2",
+    "WEAVE_COMBINE_SYNC_CHUNK": "128",
+    "WEAVE_CU_WAVE_SPLIT": "8"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "8",
+   "comb_warps": "2",
+   "defines_sha": "8260705a7c2c1a43"
+  },
+  {
+   "arm": "i5e8c128r2",
+   "batch": "grid",
+   "tokens": 4096,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "2",
+    "WEAVE_COMBINE_SYNC_CHUNK": "128",
+    "WEAVE_CU_WAVE_SPLIT": "8"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "8",
+   "comb_warps": "2",
+   "defines_sha": "74676e117f134bb2"
+  },
+  {
+   "arm": "i5e16c0r0",
+   "batch": "grid",
+   "tokens": 1024,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "0",
+    "WEAVE_COMBINE_SYNC_CHUNK": "0",
+    "WEAVE_CU_WAVE_SPLIT": "16"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "16",
+   "comb_warps": "0",
+   "defines_sha": "43b111a5cbe8151a"
+  },
+  {
+   "arm": "i5e16c0r0",
+   "batch": "grid",
+   "tokens": 4096,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "0",
+    "WEAVE_COMBINE_SYNC_CHUNK": "0",
+    "WEAVE_CU_WAVE_SPLIT": "16"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "16",
+   "comb_warps": "0",
+   "defines_sha": "18a0874ca154b367"
+  },
+  {
+   "arm": "i5e16c0r1",
+   "batch": "grid",
+   "tokens": 1024,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "1",
+    "WEAVE_COMBINE_SYNC_CHUNK": "0",
+    "WEAVE_CU_WAVE_SPLIT": "16"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "16",
+   "comb_warps": "1",
+   "defines_sha": "8643a3d2e9b6399a"
+  },
+  {
+   "arm": "i5e16c0r1",
+   "batch": "grid",
+   "tokens": 4096,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "1",
+    "WEAVE_COMBINE_SYNC_CHUNK": "0",
+    "WEAVE_CU_WAVE_SPLIT": "16"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "16",
+   "comb_warps": "1",
+   "defines_sha": "fa39ab4c0267100c"
+  },
+  {
+   "arm": "i5e16c0r2",
+   "batch": "grid",
+   "tokens": 1024,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "2",
+    "WEAVE_COMBINE_SYNC_CHUNK": "0",
+    "WEAVE_CU_WAVE_SPLIT": "16"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "16",
+   "comb_warps": "2",
+   "defines_sha": "2c6d64bd93e067cd"
+  },
+  {
+   "arm": "i5e16c0r2",
+   "batch": "grid",
+   "tokens": 4096,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "2",
+    "WEAVE_COMBINE_SYNC_CHUNK": "0",
+    "WEAVE_CU_WAVE_SPLIT": "16"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "16",
+   "comb_warps": "2",
+   "defines_sha": "b5982a23953e9755"
+  },
+  {
+   "arm": "i5e16c16r0",
+   "batch": "grid",
+   "tokens": 1024,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "0",
+    "WEAVE_COMBINE_SYNC_CHUNK": "16",
+    "WEAVE_CU_WAVE_SPLIT": "16"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "16",
+   "comb_warps": "0",
+   "defines_sha": "573f246841d7663b"
+  },
+  {
+   "arm": "i5e16c16r0",
+   "batch": "grid",
+   "tokens": 4096,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "0",
+    "WEAVE_COMBINE_SYNC_CHUNK": "16",
+    "WEAVE_CU_WAVE_SPLIT": "16"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "16",
+   "comb_warps": "0",
+   "defines_sha": "9fe187c0a72f20f1"
+  },
+  {
+   "arm": "i5e16c16r1",
+   "batch": "grid",
+   "tokens": 1024,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "1",
+    "WEAVE_COMBINE_SYNC_CHUNK": "16",
+    "WEAVE_CU_WAVE_SPLIT": "16"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "16",
+   "comb_warps": "1",
+   "defines_sha": "db241e562d689cce"
+  },
+  {
+   "arm": "i5e16c16r1",
+   "batch": "grid",
+   "tokens": 4096,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "1",
+    "WEAVE_COMBINE_SYNC_CHUNK": "16",
+    "WEAVE_CU_WAVE_SPLIT": "16"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "16",
+   "comb_warps": "1",
+   "defines_sha": "bbb9ccf168b4a01a"
+  },
+  {
+   "arm": "i5e16c16r2",
+   "batch": "grid",
+   "tokens": 1024,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "2",
+    "WEAVE_COMBINE_SYNC_CHUNK": "16",
+    "WEAVE_CU_WAVE_SPLIT": "16"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "16",
+   "comb_warps": "2",
+   "defines_sha": "24ea1f5a71759389"
+  },
+  {
+   "arm": "i5e16c16r2",
+   "batch": "grid",
+   "tokens": 4096,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "2",
+    "WEAVE_COMBINE_SYNC_CHUNK": "16",
+    "WEAVE_CU_WAVE_SPLIT": "16"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "16",
+   "comb_warps": "2",
+   "defines_sha": "a21461a999a86603"
+  },
+  {
+   "arm": "i5e16c32r0",
+   "batch": "grid",
+   "tokens": 1024,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "0",
+    "WEAVE_COMBINE_SYNC_CHUNK": "32",
+    "WEAVE_CU_WAVE_SPLIT": "16"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "16",
+   "comb_warps": "0",
+   "defines_sha": "1c41d6b75574d425"
+  },
+  {
+   "arm": "i5e16c32r0",
+   "batch": "grid",
+   "tokens": 4096,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "0",
+    "WEAVE_COMBINE_SYNC_CHUNK": "32",
+    "WEAVE_CU_WAVE_SPLIT": "16"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "16",
+   "comb_warps": "0",
+   "defines_sha": "3a665638f487fd43"
+  },
+  {
+   "arm": "i5e16c32r1",
+   "batch": "grid",
+   "tokens": 1024,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "1",
+    "WEAVE_COMBINE_SYNC_CHUNK": "32",
+    "WEAVE_CU_WAVE_SPLIT": "16"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "16",
+   "comb_warps": "1",
+   "defines_sha": "e315ed097b5e2381"
+  },
+  {
+   "arm": "i5e16c32r1",
+   "batch": "grid",
+   "tokens": 4096,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "1",
+    "WEAVE_COMBINE_SYNC_CHUNK": "32",
+    "WEAVE_CU_WAVE_SPLIT": "16"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "16",
+   "comb_warps": "1",
+   "defines_sha": "023f489f0ccd41eb"
+  },
+  {
+   "arm": "i5e16c32r2",
+   "batch": "grid",
+   "tokens": 1024,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "2",
+    "WEAVE_COMBINE_SYNC_CHUNK": "32",
+    "WEAVE_CU_WAVE_SPLIT": "16"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "16",
+   "comb_warps": "2",
+   "defines_sha": "76078d6dd9c0ed44"
+  },
+  {
+   "arm": "i5e16c32r2",
+   "batch": "grid",
+   "tokens": 4096,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "2",
+    "WEAVE_COMBINE_SYNC_CHUNK": "32",
+    "WEAVE_CU_WAVE_SPLIT": "16"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "16",
+   "comb_warps": "2",
+   "defines_sha": "9092253022c5099f"
+  },
+  {
+   "arm": "i5e16c64r0",
+   "batch": "grid",
+   "tokens": 1024,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "0",
+    "WEAVE_COMBINE_SYNC_CHUNK": "64",
+    "WEAVE_CU_WAVE_SPLIT": "16"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "16",
+   "comb_warps": "0",
+   "defines_sha": "1b88256812f05d43"
+  },
+  {
+   "arm": "i5e16c64r0",
+   "batch": "grid",
+   "tokens": 4096,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "0",
+    "WEAVE_COMBINE_SYNC_CHUNK": "64",
+    "WEAVE_CU_WAVE_SPLIT": "16"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "16",
+   "comb_warps": "0",
+   "defines_sha": "17c885fc638ea8f2"
+  },
+  {
+   "arm": "i5e16c64r1",
+   "batch": "grid",
+   "tokens": 1024,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "1",
+    "WEAVE_COMBINE_SYNC_CHUNK": "64",
+    "WEAVE_CU_WAVE_SPLIT": "16"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "16",
+   "comb_warps": "1",
+   "defines_sha": "c530f0f06e64c69f"
+  },
+  {
+   "arm": "i5e16c64r1",
+   "batch": "grid",
+   "tokens": 4096,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "1",
+    "WEAVE_COMBINE_SYNC_CHUNK": "64",
+    "WEAVE_CU_WAVE_SPLIT": "16"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "16",
+   "comb_warps": "1",
+   "defines_sha": "e549f8e0be8e1e16"
+  },
+  {
+   "arm": "i5e16c64r2",
+   "batch": "grid",
+   "tokens": 1024,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "2",
+    "WEAVE_COMBINE_SYNC_CHUNK": "64",
+    "WEAVE_CU_WAVE_SPLIT": "16"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "16",
+   "comb_warps": "2",
+   "defines_sha": "a3aecffa2df4c28b"
+  },
+  {
+   "arm": "i5e16c64r2",
+   "batch": "grid",
+   "tokens": 4096,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "2",
+    "WEAVE_COMBINE_SYNC_CHUNK": "64",
+    "WEAVE_CU_WAVE_SPLIT": "16"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "16",
+   "comb_warps": "2",
+   "defines_sha": "aad8f7f50e50966f"
+  },
+  {
+   "arm": "i5e16c128r0",
+   "batch": "grid",
+   "tokens": 1024,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "0",
+    "WEAVE_COMBINE_SYNC_CHUNK": "128",
+    "WEAVE_CU_WAVE_SPLIT": "16"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "16",
+   "comb_warps": "0",
+   "defines_sha": "f2b6103062503cdb"
+  },
+  {
+   "arm": "i5e16c128r0",
+   "batch": "grid",
+   "tokens": 4096,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "0",
+    "WEAVE_COMBINE_SYNC_CHUNK": "128",
+    "WEAVE_CU_WAVE_SPLIT": "16"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "16",
+   "comb_warps": "0",
+   "defines_sha": "8a10032b29529f01"
+  },
+  {
+   "arm": "i5e16c128r1",
+   "batch": "grid",
+   "tokens": 1024,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "1",
+    "WEAVE_COMBINE_SYNC_CHUNK": "128",
+    "WEAVE_CU_WAVE_SPLIT": "16"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "16",
+   "comb_warps": "1",
+   "defines_sha": "0998549207c706db"
+  },
+  {
+   "arm": "i5e16c128r1",
+   "batch": "grid",
+   "tokens": 4096,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "1",
+    "WEAVE_COMBINE_SYNC_CHUNK": "128",
+    "WEAVE_CU_WAVE_SPLIT": "16"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "16",
+   "comb_warps": "1",
+   "defines_sha": "2d3ec5504fd4e931"
+  },
+  {
+   "arm": "i5e16c128r2",
+   "batch": "grid",
+   "tokens": 1024,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "2",
+    "WEAVE_COMBINE_SYNC_CHUNK": "128",
+    "WEAVE_CU_WAVE_SPLIT": "16"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "16",
+   "comb_warps": "2",
+   "defines_sha": "dd1ed7776a63064c"
+  },
+  {
+   "arm": "i5e16c128r2",
+   "batch": "grid",
+   "tokens": 4096,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "2",
+    "WEAVE_COMBINE_SYNC_CHUNK": "128",
+    "WEAVE_CU_WAVE_SPLIT": "16"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "16",
+   "comb_warps": "2",
+   "defines_sha": "417d5c3e31f663b2"
+  },
+  {
+   "arm": "i5e32c0r0",
+   "batch": "grid",
+   "tokens": 1024,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "0",
+    "WEAVE_COMBINE_SYNC_CHUNK": "0",
+    "WEAVE_CU_WAVE_SPLIT": "32"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "32",
+   "comb_warps": "0",
+   "defines_sha": "5cc2bb761784ca52"
+  },
+  {
+   "arm": "i5e32c0r0",
+   "batch": "grid",
+   "tokens": 4096,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "0",
+    "WEAVE_COMBINE_SYNC_CHUNK": "0",
+    "WEAVE_CU_WAVE_SPLIT": "32"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "32",
+   "comb_warps": "0",
+   "defines_sha": "3b3e2e169588cb97"
+  },
+  {
+   "arm": "i5e32c0r1",
+   "batch": "grid",
+   "tokens": 1024,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "1",
+    "WEAVE_COMBINE_SYNC_CHUNK": "0",
+    "WEAVE_CU_WAVE_SPLIT": "32"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "32",
+   "comb_warps": "1",
+   "defines_sha": "2a5290ef534eb7b7"
+  },
+  {
+   "arm": "i5e32c0r1",
+   "batch": "grid",
+   "tokens": 4096,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "1",
+    "WEAVE_COMBINE_SYNC_CHUNK": "0",
+    "WEAVE_CU_WAVE_SPLIT": "32"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "32",
+   "comb_warps": "1",
+   "defines_sha": "0124f857fffa78a6"
+  },
+  {
+   "arm": "i5e32c0r2",
+   "batch": "grid",
+   "tokens": 1024,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "2",
+    "WEAVE_COMBINE_SYNC_CHUNK": "0",
+    "WEAVE_CU_WAVE_SPLIT": "32"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "32",
+   "comb_warps": "2",
+   "defines_sha": "9bf0cbe52772d888"
+  },
+  {
+   "arm": "i5e32c0r2",
+   "batch": "grid",
+   "tokens": 4096,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "2",
+    "WEAVE_COMBINE_SYNC_CHUNK": "0",
+    "WEAVE_CU_WAVE_SPLIT": "32"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "32",
+   "comb_warps": "2",
+   "defines_sha": "8c845cb10b599823"
+  },
+  {
+   "arm": "i5e32c16r0",
+   "batch": "grid",
+   "tokens": 1024,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "0",
+    "WEAVE_COMBINE_SYNC_CHUNK": "16",
+    "WEAVE_CU_WAVE_SPLIT": "32"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "32",
+   "comb_warps": "0",
+   "defines_sha": "50f328fe9420e5ce"
+  },
+  {
+   "arm": "i5e32c16r0",
+   "batch": "grid",
+   "tokens": 4096,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "0",
+    "WEAVE_COMBINE_SYNC_CHUNK": "16",
+    "WEAVE_CU_WAVE_SPLIT": "32"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "32",
+   "comb_warps": "0",
+   "defines_sha": "fd83ff06129809ea"
+  },
+  {
+   "arm": "i5e32c16r1",
+   "batch": "grid",
+   "tokens": 1024,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "1",
+    "WEAVE_COMBINE_SYNC_CHUNK": "16",
+    "WEAVE_CU_WAVE_SPLIT": "32"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "32",
+   "comb_warps": "1",
+   "defines_sha": "1c38b8aa2fc0696f"
+  },
+  {
+   "arm": "i5e32c16r1",
+   "batch": "grid",
+   "tokens": 4096,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "1",
+    "WEAVE_COMBINE_SYNC_CHUNK": "16",
+    "WEAVE_CU_WAVE_SPLIT": "32"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "32",
+   "comb_warps": "1",
+   "defines_sha": "43158bebac447af7"
+  },
+  {
+   "arm": "i5e32c16r2",
+   "batch": "grid",
+   "tokens": 1024,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "2",
+    "WEAVE_COMBINE_SYNC_CHUNK": "16",
+    "WEAVE_CU_WAVE_SPLIT": "32"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "32",
+   "comb_warps": "2",
+   "defines_sha": "184b65e8ec2470f0"
+  },
+  {
+   "arm": "i5e32c16r2",
+   "batch": "grid",
+   "tokens": 4096,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "2",
+    "WEAVE_COMBINE_SYNC_CHUNK": "16",
+    "WEAVE_CU_WAVE_SPLIT": "32"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "32",
+   "comb_warps": "2",
+   "defines_sha": "e609980be29645e0"
+  },
+  {
+   "arm": "i5e32c32r0",
+   "batch": "grid",
+   "tokens": 1024,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "0",
+    "WEAVE_COMBINE_SYNC_CHUNK": "32",
+    "WEAVE_CU_WAVE_SPLIT": "32"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "32",
+   "comb_warps": "0",
+   "defines_sha": "a61668bb893d2129"
+  },
+  {
+   "arm": "i5e32c32r0",
+   "batch": "grid",
+   "tokens": 4096,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "0",
+    "WEAVE_COMBINE_SYNC_CHUNK": "32",
+    "WEAVE_CU_WAVE_SPLIT": "32"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "32",
+   "comb_warps": "0",
+   "defines_sha": "57a4fb28b115fa9b"
+  },
+  {
+   "arm": "i5e32c32r1",
+   "batch": "grid",
+   "tokens": 1024,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "1",
+    "WEAVE_COMBINE_SYNC_CHUNK": "32",
+    "WEAVE_CU_WAVE_SPLIT": "32"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "32",
+   "comb_warps": "1",
+   "defines_sha": "3040689b5770837c"
+  },
+  {
+   "arm": "i5e32c32r1",
+   "batch": "grid",
+   "tokens": 4096,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "1",
+    "WEAVE_COMBINE_SYNC_CHUNK": "32",
+    "WEAVE_CU_WAVE_SPLIT": "32"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "32",
+   "comb_warps": "1",
+   "defines_sha": "db8d39f560d05782"
+  },
+  {
+   "arm": "i5e32c32r2",
+   "batch": "grid",
+   "tokens": 1024,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "2",
+    "WEAVE_COMBINE_SYNC_CHUNK": "32",
+    "WEAVE_CU_WAVE_SPLIT": "32"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "32",
+   "comb_warps": "2",
+   "defines_sha": "6122e120c065add4"
+  },
+  {
+   "arm": "i5e32c32r2",
+   "batch": "grid",
+   "tokens": 4096,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "2",
+    "WEAVE_COMBINE_SYNC_CHUNK": "32",
+    "WEAVE_CU_WAVE_SPLIT": "32"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "32",
+   "comb_warps": "2",
+   "defines_sha": "dd7a8cd347e66139"
+  },
+  {
+   "arm": "i5e32c64r0",
+   "batch": "grid",
+   "tokens": 1024,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "0",
+    "WEAVE_COMBINE_SYNC_CHUNK": "64",
+    "WEAVE_CU_WAVE_SPLIT": "32"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "32",
+   "comb_warps": "0",
+   "defines_sha": "96b7b8a2090e833d"
+  },
+  {
+   "arm": "i5e32c64r0",
+   "batch": "grid",
+   "tokens": 4096,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "0",
+    "WEAVE_COMBINE_SYNC_CHUNK": "64",
+    "WEAVE_CU_WAVE_SPLIT": "32"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "32",
+   "comb_warps": "0",
+   "defines_sha": "17578f95746e02fa"
+  },
+  {
+   "arm": "i5e32c64r1",
+   "batch": "grid",
+   "tokens": 1024,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "1",
+    "WEAVE_COMBINE_SYNC_CHUNK": "64",
+    "WEAVE_CU_WAVE_SPLIT": "32"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "32",
+   "comb_warps": "1",
+   "defines_sha": "6362a2e2051c8b65"
+  },
+  {
+   "arm": "i5e32c64r1",
+   "batch": "grid",
+   "tokens": 4096,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "1",
+    "WEAVE_COMBINE_SYNC_CHUNK": "64",
+    "WEAVE_CU_WAVE_SPLIT": "32"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "32",
+   "comb_warps": "1",
+   "defines_sha": "403a4e60da219be1"
+  },
+  {
+   "arm": "i5e32c64r2",
+   "batch": "grid",
+   "tokens": 1024,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "2",
+    "WEAVE_COMBINE_SYNC_CHUNK": "64",
+    "WEAVE_CU_WAVE_SPLIT": "32"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "32",
+   "comb_warps": "2",
+   "defines_sha": "c6ae8952ae45015a"
+  },
+  {
+   "arm": "i5e32c64r2",
+   "batch": "grid",
+   "tokens": 4096,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "2",
+    "WEAVE_COMBINE_SYNC_CHUNK": "64",
+    "WEAVE_CU_WAVE_SPLIT": "32"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "32",
+   "comb_warps": "2",
+   "defines_sha": "1e7bcdcd98b42a15"
+  },
+  {
+   "arm": "i5e32c128r0",
+   "batch": "grid",
+   "tokens": 1024,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "0",
+    "WEAVE_COMBINE_SYNC_CHUNK": "128",
+    "WEAVE_CU_WAVE_SPLIT": "32"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "32",
+   "comb_warps": "0",
+   "defines_sha": "ca3d237548c715f3"
+  },
+  {
+   "arm": "i5e32c128r0",
+   "batch": "grid",
+   "tokens": 4096,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "0",
+    "WEAVE_COMBINE_SYNC_CHUNK": "128",
+    "WEAVE_CU_WAVE_SPLIT": "32"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "32",
+   "comb_warps": "0",
+   "defines_sha": "9640cbe93da68aa0"
+  },
+  {
+   "arm": "i5e32c128r1",
+   "batch": "grid",
+   "tokens": 1024,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "1",
+    "WEAVE_COMBINE_SYNC_CHUNK": "128",
+    "WEAVE_CU_WAVE_SPLIT": "32"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "32",
+   "comb_warps": "1",
+   "defines_sha": "a3a87c1c6eb718cd"
+  },
+  {
+   "arm": "i5e32c128r1",
+   "batch": "grid",
+   "tokens": 4096,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "1",
+    "WEAVE_COMBINE_SYNC_CHUNK": "128",
+    "WEAVE_CU_WAVE_SPLIT": "32"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "32",
+   "comb_warps": "1",
+   "defines_sha": "2c63be891e45055e"
+  },
+  {
+   "arm": "i5e32c128r2",
+   "batch": "grid",
+   "tokens": 1024,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "2",
+    "WEAVE_COMBINE_SYNC_CHUNK": "128",
+    "WEAVE_CU_WAVE_SPLIT": "32"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "32",
+   "comb_warps": "2",
+   "defines_sha": "eb2d55223cef0316"
+  },
+  {
+   "arm": "i5e32c128r2",
+   "batch": "grid",
+   "tokens": 4096,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "2",
+    "WEAVE_COMBINE_SYNC_CHUNK": "128",
+    "WEAVE_CU_WAVE_SPLIT": "32"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "32",
+   "comb_warps": "2",
+   "defines_sha": "c9d82d584526501e"
+  },
+  {
+   "arm": "i5e64c0r0",
+   "batch": "grid",
+   "tokens": 1024,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "0",
+    "WEAVE_COMBINE_SYNC_CHUNK": "0",
+    "WEAVE_CU_WAVE_SPLIT": "64"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "64",
+   "comb_warps": "0",
+   "defines_sha": "4dea9ea1f54107f6"
+  },
+  {
+   "arm": "i5e64c0r0",
+   "batch": "grid",
+   "tokens": 4096,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "0",
+    "WEAVE_COMBINE_SYNC_CHUNK": "0",
+    "WEAVE_CU_WAVE_SPLIT": "64"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "64",
+   "comb_warps": "0",
+   "defines_sha": "59be24d07315daef"
+  },
+  {
+   "arm": "i5e64c0r1",
+   "batch": "grid",
+   "tokens": 1024,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "1",
+    "WEAVE_COMBINE_SYNC_CHUNK": "0",
+    "WEAVE_CU_WAVE_SPLIT": "64"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "64",
+   "comb_warps": "1",
+   "defines_sha": "ec50c6f20f740518"
+  },
+  {
+   "arm": "i5e64c0r1",
+   "batch": "grid",
+   "tokens": 4096,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "1",
+    "WEAVE_COMBINE_SYNC_CHUNK": "0",
+    "WEAVE_CU_WAVE_SPLIT": "64"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "64",
+   "comb_warps": "1",
+   "defines_sha": "c25f17881d6aa07e"
+  },
+  {
+   "arm": "i5e64c0r2",
+   "batch": "grid",
+   "tokens": 1024,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "2",
+    "WEAVE_COMBINE_SYNC_CHUNK": "0",
+    "WEAVE_CU_WAVE_SPLIT": "64"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "64",
+   "comb_warps": "2",
+   "defines_sha": "947e47ac15ca037e"
+  },
+  {
+   "arm": "i5e64c0r2",
+   "batch": "grid",
+   "tokens": 4096,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "2",
+    "WEAVE_COMBINE_SYNC_CHUNK": "0",
+    "WEAVE_CU_WAVE_SPLIT": "64"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "64",
+   "comb_warps": "2",
+   "defines_sha": "e77b3a225ed38afa"
+  },
+  {
+   "arm": "i5e64c16r0",
+   "batch": "grid",
+   "tokens": 1024,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "0",
+    "WEAVE_COMBINE_SYNC_CHUNK": "16",
+    "WEAVE_CU_WAVE_SPLIT": "64"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "64",
+   "comb_warps": "0",
+   "defines_sha": "fc4f194c14690e38"
+  },
+  {
+   "arm": "i5e64c16r0",
+   "batch": "grid",
+   "tokens": 4096,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "0",
+    "WEAVE_COMBINE_SYNC_CHUNK": "16",
+    "WEAVE_CU_WAVE_SPLIT": "64"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "64",
+   "comb_warps": "0",
+   "defines_sha": "1b724db4246ccfa6"
+  },
+  {
+   "arm": "i5e64c16r1",
+   "batch": "grid",
+   "tokens": 1024,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "1",
+    "WEAVE_COMBINE_SYNC_CHUNK": "16",
+    "WEAVE_CU_WAVE_SPLIT": "64"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "64",
+   "comb_warps": "1",
+   "defines_sha": "53cc4a05f6a98411"
+  },
+  {
+   "arm": "i5e64c16r1",
+   "batch": "grid",
+   "tokens": 4096,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "1",
+    "WEAVE_COMBINE_SYNC_CHUNK": "16",
+    "WEAVE_CU_WAVE_SPLIT": "64"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "64",
+   "comb_warps": "1",
+   "defines_sha": "d418f9eaa26b5c46"
+  },
+  {
+   "arm": "i5e64c16r2",
+   "batch": "grid",
+   "tokens": 1024,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "2",
+    "WEAVE_COMBINE_SYNC_CHUNK": "16",
+    "WEAVE_CU_WAVE_SPLIT": "64"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "64",
+   "comb_warps": "2",
+   "defines_sha": "493391e0f3626c5d"
+  },
+  {
+   "arm": "i5e64c16r2",
+   "batch": "grid",
+   "tokens": 4096,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "2",
+    "WEAVE_COMBINE_SYNC_CHUNK": "16",
+    "WEAVE_CU_WAVE_SPLIT": "64"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "64",
+   "comb_warps": "2",
+   "defines_sha": "f52d7da9350d0313"
+  },
+  {
+   "arm": "i5e64c32r0",
+   "batch": "grid",
+   "tokens": 1024,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "0",
+    "WEAVE_COMBINE_SYNC_CHUNK": "32",
+    "WEAVE_CU_WAVE_SPLIT": "64"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "64",
+   "comb_warps": "0",
+   "defines_sha": "68b1aa29ebb95253"
+  },
+  {
+   "arm": "i5e64c32r0",
+   "batch": "grid",
+   "tokens": 4096,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "0",
+    "WEAVE_COMBINE_SYNC_CHUNK": "32",
+    "WEAVE_CU_WAVE_SPLIT": "64"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "64",
+   "comb_warps": "0",
+   "defines_sha": "232f8ac6b54c721c"
+  },
+  {
+   "arm": "i5e64c32r1",
+   "batch": "grid",
+   "tokens": 1024,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "1",
+    "WEAVE_COMBINE_SYNC_CHUNK": "32",
+    "WEAVE_CU_WAVE_SPLIT": "64"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "64",
+   "comb_warps": "1",
+   "defines_sha": "86b4bd3b8067e0f1"
+  },
+  {
+   "arm": "i5e64c32r1",
+   "batch": "grid",
+   "tokens": 4096,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "1",
+    "WEAVE_COMBINE_SYNC_CHUNK": "32",
+    "WEAVE_CU_WAVE_SPLIT": "64"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "64",
+   "comb_warps": "1",
+   "defines_sha": "34d703ce59d2daf4"
+  },
+  {
+   "arm": "i5e64c32r2",
+   "batch": "grid",
+   "tokens": 1024,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "2",
+    "WEAVE_COMBINE_SYNC_CHUNK": "32",
+    "WEAVE_CU_WAVE_SPLIT": "64"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "64",
+   "comb_warps": "2",
+   "defines_sha": "6d9ad83a1aa01c9d"
+  },
+  {
+   "arm": "i5e64c32r2",
+   "batch": "grid",
+   "tokens": 4096,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "2",
+    "WEAVE_COMBINE_SYNC_CHUNK": "32",
+    "WEAVE_CU_WAVE_SPLIT": "64"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "64",
+   "comb_warps": "2",
+   "defines_sha": "3cfa159b43299d82"
+  },
+  {
+   "arm": "i5e64c64r0",
+   "batch": "grid",
+   "tokens": 1024,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "0",
+    "WEAVE_COMBINE_SYNC_CHUNK": "64",
+    "WEAVE_CU_WAVE_SPLIT": "64"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "64",
+   "comb_warps": "0",
+   "defines_sha": "a8f60e7b077beb89"
+  },
+  {
+   "arm": "i5e64c64r0",
+   "batch": "grid",
+   "tokens": 4096,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "0",
+    "WEAVE_COMBINE_SYNC_CHUNK": "64",
+    "WEAVE_CU_WAVE_SPLIT": "64"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "64",
+   "comb_warps": "0",
+   "defines_sha": "698e6d5966445fac"
+  },
+  {
+   "arm": "i5e64c64r1",
+   "batch": "grid",
+   "tokens": 1024,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "1",
+    "WEAVE_COMBINE_SYNC_CHUNK": "64",
+    "WEAVE_CU_WAVE_SPLIT": "64"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "64",
+   "comb_warps": "1",
+   "defines_sha": "174f2f7bd81a795c"
+  },
+  {
+   "arm": "i5e64c64r1",
+   "batch": "grid",
+   "tokens": 4096,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "1",
+    "WEAVE_COMBINE_SYNC_CHUNK": "64",
+    "WEAVE_CU_WAVE_SPLIT": "64"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "64",
+   "comb_warps": "1",
+   "defines_sha": "272a721884c0525e"
+  },
+  {
+   "arm": "i5e64c64r2",
+   "batch": "grid",
+   "tokens": 1024,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "2",
+    "WEAVE_COMBINE_SYNC_CHUNK": "64",
+    "WEAVE_CU_WAVE_SPLIT": "64"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "64",
+   "comb_warps": "2",
+   "defines_sha": "829918bfce7056fb"
+  },
+  {
+   "arm": "i5e64c64r2",
+   "batch": "grid",
+   "tokens": 4096,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "2",
+    "WEAVE_COMBINE_SYNC_CHUNK": "64",
+    "WEAVE_CU_WAVE_SPLIT": "64"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "64",
+   "comb_warps": "2",
+   "defines_sha": "3092a46df56bbe41"
+  },
+  {
+   "arm": "i5e64c128r0",
+   "batch": "grid",
+   "tokens": 1024,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "0",
+    "WEAVE_COMBINE_SYNC_CHUNK": "128",
+    "WEAVE_CU_WAVE_SPLIT": "64"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "64",
+   "comb_warps": "0",
+   "defines_sha": "4c04eefff2c8b246"
+  },
+  {
+   "arm": "i5e64c128r0",
+   "batch": "grid",
+   "tokens": 4096,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "0",
+    "WEAVE_COMBINE_SYNC_CHUNK": "128",
+    "WEAVE_CU_WAVE_SPLIT": "64"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "64",
+   "comb_warps": "0",
+   "defines_sha": "26c5263bd96ee16f"
+  },
+  {
+   "arm": "i5e64c128r1",
+   "batch": "grid",
+   "tokens": 1024,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "1",
+    "WEAVE_COMBINE_SYNC_CHUNK": "128",
+    "WEAVE_CU_WAVE_SPLIT": "64"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "64",
+   "comb_warps": "1",
+   "defines_sha": "c742c5b2275e5f3c"
+  },
+  {
+   "arm": "i5e64c128r1",
+   "batch": "grid",
+   "tokens": 4096,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "1",
+    "WEAVE_COMBINE_SYNC_CHUNK": "128",
+    "WEAVE_CU_WAVE_SPLIT": "64"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "64",
+   "comb_warps": "1",
+   "defines_sha": "34bae8eb06bf2e30"
+  },
+  {
+   "arm": "i5e64c128r2",
+   "batch": "grid",
+   "tokens": 1024,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "2",
+    "WEAVE_COMBINE_SYNC_CHUNK": "128",
+    "WEAVE_CU_WAVE_SPLIT": "64"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "64",
+   "comb_warps": "2",
+   "defines_sha": "62dcba041d8598b9"
+  },
+  {
+   "arm": "i5e64c128r2",
+   "batch": "grid",
+   "tokens": 4096,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "2",
+    "WEAVE_COMBINE_SYNC_CHUNK": "128",
+    "WEAVE_CU_WAVE_SPLIT": "64"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "64",
+   "comb_warps": "2",
+   "defines_sha": "5aadbbd37e45cb2f"
+  },
+  {
+   "arm": "p_c0r0",
+   "batch": "b00",
+   "tokens": 1024,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_COMBINE_SYNC_CHUNK": "0",
+    "WEAVE_REDUCE_WARPS": "0"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "128",
+   "comb_warps": "0",
+   "defines_sha": "39f5ce8e0c3fe912"
+  },
+  {
+   "arm": "p_c0r0",
+   "batch": "b00",
+   "tokens": 4096,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_COMBINE_SYNC_CHUNK": "0",
+    "WEAVE_REDUCE_WARPS": "0"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "128",
+   "comb_warps": "0",
+   "defines_sha": "4965c0e74b62a2b8"
+  },
+  {
+   "arm": "p_c0r1",
+   "batch": "b00",
+   "tokens": 1024,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_COMBINE_SYNC_CHUNK": "0",
+    "WEAVE_REDUCE_WARPS": "1"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "128",
+   "comb_warps": "1",
+   "defines_sha": "c41f2922d55a8233"
+  },
+  {
+   "arm": "p_c0r1",
+   "batch": "b00",
+   "tokens": 4096,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_COMBINE_SYNC_CHUNK": "0",
+    "WEAVE_REDUCE_WARPS": "1"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "128",
+   "comb_warps": "1",
+   "defines_sha": "33f538c4eb4c85d7"
+  },
+  {
+   "arm": "p_c0r2",
+   "batch": "b00",
+   "tokens": 1024,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_COMBINE_SYNC_CHUNK": "0",
+    "WEAVE_REDUCE_WARPS": "2"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "128",
+   "comb_warps": "2",
+   "defines_sha": "166e01a852f8f60a"
+  },
+  {
+   "arm": "p_c0r2",
+   "batch": "b00",
+   "tokens": 4096,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_COMBINE_SYNC_CHUNK": "0",
+    "WEAVE_REDUCE_WARPS": "2"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "128",
+   "comb_warps": "2",
+   "defines_sha": "ce223c3ceb053867"
+  },
+  {
+   "arm": "p_c16r0",
+   "batch": "b00",
+   "tokens": 1024,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_COMBINE_SYNC_CHUNK": "16",
+    "WEAVE_REDUCE_WARPS": "0"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "128",
+   "comb_warps": "0",
+   "defines_sha": "8a220be8f72b2528"
+  },
+  {
+   "arm": "p_c16r0",
+   "batch": "b00",
+   "tokens": 4096,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_COMBINE_SYNC_CHUNK": "16",
+    "WEAVE_REDUCE_WARPS": "0"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "128",
+   "comb_warps": "0",
+   "defines_sha": "eafd95b07a0d7423"
+  },
+  {
+   "arm": "p_c16r1",
+   "batch": "b00",
+   "tokens": 1024,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_COMBINE_SYNC_CHUNK": "16",
+    "WEAVE_REDUCE_WARPS": "1"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "128",
+   "comb_warps": "1",
+   "defines_sha": "22c5857176aa0a64"
+  },
+  {
+   "arm": "p_c16r1",
+   "batch": "b00",
+   "tokens": 4096,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_COMBINE_SYNC_CHUNK": "16",
+    "WEAVE_REDUCE_WARPS": "1"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "128",
+   "comb_warps": "1",
+   "defines_sha": "291c12000f912fee"
+  },
+  {
+   "arm": "p_c16r2",
+   "batch": "b00",
+   "tokens": 1024,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_COMBINE_SYNC_CHUNK": "16",
+    "WEAVE_REDUCE_WARPS": "2"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "128",
+   "comb_warps": "2",
+   "defines_sha": "619967e4d1932dd1"
+  },
+  {
+   "arm": "p_c16r2",
+   "batch": "b00",
+   "tokens": 4096,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_COMBINE_SYNC_CHUNK": "16",
+    "WEAVE_REDUCE_WARPS": "2"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "128",
+   "comb_warps": "2",
+   "defines_sha": "9326e823b264c88c"
+  },
+  {
+   "arm": "p_c32r0",
+   "batch": "b00",
+   "tokens": 1024,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_COMBINE_SYNC_CHUNK": "32",
+    "WEAVE_REDUCE_WARPS": "0"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "128",
+   "comb_warps": "0",
+   "defines_sha": "813af7b41f5434e8"
+  },
+  {
+   "arm": "p_c32r0",
+   "batch": "b00",
+   "tokens": 4096,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_COMBINE_SYNC_CHUNK": "32",
+    "WEAVE_REDUCE_WARPS": "0"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "128",
+   "comb_warps": "0",
+   "defines_sha": "63e26dd5bb47d6c3"
+  },
+  {
+   "arm": "p_c32r1",
+   "batch": "b00",
+   "tokens": 1024,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_COMBINE_SYNC_CHUNK": "32",
+    "WEAVE_REDUCE_WARPS": "1"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "128",
+   "comb_warps": "1",
+   "defines_sha": "640cc8f08a785ba8"
+  },
+  {
+   "arm": "p_c32r1",
+   "batch": "b00",
+   "tokens": 4096,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_COMBINE_SYNC_CHUNK": "32",
+    "WEAVE_REDUCE_WARPS": "1"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "128",
+   "comb_warps": "1",
+   "defines_sha": "e2c2efbcfce6c548"
+  },
+  {
+   "arm": "p_c32r2",
+   "batch": "b00",
+   "tokens": 1024,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_COMBINE_SYNC_CHUNK": "32",
+    "WEAVE_REDUCE_WARPS": "2"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "128",
+   "comb_warps": "2",
+   "defines_sha": "fc3935808cfd7bcd"
+  },
+  {
+   "arm": "p_c32r2",
+   "batch": "b00",
+   "tokens": 4096,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_COMBINE_SYNC_CHUNK": "32",
+    "WEAVE_REDUCE_WARPS": "2"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "128",
+   "comb_warps": "2",
+   "defines_sha": "98caaec65a6ebbef"
+  },
+  {
+   "arm": "p_c64r0",
+   "batch": "b00",
+   "tokens": 1024,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_COMBINE_SYNC_CHUNK": "64",
+    "WEAVE_REDUCE_WARPS": "0"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "128",
+   "comb_warps": "0",
+   "defines_sha": "e13dc74554e0c567"
+  },
+  {
+   "arm": "p_c64r0",
+   "batch": "b00",
+   "tokens": 4096,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_COMBINE_SYNC_CHUNK": "64",
+    "WEAVE_REDUCE_WARPS": "0"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "128",
+   "comb_warps": "0",
+   "defines_sha": "68b9cd747dee75f0"
+  },
+  {
+   "arm": "p_c64r1",
+   "batch": "b00",
+   "tokens": 1024,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_COMBINE_SYNC_CHUNK": "64",
+    "WEAVE_REDUCE_WARPS": "1"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "128",
+   "comb_warps": "1",
+   "defines_sha": "4e0ce0af1890cc7c"
+  },
+  {
+   "arm": "p_c64r1",
+   "batch": "b00",
+   "tokens": 4096,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_COMBINE_SYNC_CHUNK": "64",
+    "WEAVE_REDUCE_WARPS": "1"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "128",
+   "comb_warps": "1",
+   "defines_sha": "cfea0af10b925340"
+  },
+  {
+   "arm": "p_c64r2",
+   "batch": "b00",
+   "tokens": 1024,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_COMBINE_SYNC_CHUNK": "64",
+    "WEAVE_REDUCE_WARPS": "2"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "128",
+   "comb_warps": "2",
+   "defines_sha": "8c4a8d8890b7eab9"
+  },
+  {
+   "arm": "p_c64r2",
+   "batch": "b00",
+   "tokens": 4096,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_COMBINE_SYNC_CHUNK": "64",
+    "WEAVE_REDUCE_WARPS": "2"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "128",
+   "comb_warps": "2",
+   "defines_sha": "930ac4bc8cde2676"
+  },
+  {
+   "arm": "p_c128r0",
+   "batch": "b00",
+   "tokens": 1024,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_COMBINE_SYNC_CHUNK": "128",
+    "WEAVE_REDUCE_WARPS": "0"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "128",
+   "comb_warps": "0",
+   "defines_sha": "390de793496b8531"
+  },
+  {
+   "arm": "p_c128r0",
+   "batch": "b00",
+   "tokens": 4096,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_COMBINE_SYNC_CHUNK": "128",
+    "WEAVE_REDUCE_WARPS": "0"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "128",
+   "comb_warps": "0",
+   "defines_sha": "784aad2eeb2bce59"
+  },
+  {
+   "arm": "p_c128r1",
+   "batch": "b00",
+   "tokens": 1024,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_COMBINE_SYNC_CHUNK": "128",
+    "WEAVE_REDUCE_WARPS": "1"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "128",
+   "comb_warps": "1",
+   "defines_sha": "fd7dd5e46ad15577"
+  },
+  {
+   "arm": "p_c128r1",
+   "batch": "b00",
+   "tokens": 4096,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_COMBINE_SYNC_CHUNK": "128",
+    "WEAVE_REDUCE_WARPS": "1"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "128",
+   "comb_warps": "1",
+   "defines_sha": "69843341a07a5ee2"
+  },
+  {
+   "arm": "p_c128r2",
+   "batch": "b00",
+   "tokens": 1024,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_COMBINE_SYNC_CHUNK": "128",
+    "WEAVE_REDUCE_WARPS": "2"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "128",
+   "comb_warps": "2",
+   "defines_sha": "a9a94b35b4a77431"
+  },
+  {
+   "arm": "p_c128r2",
+   "batch": "b00",
+   "tokens": 4096,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_COMBINE_SYNC_CHUNK": "128",
+    "WEAVE_REDUCE_WARPS": "2"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "128",
+   "comb_warps": "2",
+   "defines_sha": "61d361b383c15311"
+  },
+  {
+   "arm": "p21",
+   "batch": "anchor",
+   "tokens": 1024,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "128",
+   "comb_warps": "0",
+   "defines_sha": "39f5ce8e0c3fe912"
+  },
+  {
+   "arm": "p21",
+   "batch": "anchor",
+   "tokens": 4096,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "128",
+   "comb_warps": "0",
+   "defines_sha": "4965c0e74b62a2b8"
+  },
+  {
+   "arm": "p21_ws0",
+   "batch": "anchor",
+   "tokens": 1024,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_CU_WAVE_SPLIT": "0"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "128",
+   "comb_warps": "0",
+   "defines_sha": "39f5ce8e0c3fe912"
+  },
+  {
+   "arm": "p21_ws0",
+   "batch": "anchor",
+   "tokens": 4096,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_CU_WAVE_SPLIT": "0"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "128",
+   "comb_warps": "0",
+   "defines_sha": "4965c0e74b62a2b8"
+  },
+  {
+   "arm": "v8base",
+   "batch": "anchor",
+   "tokens": 1024,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "0",
+    "WEAVE_COMBINE_SYNC_CHUNK": "0",
+    "WEAVE_CU_WAVE_SPLIT": "0-128"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "128",
+   "comb_warps": "0",
+   "defines_sha": "39f5ce8e0c3fe912"
+  },
+  {
+   "arm": "v8base",
+   "batch": "anchor",
+   "tokens": 4096,
+   "pure21_env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_REDUCE_WARPS": "0",
+    "WEAVE_COMBINE_SYNC_CHUNK": "0",
+    "WEAVE_CU_WAVE_SPLIT": "0-128"
+   },
+   "identical": true,
+   "fused": "1",
+   "kernels": [
+    "fused"
+   ],
+   "bm": [
+    "64",
+    "64"
+   ],
+   "bn": [
+    "256",
+    "256"
+   ],
+   "bk": [
+    "128",
+    "128"
+   ],
+   "stages": "4",
+   "threads": [
+    "64",
+    "64",
+    "512"
+   ],
+   "epw": "128",
+   "comb_warps": "0",
+   "defines_sha": "4965c0e74b62a2b8"
+  }
+ ],
+ "failures": [],
+ "pass": true
+}

@@ -1,0 +1,499 @@
+{
+  "schema": "weave-hardware-calibration-3hw/v1",
+  "framework": "Two-Level: offline hardware calibration + online CTA-0 routing-adaptive selection",
+  "reality_boundary": "Every constant is a transcribed measurement or a documented derivation from one; reference histograms are labeled proxies (max-anchored / Zipf(0.9) / uniform) consistent with the measured aggregates. No performance claim is made for extrapolated regimes.",
+  "profiles": {
+    "sm103": {
+      "hardware": "sm103",
+      "arch": "b300",
+      "precision_mode": 0,
+      "f_eff_tflops": 1596.0,
+      "b_hbm_gbps": 7680.0,
+      "b_comm_gbps": 780.0,
+      "tau_sync_us": 14.0,
+      "mu_dedup_thresh": 1.55386949,
+      "hbm_headroom_thresh": 0.75999999,
+      "tail_ratio_thresh": 0.295702934,
+      "v_head_hot_budget": 32,
+      "bm_pad_slack": 0,
+      "structural_knobs": {
+        "WEAVE_PRECISION_MODE": 0,
+        "WEAVE_ADAPT_BM": 1,
+        "WEAVE_BLOCK_M_L1": 0,
+        "WEAVE_BLOCK_M_L2": 0,
+        "WEAVE_SCATTER_OWNER": 0,
+        "WEAVE_SCATTER_STAGING": 0,
+        "WEAVE_LOCAL_SCATTER_DEDUP": 0,
+        "WEAVE_COMBINE_SYNC_CHUNK": 0,
+        "WEAVE_DISPATCH_ACTIVE_SMS": 0,
+        "WEAVE_SCATTER_ACTIVE_SMS": 0,
+        "WEAVE_REG_BALANCE": 0,
+        "WEAVE_REDUCE_WARPS": 4,
+        "WEAVE_V_HEAD": 0
+      },
+      "verified_max_s_global": 4096,
+      "provenance": {
+        "source": "results/sm103_ep4_prior_verified.json",
+        "sha256": "fad1b847d433cc8ddec083b3c7750ceae5c86c72abddd39468e73b86151721ff",
+        "routing_source": "data/routing_stats_3hw.json",
+        "routing_sha256": "97c6cae0d1eb52d52570ef386388afb613eb85194d4be57138c42499cb8e5316",
+        "derivations": {
+          "f_eff_tflops": "4200.0 TFLOPS (Table I) x Tensor Active median 38.0 % (nsys counters, optimal S1024 run)",
+          "b_hbm_gbps": "Table I SM100 row (weave_cost_model.cuh get_hardware_spec)",
+          "b_comm_gbps": "Table I SM100 NVLink cap",
+          "tau_sync_us": "Table I SM100 t_head sync constant",
+          "hbm_headroom_thresh": "HBM / TMA Bandwidth (%) mean = 76.0 (weaveprofiler_optimal_s1024.hw_curves_same_run_nsys)",
+          "tail_ratio_thresh": "Eq.(3) t_tail_reduce/t_total at reference M=10240, E_local=128, Zipf(0.9) proxy (validator convention), dedup=scatter=M",
+          "mu_dedup_thresh": "(1286+8954)/(1286+5304) from data/routing_stats_3hw.json S=1024 cell; dedup verified shrinking scatter 8954->5304 in the source study",
+          "v_head_hot_budget": "32-row SF column quantum (select_expert_tile_bm minimum candidate, scheduler/mega_moe.cuh) -- structural",
+          "bm_pad_slack": "DG_D3_BM_PAD_SLACK default 0 -- structural"
+        },
+        "reference": {
+          "M": 10240,
+          "E_local": 128,
+          "histogram": "zipf0.9_proxy",
+          "middle_hbm_util": 1.0,
+          "tail_combine_frac": 0.2957029342651367
+        },
+        "verified_arms": {
+          "B8_bm80_epi2_st8_8": 710.53,
+          "B6_bm96": 716.67
+        }
+      },
+      "float_bits": {
+        "f_eff_tflops": "0080c744",
+        "b_hbm_gbps": "0000f045",
+        "b_comm_gbps": "00004344",
+        "tau_sync_us": "00006041",
+        "mu_dedup_thresh": "32e5c63f",
+        "hbm_headroom_thresh": "5c8f423f",
+        "tail_ratio_thresh": "6066973e"
+      }
+    },
+    "h20": {
+      "hardware": "h20",
+      "arch": "h20",
+      "precision_mode": 2,
+      "f_eff_tflops": 99.3333054,
+      "b_hbm_gbps": 3600.0,
+      "b_comm_gbps": 370.0,
+      "tau_sync_us": 18.0,
+      "mu_dedup_thresh": 3.0,
+      "hbm_headroom_thresh": 0.455443323,
+      "tail_ratio_thresh": 0.0238960907,
+      "v_head_hot_budget": 64,
+      "bm_pad_slack": 0,
+      "structural_knobs": {
+        "WEAVE_PRECISION_MODE": 2,
+        "WEAVE_ADAPT_BM": 1,
+        "WEAVE_BLOCK_M_L1": 0,
+        "WEAVE_BLOCK_M_L2": 0,
+        "WEAVE_SCATTER_OWNER": 1,
+        "WEAVE_SCATTER_STAGING": 1,
+        "WEAVE_LOCAL_SCATTER_DEDUP": 0,
+        "WEAVE_COMBINE_SYNC_CHUNK": 0,
+        "WEAVE_DISPATCH_ACTIVE_SMS": 0,
+        "WEAVE_SCATTER_ACTIVE_SMS": 0,
+        "WEAVE_DISPATCH_WARPS": 0,
+        "WEAVE_REDUCE_WARPS": 0,
+        "WEAVE_V_HEAD": 0
+      },
+      "verified_max_s_global": 1024,
+      "provenance": {
+        "source": "pure21_s1024.json (H20 S=1024 pure-21-knob calibration snapshot of a previous kernel revision; not checked in)",
+        "sha256": "dd6cdb5b84bb7d2a712fe656828ea9f78bd7a13ac44a997b9b5fbace975b8432",
+        "derivations": {
+          "f_eff_tflops": "Eq.(1) unpadded F_gemm(rank0 total=2482, H=8192, I=2048) = 249846300672 FLOP / p15_adapt_bm median 2515.232 us (sustained-rate lower bound)",
+          "b_hbm_gbps": "Table I H20 row (weave_cost_model.cuh get_hardware_spec)",
+          "b_comm_gbps": "Table I H20 NVLink cap",
+          "tau_sync_us": "Table I H20 t_head sync constant",
+          "hbm_headroom_thresh": "Eq.(2) V_mem/(T_comp*1000*B_hbm) at rank0 max-anchored proxy (total=2482, max=131, nonzero=123), dedup_pulls=964, scatter=1849; pure21 has no PMC, so the anchor is the Eq. mirror at the measured operating point",
+          "tail_ratio_thresh": "Eq.(3) t_tail_reduce/t_total at the same rank0 reference (rw=0)",
+          "mu_dedup_thresh": "ceil(max measured mean_hits 2.931138) = 3: p19_dedup_mode 3228.224 us > fused_base 3218.08 us at mu in [2.4189, 2.9311]",
+          "v_head_hot_budget": "64 = p09_v_head measured best single-knob temporal arm (3197.776 us, 1.01144x)",
+          "bm_pad_slack": "DG_D3_BM_PAD_SLACK default 0 -- structural"
+        },
+        "reference": {
+          "rank": 0,
+          "histogram": "max_anchored_proxy",
+          "dedup_pulls": 964,
+          "scatter": 1849,
+          "middle_hbm_util": 0.4554433226585388,
+          "tail_combine_frac": 0.02389609068632126
+        },
+        "verified_arms": {
+          "p15_adapt_bm": 2515.232,
+          "p12_scatter_owner": 3171.168,
+          "p20_scatter_staging": 3172.24,
+          "p09_v_head": 3197.776,
+          "p06_reduce_warps": 3211.728,
+          "p19_dedup_mode": 3228.224,
+          "p02_scatter_active_sms": 3693.312,
+          "p21_local_scatter_dedup": 3699.968
+        }
+      },
+      "float_bits": {
+        "f_eff_tflops": "a7aac642",
+        "b_hbm_gbps": "00006145",
+        "b_comm_gbps": "0000b943",
+        "tau_sync_us": "00009041",
+        "mu_dedup_thresh": "00004040",
+        "hbm_headroom_thresh": "de2fe93e",
+        "tail_ratio_thresh": "bcc1c33c"
+      }
+    },
+    "mi308x": {
+      "hardware": "mi308x",
+      "arch": "mi308x",
+      "precision_mode": 2,
+      "f_eff_tflops": 99.4168015,
+      "b_hbm_gbps": 3684.0,
+      "b_comm_gbps": 287.200012,
+      "tau_sync_us": 22.0,
+      "mu_dedup_thresh": 1.68861687,
+      "hbm_headroom_thresh": 0.707199991,
+      "tail_ratio_thresh": 0.0550832227,
+      "v_head_hot_budget": 16,
+      "bm_pad_slack": 0,
+      "structural_knobs": {
+        "WEAVE_PRECISION_MODE": 2,
+        "WEAVE_CU_WAVE_SPLIT": 1,
+        "WEAVE_SM0_STREAM_SCHED": 1,
+        "WEAVE_ADAPT_BM": 1,
+        "WEAVE_DEDUP_MODE": 1,
+        "WEAVE_BLOCK_M_L1": 64,
+        "WEAVE_BLOCK_M_L2": 0,
+        "WEAVE_V_HEAD": 16,
+        "WEAVE_DISPATCH_ACTIVE_SMS": 0,
+        "WEAVE_SCATTER_ACTIVE_SMS": 0,
+        "WEAVE_READY_GROUP_SIZE": 0,
+        "WEAVE_REG_BALANCE": 0,
+        "WEAVE_REDUCE_WARPS": 0
+      },
+      "verified_max_s_global": 1024,
+      "provenance": {
+        "source": "S4_MI308X_FINAL.json (MI308X EP8 final sweep summary of a previous kernel revision; not checked in)",
+        "sha256": "887d9ece02eb0cdb3900fbcc969512db689e7607833f333d543bdf06e431ff02",
+        "derivations": {
+          "f_eff_tflops": "PMC compute_util max 16.4 % x 606.2 TFLOPS FP8-matrix peak (pmc_capture.normalization)",
+          "b_hbm_gbps": "Table I MI308X row = PMC normalization 3684 GB/s",
+          "b_comm_gbps": "Table I MI308X xGMI cap = PMC normalization 287.2 GB/s",
+          "tau_sync_us": "Table I MI308X t_head sync constant",
+          "hbm_headroom_thresh": "PMC memory_util max 70.72 % (curve_ranges_pct)",
+          "tail_ratio_thresh": "Eq.(3) t_tail_reduce/t_total at uniform reference M=1280, E_local=64, dedup_pulls=758, scatter=1280 (S4 stores no histogram; uniform labeled proxy)",
+          "mu_dedup_thresh": "(K/ep)/(1-C(E-E/ep,K)/C(E,K)) with E=512 K=10 ep=8 = 1.68861687; dedup=1 verified in winner allopt_c (S128 ~1.12x)",
+          "v_head_hot_budget": "16 = winner allopt_c WEAVE_V_HEAD (explicit pin in the structural regime)",
+          "bm_pad_slack": "DG_D3_BM_PAD_SLACK default 0 -- structural"
+        },
+        "reference": {
+          "M": 1280,
+          "E_local": 64,
+          "histogram": "uniform_proxy",
+          "dedup_pulls": 758,
+          "scatter": 1280,
+          "middle_hbm_util": 0.43456077575683594,
+          "tail_combine_frac": 0.055083222687244415
+        },
+        "verified_latency_us": {
+          "S1024": {
+            "allopt_c": [
+              2316.36,
+              2341.1
+            ],
+            "b0_base": [
+              2347.31,
+              2388.19,
+              2339.19
+            ]
+          },
+          "S128": {
+            "allopt_c": [
+              1301.0,
+              1306.13
+            ],
+            "b0_base": [
+              1468.65,
+              1474.13,
+              1468.32
+            ]
+          }
+        },
+        "forbidden": "runtime FAIL (meta_ready handshake timeout) -- never selected"
+      },
+      "float_bits": {
+        "f_eff_tflops": "67d5c642",
+        "b_hbm_gbps": "00406645",
+        "b_comm_gbps": "9a998f43",
+        "tau_sync_us": "0000b041",
+        "mu_dedup_thresh": "9924d83f",
+        "hbm_headroom_thresh": "0f0b353f",
+        "tail_ratio_thresh": "f29e613d"
+      }
+    },
+    "mi308x_ep16": {
+      "hardware": "mi308x_ep16",
+      "arch": "mi308x",
+      "precision_mode": 2,
+      "f_eff_tflops": 89.022789,
+      "b_hbm_gbps": 3684.0,
+      "b_comm_gbps": 287.200012,
+      "tau_sync_us": 22.0,
+      "mu_dedup_thresh": 1.30577445,
+      "hbm_headroom_thresh": 0.707199991,
+      "tail_ratio_thresh": 0.164592773,
+      "v_head_hot_budget": 16,
+      "bm_pad_slack": 0,
+      "structural_knobs": {
+        "WEAVE_PRECISION_MODE": 2,
+        "WEAVE_CU_WAVE_SPLIT": 0,
+        "WEAVE_SM0_STREAM_SCHED": 0,
+        "WEAVE_ADAPT_BM": 1,
+        "WEAVE_DEDUP_MODE": 1,
+        "WEAVE_BLOCK_M_L1": 64,
+        "WEAVE_BLOCK_M_L2": 0,
+        "WEAVE_V_HEAD": 16,
+        "WEAVE_DISPATCH_ACTIVE_SMS": 0,
+        "WEAVE_SCATTER_ACTIVE_SMS": 0,
+        "WEAVE_READY_GROUP_SIZE": 0,
+        "WEAVE_REG_BALANCE": 0,
+        "WEAVE_REDUCE_WARPS": 0
+      },
+      "verified_max_s_global": 16384,
+      "provenance": {
+        "source": "results/ep16_mi308x_v58_full5arm.json",
+        "sha256": "9f4cd0f8b17fce5ea2f37b6e3ecf5e4e686532304c5581e2857608d8bcdff3cf",
+        "derivations": {
+          "f_eff_tflops": "roofline_sum_c04_ep16.json qwen38max (2.4T) P3 arm: 257.69803776 GFLOP/rank / 4485.619 us per GPU = 89.02279 TFLOPS achieved (the most compute-saturated verified V58 cell)",
+          "b_hbm_gbps": "Table I MI308X row = PMC normalization 3684 GB/s (same silicon)",
+          "b_comm_gbps": "Table I MI308X xGPI cap = PMC normalization 287.2 GB/s (per-node serial path; the 7-peer xGMI aggregate 346.5 GB/s and the 24.05 GB/s/GPU RDMA share are recorded in the source artifact)",
+          "tau_sync_us": "Table I MI308X t_head sync constant",
+          "hbm_headroom_thresh": "PMC memory_util max 70.72 % (curve_ranges_pct, same MI308X silicon)",
+          "tail_ratio_thresh": "Eq.(3) t_tail_reduce/t_total at uniform reference M=5120, E_local=32, H*I=4194304 (qwen38max cell), dedup_pulls=3921, scatter=5120",
+          "mu_dedup_thresh": "(K/ep)/(1-C(E-E/ep,K)/C(E,K)) with E=512 K=10 ep=16 = 1.30577445 (the EP8 profile's identical derivation at ep=8 -> 1.68861693)",
+          "v_head_hot_budget": "16 = the hot-expert opening-pull budget pin (the V58 all-wave opening window; auto-shrinks when n_max/mean >= 2)",
+          "bm_pad_slack": "DG_D3_BM_PAD_SLACK default 0 -- structural"
+        },
+        "reference": {
+          "M": 5120,
+          "E_local": 32,
+          "histogram": "uniform_proxy",
+          "dedup_pulls": 3921,
+          "scatter": 5120,
+          "middle_hbm_util": 0.38615161180496216,
+          "tail_combine_frac": 0.16459277272224426
+        },
+        "verified_arms": {
+          "qwen35_35b_S8192": 1166.633,
+          "qwen35_122b_S8192": 1556.523,
+          "qwen35_397b_S16384": 3831.518,
+          "qwen38max_S16384": 4485.619,
+          "dskv4_flash_S16384": 5440.392,
+          "minimax_m3_S16384": 4173.524
+        },
+        "model_gated_geomean_vs_rccl": 1.449524157520611,
+        "model_gated_geomean_vs_p0": 1.091264849227943,
+        "bank_space": {
+          "C_FLT_32": {
+            "n08": 1,
+            "n44": 32,
+            "mode": "fleet"
+          },
+          "C_FLT_16": {
+            "n08": 4,
+            "n44": 16,
+            "mode": "fleet"
+          },
+          "C_COAL_16": {
+            "n08": 4,
+            "n44": 16,
+            "mode": "coalesce"
+          },
+          "C_COAL_68": {
+            "n08": 4,
+            "n44": 8,
+            "mode": "coalesce"
+          },
+          "C_BASE_16": {
+            "n08": 4,
+            "n44": 16,
+            "mode": "base"
+          },
+          "C_BASE_68": {
+            "n08": 4,
+            "n44": 8,
+            "mode": "base"
+          }
+        },
+        "pick_thresholds": {
+          "comm_bound": 1.15,
+          "coalesce": 1.18,
+          "qwen38max": 1.1,
+          "other": 1.15
+        }
+      },
+      "float_bits": {
+        "f_eff_tflops": "ab0bb242",
+        "b_hbm_gbps": "00406645",
+        "b_comm_gbps": "9a998f43",
+        "tau_sync_us": "0000b041",
+        "mu_dedup_thresh": "9e23a73f",
+        "hbm_headroom_thresh": "0f0b353f",
+        "tail_ratio_thresh": "028b283e"
+      }
+    }
+  },
+  "regimes": [
+    {
+      "hardware": "sm103",
+      "regime": "sm103_balanced_verified",
+      "s_global": 4096,
+      "num_shared_experts": 0,
+      "verified": true,
+      "structural_env": {
+        "WEAVE_PRECISION_MODE": 0,
+        "WEAVE_ADAPT_BM": 1,
+        "WEAVE_BLOCK_M_L1": 0,
+        "WEAVE_BLOCK_M_L2": 0,
+        "WEAVE_SCATTER_OWNER": 0,
+        "WEAVE_SCATTER_STAGING": 0,
+        "WEAVE_LOCAL_SCATTER_DEDUP": 0,
+        "WEAVE_COMBINE_SYNC_CHUNK": 0,
+        "WEAVE_DISPATCH_ACTIVE_SMS": 0,
+        "WEAVE_SCATTER_ACTIVE_SMS": 0,
+        "WEAVE_REG_BALANCE": 0,
+        "WEAVE_REDUCE_WARPS": 4,
+        "WEAVE_V_HEAD": 0
+      },
+      "online_thresholds": {
+        "f_eff_tflops": 1596.0,
+        "b_hbm_gbps": 7680.0,
+        "b_comm_gbps": 780.0,
+        "tau_sync_us": 14.0,
+        "mu_dedup_thresh": 1.55386949,
+        "hbm_headroom_thresh": 0.75999999,
+        "tail_ratio_thresh": 0.295702934,
+        "v_head_hot_budget": 32,
+        "bm_pad_slack": 0
+      },
+      "anchor": "results/sm103_ep4_prior_verified.json",
+      "notes": [
+        "Tier-1 structural env frozen from the verified winner mapping; Tier-3 CTA-0 adapts reduce warps / v_head / ready group / dedup verdict per step."
+      ]
+    },
+    {
+      "hardware": "h20",
+      "regime": "h20_balanced_extrapolated",
+      "s_global": 4096,
+      "num_shared_experts": 0,
+      "verified": false,
+      "structural_env": {
+        "WEAVE_PRECISION_MODE": 2,
+        "WEAVE_ADAPT_BM": 1,
+        "WEAVE_BLOCK_M_L1": 0,
+        "WEAVE_BLOCK_M_L2": 0,
+        "WEAVE_SCATTER_OWNER": 1,
+        "WEAVE_SCATTER_STAGING": 1,
+        "WEAVE_LOCAL_SCATTER_DEDUP": 0,
+        "WEAVE_COMBINE_SYNC_CHUNK": 0,
+        "WEAVE_DISPATCH_ACTIVE_SMS": 0,
+        "WEAVE_SCATTER_ACTIVE_SMS": 0,
+        "WEAVE_DISPATCH_WARPS": 0,
+        "WEAVE_REDUCE_WARPS": 0,
+        "WEAVE_V_HEAD": 0
+      },
+      "online_thresholds": {
+        "f_eff_tflops": 99.3333054,
+        "b_hbm_gbps": 3600.0,
+        "b_comm_gbps": 370.0,
+        "tau_sync_us": 18.0,
+        "mu_dedup_thresh": 3.0,
+        "hbm_headroom_thresh": 0.455443323,
+        "tail_ratio_thresh": 0.0238960907,
+        "v_head_hot_budget": 64,
+        "bm_pad_slack": 0
+      },
+      "anchor": "pure21_s1024.json (H20 S=1024 pure-21-knob calibration snapshot of a previous kernel revision; not checked in)",
+      "notes": [
+        "Tier-1 structural env frozen from the verified winner mapping; Tier-3 CTA-0 adapts reduce warps / v_head / ready group / dedup verdict per step.",
+        "S_global=4096 exceeds the verified anchor range (<= 1024); structure extrapolated, not measured.",
+        "REDUCE_WARPS=0: the measured-best comm_only+smem scatter structure does not enable the SM90 chunked streaming-reduce path (p21 local dedup regressed)."
+      ]
+    },
+    {
+      "hardware": "mi308x",
+      "regime": "mi308x_balanced_extrapolated",
+      "s_global": 4096,
+      "num_shared_experts": 0,
+      "verified": false,
+      "structural_env": {
+        "WEAVE_PRECISION_MODE": 2,
+        "WEAVE_CU_WAVE_SPLIT": 1,
+        "WEAVE_SM0_STREAM_SCHED": 1,
+        "WEAVE_ADAPT_BM": 1,
+        "WEAVE_DEDUP_MODE": 1,
+        "WEAVE_BLOCK_M_L1": 64,
+        "WEAVE_BLOCK_M_L2": 0,
+        "WEAVE_V_HEAD": 16,
+        "WEAVE_DISPATCH_ACTIVE_SMS": 0,
+        "WEAVE_SCATTER_ACTIVE_SMS": 0,
+        "WEAVE_READY_GROUP_SIZE": 0,
+        "WEAVE_REG_BALANCE": 0,
+        "WEAVE_REDUCE_WARPS": 0
+      },
+      "online_thresholds": {
+        "f_eff_tflops": 99.4168015,
+        "b_hbm_gbps": 3684.0,
+        "b_comm_gbps": 287.200012,
+        "tau_sync_us": 22.0,
+        "mu_dedup_thresh": 1.68861687,
+        "hbm_headroom_thresh": 0.707199991,
+        "tail_ratio_thresh": 0.0550832227,
+        "v_head_hot_budget": 16,
+        "bm_pad_slack": 0
+      },
+      "anchor": "S4_MI308X_FINAL.json (MI308X EP8 final sweep summary of a previous kernel revision; not checked in)",
+      "notes": [
+        "Tier-1 structural env frozen from the verified winner mapping; Tier-3 CTA-0 adapts reduce warps / v_head / ready group / dedup verdict per step.",
+        "S_global=4096 exceeds the verified anchor range (<= 1024); structure extrapolated, not measured.",
+        "WEAVE_CU_WAVE_SPLIT=8-0 runtime-FAILs (meta_ready timeout) and is never selected."
+      ]
+    },
+    {
+      "hardware": "mi308x_ep16",
+      "regime": "mi308x_ep16_balanced_verified",
+      "s_global": 4096,
+      "num_shared_experts": 0,
+      "verified": true,
+      "structural_env": {
+        "WEAVE_PRECISION_MODE": 2,
+        "WEAVE_CU_WAVE_SPLIT": 0,
+        "WEAVE_SM0_STREAM_SCHED": 0,
+        "WEAVE_ADAPT_BM": 1,
+        "WEAVE_DEDUP_MODE": 1,
+        "WEAVE_BLOCK_M_L1": 64,
+        "WEAVE_BLOCK_M_L2": 0,
+        "WEAVE_V_HEAD": 16,
+        "WEAVE_DISPATCH_ACTIVE_SMS": 0,
+        "WEAVE_SCATTER_ACTIVE_SMS": 0,
+        "WEAVE_READY_GROUP_SIZE": 0,
+        "WEAVE_REG_BALANCE": 0,
+        "WEAVE_REDUCE_WARPS": 0
+      },
+      "online_thresholds": {
+        "f_eff_tflops": 89.022789,
+        "b_hbm_gbps": 3684.0,
+        "b_comm_gbps": 287.200012,
+        "tau_sync_us": 22.0,
+        "mu_dedup_thresh": 1.30577445,
+        "hbm_headroom_thresh": 0.707199991,
+        "tail_ratio_thresh": 0.164592773,
+        "v_head_hot_budget": 16,
+        "bm_pad_slack": 0
+      },
+      "anchor": "results/ep16_mi308x_v58_full5arm.json",
+      "notes": [
+        "Tier-1 structural env frozen from the verified winner mapping; Tier-3 CTA-0 adapts reduce warps / v_head / ready group / dedup verdict per step."
+      ]
+    }
+  ]
+}

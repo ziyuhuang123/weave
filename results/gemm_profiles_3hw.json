@@ -1,0 +1,4590 @@
+{
+  "schema": "weave-gemm-profiles-3hw/v2",
+  "framework": "3-Tier: (HW) -> (Phase,N,K) offline envelope + per-M inner tuple -> (runtime M_e, mu) online CTA-0 + SM0 dedup ordering, sharded ready rings & cluster DSMEM",
+  "selector": "Legal backend tile ladders (transcribed from the kernels' static asserts) + integer structural-waste objective (N-cluster wave quantization, MMA M-atom padding, prefill M-row padding, K-length BK preference, narrow-N tile explosion, minus per-stage latency-hiding bonus). The integer roofline estimate is reported as score_ns.",
+  "reality_boundary": "Analytical integer physics (legal pruning + structural waste scoring), not measured latencies; bit-exact mirrored in weave_cost_model.cuh and enforced by tests/test_two_level_adaptive_policy.py.",
+  "m_ladder": [
+    8,
+    16,
+    32,
+    48,
+    64,
+    96,
+    128,
+    192,
+    240
+  ],
+  "models": {
+    "qwen38max": {
+      "hidden": 8192,
+      "intermediate": 2048,
+      "experts": 512,
+      "topk": 10
+    },
+    "dskv4_flash": {
+      "hidden": 4096,
+      "intermediate": 2048,
+      "experts": 256,
+      "topk": 6
+    },
+    "minimax_m3": {
+      "hidden": 6144,
+      "intermediate": 3072,
+      "experts": 128,
+      "topk": 4
+    },
+    "qwen36_35b": {
+      "hidden": 2048,
+      "intermediate": 512,
+      "experts": 256,
+      "topk": 8
+    },
+    "qwen35_122b": {
+      "hidden": 3072,
+      "intermediate": 1024,
+      "experts": 256,
+      "topk": 8
+    },
+    "qwen35_397b": {
+      "hidden": 4096,
+      "intermediate": 1024,
+      "experts": 512,
+      "topk": 10
+    }
+  },
+  "design_anchors": [
+    32,
+    192
+  ],
+  "structural_anchor": 240,
+  "legal_tiles": {
+    "bn": {
+      "b300": [
+        256,
+        128,
+        64
+      ],
+      "h20": [
+        512,
+        256,
+        128,
+        64
+      ],
+      "mi308x": [
+        256,
+        128,
+        64
+      ]
+    },
+    "bk": {
+      "b300": [
+        256,
+        128
+      ],
+      "h20": [
+        256,
+        128
+      ],
+      "mi308x": [
+        256,
+        128,
+        64
+      ]
+    },
+    "bm": {
+      "b300": [
+        256,
+        240,
+        192,
+        128,
+        96,
+        80,
+        64,
+        32
+      ],
+      "h20": [
+        256,
+        192,
+        128,
+        64
+      ],
+      "mi308x": [
+        128,
+        64,
+        32,
+        16
+      ]
+    },
+    "mma_m_atom": {
+      "b300": 64,
+      "h20": 64,
+      "mi308x": 32
+    }
+  },
+  "profiles": {
+    "sm103": {
+      "qwen38max": {
+        "gemm1": {
+          "n": 4096,
+          "k": 8192,
+          "precision": "fp8xfp4",
+          "envelope": {
+            "bn": 64,
+            "bk": 128,
+            "max_bm": 256,
+            "num_stages": 2,
+            "l2_swizzle_group": 1,
+            "interleave_mode": 0,
+            "wg_layout_mode": 0,
+            "score_ns": 11034,
+            "epw": 2,
+            "penalty": 2832
+          },
+          "envelope_code": 524420,
+          "inner_lut": {
+            "8": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 2,
+              "pipe_mode": 100,
+              "l2_swizzle_group": 1,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "16": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 2,
+              "pipe_mode": 100,
+              "l2_swizzle_group": 1,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "32": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 2,
+              "pipe_mode": 100,
+              "l2_swizzle_group": 1,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "48": {
+              "block_m": 64,
+              "tma_load_m": 64,
+              "wg_layout_mode": 2,
+              "pipe_mode": 175,
+              "l2_swizzle_group": 1,
+              "store_block_m": 64,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "64": {
+              "block_m": 64,
+              "tma_load_m": 64,
+              "wg_layout_mode": 2,
+              "pipe_mode": 175,
+              "l2_swizzle_group": 1,
+              "store_block_m": 64,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "96": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 2,
+              "pipe_mode": 100,
+              "l2_swizzle_group": 3,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "128": {
+              "block_m": 128,
+              "tma_load_m": 128,
+              "wg_layout_mode": 0,
+              "pipe_mode": 175,
+              "l2_swizzle_group": 1,
+              "store_block_m": 64,
+              "epi_reg_stages": 2,
+              "scatter_path": 0
+            },
+            "192": {
+              "block_m": 64,
+              "tma_load_m": 64,
+              "wg_layout_mode": 2,
+              "pipe_mode": 175,
+              "l2_swizzle_group": 3,
+              "store_block_m": 64,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "240": {
+              "block_m": 256,
+              "tma_load_m": 128,
+              "wg_layout_mode": 0,
+              "pipe_mode": 175,
+              "l2_swizzle_group": 1,
+              "store_block_m": 64,
+              "epi_reg_stages": 2,
+              "scatter_path": 0
+            }
+          },
+          "inner_codes": {
+            "8": 9282,
+            "16": 9282,
+            "32": 9282,
+            "48": 26756,
+            "64": 26756,
+            "96": 140354,
+            "128": 542984,
+            "192": 157828,
+            "240": 542992
+          }
+        },
+        "gemm2": {
+          "n": 8192,
+          "k": 2048,
+          "precision": "fp8xfp4",
+          "envelope": {
+            "bn": 64,
+            "bk": 256,
+            "max_bm": 256,
+            "num_stages": 4,
+            "l2_swizzle_group": 1,
+            "interleave_mode": 0,
+            "wg_layout_mode": 0,
+            "score_ns": 11021,
+            "epw": 1,
+            "penalty": 416
+          },
+          "envelope_code": 262792,
+          "inner_lut": {
+            "8": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 2,
+              "pipe_mode": 100,
+              "l2_swizzle_group": 1,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "16": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 2,
+              "pipe_mode": 100,
+              "l2_swizzle_group": 1,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "32": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 2,
+              "pipe_mode": 100,
+              "l2_swizzle_group": 1,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "48": {
+              "block_m": 64,
+              "tma_load_m": 64,
+              "wg_layout_mode": 2,
+              "pipe_mode": 175,
+              "l2_swizzle_group": 1,
+              "store_block_m": 64,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "64": {
+              "block_m": 64,
+              "tma_load_m": 64,
+              "wg_layout_mode": 2,
+              "pipe_mode": 175,
+              "l2_swizzle_group": 1,
+              "store_block_m": 64,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "96": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 2,
+              "pipe_mode": 100,
+              "l2_swizzle_group": 3,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "128": {
+              "block_m": 128,
+              "tma_load_m": 128,
+              "wg_layout_mode": 0,
+              "pipe_mode": 200,
+              "l2_swizzle_group": 1,
+              "store_block_m": 64,
+              "epi_reg_stages": 2,
+              "scatter_path": 0
+            },
+            "192": {
+              "block_m": 64,
+              "tma_load_m": 64,
+              "wg_layout_mode": 2,
+              "pipe_mode": 175,
+              "l2_swizzle_group": 3,
+              "store_block_m": 64,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "240": {
+              "block_m": 256,
+              "tma_load_m": 128,
+              "wg_layout_mode": 0,
+              "pipe_mode": 200,
+              "l2_swizzle_group": 1,
+              "store_block_m": 64,
+              "epi_reg_stages": 2,
+              "scatter_path": 0
+            }
+          },
+          "inner_codes": {
+            "8": 9282,
+            "16": 9282,
+            "32": 9282,
+            "48": 26756,
+            "64": 26756,
+            "96": 140354,
+            "128": 559368,
+            "192": 157828,
+            "240": 559376
+          }
+        }
+      },
+      "dskv4_flash": {
+        "gemm1": {
+          "n": 4096,
+          "k": 4096,
+          "precision": "fp8xfp4",
+          "envelope": {
+            "bn": 64,
+            "bk": 128,
+            "max_bm": 256,
+            "num_stages": 3,
+            "l2_swizzle_group": 1,
+            "interleave_mode": 0,
+            "wg_layout_mode": 0,
+            "score_ns": 4842,
+            "epw": 2,
+            "penalty": 2808
+          },
+          "envelope_code": 524676,
+          "inner_lut": {
+            "8": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 2,
+              "pipe_mode": 100,
+              "l2_swizzle_group": 1,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "16": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 2,
+              "pipe_mode": 100,
+              "l2_swizzle_group": 1,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "32": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 2,
+              "pipe_mode": 100,
+              "l2_swizzle_group": 1,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "48": {
+              "block_m": 64,
+              "tma_load_m": 64,
+              "wg_layout_mode": 2,
+              "pipe_mode": 175,
+              "l2_swizzle_group": 1,
+              "store_block_m": 64,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "64": {
+              "block_m": 64,
+              "tma_load_m": 64,
+              "wg_layout_mode": 2,
+              "pipe_mode": 175,
+              "l2_swizzle_group": 1,
+              "store_block_m": 64,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "96": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 2,
+              "pipe_mode": 100,
+              "l2_swizzle_group": 3,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "128": {
+              "block_m": 128,
+              "tma_load_m": 128,
+              "wg_layout_mode": 0,
+              "pipe_mode": 175,
+              "l2_swizzle_group": 1,
+              "store_block_m": 64,
+              "epi_reg_stages": 2,
+              "scatter_path": 0
+            },
+            "192": {
+              "block_m": 64,
+              "tma_load_m": 64,
+              "wg_layout_mode": 2,
+              "pipe_mode": 175,
+              "l2_swizzle_group": 3,
+              "store_block_m": 64,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "240": {
+              "block_m": 256,
+              "tma_load_m": 128,
+              "wg_layout_mode": 0,
+              "pipe_mode": 175,
+              "l2_swizzle_group": 1,
+              "store_block_m": 64,
+              "epi_reg_stages": 2,
+              "scatter_path": 0
+            }
+          },
+          "inner_codes": {
+            "8": 9282,
+            "16": 9282,
+            "32": 9282,
+            "48": 26756,
+            "64": 26756,
+            "96": 140354,
+            "128": 542984,
+            "192": 157828,
+            "240": 542992
+          }
+        },
+        "gemm2": {
+          "n": 4096,
+          "k": 2048,
+          "precision": "fp8xfp4",
+          "envelope": {
+            "bn": 64,
+            "bk": 256,
+            "max_bm": 256,
+            "num_stages": 4,
+            "l2_swizzle_group": 1,
+            "interleave_mode": 0,
+            "wg_layout_mode": 0,
+            "score_ns": 4799,
+            "epw": 2,
+            "penalty": 2784
+          },
+          "envelope_code": 524936,
+          "inner_lut": {
+            "8": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 2,
+              "pipe_mode": 100,
+              "l2_swizzle_group": 1,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "16": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 2,
+              "pipe_mode": 100,
+              "l2_swizzle_group": 1,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "32": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 2,
+              "pipe_mode": 100,
+              "l2_swizzle_group": 1,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "48": {
+              "block_m": 64,
+              "tma_load_m": 64,
+              "wg_layout_mode": 2,
+              "pipe_mode": 175,
+              "l2_swizzle_group": 1,
+              "store_block_m": 64,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "64": {
+              "block_m": 64,
+              "tma_load_m": 64,
+              "wg_layout_mode": 2,
+              "pipe_mode": 175,
+              "l2_swizzle_group": 1,
+              "store_block_m": 64,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "96": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 2,
+              "pipe_mode": 100,
+              "l2_swizzle_group": 3,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "128": {
+              "block_m": 128,
+              "tma_load_m": 128,
+              "wg_layout_mode": 0,
+              "pipe_mode": 200,
+              "l2_swizzle_group": 1,
+              "store_block_m": 64,
+              "epi_reg_stages": 2,
+              "scatter_path": 0
+            },
+            "192": {
+              "block_m": 64,
+              "tma_load_m": 64,
+              "wg_layout_mode": 2,
+              "pipe_mode": 175,
+              "l2_swizzle_group": 3,
+              "store_block_m": 64,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "240": {
+              "block_m": 256,
+              "tma_load_m": 128,
+              "wg_layout_mode": 0,
+              "pipe_mode": 200,
+              "l2_swizzle_group": 1,
+              "store_block_m": 64,
+              "epi_reg_stages": 2,
+              "scatter_path": 0
+            }
+          },
+          "inner_codes": {
+            "8": 9282,
+            "16": 9282,
+            "32": 9282,
+            "48": 26756,
+            "64": 26756,
+            "96": 140354,
+            "128": 559368,
+            "192": 157828,
+            "240": 559376
+          }
+        }
+      },
+      "minimax_m3": {
+        "gemm1": {
+          "n": 6144,
+          "k": 6144,
+          "precision": "fp8xfp4",
+          "envelope": {
+            "bn": 64,
+            "bk": 128,
+            "max_bm": 256,
+            "num_stages": 2,
+            "l2_swizzle_group": 1,
+            "interleave_mode": 0,
+            "wg_layout_mode": 0,
+            "score_ns": 12294,
+            "epw": 1,
+            "penalty": 1252
+          },
+          "envelope_code": 262276,
+          "inner_lut": {
+            "8": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 2,
+              "pipe_mode": 100,
+              "l2_swizzle_group": 1,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "16": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 2,
+              "pipe_mode": 100,
+              "l2_swizzle_group": 1,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "32": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 2,
+              "pipe_mode": 100,
+              "l2_swizzle_group": 1,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "48": {
+              "block_m": 64,
+              "tma_load_m": 64,
+              "wg_layout_mode": 2,
+              "pipe_mode": 175,
+              "l2_swizzle_group": 1,
+              "store_block_m": 64,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "64": {
+              "block_m": 64,
+              "tma_load_m": 64,
+              "wg_layout_mode": 2,
+              "pipe_mode": 175,
+              "l2_swizzle_group": 1,
+              "store_block_m": 64,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "96": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 2,
+              "pipe_mode": 100,
+              "l2_swizzle_group": 3,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "128": {
+              "block_m": 128,
+              "tma_load_m": 128,
+              "wg_layout_mode": 0,
+              "pipe_mode": 175,
+              "l2_swizzle_group": 1,
+              "store_block_m": 64,
+              "epi_reg_stages": 2,
+              "scatter_path": 0
+            },
+            "192": {
+              "block_m": 64,
+              "tma_load_m": 64,
+              "wg_layout_mode": 2,
+              "pipe_mode": 175,
+              "l2_swizzle_group": 3,
+              "store_block_m": 64,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "240": {
+              "block_m": 256,
+              "tma_load_m": 128,
+              "wg_layout_mode": 0,
+              "pipe_mode": 175,
+              "l2_swizzle_group": 1,
+              "store_block_m": 64,
+              "epi_reg_stages": 2,
+              "scatter_path": 0
+            }
+          },
+          "inner_codes": {
+            "8": 9282,
+            "16": 9282,
+            "32": 9282,
+            "48": 26756,
+            "64": 26756,
+            "96": 140354,
+            "128": 542984,
+            "192": 157828,
+            "240": 542992
+          }
+        },
+        "gemm2": {
+          "n": 6144,
+          "k": 3072,
+          "precision": "fp8xfp4",
+          "envelope": {
+            "bn": 64,
+            "bk": 256,
+            "max_bm": 256,
+            "num_stages": 3,
+            "l2_swizzle_group": 1,
+            "interleave_mode": 0,
+            "wg_layout_mode": 0,
+            "score_ns": 9140,
+            "epw": 1,
+            "penalty": 1228
+          },
+          "envelope_code": 262536,
+          "inner_lut": {
+            "8": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 2,
+              "pipe_mode": 100,
+              "l2_swizzle_group": 1,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "16": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 2,
+              "pipe_mode": 100,
+              "l2_swizzle_group": 1,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "32": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 2,
+              "pipe_mode": 100,
+              "l2_swizzle_group": 1,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "48": {
+              "block_m": 64,
+              "tma_load_m": 64,
+              "wg_layout_mode": 2,
+              "pipe_mode": 175,
+              "l2_swizzle_group": 1,
+              "store_block_m": 64,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "64": {
+              "block_m": 64,
+              "tma_load_m": 64,
+              "wg_layout_mode": 2,
+              "pipe_mode": 175,
+              "l2_swizzle_group": 1,
+              "store_block_m": 64,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "96": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 2,
+              "pipe_mode": 100,
+              "l2_swizzle_group": 3,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "128": {
+              "block_m": 128,
+              "tma_load_m": 128,
+              "wg_layout_mode": 0,
+              "pipe_mode": 175,
+              "l2_swizzle_group": 1,
+              "store_block_m": 64,
+              "epi_reg_stages": 2,
+              "scatter_path": 0
+            },
+            "192": {
+              "block_m": 64,
+              "tma_load_m": 64,
+              "wg_layout_mode": 2,
+              "pipe_mode": 175,
+              "l2_swizzle_group": 3,
+              "store_block_m": 64,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "240": {
+              "block_m": 256,
+              "tma_load_m": 128,
+              "wg_layout_mode": 0,
+              "pipe_mode": 175,
+              "l2_swizzle_group": 1,
+              "store_block_m": 64,
+              "epi_reg_stages": 2,
+              "scatter_path": 0
+            }
+          },
+          "inner_codes": {
+            "8": 9282,
+            "16": 9282,
+            "32": 9282,
+            "48": 26756,
+            "64": 26756,
+            "96": 140354,
+            "128": 542984,
+            "192": 157828,
+            "240": 542992
+          }
+        }
+      },
+      "qwen36_35b": {
+        "gemm1": {
+          "n": 1024,
+          "k": 2048,
+          "precision": "fp8xfp4",
+          "envelope": {
+            "bn": 64,
+            "bk": 256,
+            "max_bm": 256,
+            "num_stages": 4,
+            "l2_swizzle_group": 1,
+            "interleave_mode": 0,
+            "wg_layout_mode": 0,
+            "score_ns": 434,
+            "epw": 9,
+            "penalty": 16864
+          },
+          "envelope_code": 2359944,
+          "inner_lut": {
+            "8": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 2,
+              "pipe_mode": 100,
+              "l2_swizzle_group": 1,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "16": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 2,
+              "pipe_mode": 100,
+              "l2_swizzle_group": 1,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "32": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 2,
+              "pipe_mode": 100,
+              "l2_swizzle_group": 1,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "48": {
+              "block_m": 64,
+              "tma_load_m": 64,
+              "wg_layout_mode": 2,
+              "pipe_mode": 175,
+              "l2_swizzle_group": 1,
+              "store_block_m": 64,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "64": {
+              "block_m": 64,
+              "tma_load_m": 64,
+              "wg_layout_mode": 2,
+              "pipe_mode": 175,
+              "l2_swizzle_group": 1,
+              "store_block_m": 64,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "96": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 2,
+              "pipe_mode": 100,
+              "l2_swizzle_group": 3,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "128": {
+              "block_m": 128,
+              "tma_load_m": 128,
+              "wg_layout_mode": 0,
+              "pipe_mode": 200,
+              "l2_swizzle_group": 1,
+              "store_block_m": 64,
+              "epi_reg_stages": 2,
+              "scatter_path": 0
+            },
+            "192": {
+              "block_m": 64,
+              "tma_load_m": 64,
+              "wg_layout_mode": 2,
+              "pipe_mode": 175,
+              "l2_swizzle_group": 3,
+              "store_block_m": 64,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "240": {
+              "block_m": 256,
+              "tma_load_m": 128,
+              "wg_layout_mode": 0,
+              "pipe_mode": 200,
+              "l2_swizzle_group": 1,
+              "store_block_m": 64,
+              "epi_reg_stages": 2,
+              "scatter_path": 0
+            }
+          },
+          "inner_codes": {
+            "8": 9282,
+            "16": 9282,
+            "32": 9282,
+            "48": 26756,
+            "64": 26756,
+            "96": 140354,
+            "128": 559368,
+            "192": 157828,
+            "240": 559376
+          }
+        },
+        "gemm2": {
+          "n": 2048,
+          "k": 512,
+          "precision": "fp8xfp4",
+          "envelope": {
+            "bn": 64,
+            "bk": 128,
+            "max_bm": 256,
+            "num_stages": 4,
+            "l2_swizzle_group": 1,
+            "interleave_mode": 0,
+            "wg_layout_mode": 0,
+            "score_ns": 1505,
+            "epw": 4,
+            "penalty": 7392
+          },
+          "envelope_code": 1049220,
+          "inner_lut": {
+            "8": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 2,
+              "pipe_mode": 100,
+              "l2_swizzle_group": 1,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "16": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 2,
+              "pipe_mode": 100,
+              "l2_swizzle_group": 1,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "32": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 2,
+              "pipe_mode": 100,
+              "l2_swizzle_group": 1,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "48": {
+              "block_m": 64,
+              "tma_load_m": 64,
+              "wg_layout_mode": 2,
+              "pipe_mode": 175,
+              "l2_swizzle_group": 1,
+              "store_block_m": 64,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "64": {
+              "block_m": 64,
+              "tma_load_m": 64,
+              "wg_layout_mode": 2,
+              "pipe_mode": 175,
+              "l2_swizzle_group": 1,
+              "store_block_m": 64,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "96": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 2,
+              "pipe_mode": 100,
+              "l2_swizzle_group": 3,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "128": {
+              "block_m": 128,
+              "tma_load_m": 128,
+              "wg_layout_mode": 0,
+              "pipe_mode": 200,
+              "l2_swizzle_group": 1,
+              "store_block_m": 64,
+              "epi_reg_stages": 2,
+              "scatter_path": 0
+            },
+            "192": {
+              "block_m": 64,
+              "tma_load_m": 64,
+              "wg_layout_mode": 2,
+              "pipe_mode": 175,
+              "l2_swizzle_group": 3,
+              "store_block_m": 64,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "240": {
+              "block_m": 256,
+              "tma_load_m": 128,
+              "wg_layout_mode": 0,
+              "pipe_mode": 200,
+              "l2_swizzle_group": 1,
+              "store_block_m": 64,
+              "epi_reg_stages": 2,
+              "scatter_path": 0
+            }
+          },
+          "inner_codes": {
+            "8": 9282,
+            "16": 9282,
+            "32": 9282,
+            "48": 26756,
+            "64": 26756,
+            "96": 140354,
+            "128": 559368,
+            "192": 157828,
+            "240": 559376
+          }
+        }
+      },
+      "qwen35_122b": {
+        "gemm1": {
+          "n": 2048,
+          "k": 3072,
+          "precision": "fp8xfp4",
+          "envelope": {
+            "bn": 64,
+            "bk": 256,
+            "max_bm": 256,
+            "num_stages": 3,
+            "l2_swizzle_group": 1,
+            "interleave_mode": 0,
+            "wg_layout_mode": 0,
+            "score_ns": 1288,
+            "epw": 4,
+            "penalty": 7416
+          },
+          "envelope_code": 1048968,
+          "inner_lut": {
+            "8": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 2,
+              "pipe_mode": 100,
+              "l2_swizzle_group": 1,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "16": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 2,
+              "pipe_mode": 100,
+              "l2_swizzle_group": 1,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "32": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 2,
+              "pipe_mode": 100,
+              "l2_swizzle_group": 1,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "48": {
+              "block_m": 64,
+              "tma_load_m": 64,
+              "wg_layout_mode": 2,
+              "pipe_mode": 175,
+              "l2_swizzle_group": 1,
+              "store_block_m": 64,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "64": {
+              "block_m": 64,
+              "tma_load_m": 64,
+              "wg_layout_mode": 2,
+              "pipe_mode": 175,
+              "l2_swizzle_group": 1,
+              "store_block_m": 64,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "96": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 2,
+              "pipe_mode": 100,
+              "l2_swizzle_group": 3,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "128": {
+              "block_m": 128,
+              "tma_load_m": 128,
+              "wg_layout_mode": 0,
+              "pipe_mode": 175,
+              "l2_swizzle_group": 1,
+              "store_block_m": 64,
+              "epi_reg_stages": 2,
+              "scatter_path": 0
+            },
+            "192": {
+              "block_m": 64,
+              "tma_load_m": 64,
+              "wg_layout_mode": 2,
+              "pipe_mode": 175,
+              "l2_swizzle_group": 3,
+              "store_block_m": 64,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "240": {
+              "block_m": 256,
+              "tma_load_m": 128,
+              "wg_layout_mode": 0,
+              "pipe_mode": 175,
+              "l2_swizzle_group": 1,
+              "store_block_m": 64,
+              "epi_reg_stages": 2,
+              "scatter_path": 0
+            }
+          },
+          "inner_codes": {
+            "8": 9282,
+            "16": 9282,
+            "32": 9282,
+            "48": 26756,
+            "64": 26756,
+            "96": 140354,
+            "128": 542984,
+            "192": 157828,
+            "240": 542992
+          }
+        },
+        "gemm2": {
+          "n": 3072,
+          "k": 1024,
+          "precision": "fp8xfp4",
+          "envelope": {
+            "bn": 64,
+            "bk": 128,
+            "max_bm": 256,
+            "num_stages": 4,
+            "l2_swizzle_group": 1,
+            "interleave_mode": 0,
+            "wg_layout_mode": 0,
+            "score_ns": 2508,
+            "epw": 3,
+            "penalty": 4234
+          },
+          "envelope_code": 787076,
+          "inner_lut": {
+            "8": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 2,
+              "pipe_mode": 100,
+              "l2_swizzle_group": 1,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "16": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 2,
+              "pipe_mode": 100,
+              "l2_swizzle_group": 1,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "32": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 2,
+              "pipe_mode": 100,
+              "l2_swizzle_group": 1,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "48": {
+              "block_m": 64,
+              "tma_load_m": 64,
+              "wg_layout_mode": 2,
+              "pipe_mode": 175,
+              "l2_swizzle_group": 1,
+              "store_block_m": 64,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "64": {
+              "block_m": 64,
+              "tma_load_m": 64,
+              "wg_layout_mode": 2,
+              "pipe_mode": 175,
+              "l2_swizzle_group": 1,
+              "store_block_m": 64,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "96": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 2,
+              "pipe_mode": 100,
+              "l2_swizzle_group": 3,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "128": {
+              "block_m": 128,
+              "tma_load_m": 128,
+              "wg_layout_mode": 0,
+              "pipe_mode": 200,
+              "l2_swizzle_group": 1,
+              "store_block_m": 64,
+              "epi_reg_stages": 2,
+              "scatter_path": 0
+            },
+            "192": {
+              "block_m": 64,
+              "tma_load_m": 64,
+              "wg_layout_mode": 2,
+              "pipe_mode": 175,
+              "l2_swizzle_group": 3,
+              "store_block_m": 64,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "240": {
+              "block_m": 256,
+              "tma_load_m": 128,
+              "wg_layout_mode": 0,
+              "pipe_mode": 200,
+              "l2_swizzle_group": 1,
+              "store_block_m": 64,
+              "epi_reg_stages": 2,
+              "scatter_path": 0
+            }
+          },
+          "inner_codes": {
+            "8": 9282,
+            "16": 9282,
+            "32": 9282,
+            "48": 26756,
+            "64": 26756,
+            "96": 140354,
+            "128": 559368,
+            "192": 157828,
+            "240": 559376
+          }
+        }
+      },
+      "qwen35_397b": {
+        "gemm1": {
+          "n": 2048,
+          "k": 4096,
+          "precision": "fp8xfp4",
+          "envelope": {
+            "bn": 64,
+            "bk": 128,
+            "max_bm": 256,
+            "num_stages": 3,
+            "l2_swizzle_group": 1,
+            "interleave_mode": 0,
+            "wg_layout_mode": 0,
+            "score_ns": 1738,
+            "epw": 4,
+            "penalty": 7416
+          },
+          "envelope_code": 1048964,
+          "inner_lut": {
+            "8": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 2,
+              "pipe_mode": 100,
+              "l2_swizzle_group": 1,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "16": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 2,
+              "pipe_mode": 100,
+              "l2_swizzle_group": 1,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "32": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 2,
+              "pipe_mode": 100,
+              "l2_swizzle_group": 1,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "48": {
+              "block_m": 64,
+              "tma_load_m": 64,
+              "wg_layout_mode": 2,
+              "pipe_mode": 175,
+              "l2_swizzle_group": 1,
+              "store_block_m": 64,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "64": {
+              "block_m": 64,
+              "tma_load_m": 64,
+              "wg_layout_mode": 2,
+              "pipe_mode": 175,
+              "l2_swizzle_group": 1,
+              "store_block_m": 64,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "96": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 2,
+              "pipe_mode": 100,
+              "l2_swizzle_group": 3,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "128": {
+              "block_m": 128,
+              "tma_load_m": 128,
+              "wg_layout_mode": 0,
+              "pipe_mode": 175,
+              "l2_swizzle_group": 1,
+              "store_block_m": 64,
+              "epi_reg_stages": 2,
+              "scatter_path": 0
+            },
+            "192": {
+              "block_m": 64,
+              "tma_load_m": 64,
+              "wg_layout_mode": 2,
+              "pipe_mode": 175,
+              "l2_swizzle_group": 3,
+              "store_block_m": 64,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "240": {
+              "block_m": 256,
+              "tma_load_m": 128,
+              "wg_layout_mode": 0,
+              "pipe_mode": 175,
+              "l2_swizzle_group": 1,
+              "store_block_m": 64,
+              "epi_reg_stages": 2,
+              "scatter_path": 0
+            }
+          },
+          "inner_codes": {
+            "8": 9282,
+            "16": 9282,
+            "32": 9282,
+            "48": 26756,
+            "64": 26756,
+            "96": 140354,
+            "128": 542984,
+            "192": 157828,
+            "240": 542992
+          }
+        },
+        "gemm2": {
+          "n": 4096,
+          "k": 1024,
+          "precision": "fp8xfp4",
+          "envelope": {
+            "bn": 64,
+            "bk": 128,
+            "max_bm": 256,
+            "num_stages": 4,
+            "l2_swizzle_group": 1,
+            "interleave_mode": 0,
+            "wg_layout_mode": 0,
+            "score_ns": 3718,
+            "epw": 2,
+            "penalty": 2784
+          },
+          "envelope_code": 524932,
+          "inner_lut": {
+            "8": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 2,
+              "pipe_mode": 100,
+              "l2_swizzle_group": 1,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "16": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 2,
+              "pipe_mode": 100,
+              "l2_swizzle_group": 1,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "32": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 2,
+              "pipe_mode": 100,
+              "l2_swizzle_group": 1,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "48": {
+              "block_m": 64,
+              "tma_load_m": 64,
+              "wg_layout_mode": 2,
+              "pipe_mode": 175,
+              "l2_swizzle_group": 1,
+              "store_block_m": 64,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "64": {
+              "block_m": 64,
+              "tma_load_m": 64,
+              "wg_layout_mode": 2,
+              "pipe_mode": 175,
+              "l2_swizzle_group": 1,
+              "store_block_m": 64,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "96": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 2,
+              "pipe_mode": 100,
+              "l2_swizzle_group": 3,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "128": {
+              "block_m": 128,
+              "tma_load_m": 128,
+              "wg_layout_mode": 0,
+              "pipe_mode": 200,
+              "l2_swizzle_group": 1,
+              "store_block_m": 64,
+              "epi_reg_stages": 2,
+              "scatter_path": 0
+            },
+            "192": {
+              "block_m": 64,
+              "tma_load_m": 64,
+              "wg_layout_mode": 2,
+              "pipe_mode": 175,
+              "l2_swizzle_group": 3,
+              "store_block_m": 64,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "240": {
+              "block_m": 256,
+              "tma_load_m": 128,
+              "wg_layout_mode": 0,
+              "pipe_mode": 200,
+              "l2_swizzle_group": 1,
+              "store_block_m": 64,
+              "epi_reg_stages": 2,
+              "scatter_path": 0
+            }
+          },
+          "inner_codes": {
+            "8": 9282,
+            "16": 9282,
+            "32": 9282,
+            "48": 26756,
+            "64": 26756,
+            "96": 140354,
+            "128": 559368,
+            "192": 157828,
+            "240": 559376
+          }
+        }
+      }
+    },
+    "h20": {
+      "qwen38max": {
+        "gemm1": {
+          "n": 4096,
+          "k": 8192,
+          "precision": "fp8",
+          "envelope": {
+            "bn": 64,
+            "bk": 128,
+            "max_bm": 256,
+            "num_stages": 2,
+            "l2_swizzle_group": 1,
+            "interleave_mode": 0,
+            "wg_layout_mode": 0,
+            "score_ns": 171912,
+            "epw": 1,
+            "penalty": 592
+          },
+          "envelope_code": 262276,
+          "inner_lut": {
+            "8": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 1,
+              "pipe_mode": 1,
+              "l2_swizzle_group": 1,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "16": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 1,
+              "pipe_mode": 1,
+              "l2_swizzle_group": 1,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "32": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 1,
+              "pipe_mode": 1,
+              "l2_swizzle_group": 1,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "48": {
+              "block_m": 64,
+              "tma_load_m": 64,
+              "wg_layout_mode": 0,
+              "pipe_mode": 1,
+              "l2_swizzle_group": 1,
+              "store_block_m": 64,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "64": {
+              "block_m": 64,
+              "tma_load_m": 64,
+              "wg_layout_mode": 0,
+              "pipe_mode": 1,
+              "l2_swizzle_group": 1,
+              "store_block_m": 64,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "96": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 1,
+              "pipe_mode": 1,
+              "l2_swizzle_group": 1,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "128": {
+              "block_m": 128,
+              "tma_load_m": 64,
+              "wg_layout_mode": 0,
+              "pipe_mode": 1,
+              "l2_swizzle_group": 1,
+              "store_block_m": 64,
+              "epi_reg_stages": 2,
+              "scatter_path": 0
+            },
+            "192": {
+              "block_m": 64,
+              "tma_load_m": 64,
+              "wg_layout_mode": 0,
+              "pipe_mode": 1,
+              "l2_swizzle_group": 1,
+              "store_block_m": 64,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "240": {
+              "block_m": 256,
+              "tma_load_m": 64,
+              "wg_layout_mode": 0,
+              "pipe_mode": 1,
+              "l2_swizzle_group": 1,
+              "store_block_m": 64,
+              "epi_reg_stages": 2,
+              "scatter_path": 0
+            }
+          },
+          "inner_codes": {
+            "8": 5186,
+            "16": 5186,
+            "32": 5186,
+            "48": 2180,
+            "64": 2180,
+            "96": 5186,
+            "128": 526472,
+            "192": 2180,
+            "240": 526480
+          }
+        },
+        "gemm2": {
+          "n": 8192,
+          "k": 2048,
+          "precision": "fp8",
+          "envelope": {
+            "bn": 128,
+            "bk": 256,
+            "max_bm": 64,
+            "num_stages": 4,
+            "l2_swizzle_group": 4,
+            "interleave_mode": 1,
+            "wg_layout_mode": 0,
+            "score_ns": 91859,
+            "epw": 1,
+            "penalty": 416
+          },
+          "envelope_code": 285225,
+          "inner_lut": {
+            "8": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 1,
+              "pipe_mode": 2,
+              "l2_swizzle_group": 1,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 1
+            },
+            "16": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 1,
+              "pipe_mode": 2,
+              "l2_swizzle_group": 1,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 1
+            },
+            "32": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 1,
+              "pipe_mode": 2,
+              "l2_swizzle_group": 1,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 1
+            },
+            "48": {
+              "block_m": 64,
+              "tma_load_m": 64,
+              "wg_layout_mode": 0,
+              "pipe_mode": 2,
+              "l2_swizzle_group": 1,
+              "store_block_m": 64,
+              "epi_reg_stages": 1,
+              "scatter_path": 1
+            },
+            "64": {
+              "block_m": 64,
+              "tma_load_m": 64,
+              "wg_layout_mode": 0,
+              "pipe_mode": 2,
+              "l2_swizzle_group": 1,
+              "store_block_m": 64,
+              "epi_reg_stages": 1,
+              "scatter_path": 1
+            },
+            "96": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 1,
+              "pipe_mode": 2,
+              "l2_swizzle_group": 3,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 1
+            },
+            "128": {
+              "block_m": 64,
+              "tma_load_m": 64,
+              "wg_layout_mode": 0,
+              "pipe_mode": 2,
+              "l2_swizzle_group": 2,
+              "store_block_m": 64,
+              "epi_reg_stages": 1,
+              "scatter_path": 1
+            },
+            "192": {
+              "block_m": 64,
+              "tma_load_m": 64,
+              "wg_layout_mode": 0,
+              "pipe_mode": 2,
+              "l2_swizzle_group": 3,
+              "store_block_m": 64,
+              "epi_reg_stages": 1,
+              "scatter_path": 1
+            },
+            "240": {
+              "block_m": 64,
+              "tma_load_m": 64,
+              "wg_layout_mode": 0,
+              "pipe_mode": 2,
+              "l2_swizzle_group": 4,
+              "store_block_m": 64,
+              "epi_reg_stages": 1,
+              "scatter_path": 1
+            }
+          },
+          "inner_codes": {
+            "8": 1070146,
+            "16": 1070146,
+            "32": 1070146,
+            "48": 1067140,
+            "64": 1067140,
+            "96": 1201218,
+            "128": 1132676,
+            "192": 1198212,
+            "240": 1263748
+          }
+        }
+      },
+      "dskv4_flash": {
+        "gemm1": {
+          "n": 4096,
+          "k": 4096,
+          "precision": "fp8",
+          "envelope": {
+            "bn": 64,
+            "bk": 128,
+            "max_bm": 256,
+            "num_stages": 3,
+            "l2_swizzle_group": 1,
+            "interleave_mode": 0,
+            "wg_layout_mode": 0,
+            "score_ns": 82968,
+            "epw": 1,
+            "penalty": 568
+          },
+          "envelope_code": 262532,
+          "inner_lut": {
+            "8": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 1,
+              "pipe_mode": 2,
+              "l2_swizzle_group": 1,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "16": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 1,
+              "pipe_mode": 2,
+              "l2_swizzle_group": 1,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "32": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 1,
+              "pipe_mode": 2,
+              "l2_swizzle_group": 1,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "48": {
+              "block_m": 64,
+              "tma_load_m": 64,
+              "wg_layout_mode": 0,
+              "pipe_mode": 2,
+              "l2_swizzle_group": 1,
+              "store_block_m": 64,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "64": {
+              "block_m": 64,
+              "tma_load_m": 64,
+              "wg_layout_mode": 0,
+              "pipe_mode": 2,
+              "l2_swizzle_group": 1,
+              "store_block_m": 64,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "96": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 1,
+              "pipe_mode": 2,
+              "l2_swizzle_group": 3,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "128": {
+              "block_m": 128,
+              "tma_load_m": 64,
+              "wg_layout_mode": 0,
+              "pipe_mode": 2,
+              "l2_swizzle_group": 1,
+              "store_block_m": 64,
+              "epi_reg_stages": 2,
+              "scatter_path": 0
+            },
+            "192": {
+              "block_m": 64,
+              "tma_load_m": 64,
+              "wg_layout_mode": 0,
+              "pipe_mode": 2,
+              "l2_swizzle_group": 3,
+              "store_block_m": 64,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "240": {
+              "block_m": 256,
+              "tma_load_m": 64,
+              "wg_layout_mode": 0,
+              "pipe_mode": 2,
+              "l2_swizzle_group": 1,
+              "store_block_m": 64,
+              "epi_reg_stages": 2,
+              "scatter_path": 0
+            }
+          },
+          "inner_codes": {
+            "8": 21570,
+            "16": 21570,
+            "32": 21570,
+            "48": 18564,
+            "64": 18564,
+            "96": 152642,
+            "128": 542856,
+            "192": 149636,
+            "240": 542864
+          }
+        },
+        "gemm2": {
+          "n": 4096,
+          "k": 2048,
+          "precision": "fp8",
+          "envelope": {
+            "bn": 64,
+            "bk": 256,
+            "max_bm": 128,
+            "num_stages": 4,
+            "l2_swizzle_group": 2,
+            "interleave_mode": 1,
+            "wg_layout_mode": 0,
+            "score_ns": 46091,
+            "epw": 1,
+            "penalty": 544
+          },
+          "envelope_code": 281176,
+          "inner_lut": {
+            "8": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 1,
+              "pipe_mode": 2,
+              "l2_swizzle_group": 1,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 1
+            },
+            "16": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 1,
+              "pipe_mode": 2,
+              "l2_swizzle_group": 1,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 1
+            },
+            "32": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 1,
+              "pipe_mode": 2,
+              "l2_swizzle_group": 1,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 1
+            },
+            "48": {
+              "block_m": 64,
+              "tma_load_m": 64,
+              "wg_layout_mode": 0,
+              "pipe_mode": 2,
+              "l2_swizzle_group": 1,
+              "store_block_m": 64,
+              "epi_reg_stages": 1,
+              "scatter_path": 1
+            },
+            "64": {
+              "block_m": 64,
+              "tma_load_m": 64,
+              "wg_layout_mode": 0,
+              "pipe_mode": 2,
+              "l2_swizzle_group": 1,
+              "store_block_m": 64,
+              "epi_reg_stages": 1,
+              "scatter_path": 1
+            },
+            "96": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 1,
+              "pipe_mode": 2,
+              "l2_swizzle_group": 3,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 1
+            },
+            "128": {
+              "block_m": 128,
+              "tma_load_m": 64,
+              "wg_layout_mode": 0,
+              "pipe_mode": 2,
+              "l2_swizzle_group": 1,
+              "store_block_m": 64,
+              "epi_reg_stages": 2,
+              "scatter_path": 1
+            },
+            "192": {
+              "block_m": 64,
+              "tma_load_m": 64,
+              "wg_layout_mode": 0,
+              "pipe_mode": 2,
+              "l2_swizzle_group": 3,
+              "store_block_m": 64,
+              "epi_reg_stages": 1,
+              "scatter_path": 1
+            },
+            "240": {
+              "block_m": 128,
+              "tma_load_m": 64,
+              "wg_layout_mode": 0,
+              "pipe_mode": 2,
+              "l2_swizzle_group": 2,
+              "store_block_m": 64,
+              "epi_reg_stages": 2,
+              "scatter_path": 1
+            }
+          },
+          "inner_codes": {
+            "8": 1070146,
+            "16": 1070146,
+            "32": 1070146,
+            "48": 1067140,
+            "64": 1067140,
+            "96": 1201218,
+            "128": 1591432,
+            "192": 1198212,
+            "240": 1656968
+          }
+        }
+      },
+      "minimax_m3": {
+        "gemm1": {
+          "n": 6144,
+          "k": 6144,
+          "precision": "fp8",
+          "envelope": {
+            "bn": 128,
+            "bk": 128,
+            "max_bm": 256,
+            "num_stages": 2,
+            "l2_swizzle_group": 1,
+            "interleave_mode": 0,
+            "wg_layout_mode": 0,
+            "score_ns": 136362,
+            "epw": 1,
+            "penalty": 1296
+          },
+          "envelope_code": 262277,
+          "inner_lut": {
+            "8": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 1,
+              "pipe_mode": 1,
+              "l2_swizzle_group": 1,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "16": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 1,
+              "pipe_mode": 1,
+              "l2_swizzle_group": 1,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "32": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 1,
+              "pipe_mode": 1,
+              "l2_swizzle_group": 1,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "48": {
+              "block_m": 64,
+              "tma_load_m": 64,
+              "wg_layout_mode": 0,
+              "pipe_mode": 1,
+              "l2_swizzle_group": 1,
+              "store_block_m": 64,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "64": {
+              "block_m": 64,
+              "tma_load_m": 64,
+              "wg_layout_mode": 0,
+              "pipe_mode": 1,
+              "l2_swizzle_group": 1,
+              "store_block_m": 64,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "96": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 1,
+              "pipe_mode": 1,
+              "l2_swizzle_group": 1,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "128": {
+              "block_m": 128,
+              "tma_load_m": 64,
+              "wg_layout_mode": 0,
+              "pipe_mode": 1,
+              "l2_swizzle_group": 1,
+              "store_block_m": 64,
+              "epi_reg_stages": 2,
+              "scatter_path": 0
+            },
+            "192": {
+              "block_m": 64,
+              "tma_load_m": 64,
+              "wg_layout_mode": 0,
+              "pipe_mode": 1,
+              "l2_swizzle_group": 1,
+              "store_block_m": 64,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "240": {
+              "block_m": 256,
+              "tma_load_m": 64,
+              "wg_layout_mode": 0,
+              "pipe_mode": 1,
+              "l2_swizzle_group": 1,
+              "store_block_m": 64,
+              "epi_reg_stages": 2,
+              "scatter_path": 0
+            }
+          },
+          "inner_codes": {
+            "8": 5186,
+            "16": 5186,
+            "32": 5186,
+            "48": 2180,
+            "64": 2180,
+            "96": 5186,
+            "128": 526472,
+            "192": 2180,
+            "240": 526480
+          }
+        },
+        "gemm2": {
+          "n": 6144,
+          "k": 3072,
+          "precision": "fp8",
+          "envelope": {
+            "bn": 128,
+            "bk": 256,
+            "max_bm": 128,
+            "num_stages": 3,
+            "l2_swizzle_group": 2,
+            "interleave_mode": 1,
+            "wg_layout_mode": 0,
+            "score_ns": 72672,
+            "epw": 1,
+            "penalty": 1272
+          },
+          "envelope_code": 280921,
+          "inner_lut": {
+            "8": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 1,
+              "pipe_mode": 2,
+              "l2_swizzle_group": 1,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 1
+            },
+            "16": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 1,
+              "pipe_mode": 2,
+              "l2_swizzle_group": 1,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 1
+            },
+            "32": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 1,
+              "pipe_mode": 2,
+              "l2_swizzle_group": 1,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 1
+            },
+            "48": {
+              "block_m": 64,
+              "tma_load_m": 64,
+              "wg_layout_mode": 0,
+              "pipe_mode": 2,
+              "l2_swizzle_group": 1,
+              "store_block_m": 64,
+              "epi_reg_stages": 1,
+              "scatter_path": 1
+            },
+            "64": {
+              "block_m": 64,
+              "tma_load_m": 64,
+              "wg_layout_mode": 0,
+              "pipe_mode": 2,
+              "l2_swizzle_group": 1,
+              "store_block_m": 64,
+              "epi_reg_stages": 1,
+              "scatter_path": 1
+            },
+            "96": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 1,
+              "pipe_mode": 2,
+              "l2_swizzle_group": 3,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 1
+            },
+            "128": {
+              "block_m": 128,
+              "tma_load_m": 64,
+              "wg_layout_mode": 0,
+              "pipe_mode": 2,
+              "l2_swizzle_group": 1,
+              "store_block_m": 64,
+              "epi_reg_stages": 2,
+              "scatter_path": 1
+            },
+            "192": {
+              "block_m": 64,
+              "tma_load_m": 64,
+              "wg_layout_mode": 0,
+              "pipe_mode": 2,
+              "l2_swizzle_group": 3,
+              "store_block_m": 64,
+              "epi_reg_stages": 1,
+              "scatter_path": 1
+            },
+            "240": {
+              "block_m": 128,
+              "tma_load_m": 64,
+              "wg_layout_mode": 0,
+              "pipe_mode": 2,
+              "l2_swizzle_group": 2,
+              "store_block_m": 64,
+              "epi_reg_stages": 2,
+              "scatter_path": 1
+            }
+          },
+          "inner_codes": {
+            "8": 1070146,
+            "16": 1070146,
+            "32": 1070146,
+            "48": 1067140,
+            "64": 1067140,
+            "96": 1201218,
+            "128": 1591432,
+            "192": 1198212,
+            "240": 1656968
+          }
+        }
+      },
+      "qwen36_35b": {
+        "gemm1": {
+          "n": 1024,
+          "k": 2048,
+          "precision": "fp8",
+          "envelope": {
+            "bn": 64,
+            "bk": 256,
+            "max_bm": 128,
+            "num_stages": 4,
+            "l2_swizzle_group": 2,
+            "interleave_mode": 1,
+            "wg_layout_mode": 0,
+            "score_ns": 4019,
+            "epw": 1,
+            "penalty": 7904
+          },
+          "envelope_code": 281176,
+          "inner_lut": {
+            "8": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 1,
+              "pipe_mode": 2,
+              "l2_swizzle_group": 1,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "16": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 1,
+              "pipe_mode": 2,
+              "l2_swizzle_group": 1,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "32": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 1,
+              "pipe_mode": 2,
+              "l2_swizzle_group": 1,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "48": {
+              "block_m": 64,
+              "tma_load_m": 64,
+              "wg_layout_mode": 0,
+              "pipe_mode": 2,
+              "l2_swizzle_group": 1,
+              "store_block_m": 64,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "64": {
+              "block_m": 64,
+              "tma_load_m": 64,
+              "wg_layout_mode": 0,
+              "pipe_mode": 2,
+              "l2_swizzle_group": 1,
+              "store_block_m": 64,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "96": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 1,
+              "pipe_mode": 2,
+              "l2_swizzle_group": 3,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "128": {
+              "block_m": 128,
+              "tma_load_m": 64,
+              "wg_layout_mode": 0,
+              "pipe_mode": 2,
+              "l2_swizzle_group": 1,
+              "store_block_m": 64,
+              "epi_reg_stages": 2,
+              "scatter_path": 0
+            },
+            "192": {
+              "block_m": 64,
+              "tma_load_m": 64,
+              "wg_layout_mode": 0,
+              "pipe_mode": 2,
+              "l2_swizzle_group": 3,
+              "store_block_m": 64,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "240": {
+              "block_m": 128,
+              "tma_load_m": 64,
+              "wg_layout_mode": 0,
+              "pipe_mode": 2,
+              "l2_swizzle_group": 2,
+              "store_block_m": 64,
+              "epi_reg_stages": 2,
+              "scatter_path": 0
+            }
+          },
+          "inner_codes": {
+            "8": 21570,
+            "16": 21570,
+            "32": 21570,
+            "48": 18564,
+            "64": 18564,
+            "96": 152642,
+            "128": 542856,
+            "192": 149636,
+            "240": 608392
+          }
+        },
+        "gemm2": {
+          "n": 2048,
+          "k": 512,
+          "precision": "fp8",
+          "envelope": {
+            "bn": 64,
+            "bk": 128,
+            "max_bm": 256,
+            "num_stages": 4,
+            "l2_swizzle_group": 1,
+            "interleave_mode": 0,
+            "wg_layout_mode": 0,
+            "score_ns": 6345,
+            "epw": 2,
+            "penalty": 2912
+          },
+          "envelope_code": 524932,
+          "inner_lut": {
+            "8": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 1,
+              "pipe_mode": 2,
+              "l2_swizzle_group": 1,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 1
+            },
+            "16": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 1,
+              "pipe_mode": 2,
+              "l2_swizzle_group": 1,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 1
+            },
+            "32": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 1,
+              "pipe_mode": 2,
+              "l2_swizzle_group": 1,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 1
+            },
+            "48": {
+              "block_m": 64,
+              "tma_load_m": 64,
+              "wg_layout_mode": 0,
+              "pipe_mode": 2,
+              "l2_swizzle_group": 1,
+              "store_block_m": 64,
+              "epi_reg_stages": 1,
+              "scatter_path": 1
+            },
+            "64": {
+              "block_m": 64,
+              "tma_load_m": 64,
+              "wg_layout_mode": 0,
+              "pipe_mode": 2,
+              "l2_swizzle_group": 1,
+              "store_block_m": 64,
+              "epi_reg_stages": 1,
+              "scatter_path": 1
+            },
+            "96": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 1,
+              "pipe_mode": 2,
+              "l2_swizzle_group": 3,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 1
+            },
+            "128": {
+              "block_m": 128,
+              "tma_load_m": 64,
+              "wg_layout_mode": 0,
+              "pipe_mode": 2,
+              "l2_swizzle_group": 1,
+              "store_block_m": 64,
+              "epi_reg_stages": 2,
+              "scatter_path": 1
+            },
+            "192": {
+              "block_m": 64,
+              "tma_load_m": 64,
+              "wg_layout_mode": 0,
+              "pipe_mode": 2,
+              "l2_swizzle_group": 3,
+              "store_block_m": 64,
+              "epi_reg_stages": 1,
+              "scatter_path": 1
+            },
+            "240": {
+              "block_m": 256,
+              "tma_load_m": 64,
+              "wg_layout_mode": 0,
+              "pipe_mode": 2,
+              "l2_swizzle_group": 1,
+              "store_block_m": 64,
+              "epi_reg_stages": 2,
+              "scatter_path": 1
+            }
+          },
+          "inner_codes": {
+            "8": 1070146,
+            "16": 1070146,
+            "32": 1070146,
+            "48": 1067140,
+            "64": 1067140,
+            "96": 1201218,
+            "128": 1591432,
+            "192": 1198212,
+            "240": 1591440
+          }
+        }
+      },
+      "qwen35_122b": {
+        "gemm1": {
+          "n": 2048,
+          "k": 3072,
+          "precision": "fp8",
+          "envelope": {
+            "bn": 64,
+            "bk": 256,
+            "max_bm": 192,
+            "num_stages": 3,
+            "l2_swizzle_group": 4,
+            "interleave_mode": 1,
+            "wg_layout_mode": 0,
+            "score_ns": 12270,
+            "epw": 1,
+            "penalty": 2936
+          },
+          "envelope_code": 285032,
+          "inner_lut": {
+            "8": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 1,
+              "pipe_mode": 2,
+              "l2_swizzle_group": 1,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "16": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 1,
+              "pipe_mode": 2,
+              "l2_swizzle_group": 1,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "32": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 1,
+              "pipe_mode": 2,
+              "l2_swizzle_group": 1,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "48": {
+              "block_m": 64,
+              "tma_load_m": 64,
+              "wg_layout_mode": 0,
+              "pipe_mode": 2,
+              "l2_swizzle_group": 1,
+              "store_block_m": 64,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "64": {
+              "block_m": 64,
+              "tma_load_m": 64,
+              "wg_layout_mode": 0,
+              "pipe_mode": 2,
+              "l2_swizzle_group": 1,
+              "store_block_m": 64,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "96": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 1,
+              "pipe_mode": 2,
+              "l2_swizzle_group": 3,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "128": {
+              "block_m": 64,
+              "tma_load_m": 64,
+              "wg_layout_mode": 0,
+              "pipe_mode": 2,
+              "l2_swizzle_group": 2,
+              "store_block_m": 64,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "192": {
+              "block_m": 192,
+              "tma_load_m": 64,
+              "wg_layout_mode": 0,
+              "pipe_mode": 2,
+              "l2_swizzle_group": 1,
+              "store_block_m": 64,
+              "epi_reg_stages": 2,
+              "scatter_path": 0
+            },
+            "240": {
+              "block_m": 64,
+              "tma_load_m": 64,
+              "wg_layout_mode": 0,
+              "pipe_mode": 2,
+              "l2_swizzle_group": 4,
+              "store_block_m": 64,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            }
+          },
+          "inner_codes": {
+            "8": 21570,
+            "16": 21570,
+            "32": 21570,
+            "48": 18564,
+            "64": 18564,
+            "96": 152642,
+            "128": 84100,
+            "192": 542860,
+            "240": 215172
+          }
+        },
+        "gemm2": {
+          "n": 3072,
+          "k": 1024,
+          "precision": "fp8",
+          "envelope": {
+            "bn": 64,
+            "bk": 128,
+            "max_bm": 256,
+            "num_stages": 4,
+            "l2_swizzle_group": 1,
+            "interleave_mode": 0,
+            "wg_layout_mode": 0,
+            "score_ns": 14691,
+            "epw": 1,
+            "penalty": 1248
+          },
+          "envelope_code": 262788,
+          "inner_lut": {
+            "8": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 1,
+              "pipe_mode": 2,
+              "l2_swizzle_group": 1,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 1
+            },
+            "16": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 1,
+              "pipe_mode": 2,
+              "l2_swizzle_group": 1,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 1
+            },
+            "32": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 1,
+              "pipe_mode": 2,
+              "l2_swizzle_group": 1,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 1
+            },
+            "48": {
+              "block_m": 64,
+              "tma_load_m": 64,
+              "wg_layout_mode": 0,
+              "pipe_mode": 2,
+              "l2_swizzle_group": 1,
+              "store_block_m": 64,
+              "epi_reg_stages": 1,
+              "scatter_path": 1
+            },
+            "64": {
+              "block_m": 64,
+              "tma_load_m": 64,
+              "wg_layout_mode": 0,
+              "pipe_mode": 2,
+              "l2_swizzle_group": 1,
+              "store_block_m": 64,
+              "epi_reg_stages": 1,
+              "scatter_path": 1
+            },
+            "96": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 1,
+              "pipe_mode": 2,
+              "l2_swizzle_group": 3,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 1
+            },
+            "128": {
+              "block_m": 128,
+              "tma_load_m": 64,
+              "wg_layout_mode": 0,
+              "pipe_mode": 2,
+              "l2_swizzle_group": 1,
+              "store_block_m": 64,
+              "epi_reg_stages": 2,
+              "scatter_path": 1
+            },
+            "192": {
+              "block_m": 64,
+              "tma_load_m": 64,
+              "wg_layout_mode": 0,
+              "pipe_mode": 2,
+              "l2_swizzle_group": 3,
+              "store_block_m": 64,
+              "epi_reg_stages": 1,
+              "scatter_path": 1
+            },
+            "240": {
+              "block_m": 256,
+              "tma_load_m": 64,
+              "wg_layout_mode": 0,
+              "pipe_mode": 2,
+              "l2_swizzle_group": 1,
+              "store_block_m": 64,
+              "epi_reg_stages": 2,
+              "scatter_path": 1
+            }
+          },
+          "inner_codes": {
+            "8": 1070146,
+            "16": 1070146,
+            "32": 1070146,
+            "48": 1067140,
+            "64": 1067140,
+            "96": 1201218,
+            "128": 1591432,
+            "192": 1198212,
+            "240": 1591440
+          }
+        }
+      },
+      "qwen35_397b": {
+        "gemm1": {
+          "n": 2048,
+          "k": 4096,
+          "precision": "fp8",
+          "envelope": {
+            "bn": 64,
+            "bk": 128,
+            "max_bm": 256,
+            "num_stages": 3,
+            "l2_swizzle_group": 1,
+            "interleave_mode": 0,
+            "wg_layout_mode": 0,
+            "score_ns": 28975,
+            "epw": 2,
+            "penalty": 2936
+          },
+          "envelope_code": 524676,
+          "inner_lut": {
+            "8": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 1,
+              "pipe_mode": 2,
+              "l2_swizzle_group": 1,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "16": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 1,
+              "pipe_mode": 2,
+              "l2_swizzle_group": 1,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "32": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 1,
+              "pipe_mode": 2,
+              "l2_swizzle_group": 1,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "48": {
+              "block_m": 64,
+              "tma_load_m": 64,
+              "wg_layout_mode": 0,
+              "pipe_mode": 2,
+              "l2_swizzle_group": 1,
+              "store_block_m": 64,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "64": {
+              "block_m": 64,
+              "tma_load_m": 64,
+              "wg_layout_mode": 0,
+              "pipe_mode": 2,
+              "l2_swizzle_group": 1,
+              "store_block_m": 64,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "96": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 1,
+              "pipe_mode": 2,
+              "l2_swizzle_group": 3,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "128": {
+              "block_m": 128,
+              "tma_load_m": 64,
+              "wg_layout_mode": 0,
+              "pipe_mode": 2,
+              "l2_swizzle_group": 1,
+              "store_block_m": 64,
+              "epi_reg_stages": 2,
+              "scatter_path": 0
+            },
+            "192": {
+              "block_m": 64,
+              "tma_load_m": 64,
+              "wg_layout_mode": 0,
+              "pipe_mode": 2,
+              "l2_swizzle_group": 3,
+              "store_block_m": 64,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "240": {
+              "block_m": 256,
+              "tma_load_m": 64,
+              "wg_layout_mode": 0,
+              "pipe_mode": 2,
+              "l2_swizzle_group": 1,
+              "store_block_m": 64,
+              "epi_reg_stages": 2,
+              "scatter_path": 0
+            }
+          },
+          "inner_codes": {
+            "8": 21570,
+            "16": 21570,
+            "32": 21570,
+            "48": 18564,
+            "64": 18564,
+            "96": 152642,
+            "128": 542856,
+            "192": 149636,
+            "240": 542864
+          }
+        },
+        "gemm2": {
+          "n": 4096,
+          "k": 1024,
+          "precision": "fp8",
+          "envelope": {
+            "bn": 64,
+            "bk": 128,
+            "max_bm": 256,
+            "num_stages": 4,
+            "l2_swizzle_group": 1,
+            "interleave_mode": 0,
+            "wg_layout_mode": 0,
+            "score_ns": 25847,
+            "epw": 1,
+            "penalty": 544
+          },
+          "envelope_code": 262788,
+          "inner_lut": {
+            "8": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 1,
+              "pipe_mode": 2,
+              "l2_swizzle_group": 1,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 1
+            },
+            "16": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 1,
+              "pipe_mode": 2,
+              "l2_swizzle_group": 1,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 1
+            },
+            "32": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 1,
+              "pipe_mode": 2,
+              "l2_swizzle_group": 1,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 1
+            },
+            "48": {
+              "block_m": 64,
+              "tma_load_m": 64,
+              "wg_layout_mode": 0,
+              "pipe_mode": 2,
+              "l2_swizzle_group": 1,
+              "store_block_m": 64,
+              "epi_reg_stages": 1,
+              "scatter_path": 1
+            },
+            "64": {
+              "block_m": 64,
+              "tma_load_m": 64,
+              "wg_layout_mode": 0,
+              "pipe_mode": 2,
+              "l2_swizzle_group": 1,
+              "store_block_m": 64,
+              "epi_reg_stages": 1,
+              "scatter_path": 1
+            },
+            "96": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 1,
+              "pipe_mode": 2,
+              "l2_swizzle_group": 3,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 1
+            },
+            "128": {
+              "block_m": 128,
+              "tma_load_m": 64,
+              "wg_layout_mode": 0,
+              "pipe_mode": 2,
+              "l2_swizzle_group": 1,
+              "store_block_m": 64,
+              "epi_reg_stages": 2,
+              "scatter_path": 1
+            },
+            "192": {
+              "block_m": 64,
+              "tma_load_m": 64,
+              "wg_layout_mode": 0,
+              "pipe_mode": 2,
+              "l2_swizzle_group": 3,
+              "store_block_m": 64,
+              "epi_reg_stages": 1,
+              "scatter_path": 1
+            },
+            "240": {
+              "block_m": 256,
+              "tma_load_m": 64,
+              "wg_layout_mode": 0,
+              "pipe_mode": 2,
+              "l2_swizzle_group": 1,
+              "store_block_m": 64,
+              "epi_reg_stages": 2,
+              "scatter_path": 1
+            }
+          },
+          "inner_codes": {
+            "8": 1070146,
+            "16": 1070146,
+            "32": 1070146,
+            "48": 1067140,
+            "64": 1067140,
+            "96": 1201218,
+            "128": 1591432,
+            "192": 1198212,
+            "240": 1591440
+          }
+        }
+      }
+    },
+    "mi308x": {
+      "qwen38max": {
+        "gemm1": {
+          "n": 4096,
+          "k": 8192,
+          "precision": "fp8",
+          "envelope": {
+            "bn": 64,
+            "bk": 128,
+            "max_bm": 64,
+            "num_stages": 2,
+            "l2_swizzle_group": 4,
+            "interleave_mode": 1,
+            "wg_layout_mode": 0,
+            "score_ns": 127220,
+            "epw": 1,
+            "penalty": 656
+          },
+          "envelope_code": 284708,
+          "inner_lut": {
+            "8": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 0,
+              "pipe_mode": 1,
+              "l2_swizzle_group": 1,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "16": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 0,
+              "pipe_mode": 1,
+              "l2_swizzle_group": 1,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "32": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 0,
+              "pipe_mode": 1,
+              "l2_swizzle_group": 1,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "48": {
+              "block_m": 64,
+              "tma_load_m": 64,
+              "wg_layout_mode": 0,
+              "pipe_mode": 1,
+              "l2_swizzle_group": 1,
+              "store_block_m": 64,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "64": {
+              "block_m": 64,
+              "tma_load_m": 64,
+              "wg_layout_mode": 0,
+              "pipe_mode": 1,
+              "l2_swizzle_group": 1,
+              "store_block_m": 64,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "96": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 0,
+              "pipe_mode": 1,
+              "l2_swizzle_group": 3,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "128": {
+              "block_m": 64,
+              "tma_load_m": 64,
+              "wg_layout_mode": 0,
+              "pipe_mode": 1,
+              "l2_swizzle_group": 2,
+              "store_block_m": 64,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "192": {
+              "block_m": 64,
+              "tma_load_m": 64,
+              "wg_layout_mode": 0,
+              "pipe_mode": 1,
+              "l2_swizzle_group": 3,
+              "store_block_m": 64,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "240": {
+              "block_m": 64,
+              "tma_load_m": 64,
+              "wg_layout_mode": 0,
+              "pipe_mode": 1,
+              "l2_swizzle_group": 4,
+              "store_block_m": 64,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            }
+          },
+          "inner_codes": {
+            "8": 1090,
+            "16": 1090,
+            "32": 1090,
+            "48": 2180,
+            "64": 2180,
+            "96": 132162,
+            "128": 67716,
+            "192": 133252,
+            "240": 198788
+          }
+        },
+        "gemm2": {
+          "n": 8192,
+          "k": 2048,
+          "precision": "fp8",
+          "envelope": {
+            "bn": 128,
+            "bk": 64,
+            "max_bm": 32,
+            "num_stages": 4,
+            "l2_swizzle_group": 8,
+            "interleave_mode": 1,
+            "wg_layout_mode": 0,
+            "score_ns": 108496,
+            "epw": 1,
+            "penalty": 480
+          },
+          "envelope_code": 293393,
+          "inner_lut": {
+            "8": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 0,
+              "pipe_mode": 2,
+              "l2_swizzle_group": 1,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "16": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 0,
+              "pipe_mode": 2,
+              "l2_swizzle_group": 1,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "32": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 0,
+              "pipe_mode": 2,
+              "l2_swizzle_group": 1,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "48": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 0,
+              "pipe_mode": 2,
+              "l2_swizzle_group": 2,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "64": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 0,
+              "pipe_mode": 2,
+              "l2_swizzle_group": 2,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "96": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 0,
+              "pipe_mode": 2,
+              "l2_swizzle_group": 3,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "128": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 0,
+              "pipe_mode": 2,
+              "l2_swizzle_group": 4,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "192": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 0,
+              "pipe_mode": 2,
+              "l2_swizzle_group": 6,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "240": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 0,
+              "pipe_mode": 2,
+              "l2_swizzle_group": 8,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            }
+          },
+          "inner_codes": {
+            "8": 17474,
+            "16": 17474,
+            "32": 17474,
+            "48": 83010,
+            "64": 83010,
+            "96": 148546,
+            "128": 214082,
+            "192": 345154,
+            "240": 476226
+          }
+        }
+      },
+      "dskv4_flash": {
+        "gemm1": {
+          "n": 4096,
+          "k": 4096,
+          "precision": "fp8",
+          "envelope": {
+            "bn": 64,
+            "bk": 128,
+            "max_bm": 32,
+            "num_stages": 3,
+            "l2_swizzle_group": 8,
+            "interleave_mode": 1,
+            "wg_layout_mode": 0,
+            "score_ns": 96574,
+            "epw": 1,
+            "penalty": 632
+          },
+          "envelope_code": 293140,
+          "inner_lut": {
+            "8": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 0,
+              "pipe_mode": 1,
+              "l2_swizzle_group": 1,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "16": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 0,
+              "pipe_mode": 1,
+              "l2_swizzle_group": 1,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "32": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 0,
+              "pipe_mode": 1,
+              "l2_swizzle_group": 1,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "48": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 0,
+              "pipe_mode": 1,
+              "l2_swizzle_group": 2,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "64": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 0,
+              "pipe_mode": 1,
+              "l2_swizzle_group": 2,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "96": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 0,
+              "pipe_mode": 1,
+              "l2_swizzle_group": 3,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "128": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 0,
+              "pipe_mode": 1,
+              "l2_swizzle_group": 4,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "192": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 0,
+              "pipe_mode": 1,
+              "l2_swizzle_group": 6,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "240": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 0,
+              "pipe_mode": 1,
+              "l2_swizzle_group": 8,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            }
+          },
+          "inner_codes": {
+            "8": 1090,
+            "16": 1090,
+            "32": 1090,
+            "48": 66626,
+            "64": 66626,
+            "96": 132162,
+            "128": 197698,
+            "192": 328770,
+            "240": 459842
+          }
+        },
+        "gemm2": {
+          "n": 4096,
+          "k": 2048,
+          "precision": "fp8",
+          "envelope": {
+            "bn": 64,
+            "bk": 64,
+            "max_bm": 64,
+            "num_stages": 4,
+            "l2_swizzle_group": 4,
+            "interleave_mode": 1,
+            "wg_layout_mode": 0,
+            "score_ns": 36495,
+            "epw": 1,
+            "penalty": 608
+          },
+          "envelope_code": 285216,
+          "inner_lut": {
+            "8": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 0,
+              "pipe_mode": 2,
+              "l2_swizzle_group": 1,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "16": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 0,
+              "pipe_mode": 2,
+              "l2_swizzle_group": 1,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "32": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 0,
+              "pipe_mode": 2,
+              "l2_swizzle_group": 1,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "48": {
+              "block_m": 64,
+              "tma_load_m": 64,
+              "wg_layout_mode": 0,
+              "pipe_mode": 2,
+              "l2_swizzle_group": 1,
+              "store_block_m": 64,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "64": {
+              "block_m": 64,
+              "tma_load_m": 64,
+              "wg_layout_mode": 0,
+              "pipe_mode": 2,
+              "l2_swizzle_group": 1,
+              "store_block_m": 64,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "96": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 0,
+              "pipe_mode": 2,
+              "l2_swizzle_group": 3,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "128": {
+              "block_m": 64,
+              "tma_load_m": 64,
+              "wg_layout_mode": 0,
+              "pipe_mode": 2,
+              "l2_swizzle_group": 2,
+              "store_block_m": 64,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "192": {
+              "block_m": 64,
+              "tma_load_m": 64,
+              "wg_layout_mode": 0,
+              "pipe_mode": 2,
+              "l2_swizzle_group": 3,
+              "store_block_m": 64,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "240": {
+              "block_m": 64,
+              "tma_load_m": 64,
+              "wg_layout_mode": 0,
+              "pipe_mode": 2,
+              "l2_swizzle_group": 4,
+              "store_block_m": 64,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            }
+          },
+          "inner_codes": {
+            "8": 17474,
+            "16": 17474,
+            "32": 17474,
+            "48": 18564,
+            "64": 18564,
+            "96": 148546,
+            "128": 84100,
+            "192": 149636,
+            "240": 215172
+          }
+        }
+      },
+      "minimax_m3": {
+        "gemm1": {
+          "n": 6144,
+          "k": 6144,
+          "precision": "fp8",
+          "envelope": {
+            "bn": 128,
+            "bk": 128,
+            "max_bm": 32,
+            "num_stages": 2,
+            "l2_swizzle_group": 8,
+            "interleave_mode": 1,
+            "wg_layout_mode": 0,
+            "score_ns": 183381,
+            "epw": 1,
+            "penalty": 1380
+          },
+          "envelope_code": 292885,
+          "inner_lut": {
+            "8": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 0,
+              "pipe_mode": 1,
+              "l2_swizzle_group": 1,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "16": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 0,
+              "pipe_mode": 1,
+              "l2_swizzle_group": 1,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "32": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 0,
+              "pipe_mode": 1,
+              "l2_swizzle_group": 1,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "48": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 0,
+              "pipe_mode": 1,
+              "l2_swizzle_group": 2,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "64": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 0,
+              "pipe_mode": 1,
+              "l2_swizzle_group": 2,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "96": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 0,
+              "pipe_mode": 1,
+              "l2_swizzle_group": 3,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "128": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 0,
+              "pipe_mode": 1,
+              "l2_swizzle_group": 4,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "192": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 0,
+              "pipe_mode": 1,
+              "l2_swizzle_group": 6,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "240": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 0,
+              "pipe_mode": 1,
+              "l2_swizzle_group": 8,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            }
+          },
+          "inner_codes": {
+            "8": 1090,
+            "16": 1090,
+            "32": 1090,
+            "48": 66626,
+            "64": 66626,
+            "96": 132162,
+            "128": 197698,
+            "192": 328770,
+            "240": 459842
+          }
+        },
+        "gemm2": {
+          "n": 6144,
+          "k": 3072,
+          "precision": "fp8",
+          "envelope": {
+            "bn": 128,
+            "bk": 64,
+            "max_bm": 64,
+            "num_stages": 3,
+            "l2_swizzle_group": 4,
+            "interleave_mode": 1,
+            "wg_layout_mode": 0,
+            "score_ns": 58174,
+            "epw": 1,
+            "penalty": 1356
+          },
+          "envelope_code": 284961,
+          "inner_lut": {
+            "8": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 0,
+              "pipe_mode": 1,
+              "l2_swizzle_group": 1,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "16": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 0,
+              "pipe_mode": 1,
+              "l2_swizzle_group": 1,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "32": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 0,
+              "pipe_mode": 1,
+              "l2_swizzle_group": 1,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "48": {
+              "block_m": 64,
+              "tma_load_m": 64,
+              "wg_layout_mode": 0,
+              "pipe_mode": 1,
+              "l2_swizzle_group": 1,
+              "store_block_m": 64,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "64": {
+              "block_m": 64,
+              "tma_load_m": 64,
+              "wg_layout_mode": 0,
+              "pipe_mode": 1,
+              "l2_swizzle_group": 1,
+              "store_block_m": 64,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "96": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 0,
+              "pipe_mode": 1,
+              "l2_swizzle_group": 3,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "128": {
+              "block_m": 64,
+              "tma_load_m": 64,
+              "wg_layout_mode": 0,
+              "pipe_mode": 1,
+              "l2_swizzle_group": 2,
+              "store_block_m": 64,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "192": {
+              "block_m": 64,
+              "tma_load_m": 64,
+              "wg_layout_mode": 0,
+              "pipe_mode": 1,
+              "l2_swizzle_group": 3,
+              "store_block_m": 64,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "240": {
+              "block_m": 64,
+              "tma_load_m": 64,
+              "wg_layout_mode": 0,
+              "pipe_mode": 1,
+              "l2_swizzle_group": 4,
+              "store_block_m": 64,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            }
+          },
+          "inner_codes": {
+            "8": 1090,
+            "16": 1090,
+            "32": 1090,
+            "48": 2180,
+            "64": 2180,
+            "96": 132162,
+            "128": 67716,
+            "192": 133252,
+            "240": 198788
+          }
+        }
+      },
+      "qwen36_35b": {
+        "gemm1": {
+          "n": 1024,
+          "k": 2048,
+          "precision": "fp8",
+          "envelope": {
+            "bn": 64,
+            "bk": 64,
+            "max_bm": 64,
+            "num_stages": 4,
+            "l2_swizzle_group": 4,
+            "interleave_mode": 1,
+            "wg_layout_mode": 0,
+            "score_ns": 3082,
+            "epw": 1,
+            "penalty": 8160
+          },
+          "envelope_code": 285216,
+          "inner_lut": {
+            "8": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 0,
+              "pipe_mode": 2,
+              "l2_swizzle_group": 1,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "16": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 0,
+              "pipe_mode": 2,
+              "l2_swizzle_group": 1,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "32": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 0,
+              "pipe_mode": 2,
+              "l2_swizzle_group": 1,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "48": {
+              "block_m": 64,
+              "tma_load_m": 64,
+              "wg_layout_mode": 0,
+              "pipe_mode": 2,
+              "l2_swizzle_group": 1,
+              "store_block_m": 64,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "64": {
+              "block_m": 64,
+              "tma_load_m": 64,
+              "wg_layout_mode": 0,
+              "pipe_mode": 2,
+              "l2_swizzle_group": 1,
+              "store_block_m": 64,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "96": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 0,
+              "pipe_mode": 2,
+              "l2_swizzle_group": 3,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "128": {
+              "block_m": 64,
+              "tma_load_m": 64,
+              "wg_layout_mode": 0,
+              "pipe_mode": 2,
+              "l2_swizzle_group": 2,
+              "store_block_m": 64,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "192": {
+              "block_m": 64,
+              "tma_load_m": 64,
+              "wg_layout_mode": 0,
+              "pipe_mode": 2,
+              "l2_swizzle_group": 3,
+              "store_block_m": 64,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "240": {
+              "block_m": 64,
+              "tma_load_m": 64,
+              "wg_layout_mode": 0,
+              "pipe_mode": 2,
+              "l2_swizzle_group": 4,
+              "store_block_m": 64,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            }
+          },
+          "inner_codes": {
+            "8": 17474,
+            "16": 17474,
+            "32": 17474,
+            "48": 18564,
+            "64": 18564,
+            "96": 148546,
+            "128": 84100,
+            "192": 149636,
+            "240": 215172
+          }
+        },
+        "gemm2": {
+          "n": 2048,
+          "k": 512,
+          "precision": "fp8",
+          "envelope": {
+            "bn": 64,
+            "bk": 64,
+            "max_bm": 64,
+            "num_stages": 4,
+            "l2_swizzle_group": 4,
+            "interleave_mode": 1,
+            "wg_layout_mode": 0,
+            "score_ns": 6074,
+            "epw": 1,
+            "penalty": 3040
+          },
+          "envelope_code": 285216,
+          "inner_lut": {
+            "8": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 0,
+              "pipe_mode": 2,
+              "l2_swizzle_group": 1,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "16": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 0,
+              "pipe_mode": 2,
+              "l2_swizzle_group": 1,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "32": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 0,
+              "pipe_mode": 2,
+              "l2_swizzle_group": 1,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "48": {
+              "block_m": 64,
+              "tma_load_m": 64,
+              "wg_layout_mode": 0,
+              "pipe_mode": 2,
+              "l2_swizzle_group": 1,
+              "store_block_m": 64,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "64": {
+              "block_m": 64,
+              "tma_load_m": 64,
+              "wg_layout_mode": 0,
+              "pipe_mode": 2,
+              "l2_swizzle_group": 1,
+              "store_block_m": 64,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "96": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 0,
+              "pipe_mode": 2,
+              "l2_swizzle_group": 3,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "128": {
+              "block_m": 64,
+              "tma_load_m": 64,
+              "wg_layout_mode": 0,
+              "pipe_mode": 2,
+              "l2_swizzle_group": 2,
+              "store_block_m": 64,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "192": {
+              "block_m": 64,
+              "tma_load_m": 64,
+              "wg_layout_mode": 0,
+              "pipe_mode": 2,
+              "l2_swizzle_group": 3,
+              "store_block_m": 64,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "240": {
+              "block_m": 64,
+              "tma_load_m": 64,
+              "wg_layout_mode": 0,
+              "pipe_mode": 2,
+              "l2_swizzle_group": 4,
+              "store_block_m": 64,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            }
+          },
+          "inner_codes": {
+            "8": 17474,
+            "16": 17474,
+            "32": 17474,
+            "48": 18564,
+            "64": 18564,
+            "96": 148546,
+            "128": 84100,
+            "192": 149636,
+            "240": 215172
+          }
+        }
+      },
+      "qwen35_122b": {
+        "gemm1": {
+          "n": 2048,
+          "k": 3072,
+          "precision": "fp8",
+          "envelope": {
+            "bn": 64,
+            "bk": 128,
+            "max_bm": 32,
+            "num_stages": 3,
+            "l2_swizzle_group": 8,
+            "interleave_mode": 1,
+            "wg_layout_mode": 0,
+            "score_ns": 22918,
+            "epw": 1,
+            "penalty": 3064
+          },
+          "envelope_code": 293140,
+          "inner_lut": {
+            "8": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 0,
+              "pipe_mode": 1,
+              "l2_swizzle_group": 1,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "16": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 0,
+              "pipe_mode": 1,
+              "l2_swizzle_group": 1,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "32": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 0,
+              "pipe_mode": 1,
+              "l2_swizzle_group": 1,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "48": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 0,
+              "pipe_mode": 1,
+              "l2_swizzle_group": 2,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "64": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 0,
+              "pipe_mode": 1,
+              "l2_swizzle_group": 2,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "96": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 0,
+              "pipe_mode": 1,
+              "l2_swizzle_group": 3,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "128": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 0,
+              "pipe_mode": 1,
+              "l2_swizzle_group": 4,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "192": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 0,
+              "pipe_mode": 1,
+              "l2_swizzle_group": 6,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "240": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 0,
+              "pipe_mode": 1,
+              "l2_swizzle_group": 8,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            }
+          },
+          "inner_codes": {
+            "8": 1090,
+            "16": 1090,
+            "32": 1090,
+            "48": 66626,
+            "64": 66626,
+            "96": 132162,
+            "128": 197698,
+            "192": 328770,
+            "240": 459842
+          }
+        },
+        "gemm2": {
+          "n": 3072,
+          "k": 1024,
+          "precision": "fp8",
+          "envelope": {
+            "bn": 64,
+            "bk": 64,
+            "max_bm": 64,
+            "num_stages": 4,
+            "l2_swizzle_group": 4,
+            "interleave_mode": 1,
+            "wg_layout_mode": 0,
+            "score_ns": 12941,
+            "epw": 1,
+            "penalty": 1332
+          },
+          "envelope_code": 285216,
+          "inner_lut": {
+            "8": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 0,
+              "pipe_mode": 2,
+              "l2_swizzle_group": 1,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "16": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 0,
+              "pipe_mode": 2,
+              "l2_swizzle_group": 1,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "32": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 0,
+              "pipe_mode": 2,
+              "l2_swizzle_group": 1,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "48": {
+              "block_m": 64,
+              "tma_load_m": 64,
+              "wg_layout_mode": 0,
+              "pipe_mode": 2,
+              "l2_swizzle_group": 1,
+              "store_block_m": 64,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "64": {
+              "block_m": 64,
+              "tma_load_m": 64,
+              "wg_layout_mode": 0,
+              "pipe_mode": 2,
+              "l2_swizzle_group": 1,
+              "store_block_m": 64,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "96": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 0,
+              "pipe_mode": 2,
+              "l2_swizzle_group": 3,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "128": {
+              "block_m": 64,
+              "tma_load_m": 64,
+              "wg_layout_mode": 0,
+              "pipe_mode": 2,
+              "l2_swizzle_group": 2,
+              "store_block_m": 64,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "192": {
+              "block_m": 64,
+              "tma_load_m": 64,
+              "wg_layout_mode": 0,
+              "pipe_mode": 2,
+              "l2_swizzle_group": 3,
+              "store_block_m": 64,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "240": {
+              "block_m": 64,
+              "tma_load_m": 64,
+              "wg_layout_mode": 0,
+              "pipe_mode": 2,
+              "l2_swizzle_group": 4,
+              "store_block_m": 64,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            }
+          },
+          "inner_codes": {
+            "8": 17474,
+            "16": 17474,
+            "32": 17474,
+            "48": 18564,
+            "64": 18564,
+            "96": 148546,
+            "128": 84100,
+            "192": 149636,
+            "240": 215172
+          }
+        }
+      },
+      "qwen35_397b": {
+        "gemm1": {
+          "n": 2048,
+          "k": 4096,
+          "precision": "fp8",
+          "envelope": {
+            "bn": 64,
+            "bk": 128,
+            "max_bm": 32,
+            "num_stages": 3,
+            "l2_swizzle_group": 8,
+            "interleave_mode": 1,
+            "wg_layout_mode": 0,
+            "score_ns": 30487,
+            "epw": 1,
+            "penalty": 3064
+          },
+          "envelope_code": 293140,
+          "inner_lut": {
+            "8": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 0,
+              "pipe_mode": 1,
+              "l2_swizzle_group": 1,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "16": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 0,
+              "pipe_mode": 1,
+              "l2_swizzle_group": 1,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "32": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 0,
+              "pipe_mode": 1,
+              "l2_swizzle_group": 1,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "48": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 0,
+              "pipe_mode": 1,
+              "l2_swizzle_group": 2,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "64": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 0,
+              "pipe_mode": 1,
+              "l2_swizzle_group": 2,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "96": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 0,
+              "pipe_mode": 1,
+              "l2_swizzle_group": 3,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "128": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 0,
+              "pipe_mode": 1,
+              "l2_swizzle_group": 4,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "192": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 0,
+              "pipe_mode": 1,
+              "l2_swizzle_group": 6,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "240": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 0,
+              "pipe_mode": 1,
+              "l2_swizzle_group": 8,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            }
+          },
+          "inner_codes": {
+            "8": 1090,
+            "16": 1090,
+            "32": 1090,
+            "48": 66626,
+            "64": 66626,
+            "96": 132162,
+            "128": 197698,
+            "192": 328770,
+            "240": 459842
+          }
+        },
+        "gemm2": {
+          "n": 4096,
+          "k": 1024,
+          "precision": "fp8",
+          "envelope": {
+            "bn": 64,
+            "bk": 64,
+            "max_bm": 64,
+            "num_stages": 4,
+            "l2_swizzle_group": 4,
+            "interleave_mode": 1,
+            "wg_layout_mode": 0,
+            "score_ns": 21697,
+            "epw": 1,
+            "penalty": 608
+          },
+          "envelope_code": 285216,
+          "inner_lut": {
+            "8": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 0,
+              "pipe_mode": 2,
+              "l2_swizzle_group": 1,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "16": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 0,
+              "pipe_mode": 2,
+              "l2_swizzle_group": 1,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "32": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 0,
+              "pipe_mode": 2,
+              "l2_swizzle_group": 1,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "48": {
+              "block_m": 64,
+              "tma_load_m": 64,
+              "wg_layout_mode": 0,
+              "pipe_mode": 2,
+              "l2_swizzle_group": 1,
+              "store_block_m": 64,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "64": {
+              "block_m": 64,
+              "tma_load_m": 64,
+              "wg_layout_mode": 0,
+              "pipe_mode": 2,
+              "l2_swizzle_group": 1,
+              "store_block_m": 64,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "96": {
+              "block_m": 32,
+              "tma_load_m": 32,
+              "wg_layout_mode": 0,
+              "pipe_mode": 2,
+              "l2_swizzle_group": 3,
+              "store_block_m": 32,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "128": {
+              "block_m": 64,
+              "tma_load_m": 64,
+              "wg_layout_mode": 0,
+              "pipe_mode": 2,
+              "l2_swizzle_group": 2,
+              "store_block_m": 64,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "192": {
+              "block_m": 64,
+              "tma_load_m": 64,
+              "wg_layout_mode": 0,
+              "pipe_mode": 2,
+              "l2_swizzle_group": 3,
+              "store_block_m": 64,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            },
+            "240": {
+              "block_m": 64,
+              "tma_load_m": 64,
+              "wg_layout_mode": 0,
+              "pipe_mode": 2,
+              "l2_swizzle_group": 4,
+              "store_block_m": 64,
+              "epi_reg_stages": 1,
+              "scatter_path": 0
+            }
+          },
+          "inner_codes": {
+            "8": 17474,
+            "16": 17474,
+            "32": 17474,
+            "48": 18564,
+            "64": 18564,
+            "96": 148546,
+            "128": 84100,
+            "192": 149636,
+            "240": 215172
+          }
+        }
+      }
+    }
+  },
+  "distinct_envelopes": 25,
+  "distinct_tile_tuples": 16,
+  "distinct_lut_signatures": 13,
+  "independent_phase_pairs": 17,
+  "independent_phase_pair_cells": [
+    "sm103/qwen38max",
+    "sm103/dskv4_flash",
+    "sm103/minimax_m3",
+    "sm103/qwen36_35b",
+    "sm103/qwen35_122b",
+    "sm103/qwen35_397b",
+    "h20/qwen38max",
+    "h20/dskv4_flash",
+    "h20/minimax_m3",
+    "h20/qwen36_35b",
+    "h20/qwen35_122b",
+    "h20/qwen35_397b",
+    "mi308x/qwen38max",
+    "mi308x/dskv4_flash",
+    "mi308x/minimax_m3",
+    "mi308x/qwen35_122b",
+    "mi308x/qwen35_397b"
+  ],
+  "per_hw_envelope_variants": {
+    "sm103": 12,
+    "h20": 10,
+    "mi308x": 6
+  },
+  "envelope_codes": {
+    "sm103/qwen38max/gemm1": 524420,
+    "sm103/qwen38max/gemm2": 262792,
+    "sm103/dskv4_flash/gemm1": 524676,
+    "sm103/dskv4_flash/gemm2": 524936,
+    "sm103/minimax_m3/gemm1": 262276,
+    "sm103/minimax_m3/gemm2": 262536,
+    "sm103/qwen36_35b/gemm1": 2359944,
+    "sm103/qwen36_35b/gemm2": 1049220,
+    "sm103/qwen35_122b/gemm1": 1048968,
+    "sm103/qwen35_122b/gemm2": 787076,
+    "sm103/qwen35_397b/gemm1": 1048964,
+    "sm103/qwen35_397b/gemm2": 524932,
+    "h20/qwen38max/gemm1": 262276,
+    "h20/qwen38max/gemm2": 285225,
+    "h20/dskv4_flash/gemm1": 262532,
+    "h20/dskv4_flash/gemm2": 281176,
+    "h20/minimax_m3/gemm1": 262277,
+    "h20/minimax_m3/gemm2": 280921,
+    "h20/qwen36_35b/gemm1": 281176,
+    "h20/qwen36_35b/gemm2": 524932,
+    "h20/qwen35_122b/gemm1": 285032,
+    "h20/qwen35_122b/gemm2": 262788,
+    "h20/qwen35_397b/gemm1": 524676,
+    "h20/qwen35_397b/gemm2": 262788,
+    "mi308x/qwen38max/gemm1": 284708,
+    "mi308x/qwen38max/gemm2": 293393,
+    "mi308x/dskv4_flash/gemm1": 293140,
+    "mi308x/dskv4_flash/gemm2": 285216,
+    "mi308x/minimax_m3/gemm1": 292885,
+    "mi308x/minimax_m3/gemm2": 284961,
+    "mi308x/qwen36_35b/gemm1": 285216,
+    "mi308x/qwen36_35b/gemm2": 285216,
+    "mi308x/qwen35_122b/gemm1": 293140,
+    "mi308x/qwen35_122b/gemm2": 285216,
+    "mi308x/qwen35_397b/gemm1": 293140,
+    "mi308x/qwen35_397b/gemm2": 285216
+  }
+}

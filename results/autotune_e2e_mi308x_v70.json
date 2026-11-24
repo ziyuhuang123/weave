@@ -1,0 +1,3356 @@
+{
+ "hw": {
+  "cc_major": 9,
+  "cc_minor": 4,
+  "device_name": "AMD Instinct MI308X",
+  "num_sms": 80,
+  "smem_per_sm": 65536,
+  "l2_bytes": 4194304,
+  "ep": 16,
+  "gcn_arch": "gfx942",
+  "hw_id": "gfx942_amd_instinct_mi308x_80cu_ep16",
+  "family": "cdna3"
+ },
+ "profiles": {
+  "Qwen3.8-2.4T": {
+   "schema": "weave_autotune/v1",
+   "tool_version": "1.0",
+   "hw": {
+    "cc_major": 9,
+    "cc_minor": 4,
+    "device_name": "AMD Instinct MI308X",
+    "num_sms": 80,
+    "smem_per_sm": 65536,
+    "l2_bytes": 4194304,
+    "ep": 16,
+    "gcn_arch": "gfx942",
+    "hw_id": "gfx942_amd_instinct_mi308x_80cu_ep16",
+    "family": "cdna3"
+   },
+   "model": {
+    "E": 512,
+    "K": 10,
+    "H": 8192,
+    "I": 2048,
+    "shared": 0,
+    "mma_type": "fp8xfp8"
+   },
+   "buckets": [
+    {
+     "S": 16,
+     "env": {
+      "WEAVE_CU_WAVE_SPLIT": "0-8",
+      "WEAVE_GEMM1_CONFIG": "16",
+      "WEAVE_GEMM2_CONFIG": "16",
+      "WEAVE_SCATTER_OWNER": "epilogue_only",
+      "WEAVE_SCATTER_STAGING": "reg_2stage",
+      "WEAVE_DEDUP_MODE": "1"
+     },
+     "winner_arm": "v30",
+     "measured_us": 732.079,
+     "fastest_baseline_us": 1154.57,
+     "speedup_vs_fastest_baseline": 1.245,
+     "verified_variants": [
+      {
+       "WEAVE_CU_WAVE_SPLIT": "0-8",
+       "WEAVE_GEMM1_CONFIG": "16",
+       "WEAVE_GEMM2_CONFIG": "16",
+       "WEAVE_SCATTER_OWNER": "epilogue_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_DEDUP_MODE": "1"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "0-8",
+       "WEAVE_GEMM1_CONFIG": "32",
+       "WEAVE_GEMM2_CONFIG": "32",
+       "WEAVE_SCATTER_OWNER": "epilogue_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_DEDUP_MODE": "1"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "4-4",
+       "WEAVE_GEMM1_CONFIG": "0",
+       "WEAVE_GEMM2_CONFIG": "0",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "1",
+       "WEAVE_READY_GROUP_SIZE": "16",
+       "WEAVE_V_HEAD": "25"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "4-4",
+       "WEAVE_GEMM1_CONFIG": "64",
+       "WEAVE_GEMM2_CONFIG": "64",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "1",
+       "WEAVE_READY_GROUP_SIZE": "16",
+       "WEAVE_V_HEAD": "25"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "4-4",
+       "WEAVE_GEMM1_CONFIG": "32",
+       "WEAVE_GEMM2_CONFIG": "32",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "1",
+       "WEAVE_READY_GROUP_SIZE": "16",
+       "WEAVE_V_HEAD": "25"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "0-8",
+       "WEAVE_GEMM1_CONFIG": "64",
+       "WEAVE_GEMM2_CONFIG": "64",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "1"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "8-0",
+       "WEAVE_GEMM1_CONFIG": "0",
+       "WEAVE_GEMM2_CONFIG": "0",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "1"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "4-4",
+       "WEAVE_GEMM1_CONFIG": "0",
+       "WEAVE_GEMM2_CONFIG": "0",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "0"
+      }
+     ]
+    },
+    {
+     "S": 128,
+     "env": {
+      "WEAVE_CU_WAVE_SPLIT": "0-8",
+      "WEAVE_GEMM1_CONFIG": "16",
+      "WEAVE_GEMM2_CONFIG": "16",
+      "WEAVE_SCATTER_OWNER": "epilogue_only",
+      "WEAVE_SCATTER_STAGING": "reg_2stage",
+      "WEAVE_DEDUP_MODE": "1"
+     },
+     "winner_arm": "v30",
+     "measured_us": 1084.781,
+     "fastest_baseline_us": 1149.878,
+     "speedup_vs_fastest_baseline": 1.018,
+     "verified_variants": [
+      {
+       "WEAVE_CU_WAVE_SPLIT": "0-8",
+       "WEAVE_GEMM1_CONFIG": "16",
+       "WEAVE_GEMM2_CONFIG": "16",
+       "WEAVE_SCATTER_OWNER": "epilogue_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_DEDUP_MODE": "1"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "0-8",
+       "WEAVE_GEMM1_CONFIG": "32",
+       "WEAVE_GEMM2_CONFIG": "32",
+       "WEAVE_SCATTER_OWNER": "epilogue_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_DEDUP_MODE": "1"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "4-4",
+       "WEAVE_GEMM1_CONFIG": "0",
+       "WEAVE_GEMM2_CONFIG": "0",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "1",
+       "WEAVE_READY_GROUP_SIZE": "16",
+       "WEAVE_V_HEAD": "25"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "4-4",
+       "WEAVE_GEMM1_CONFIG": "64",
+       "WEAVE_GEMM2_CONFIG": "64",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "1",
+       "WEAVE_READY_GROUP_SIZE": "16",
+       "WEAVE_V_HEAD": "25"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "4-4",
+       "WEAVE_GEMM1_CONFIG": "32",
+       "WEAVE_GEMM2_CONFIG": "32",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "1",
+       "WEAVE_READY_GROUP_SIZE": "16",
+       "WEAVE_V_HEAD": "25"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "0-8",
+       "WEAVE_GEMM1_CONFIG": "64",
+       "WEAVE_GEMM2_CONFIG": "64",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "1"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "8-0",
+       "WEAVE_GEMM1_CONFIG": "0",
+       "WEAVE_GEMM2_CONFIG": "0",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "1"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "4-4",
+       "WEAVE_GEMM1_CONFIG": "0",
+       "WEAVE_GEMM2_CONFIG": "0",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "0"
+      }
+     ]
+    },
+    {
+     "S": 1024,
+     "env": {
+      "WEAVE_CU_WAVE_SPLIT": "4-4",
+      "WEAVE_GEMM1_CONFIG": "0",
+      "WEAVE_GEMM2_CONFIG": "0",
+      "WEAVE_SCATTER_OWNER": "comm_only",
+      "WEAVE_SCATTER_STAGING": "reg_2stage",
+      "WEAVE_REG_PULL_BYTES": "8192",
+      "WEAVE_DEDUP_MODE": "0"
+     },
+     "winner_arm": "k16_dedup_0",
+     "measured_us": 1695.411,
+     "fastest_baseline_us": 1800.737,
+     "speedup_vs_fastest_baseline": 1.062,
+     "verified_variants": [
+      {
+       "WEAVE_CU_WAVE_SPLIT": "0-8",
+       "WEAVE_GEMM1_CONFIG": "16",
+       "WEAVE_GEMM2_CONFIG": "16",
+       "WEAVE_SCATTER_OWNER": "epilogue_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_DEDUP_MODE": "1"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "0-8",
+       "WEAVE_GEMM1_CONFIG": "32",
+       "WEAVE_GEMM2_CONFIG": "32",
+       "WEAVE_SCATTER_OWNER": "epilogue_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_DEDUP_MODE": "1"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "4-4",
+       "WEAVE_GEMM1_CONFIG": "0",
+       "WEAVE_GEMM2_CONFIG": "0",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "1",
+       "WEAVE_READY_GROUP_SIZE": "16",
+       "WEAVE_V_HEAD": "25"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "4-4",
+       "WEAVE_GEMM1_CONFIG": "64",
+       "WEAVE_GEMM2_CONFIG": "64",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "1",
+       "WEAVE_READY_GROUP_SIZE": "16",
+       "WEAVE_V_HEAD": "25"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "4-4",
+       "WEAVE_GEMM1_CONFIG": "32",
+       "WEAVE_GEMM2_CONFIG": "32",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "1",
+       "WEAVE_READY_GROUP_SIZE": "16",
+       "WEAVE_V_HEAD": "25"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "0-8",
+       "WEAVE_GEMM1_CONFIG": "64",
+       "WEAVE_GEMM2_CONFIG": "64",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "1"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "8-0",
+       "WEAVE_GEMM1_CONFIG": "0",
+       "WEAVE_GEMM2_CONFIG": "0",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "1"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "4-4",
+       "WEAVE_GEMM1_CONFIG": "0",
+       "WEAVE_GEMM2_CONFIG": "0",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "0"
+      }
+     ]
+    },
+    {
+     "S": 8192,
+     "env": {
+      "WEAVE_CU_WAVE_SPLIT": "4-4",
+      "WEAVE_GEMM1_CONFIG": "0",
+      "WEAVE_GEMM2_CONFIG": "0",
+      "WEAVE_SCATTER_OWNER": "comm_only",
+      "WEAVE_SCATTER_STAGING": "reg_2stage",
+      "WEAVE_REG_PULL_BYTES": "8192",
+      "WEAVE_DEDUP_MODE": "1",
+      "WEAVE_READY_GROUP_SIZE": "16",
+      "WEAVE_V_HEAD": "25"
+     },
+     "winner_arm": "v70_champ_4_4",
+     "measured_us": 4027.628,
+     "fastest_baseline_us": 8041.658,
+     "speedup_vs_fastest_baseline": 1.997,
+     "verified_variants": [
+      {
+       "WEAVE_CU_WAVE_SPLIT": "0-8",
+       "WEAVE_GEMM1_CONFIG": "16",
+       "WEAVE_GEMM2_CONFIG": "16",
+       "WEAVE_SCATTER_OWNER": "epilogue_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_DEDUP_MODE": "1"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "0-8",
+       "WEAVE_GEMM1_CONFIG": "32",
+       "WEAVE_GEMM2_CONFIG": "32",
+       "WEAVE_SCATTER_OWNER": "epilogue_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_DEDUP_MODE": "1"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "4-4",
+       "WEAVE_GEMM1_CONFIG": "0",
+       "WEAVE_GEMM2_CONFIG": "0",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "1",
+       "WEAVE_READY_GROUP_SIZE": "16",
+       "WEAVE_V_HEAD": "25"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "4-4",
+       "WEAVE_GEMM1_CONFIG": "64",
+       "WEAVE_GEMM2_CONFIG": "64",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "1",
+       "WEAVE_READY_GROUP_SIZE": "16",
+       "WEAVE_V_HEAD": "25"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "4-4",
+       "WEAVE_GEMM1_CONFIG": "32",
+       "WEAVE_GEMM2_CONFIG": "32",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "1",
+       "WEAVE_READY_GROUP_SIZE": "16",
+       "WEAVE_V_HEAD": "25"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "0-8",
+       "WEAVE_GEMM1_CONFIG": "64",
+       "WEAVE_GEMM2_CONFIG": "64",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "1"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "8-0",
+       "WEAVE_GEMM1_CONFIG": "0",
+       "WEAVE_GEMM2_CONFIG": "0",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "1"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "4-4",
+       "WEAVE_GEMM1_CONFIG": "0",
+       "WEAVE_GEMM2_CONFIG": "0",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "0"
+      }
+     ]
+    },
+    {
+     "S": 16384,
+     "env": {
+      "WEAVE_CU_WAVE_SPLIT": "4-4",
+      "WEAVE_GEMM1_CONFIG": "0",
+      "WEAVE_GEMM2_CONFIG": "0",
+      "WEAVE_SCATTER_OWNER": "comm_only",
+      "WEAVE_SCATTER_STAGING": "reg_2stage",
+      "WEAVE_REG_PULL_BYTES": "8192",
+      "WEAVE_DEDUP_MODE": "1",
+      "WEAVE_READY_GROUP_SIZE": "16",
+      "WEAVE_V_HEAD": "25"
+     },
+     "winner_arm": "v70_champ_4_4",
+     "measured_us": 6981.124,
+     "fastest_baseline_us": 17840.419,
+     "speedup_vs_fastest_baseline": 2.556,
+     "verified_variants": [
+      {
+       "WEAVE_CU_WAVE_SPLIT": "0-8",
+       "WEAVE_GEMM1_CONFIG": "16",
+       "WEAVE_GEMM2_CONFIG": "16",
+       "WEAVE_SCATTER_OWNER": "epilogue_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_DEDUP_MODE": "1"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "0-8",
+       "WEAVE_GEMM1_CONFIG": "32",
+       "WEAVE_GEMM2_CONFIG": "32",
+       "WEAVE_SCATTER_OWNER": "epilogue_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_DEDUP_MODE": "1"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "4-4",
+       "WEAVE_GEMM1_CONFIG": "0",
+       "WEAVE_GEMM2_CONFIG": "0",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "1",
+       "WEAVE_READY_GROUP_SIZE": "16",
+       "WEAVE_V_HEAD": "25"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "4-4",
+       "WEAVE_GEMM1_CONFIG": "64",
+       "WEAVE_GEMM2_CONFIG": "64",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "1",
+       "WEAVE_READY_GROUP_SIZE": "16",
+       "WEAVE_V_HEAD": "25"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "4-4",
+       "WEAVE_GEMM1_CONFIG": "32",
+       "WEAVE_GEMM2_CONFIG": "32",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "1",
+       "WEAVE_READY_GROUP_SIZE": "16",
+       "WEAVE_V_HEAD": "25"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "0-8",
+       "WEAVE_GEMM1_CONFIG": "64",
+       "WEAVE_GEMM2_CONFIG": "64",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "1"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "8-0",
+       "WEAVE_GEMM1_CONFIG": "0",
+       "WEAVE_GEMM2_CONFIG": "0",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "1"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "4-4",
+       "WEAVE_GEMM1_CONFIG": "0",
+       "WEAVE_GEMM2_CONFIG": "0",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "0"
+      }
+     ]
+    }
+   ],
+   "thresholds": {
+    "dedup_min_saved_rows": 32,
+    "comm_scatter_min_rows": 256,
+    "comm_scatter_min_tiles": 16,
+    "skew_rgs": 16,
+    "skew_comm_heavy": {
+     "WEAVE_CU_WAVE_SPLIT": "4-4",
+     "WEAVE_SCATTER_WARPS": "8",
+     "WEAVE_V_HEAD": "0"
+    },
+    "skew_comp_heavy": {
+     "WEAVE_CU_WAVE_SPLIT": "0-8"
+    }
+   }
+  },
+  "MiniMax-M3": {
+   "schema": "weave_autotune/v1",
+   "tool_version": "1.0",
+   "hw": {
+    "cc_major": 9,
+    "cc_minor": 4,
+    "device_name": "AMD Instinct MI308X",
+    "num_sms": 80,
+    "smem_per_sm": 65536,
+    "l2_bytes": 4194304,
+    "ep": 16,
+    "gcn_arch": "gfx942",
+    "hw_id": "gfx942_amd_instinct_mi308x_80cu_ep16",
+    "family": "cdna3"
+   },
+   "model": {
+    "E": 128,
+    "K": 4,
+    "H": 6144,
+    "I": 3072,
+    "shared": 0,
+    "mma_type": "fp8xfp8"
+   },
+   "buckets": [
+    {
+     "S": 16,
+     "env": {
+      "WEAVE_CU_WAVE_SPLIT": "0-8",
+      "WEAVE_GEMM1_CONFIG": "16",
+      "WEAVE_GEMM2_CONFIG": "16",
+      "WEAVE_SCATTER_OWNER": "epilogue_only",
+      "WEAVE_SCATTER_STAGING": "reg_2stage",
+      "WEAVE_DEDUP_MODE": "1"
+     },
+     "winner_arm": "v30",
+     "measured_us": 513.5,
+     "fastest_baseline_us": 1475.989,
+     "speedup_vs_fastest_baseline": 2.049,
+     "verified_variants": [
+      {
+       "WEAVE_CU_WAVE_SPLIT": "0-8",
+       "WEAVE_GEMM1_CONFIG": "16",
+       "WEAVE_GEMM2_CONFIG": "16",
+       "WEAVE_SCATTER_OWNER": "epilogue_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_DEDUP_MODE": "1"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "0-8",
+       "WEAVE_GEMM1_CONFIG": "32",
+       "WEAVE_GEMM2_CONFIG": "32",
+       "WEAVE_SCATTER_OWNER": "epilogue_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_DEDUP_MODE": "1"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "4-4",
+       "WEAVE_GEMM1_CONFIG": "0",
+       "WEAVE_GEMM2_CONFIG": "0",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "1",
+       "WEAVE_READY_GROUP_SIZE": "16",
+       "WEAVE_V_HEAD": "25"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "4-4",
+       "WEAVE_GEMM1_CONFIG": "64",
+       "WEAVE_GEMM2_CONFIG": "64",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "1",
+       "WEAVE_READY_GROUP_SIZE": "16",
+       "WEAVE_V_HEAD": "25"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "4-4",
+       "WEAVE_GEMM1_CONFIG": "32",
+       "WEAVE_GEMM2_CONFIG": "32",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "1",
+       "WEAVE_READY_GROUP_SIZE": "16",
+       "WEAVE_V_HEAD": "25"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "0-8",
+       "WEAVE_GEMM1_CONFIG": "64",
+       "WEAVE_GEMM2_CONFIG": "64",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "1"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "8-0",
+       "WEAVE_GEMM1_CONFIG": "0",
+       "WEAVE_GEMM2_CONFIG": "0",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "1"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "4-4",
+       "WEAVE_GEMM1_CONFIG": "0",
+       "WEAVE_GEMM2_CONFIG": "0",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "0"
+      }
+     ]
+    },
+    {
+     "S": 128,
+     "env": {
+      "WEAVE_CU_WAVE_SPLIT": "0-8",
+      "WEAVE_GEMM1_CONFIG": "32",
+      "WEAVE_GEMM2_CONFIG": "32",
+      "WEAVE_SCATTER_OWNER": "epilogue_only",
+      "WEAVE_SCATTER_STAGING": "reg_2stage",
+      "WEAVE_DEDUP_MODE": "1"
+     },
+     "winner_arm": "v31",
+     "measured_us": 607.639,
+     "fastest_baseline_us": 1262.292,
+     "speedup_vs_fastest_baseline": 1.489,
+     "verified_variants": [
+      {
+       "WEAVE_CU_WAVE_SPLIT": "0-8",
+       "WEAVE_GEMM1_CONFIG": "16",
+       "WEAVE_GEMM2_CONFIG": "16",
+       "WEAVE_SCATTER_OWNER": "epilogue_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_DEDUP_MODE": "1"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "0-8",
+       "WEAVE_GEMM1_CONFIG": "32",
+       "WEAVE_GEMM2_CONFIG": "32",
+       "WEAVE_SCATTER_OWNER": "epilogue_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_DEDUP_MODE": "1"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "4-4",
+       "WEAVE_GEMM1_CONFIG": "0",
+       "WEAVE_GEMM2_CONFIG": "0",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "1",
+       "WEAVE_READY_GROUP_SIZE": "16",
+       "WEAVE_V_HEAD": "25"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "4-4",
+       "WEAVE_GEMM1_CONFIG": "64",
+       "WEAVE_GEMM2_CONFIG": "64",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "1",
+       "WEAVE_READY_GROUP_SIZE": "16",
+       "WEAVE_V_HEAD": "25"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "4-4",
+       "WEAVE_GEMM1_CONFIG": "32",
+       "WEAVE_GEMM2_CONFIG": "32",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "1",
+       "WEAVE_READY_GROUP_SIZE": "16",
+       "WEAVE_V_HEAD": "25"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "0-8",
+       "WEAVE_GEMM1_CONFIG": "64",
+       "WEAVE_GEMM2_CONFIG": "64",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "1"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "8-0",
+       "WEAVE_GEMM1_CONFIG": "0",
+       "WEAVE_GEMM2_CONFIG": "0",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "1"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "4-4",
+       "WEAVE_GEMM1_CONFIG": "0",
+       "WEAVE_GEMM2_CONFIG": "0",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "0"
+      }
+     ]
+    },
+    {
+     "S": 1024,
+     "env": {
+      "WEAVE_CU_WAVE_SPLIT": "4-4",
+      "WEAVE_GEMM1_CONFIG": "32",
+      "WEAVE_GEMM2_CONFIG": "32",
+      "WEAVE_SCATTER_OWNER": "comm_only",
+      "WEAVE_SCATTER_STAGING": "reg_2stage",
+      "WEAVE_REG_PULL_BYTES": "8192",
+      "WEAVE_DEDUP_MODE": "1",
+      "WEAVE_READY_GROUP_SIZE": "16",
+      "WEAVE_V_HEAD": "25"
+     },
+     "winner_arm": "v70_bm32_fixed",
+     "measured_us": 914.686,
+     "fastest_baseline_us": 1426.087,
+     "speedup_vs_fastest_baseline": 1.559,
+     "verified_variants": [
+      {
+       "WEAVE_CU_WAVE_SPLIT": "0-8",
+       "WEAVE_GEMM1_CONFIG": "16",
+       "WEAVE_GEMM2_CONFIG": "16",
+       "WEAVE_SCATTER_OWNER": "epilogue_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_DEDUP_MODE": "1"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "0-8",
+       "WEAVE_GEMM1_CONFIG": "32",
+       "WEAVE_GEMM2_CONFIG": "32",
+       "WEAVE_SCATTER_OWNER": "epilogue_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_DEDUP_MODE": "1"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "4-4",
+       "WEAVE_GEMM1_CONFIG": "0",
+       "WEAVE_GEMM2_CONFIG": "0",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "1",
+       "WEAVE_READY_GROUP_SIZE": "16",
+       "WEAVE_V_HEAD": "25"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "4-4",
+       "WEAVE_GEMM1_CONFIG": "64",
+       "WEAVE_GEMM2_CONFIG": "64",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "1",
+       "WEAVE_READY_GROUP_SIZE": "16",
+       "WEAVE_V_HEAD": "25"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "4-4",
+       "WEAVE_GEMM1_CONFIG": "32",
+       "WEAVE_GEMM2_CONFIG": "32",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "1",
+       "WEAVE_READY_GROUP_SIZE": "16",
+       "WEAVE_V_HEAD": "25"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "0-8",
+       "WEAVE_GEMM1_CONFIG": "64",
+       "WEAVE_GEMM2_CONFIG": "64",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "1"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "8-0",
+       "WEAVE_GEMM1_CONFIG": "0",
+       "WEAVE_GEMM2_CONFIG": "0",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "1"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "4-4",
+       "WEAVE_GEMM1_CONFIG": "0",
+       "WEAVE_GEMM2_CONFIG": "0",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "0"
+      }
+     ]
+    },
+    {
+     "S": 8192,
+     "env": {
+      "WEAVE_CU_WAVE_SPLIT": "8-0",
+      "WEAVE_GEMM1_CONFIG": "0",
+      "WEAVE_GEMM2_CONFIG": "0",
+      "WEAVE_SCATTER_OWNER": "comm_only",
+      "WEAVE_SCATTER_STAGING": "reg_2stage",
+      "WEAVE_REG_PULL_BYTES": "8192",
+      "WEAVE_DEDUP_MODE": "1"
+     },
+     "winner_arm": "v70_cu_8_0",
+     "measured_us": 2124.925,
+     "fastest_baseline_us": 4364.418,
+     "speedup_vs_fastest_baseline": 2.054,
+     "verified_variants": [
+      {
+       "WEAVE_CU_WAVE_SPLIT": "0-8",
+       "WEAVE_GEMM1_CONFIG": "16",
+       "WEAVE_GEMM2_CONFIG": "16",
+       "WEAVE_SCATTER_OWNER": "epilogue_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_DEDUP_MODE": "1"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "0-8",
+       "WEAVE_GEMM1_CONFIG": "32",
+       "WEAVE_GEMM2_CONFIG": "32",
+       "WEAVE_SCATTER_OWNER": "epilogue_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_DEDUP_MODE": "1"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "4-4",
+       "WEAVE_GEMM1_CONFIG": "0",
+       "WEAVE_GEMM2_CONFIG": "0",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "1",
+       "WEAVE_READY_GROUP_SIZE": "16",
+       "WEAVE_V_HEAD": "25"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "4-4",
+       "WEAVE_GEMM1_CONFIG": "64",
+       "WEAVE_GEMM2_CONFIG": "64",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "1",
+       "WEAVE_READY_GROUP_SIZE": "16",
+       "WEAVE_V_HEAD": "25"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "4-4",
+       "WEAVE_GEMM1_CONFIG": "32",
+       "WEAVE_GEMM2_CONFIG": "32",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "1",
+       "WEAVE_READY_GROUP_SIZE": "16",
+       "WEAVE_V_HEAD": "25"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "0-8",
+       "WEAVE_GEMM1_CONFIG": "64",
+       "WEAVE_GEMM2_CONFIG": "64",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "1"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "8-0",
+       "WEAVE_GEMM1_CONFIG": "0",
+       "WEAVE_GEMM2_CONFIG": "0",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "1"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "4-4",
+       "WEAVE_GEMM1_CONFIG": "0",
+       "WEAVE_GEMM2_CONFIG": "0",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "0"
+      }
+     ]
+    },
+    {
+     "S": 16384,
+     "env": {
+      "WEAVE_CU_WAVE_SPLIT": "4-4",
+      "WEAVE_GEMM1_CONFIG": "0",
+      "WEAVE_GEMM2_CONFIG": "0",
+      "WEAVE_SCATTER_OWNER": "comm_only",
+      "WEAVE_SCATTER_STAGING": "reg_2stage",
+      "WEAVE_REG_PULL_BYTES": "8192",
+      "WEAVE_DEDUP_MODE": "1",
+      "WEAVE_READY_GROUP_SIZE": "16",
+      "WEAVE_V_HEAD": "25"
+     },
+     "winner_arm": "v70_champ_4_4",
+     "measured_us": 3519.162,
+     "fastest_baseline_us": 8100.014,
+     "speedup_vs_fastest_baseline": 2.302,
+     "verified_variants": [
+      {
+       "WEAVE_CU_WAVE_SPLIT": "0-8",
+       "WEAVE_GEMM1_CONFIG": "16",
+       "WEAVE_GEMM2_CONFIG": "16",
+       "WEAVE_SCATTER_OWNER": "epilogue_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_DEDUP_MODE": "1"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "0-8",
+       "WEAVE_GEMM1_CONFIG": "32",
+       "WEAVE_GEMM2_CONFIG": "32",
+       "WEAVE_SCATTER_OWNER": "epilogue_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_DEDUP_MODE": "1"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "4-4",
+       "WEAVE_GEMM1_CONFIG": "0",
+       "WEAVE_GEMM2_CONFIG": "0",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "1",
+       "WEAVE_READY_GROUP_SIZE": "16",
+       "WEAVE_V_HEAD": "25"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "4-4",
+       "WEAVE_GEMM1_CONFIG": "64",
+       "WEAVE_GEMM2_CONFIG": "64",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "1",
+       "WEAVE_READY_GROUP_SIZE": "16",
+       "WEAVE_V_HEAD": "25"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "4-4",
+       "WEAVE_GEMM1_CONFIG": "32",
+       "WEAVE_GEMM2_CONFIG": "32",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "1",
+       "WEAVE_READY_GROUP_SIZE": "16",
+       "WEAVE_V_HEAD": "25"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "0-8",
+       "WEAVE_GEMM1_CONFIG": "64",
+       "WEAVE_GEMM2_CONFIG": "64",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "1"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "8-0",
+       "WEAVE_GEMM1_CONFIG": "0",
+       "WEAVE_GEMM2_CONFIG": "0",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "1"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "4-4",
+       "WEAVE_GEMM1_CONFIG": "0",
+       "WEAVE_GEMM2_CONFIG": "0",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "0"
+      }
+     ]
+    }
+   ],
+   "thresholds": {
+    "dedup_min_saved_rows": 32,
+    "comm_scatter_min_rows": 256,
+    "comm_scatter_min_tiles": 16,
+    "skew_rgs": 16,
+    "skew_comm_heavy": {
+     "WEAVE_CU_WAVE_SPLIT": "4-4",
+     "WEAVE_SCATTER_WARPS": "8",
+     "WEAVE_V_HEAD": "0"
+    },
+    "skew_comp_heavy": {
+     "WEAVE_CU_WAVE_SPLIT": "0-8"
+    }
+   }
+  },
+  "Qwen3.5-397B": {
+   "schema": "weave_autotune/v1",
+   "tool_version": "1.0",
+   "hw": {
+    "cc_major": 9,
+    "cc_minor": 4,
+    "device_name": "AMD Instinct MI308X",
+    "num_sms": 80,
+    "smem_per_sm": 65536,
+    "l2_bytes": 4194304,
+    "ep": 16,
+    "gcn_arch": "gfx942",
+    "hw_id": "gfx942_amd_instinct_mi308x_80cu_ep16",
+    "family": "cdna3"
+   },
+   "model": {
+    "E": 512,
+    "K": 10,
+    "H": 4096,
+    "I": 1024,
+    "shared": 0,
+    "mma_type": "fp8xfp8"
+   },
+   "buckets": [
+    {
+     "S": 16,
+     "env": {
+      "WEAVE_CU_WAVE_SPLIT": "0-8",
+      "WEAVE_GEMM1_CONFIG": "16",
+      "WEAVE_GEMM2_CONFIG": "16",
+      "WEAVE_SCATTER_OWNER": "epilogue_only",
+      "WEAVE_SCATTER_STAGING": "reg_2stage",
+      "WEAVE_DEDUP_MODE": "1"
+     },
+     "winner_arm": "v30",
+     "measured_us": 554.819,
+     "fastest_baseline_us": 1215.282,
+     "speedup_vs_fastest_baseline": 1.949,
+     "verified_variants": [
+      {
+       "WEAVE_CU_WAVE_SPLIT": "0-8",
+       "WEAVE_GEMM1_CONFIG": "16",
+       "WEAVE_GEMM2_CONFIG": "16",
+       "WEAVE_SCATTER_OWNER": "epilogue_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_DEDUP_MODE": "1"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "0-8",
+       "WEAVE_GEMM1_CONFIG": "32",
+       "WEAVE_GEMM2_CONFIG": "32",
+       "WEAVE_SCATTER_OWNER": "epilogue_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_DEDUP_MODE": "1"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "4-4",
+       "WEAVE_GEMM1_CONFIG": "0",
+       "WEAVE_GEMM2_CONFIG": "0",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "1",
+       "WEAVE_READY_GROUP_SIZE": "16",
+       "WEAVE_V_HEAD": "25"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "4-4",
+       "WEAVE_GEMM1_CONFIG": "64",
+       "WEAVE_GEMM2_CONFIG": "64",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "1",
+       "WEAVE_READY_GROUP_SIZE": "16",
+       "WEAVE_V_HEAD": "25"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "4-4",
+       "WEAVE_GEMM1_CONFIG": "32",
+       "WEAVE_GEMM2_CONFIG": "32",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "1",
+       "WEAVE_READY_GROUP_SIZE": "16",
+       "WEAVE_V_HEAD": "25"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "0-8",
+       "WEAVE_GEMM1_CONFIG": "64",
+       "WEAVE_GEMM2_CONFIG": "64",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "1"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "8-0",
+       "WEAVE_GEMM1_CONFIG": "0",
+       "WEAVE_GEMM2_CONFIG": "0",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "1"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "4-4",
+       "WEAVE_GEMM1_CONFIG": "0",
+       "WEAVE_GEMM2_CONFIG": "0",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "0"
+      }
+     ]
+    },
+    {
+     "S": 128,
+     "env": {
+      "WEAVE_CU_WAVE_SPLIT": "0-8",
+      "WEAVE_GEMM1_CONFIG": "16",
+      "WEAVE_GEMM2_CONFIG": "16",
+      "WEAVE_SCATTER_OWNER": "epilogue_only",
+      "WEAVE_SCATTER_STAGING": "reg_2stage",
+      "WEAVE_DEDUP_MODE": "1"
+     },
+     "winner_arm": "v30",
+     "measured_us": 688.381,
+     "fastest_baseline_us": 897.601,
+     "speedup_vs_fastest_baseline": 1.167,
+     "verified_variants": [
+      {
+       "WEAVE_CU_WAVE_SPLIT": "0-8",
+       "WEAVE_GEMM1_CONFIG": "16",
+       "WEAVE_GEMM2_CONFIG": "16",
+       "WEAVE_SCATTER_OWNER": "epilogue_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_DEDUP_MODE": "1"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "0-8",
+       "WEAVE_GEMM1_CONFIG": "32",
+       "WEAVE_GEMM2_CONFIG": "32",
+       "WEAVE_SCATTER_OWNER": "epilogue_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_DEDUP_MODE": "1"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "4-4",
+       "WEAVE_GEMM1_CONFIG": "0",
+       "WEAVE_GEMM2_CONFIG": "0",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "1",
+       "WEAVE_READY_GROUP_SIZE": "16",
+       "WEAVE_V_HEAD": "25"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "4-4",
+       "WEAVE_GEMM1_CONFIG": "64",
+       "WEAVE_GEMM2_CONFIG": "64",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "1",
+       "WEAVE_READY_GROUP_SIZE": "16",
+       "WEAVE_V_HEAD": "25"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "4-4",
+       "WEAVE_GEMM1_CONFIG": "32",
+       "WEAVE_GEMM2_CONFIG": "32",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "1",
+       "WEAVE_READY_GROUP_SIZE": "16",
+       "WEAVE_V_HEAD": "25"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "0-8",
+       "WEAVE_GEMM1_CONFIG": "64",
+       "WEAVE_GEMM2_CONFIG": "64",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "1"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "8-0",
+       "WEAVE_GEMM1_CONFIG": "0",
+       "WEAVE_GEMM2_CONFIG": "0",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "1"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "4-4",
+       "WEAVE_GEMM1_CONFIG": "0",
+       "WEAVE_GEMM2_CONFIG": "0",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "0"
+      }
+     ]
+    },
+    {
+     "S": 1024,
+     "env": {
+      "WEAVE_CU_WAVE_SPLIT": "8-0",
+      "WEAVE_GEMM1_CONFIG": "0",
+      "WEAVE_GEMM2_CONFIG": "0",
+      "WEAVE_SCATTER_OWNER": "comm_only",
+      "WEAVE_SCATTER_STAGING": "reg_2stage",
+      "WEAVE_REG_PULL_BYTES": "8192",
+      "WEAVE_DEDUP_MODE": "1"
+     },
+     "winner_arm": "v70_cu_8_0",
+     "measured_us": 855.409,
+     "fastest_baseline_us": 1126.115,
+     "speedup_vs_fastest_baseline": 1.316,
+     "verified_variants": [
+      {
+       "WEAVE_CU_WAVE_SPLIT": "0-8",
+       "WEAVE_GEMM1_CONFIG": "16",
+       "WEAVE_GEMM2_CONFIG": "16",
+       "WEAVE_SCATTER_OWNER": "epilogue_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_DEDUP_MODE": "1"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "0-8",
+       "WEAVE_GEMM1_CONFIG": "32",
+       "WEAVE_GEMM2_CONFIG": "32",
+       "WEAVE_SCATTER_OWNER": "epilogue_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_DEDUP_MODE": "1"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "4-4",
+       "WEAVE_GEMM1_CONFIG": "0",
+       "WEAVE_GEMM2_CONFIG": "0",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "1",
+       "WEAVE_READY_GROUP_SIZE": "16",
+       "WEAVE_V_HEAD": "25"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "4-4",
+       "WEAVE_GEMM1_CONFIG": "64",
+       "WEAVE_GEMM2_CONFIG": "64",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "1",
+       "WEAVE_READY_GROUP_SIZE": "16",
+       "WEAVE_V_HEAD": "25"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "4-4",
+       "WEAVE_GEMM1_CONFIG": "32",
+       "WEAVE_GEMM2_CONFIG": "32",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "1",
+       "WEAVE_READY_GROUP_SIZE": "16",
+       "WEAVE_V_HEAD": "25"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "0-8",
+       "WEAVE_GEMM1_CONFIG": "64",
+       "WEAVE_GEMM2_CONFIG": "64",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "1"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "8-0",
+       "WEAVE_GEMM1_CONFIG": "0",
+       "WEAVE_GEMM2_CONFIG": "0",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "1"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "4-4",
+       "WEAVE_GEMM1_CONFIG": "0",
+       "WEAVE_GEMM2_CONFIG": "0",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "0"
+      }
+     ]
+    },
+    {
+     "S": 8192,
+     "env": {
+      "WEAVE_CU_WAVE_SPLIT": "4-4",
+      "WEAVE_GEMM1_CONFIG": "0",
+      "WEAVE_GEMM2_CONFIG": "0",
+      "WEAVE_SCATTER_OWNER": "comm_only",
+      "WEAVE_SCATTER_STAGING": "reg_2stage",
+      "WEAVE_REG_PULL_BYTES": "8192",
+      "WEAVE_DEDUP_MODE": "0"
+     },
+     "winner_arm": "k16_dedup_0",
+     "measured_us": 1584.656,
+     "fastest_baseline_us": 3406.425,
+     "speedup_vs_fastest_baseline": 2.15,
+     "verified_variants": [
+      {
+       "WEAVE_CU_WAVE_SPLIT": "0-8",
+       "WEAVE_GEMM1_CONFIG": "16",
+       "WEAVE_GEMM2_CONFIG": "16",
+       "WEAVE_SCATTER_OWNER": "epilogue_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_DEDUP_MODE": "1"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "0-8",
+       "WEAVE_GEMM1_CONFIG": "32",
+       "WEAVE_GEMM2_CONFIG": "32",
+       "WEAVE_SCATTER_OWNER": "epilogue_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_DEDUP_MODE": "1"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "4-4",
+       "WEAVE_GEMM1_CONFIG": "0",
+       "WEAVE_GEMM2_CONFIG": "0",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "1",
+       "WEAVE_READY_GROUP_SIZE": "16",
+       "WEAVE_V_HEAD": "25"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "4-4",
+       "WEAVE_GEMM1_CONFIG": "64",
+       "WEAVE_GEMM2_CONFIG": "64",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "1",
+       "WEAVE_READY_GROUP_SIZE": "16",
+       "WEAVE_V_HEAD": "25"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "4-4",
+       "WEAVE_GEMM1_CONFIG": "32",
+       "WEAVE_GEMM2_CONFIG": "32",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "1",
+       "WEAVE_READY_GROUP_SIZE": "16",
+       "WEAVE_V_HEAD": "25"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "0-8",
+       "WEAVE_GEMM1_CONFIG": "64",
+       "WEAVE_GEMM2_CONFIG": "64",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "1"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "8-0",
+       "WEAVE_GEMM1_CONFIG": "0",
+       "WEAVE_GEMM2_CONFIG": "0",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "1"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "4-4",
+       "WEAVE_GEMM1_CONFIG": "0",
+       "WEAVE_GEMM2_CONFIG": "0",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "0"
+      }
+     ]
+    },
+    {
+     "S": 16384,
+     "env": {
+      "WEAVE_CU_WAVE_SPLIT": "4-4",
+      "WEAVE_GEMM1_CONFIG": "0",
+      "WEAVE_GEMM2_CONFIG": "0",
+      "WEAVE_SCATTER_OWNER": "comm_only",
+      "WEAVE_SCATTER_STAGING": "reg_2stage",
+      "WEAVE_REG_PULL_BYTES": "8192",
+      "WEAVE_DEDUP_MODE": "1",
+      "WEAVE_READY_GROUP_SIZE": "16",
+      "WEAVE_V_HEAD": "25"
+     },
+     "winner_arm": "v70_champ_4_4",
+     "measured_us": 2363.361,
+     "fastest_baseline_us": 6499.068,
+     "speedup_vs_fastest_baseline": 2.75,
+     "verified_variants": [
+      {
+       "WEAVE_CU_WAVE_SPLIT": "0-8",
+       "WEAVE_GEMM1_CONFIG": "16",
+       "WEAVE_GEMM2_CONFIG": "16",
+       "WEAVE_SCATTER_OWNER": "epilogue_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_DEDUP_MODE": "1"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "0-8",
+       "WEAVE_GEMM1_CONFIG": "32",
+       "WEAVE_GEMM2_CONFIG": "32",
+       "WEAVE_SCATTER_OWNER": "epilogue_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_DEDUP_MODE": "1"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "4-4",
+       "WEAVE_GEMM1_CONFIG": "0",
+       "WEAVE_GEMM2_CONFIG": "0",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "1",
+       "WEAVE_READY_GROUP_SIZE": "16",
+       "WEAVE_V_HEAD": "25"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "4-4",
+       "WEAVE_GEMM1_CONFIG": "64",
+       "WEAVE_GEMM2_CONFIG": "64",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "1",
+       "WEAVE_READY_GROUP_SIZE": "16",
+       "WEAVE_V_HEAD": "25"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "4-4",
+       "WEAVE_GEMM1_CONFIG": "32",
+       "WEAVE_GEMM2_CONFIG": "32",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "1",
+       "WEAVE_READY_GROUP_SIZE": "16",
+       "WEAVE_V_HEAD": "25"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "0-8",
+       "WEAVE_GEMM1_CONFIG": "64",
+       "WEAVE_GEMM2_CONFIG": "64",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "1"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "8-0",
+       "WEAVE_GEMM1_CONFIG": "0",
+       "WEAVE_GEMM2_CONFIG": "0",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "1"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "4-4",
+       "WEAVE_GEMM1_CONFIG": "0",
+       "WEAVE_GEMM2_CONFIG": "0",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "0"
+      }
+     ]
+    }
+   ],
+   "thresholds": {
+    "dedup_min_saved_rows": 32,
+    "comm_scatter_min_rows": 256,
+    "comm_scatter_min_tiles": 16,
+    "skew_rgs": 16,
+    "skew_comm_heavy": {
+     "WEAVE_CU_WAVE_SPLIT": "4-4",
+     "WEAVE_SCATTER_WARPS": "8",
+     "WEAVE_V_HEAD": "0"
+    },
+    "skew_comp_heavy": {
+     "WEAVE_CU_WAVE_SPLIT": "0-8"
+    }
+   }
+  },
+  "Qwen3.5-122B": {
+   "schema": "weave_autotune/v1",
+   "tool_version": "1.0",
+   "hw": {
+    "cc_major": 9,
+    "cc_minor": 4,
+    "device_name": "AMD Instinct MI308X",
+    "num_sms": 80,
+    "smem_per_sm": 65536,
+    "l2_bytes": 4194304,
+    "ep": 16,
+    "gcn_arch": "gfx942",
+    "hw_id": "gfx942_amd_instinct_mi308x_80cu_ep16",
+    "family": "cdna3"
+   },
+   "model": {
+    "E": 256,
+    "K": 8,
+    "H": 3072,
+    "I": 1024,
+    "shared": 0,
+    "mma_type": "fp8xfp8"
+   },
+   "buckets": [
+    {
+     "S": 16,
+     "env": {
+      "WEAVE_CU_WAVE_SPLIT": "0-8",
+      "WEAVE_GEMM1_CONFIG": "16",
+      "WEAVE_GEMM2_CONFIG": "16",
+      "WEAVE_SCATTER_OWNER": "epilogue_only",
+      "WEAVE_SCATTER_STAGING": "reg_2stage",
+      "WEAVE_DEDUP_MODE": "1"
+     },
+     "winner_arm": "v30",
+     "measured_us": 456.841,
+     "fastest_baseline_us": 1227.309,
+     "speedup_vs_fastest_baseline": 2.39,
+     "verified_variants": [
+      {
+       "WEAVE_CU_WAVE_SPLIT": "0-8",
+       "WEAVE_GEMM1_CONFIG": "16",
+       "WEAVE_GEMM2_CONFIG": "16",
+       "WEAVE_SCATTER_OWNER": "epilogue_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_DEDUP_MODE": "1"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "0-8",
+       "WEAVE_GEMM1_CONFIG": "32",
+       "WEAVE_GEMM2_CONFIG": "32",
+       "WEAVE_SCATTER_OWNER": "epilogue_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_DEDUP_MODE": "1"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "4-4",
+       "WEAVE_GEMM1_CONFIG": "0",
+       "WEAVE_GEMM2_CONFIG": "0",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "1",
+       "WEAVE_READY_GROUP_SIZE": "16",
+       "WEAVE_V_HEAD": "25"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "4-4",
+       "WEAVE_GEMM1_CONFIG": "64",
+       "WEAVE_GEMM2_CONFIG": "64",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "1",
+       "WEAVE_READY_GROUP_SIZE": "16",
+       "WEAVE_V_HEAD": "25"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "4-4",
+       "WEAVE_GEMM1_CONFIG": "32",
+       "WEAVE_GEMM2_CONFIG": "32",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "1",
+       "WEAVE_READY_GROUP_SIZE": "16",
+       "WEAVE_V_HEAD": "25"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "0-8",
+       "WEAVE_GEMM1_CONFIG": "64",
+       "WEAVE_GEMM2_CONFIG": "64",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "1"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "8-0",
+       "WEAVE_GEMM1_CONFIG": "0",
+       "WEAVE_GEMM2_CONFIG": "0",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "1"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "4-4",
+       "WEAVE_GEMM1_CONFIG": "0",
+       "WEAVE_GEMM2_CONFIG": "0",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "0"
+      }
+     ]
+    },
+    {
+     "S": 128,
+     "env": {
+      "WEAVE_CU_WAVE_SPLIT": "4-4",
+      "WEAVE_GEMM1_CONFIG": "64",
+      "WEAVE_GEMM2_CONFIG": "64",
+      "WEAVE_SCATTER_OWNER": "comm_only",
+      "WEAVE_SCATTER_STAGING": "reg_2stage",
+      "WEAVE_REG_PULL_BYTES": "8192",
+      "WEAVE_DEDUP_MODE": "1",
+      "WEAVE_READY_GROUP_SIZE": "16",
+      "WEAVE_V_HEAD": "25"
+     },
+     "winner_arm": "v70_bm64_fixed",
+     "measured_us": 529.083,
+     "fastest_baseline_us": 1157.782,
+     "speedup_vs_fastest_baseline": 2.188,
+     "verified_variants": [
+      {
+       "WEAVE_CU_WAVE_SPLIT": "0-8",
+       "WEAVE_GEMM1_CONFIG": "16",
+       "WEAVE_GEMM2_CONFIG": "16",
+       "WEAVE_SCATTER_OWNER": "epilogue_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_DEDUP_MODE": "1"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "0-8",
+       "WEAVE_GEMM1_CONFIG": "32",
+       "WEAVE_GEMM2_CONFIG": "32",
+       "WEAVE_SCATTER_OWNER": "epilogue_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_DEDUP_MODE": "1"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "4-4",
+       "WEAVE_GEMM1_CONFIG": "0",
+       "WEAVE_GEMM2_CONFIG": "0",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "1",
+       "WEAVE_READY_GROUP_SIZE": "16",
+       "WEAVE_V_HEAD": "25"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "4-4",
+       "WEAVE_GEMM1_CONFIG": "64",
+       "WEAVE_GEMM2_CONFIG": "64",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "1",
+       "WEAVE_READY_GROUP_SIZE": "16",
+       "WEAVE_V_HEAD": "25"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "4-4",
+       "WEAVE_GEMM1_CONFIG": "32",
+       "WEAVE_GEMM2_CONFIG": "32",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "1",
+       "WEAVE_READY_GROUP_SIZE": "16",
+       "WEAVE_V_HEAD": "25"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "0-8",
+       "WEAVE_GEMM1_CONFIG": "64",
+       "WEAVE_GEMM2_CONFIG": "64",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "1"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "8-0",
+       "WEAVE_GEMM1_CONFIG": "0",
+       "WEAVE_GEMM2_CONFIG": "0",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "1"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "4-4",
+       "WEAVE_GEMM1_CONFIG": "0",
+       "WEAVE_GEMM2_CONFIG": "0",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "0"
+      }
+     ]
+    },
+    {
+     "S": 1024,
+     "env": {
+      "WEAVE_CU_WAVE_SPLIT": "8-0",
+      "WEAVE_GEMM1_CONFIG": "0",
+      "WEAVE_GEMM2_CONFIG": "0",
+      "WEAVE_SCATTER_OWNER": "comm_only",
+      "WEAVE_SCATTER_STAGING": "reg_2stage",
+      "WEAVE_REG_PULL_BYTES": "8192",
+      "WEAVE_DEDUP_MODE": "1"
+     },
+     "winner_arm": "v70_cu_8_0",
+     "measured_us": 615.404,
+     "fastest_baseline_us": 1157.422,
+     "speedup_vs_fastest_baseline": 1.881,
+     "verified_variants": [
+      {
+       "WEAVE_CU_WAVE_SPLIT": "0-8",
+       "WEAVE_GEMM1_CONFIG": "16",
+       "WEAVE_GEMM2_CONFIG": "16",
+       "WEAVE_SCATTER_OWNER": "epilogue_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_DEDUP_MODE": "1"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "0-8",
+       "WEAVE_GEMM1_CONFIG": "32",
+       "WEAVE_GEMM2_CONFIG": "32",
+       "WEAVE_SCATTER_OWNER": "epilogue_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_DEDUP_MODE": "1"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "4-4",
+       "WEAVE_GEMM1_CONFIG": "0",
+       "WEAVE_GEMM2_CONFIG": "0",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "1",
+       "WEAVE_READY_GROUP_SIZE": "16",
+       "WEAVE_V_HEAD": "25"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "4-4",
+       "WEAVE_GEMM1_CONFIG": "64",
+       "WEAVE_GEMM2_CONFIG": "64",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "1",
+       "WEAVE_READY_GROUP_SIZE": "16",
+       "WEAVE_V_HEAD": "25"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "4-4",
+       "WEAVE_GEMM1_CONFIG": "32",
+       "WEAVE_GEMM2_CONFIG": "32",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "1",
+       "WEAVE_READY_GROUP_SIZE": "16",
+       "WEAVE_V_HEAD": "25"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "0-8",
+       "WEAVE_GEMM1_CONFIG": "64",
+       "WEAVE_GEMM2_CONFIG": "64",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "1"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "8-0",
+       "WEAVE_GEMM1_CONFIG": "0",
+       "WEAVE_GEMM2_CONFIG": "0",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "1"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "4-4",
+       "WEAVE_GEMM1_CONFIG": "0",
+       "WEAVE_GEMM2_CONFIG": "0",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "0"
+      }
+     ]
+    },
+    {
+     "S": 8192,
+     "env": {
+      "WEAVE_CU_WAVE_SPLIT": "4-4",
+      "WEAVE_GEMM1_CONFIG": "0",
+      "WEAVE_GEMM2_CONFIG": "0",
+      "WEAVE_SCATTER_OWNER": "comm_only",
+      "WEAVE_SCATTER_STAGING": "reg_2stage",
+      "WEAVE_REG_PULL_BYTES": "8192",
+      "WEAVE_DEDUP_MODE": "0"
+     },
+     "winner_arm": "k16_dedup_0",
+     "measured_us": 1117.043,
+     "fastest_baseline_us": 2421.936,
+     "speedup_vs_fastest_baseline": 2.168,
+     "verified_variants": [
+      {
+       "WEAVE_CU_WAVE_SPLIT": "0-8",
+       "WEAVE_GEMM1_CONFIG": "16",
+       "WEAVE_GEMM2_CONFIG": "16",
+       "WEAVE_SCATTER_OWNER": "epilogue_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_DEDUP_MODE": "1"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "0-8",
+       "WEAVE_GEMM1_CONFIG": "32",
+       "WEAVE_GEMM2_CONFIG": "32",
+       "WEAVE_SCATTER_OWNER": "epilogue_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_DEDUP_MODE": "1"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "4-4",
+       "WEAVE_GEMM1_CONFIG": "0",
+       "WEAVE_GEMM2_CONFIG": "0",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "1",
+       "WEAVE_READY_GROUP_SIZE": "16",
+       "WEAVE_V_HEAD": "25"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "4-4",
+       "WEAVE_GEMM1_CONFIG": "64",
+       "WEAVE_GEMM2_CONFIG": "64",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "1",
+       "WEAVE_READY_GROUP_SIZE": "16",
+       "WEAVE_V_HEAD": "25"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "4-4",
+       "WEAVE_GEMM1_CONFIG": "32",
+       "WEAVE_GEMM2_CONFIG": "32",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "1",
+       "WEAVE_READY_GROUP_SIZE": "16",
+       "WEAVE_V_HEAD": "25"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "0-8",
+       "WEAVE_GEMM1_CONFIG": "64",
+       "WEAVE_GEMM2_CONFIG": "64",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "1"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "8-0",
+       "WEAVE_GEMM1_CONFIG": "0",
+       "WEAVE_GEMM2_CONFIG": "0",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "1"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "4-4",
+       "WEAVE_GEMM1_CONFIG": "0",
+       "WEAVE_GEMM2_CONFIG": "0",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "0"
+      }
+     ]
+    },
+    {
+     "S": 16384,
+     "env": {
+      "WEAVE_CU_WAVE_SPLIT": "4-4",
+      "WEAVE_GEMM1_CONFIG": "0",
+      "WEAVE_GEMM2_CONFIG": "0",
+      "WEAVE_SCATTER_OWNER": "comm_only",
+      "WEAVE_SCATTER_STAGING": "reg_2stage",
+      "WEAVE_REG_PULL_BYTES": "8192",
+      "WEAVE_DEDUP_MODE": "1",
+      "WEAVE_READY_GROUP_SIZE": "16",
+      "WEAVE_V_HEAD": "25"
+     },
+     "winner_arm": "v70_champ_4_4",
+     "measured_us": 1728.611,
+     "fastest_baseline_us": 4172.793,
+     "speedup_vs_fastest_baseline": 2.414,
+     "verified_variants": [
+      {
+       "WEAVE_CU_WAVE_SPLIT": "0-8",
+       "WEAVE_GEMM1_CONFIG": "16",
+       "WEAVE_GEMM2_CONFIG": "16",
+       "WEAVE_SCATTER_OWNER": "epilogue_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_DEDUP_MODE": "1"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "0-8",
+       "WEAVE_GEMM1_CONFIG": "32",
+       "WEAVE_GEMM2_CONFIG": "32",
+       "WEAVE_SCATTER_OWNER": "epilogue_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_DEDUP_MODE": "1"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "4-4",
+       "WEAVE_GEMM1_CONFIG": "0",
+       "WEAVE_GEMM2_CONFIG": "0",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "1",
+       "WEAVE_READY_GROUP_SIZE": "16",
+       "WEAVE_V_HEAD": "25"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "4-4",
+       "WEAVE_GEMM1_CONFIG": "64",
+       "WEAVE_GEMM2_CONFIG": "64",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "1",
+       "WEAVE_READY_GROUP_SIZE": "16",
+       "WEAVE_V_HEAD": "25"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "4-4",
+       "WEAVE_GEMM1_CONFIG": "32",
+       "WEAVE_GEMM2_CONFIG": "32",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "1",
+       "WEAVE_READY_GROUP_SIZE": "16",
+       "WEAVE_V_HEAD": "25"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "0-8",
+       "WEAVE_GEMM1_CONFIG": "64",
+       "WEAVE_GEMM2_CONFIG": "64",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "1"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "8-0",
+       "WEAVE_GEMM1_CONFIG": "0",
+       "WEAVE_GEMM2_CONFIG": "0",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "1"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "4-4",
+       "WEAVE_GEMM1_CONFIG": "0",
+       "WEAVE_GEMM2_CONFIG": "0",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "0"
+      }
+     ]
+    }
+   ],
+   "thresholds": {
+    "dedup_min_saved_rows": 32,
+    "comm_scatter_min_rows": 256,
+    "comm_scatter_min_tiles": 16,
+    "skew_rgs": 16,
+    "skew_comm_heavy": {
+     "WEAVE_CU_WAVE_SPLIT": "4-4",
+     "WEAVE_SCATTER_WARPS": "8",
+     "WEAVE_V_HEAD": "0"
+    },
+    "skew_comp_heavy": {
+     "WEAVE_CU_WAVE_SPLIT": "0-8"
+    }
+   }
+  },
+  "DSKv4-Flash": {
+   "schema": "weave_autotune/v1",
+   "tool_version": "1.0",
+   "hw": {
+    "cc_major": 9,
+    "cc_minor": 4,
+    "device_name": "AMD Instinct MI308X",
+    "num_sms": 80,
+    "smem_per_sm": 65536,
+    "l2_bytes": 4194304,
+    "ep": 16,
+    "gcn_arch": "gfx942",
+    "hw_id": "gfx942_amd_instinct_mi308x_80cu_ep16",
+    "family": "cdna3"
+   },
+   "model": {
+    "E": 256,
+    "K": 6,
+    "H": 4096,
+    "I": 2048,
+    "shared": 0,
+    "mma_type": "fp8xfp8"
+   },
+   "buckets": [
+    {
+     "S": 16,
+     "env": {
+      "WEAVE_CU_WAVE_SPLIT": "0-8",
+      "WEAVE_GEMM1_CONFIG": "16",
+      "WEAVE_GEMM2_CONFIG": "16",
+      "WEAVE_SCATTER_OWNER": "epilogue_only",
+      "WEAVE_SCATTER_STAGING": "reg_2stage",
+      "WEAVE_DEDUP_MODE": "1"
+     },
+     "winner_arm": "v30",
+     "measured_us": 474.92,
+     "fastest_baseline_us": 1236.751,
+     "speedup_vs_fastest_baseline": 1.954,
+     "verified_variants": [
+      {
+       "WEAVE_CU_WAVE_SPLIT": "0-8",
+       "WEAVE_GEMM1_CONFIG": "16",
+       "WEAVE_GEMM2_CONFIG": "16",
+       "WEAVE_SCATTER_OWNER": "epilogue_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_DEDUP_MODE": "1"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "0-8",
+       "WEAVE_GEMM1_CONFIG": "32",
+       "WEAVE_GEMM2_CONFIG": "32",
+       "WEAVE_SCATTER_OWNER": "epilogue_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_DEDUP_MODE": "1"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "4-4",
+       "WEAVE_GEMM1_CONFIG": "0",
+       "WEAVE_GEMM2_CONFIG": "0",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "1",
+       "WEAVE_READY_GROUP_SIZE": "16",
+       "WEAVE_V_HEAD": "25"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "4-4",
+       "WEAVE_GEMM1_CONFIG": "64",
+       "WEAVE_GEMM2_CONFIG": "64",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "1",
+       "WEAVE_READY_GROUP_SIZE": "16",
+       "WEAVE_V_HEAD": "25"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "4-4",
+       "WEAVE_GEMM1_CONFIG": "32",
+       "WEAVE_GEMM2_CONFIG": "32",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "1",
+       "WEAVE_READY_GROUP_SIZE": "16",
+       "WEAVE_V_HEAD": "25"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "0-8",
+       "WEAVE_GEMM1_CONFIG": "64",
+       "WEAVE_GEMM2_CONFIG": "64",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "1"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "8-0",
+       "WEAVE_GEMM1_CONFIG": "0",
+       "WEAVE_GEMM2_CONFIG": "0",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "1"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "4-4",
+       "WEAVE_GEMM1_CONFIG": "0",
+       "WEAVE_GEMM2_CONFIG": "0",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "0"
+      }
+     ]
+    },
+    {
+     "S": 128,
+     "env": {
+      "WEAVE_CU_WAVE_SPLIT": "0-8",
+      "WEAVE_GEMM1_CONFIG": "16",
+      "WEAVE_GEMM2_CONFIG": "16",
+      "WEAVE_SCATTER_OWNER": "epilogue_only",
+      "WEAVE_SCATTER_STAGING": "reg_2stage",
+      "WEAVE_DEDUP_MODE": "1"
+     },
+     "winner_arm": "v30",
+     "measured_us": 658.439,
+     "fastest_baseline_us": 914.442,
+     "speedup_vs_fastest_baseline": 1.266,
+     "verified_variants": [
+      {
+       "WEAVE_CU_WAVE_SPLIT": "0-8",
+       "WEAVE_GEMM1_CONFIG": "16",
+       "WEAVE_GEMM2_CONFIG": "16",
+       "WEAVE_SCATTER_OWNER": "epilogue_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_DEDUP_MODE": "1"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "0-8",
+       "WEAVE_GEMM1_CONFIG": "32",
+       "WEAVE_GEMM2_CONFIG": "32",
+       "WEAVE_SCATTER_OWNER": "epilogue_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_DEDUP_MODE": "1"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "4-4",
+       "WEAVE_GEMM1_CONFIG": "0",
+       "WEAVE_GEMM2_CONFIG": "0",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "1",
+       "WEAVE_READY_GROUP_SIZE": "16",
+       "WEAVE_V_HEAD": "25"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "4-4",
+       "WEAVE_GEMM1_CONFIG": "64",
+       "WEAVE_GEMM2_CONFIG": "64",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "1",
+       "WEAVE_READY_GROUP_SIZE": "16",
+       "WEAVE_V_HEAD": "25"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "4-4",
+       "WEAVE_GEMM1_CONFIG": "32",
+       "WEAVE_GEMM2_CONFIG": "32",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "1",
+       "WEAVE_READY_GROUP_SIZE": "16",
+       "WEAVE_V_HEAD": "25"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "0-8",
+       "WEAVE_GEMM1_CONFIG": "64",
+       "WEAVE_GEMM2_CONFIG": "64",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "1"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "8-0",
+       "WEAVE_GEMM1_CONFIG": "0",
+       "WEAVE_GEMM2_CONFIG": "0",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "1"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "4-4",
+       "WEAVE_GEMM1_CONFIG": "0",
+       "WEAVE_GEMM2_CONFIG": "0",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "0"
+      }
+     ]
+    },
+    {
+     "S": 1024,
+     "env": {
+      "WEAVE_CU_WAVE_SPLIT": "0-8",
+      "WEAVE_GEMM1_CONFIG": "16",
+      "WEAVE_GEMM2_CONFIG": "16",
+      "WEAVE_SCATTER_OWNER": "epilogue_only",
+      "WEAVE_SCATTER_STAGING": "reg_2stage",
+      "WEAVE_DEDUP_MODE": "1"
+     },
+     "winner_arm": "v30",
+     "measured_us": 872.361,
+     "fastest_baseline_us": 1026.278,
+     "speedup_vs_fastest_baseline": 1.119,
+     "verified_variants": [
+      {
+       "WEAVE_CU_WAVE_SPLIT": "0-8",
+       "WEAVE_GEMM1_CONFIG": "16",
+       "WEAVE_GEMM2_CONFIG": "16",
+       "WEAVE_SCATTER_OWNER": "epilogue_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_DEDUP_MODE": "1"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "0-8",
+       "WEAVE_GEMM1_CONFIG": "32",
+       "WEAVE_GEMM2_CONFIG": "32",
+       "WEAVE_SCATTER_OWNER": "epilogue_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_DEDUP_MODE": "1"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "4-4",
+       "WEAVE_GEMM1_CONFIG": "0",
+       "WEAVE_GEMM2_CONFIG": "0",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "1",
+       "WEAVE_READY_GROUP_SIZE": "16",
+       "WEAVE_V_HEAD": "25"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "4-4",
+       "WEAVE_GEMM1_CONFIG": "64",
+       "WEAVE_GEMM2_CONFIG": "64",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "1",
+       "WEAVE_READY_GROUP_SIZE": "16",
+       "WEAVE_V_HEAD": "25"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "4-4",
+       "WEAVE_GEMM1_CONFIG": "32",
+       "WEAVE_GEMM2_CONFIG": "32",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "1",
+       "WEAVE_READY_GROUP_SIZE": "16",
+       "WEAVE_V_HEAD": "25"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "0-8",
+       "WEAVE_GEMM1_CONFIG": "64",
+       "WEAVE_GEMM2_CONFIG": "64",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "1"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "8-0",
+       "WEAVE_GEMM1_CONFIG": "0",
+       "WEAVE_GEMM2_CONFIG": "0",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "1"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "4-4",
+       "WEAVE_GEMM1_CONFIG": "0",
+       "WEAVE_GEMM2_CONFIG": "0",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "0"
+      }
+     ]
+    },
+    {
+     "S": 8192,
+     "env": {
+      "WEAVE_CU_WAVE_SPLIT": "4-4",
+      "WEAVE_GEMM1_CONFIG": "0",
+      "WEAVE_GEMM2_CONFIG": "0",
+      "WEAVE_SCATTER_OWNER": "comm_only",
+      "WEAVE_SCATTER_STAGING": "reg_2stage",
+      "WEAVE_REG_PULL_BYTES": "8192",
+      "WEAVE_DEDUP_MODE": "0"
+     },
+     "winner_arm": "k16_dedup_0",
+     "measured_us": 1606.523,
+     "fastest_baseline_us": 2763.304,
+     "speedup_vs_fastest_baseline": 1.72,
+     "verified_variants": [
+      {
+       "WEAVE_CU_WAVE_SPLIT": "0-8",
+       "WEAVE_GEMM1_CONFIG": "16",
+       "WEAVE_GEMM2_CONFIG": "16",
+       "WEAVE_SCATTER_OWNER": "epilogue_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_DEDUP_MODE": "1"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "0-8",
+       "WEAVE_GEMM1_CONFIG": "32",
+       "WEAVE_GEMM2_CONFIG": "32",
+       "WEAVE_SCATTER_OWNER": "epilogue_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_DEDUP_MODE": "1"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "4-4",
+       "WEAVE_GEMM1_CONFIG": "0",
+       "WEAVE_GEMM2_CONFIG": "0",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "1",
+       "WEAVE_READY_GROUP_SIZE": "16",
+       "WEAVE_V_HEAD": "25"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "4-4",
+       "WEAVE_GEMM1_CONFIG": "64",
+       "WEAVE_GEMM2_CONFIG": "64",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "1",
+       "WEAVE_READY_GROUP_SIZE": "16",
+       "WEAVE_V_HEAD": "25"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "4-4",
+       "WEAVE_GEMM1_CONFIG": "32",
+       "WEAVE_GEMM2_CONFIG": "32",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "1",
+       "WEAVE_READY_GROUP_SIZE": "16",
+       "WEAVE_V_HEAD": "25"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "0-8",
+       "WEAVE_GEMM1_CONFIG": "64",
+       "WEAVE_GEMM2_CONFIG": "64",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "1"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "8-0",
+       "WEAVE_GEMM1_CONFIG": "0",
+       "WEAVE_GEMM2_CONFIG": "0",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "1"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "4-4",
+       "WEAVE_GEMM1_CONFIG": "0",
+       "WEAVE_GEMM2_CONFIG": "0",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "0"
+      }
+     ]
+    },
+    {
+     "S": 16384,
+     "env": {
+      "WEAVE_CU_WAVE_SPLIT": "4-4",
+      "WEAVE_GEMM1_CONFIG": "0",
+      "WEAVE_GEMM2_CONFIG": "0",
+      "WEAVE_SCATTER_OWNER": "comm_only",
+      "WEAVE_SCATTER_STAGING": "reg_2stage",
+      "WEAVE_REG_PULL_BYTES": "8192",
+      "WEAVE_DEDUP_MODE": "1",
+      "WEAVE_READY_GROUP_SIZE": "16",
+      "WEAVE_V_HEAD": "25"
+     },
+     "winner_arm": "v70_champ_4_4",
+     "measured_us": 2573.048,
+     "fastest_baseline_us": 4988.991,
+     "speedup_vs_fastest_baseline": 1.939,
+     "verified_variants": [
+      {
+       "WEAVE_CU_WAVE_SPLIT": "0-8",
+       "WEAVE_GEMM1_CONFIG": "16",
+       "WEAVE_GEMM2_CONFIG": "16",
+       "WEAVE_SCATTER_OWNER": "epilogue_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_DEDUP_MODE": "1"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "0-8",
+       "WEAVE_GEMM1_CONFIG": "32",
+       "WEAVE_GEMM2_CONFIG": "32",
+       "WEAVE_SCATTER_OWNER": "epilogue_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_DEDUP_MODE": "1"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "4-4",
+       "WEAVE_GEMM1_CONFIG": "0",
+       "WEAVE_GEMM2_CONFIG": "0",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "1",
+       "WEAVE_READY_GROUP_SIZE": "16",
+       "WEAVE_V_HEAD": "25"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "4-4",
+       "WEAVE_GEMM1_CONFIG": "64",
+       "WEAVE_GEMM2_CONFIG": "64",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "1",
+       "WEAVE_READY_GROUP_SIZE": "16",
+       "WEAVE_V_HEAD": "25"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "4-4",
+       "WEAVE_GEMM1_CONFIG": "32",
+       "WEAVE_GEMM2_CONFIG": "32",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "1",
+       "WEAVE_READY_GROUP_SIZE": "16",
+       "WEAVE_V_HEAD": "25"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "0-8",
+       "WEAVE_GEMM1_CONFIG": "64",
+       "WEAVE_GEMM2_CONFIG": "64",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "1"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "8-0",
+       "WEAVE_GEMM1_CONFIG": "0",
+       "WEAVE_GEMM2_CONFIG": "0",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "1"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "4-4",
+       "WEAVE_GEMM1_CONFIG": "0",
+       "WEAVE_GEMM2_CONFIG": "0",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "0"
+      }
+     ]
+    }
+   ],
+   "thresholds": {
+    "dedup_min_saved_rows": 32,
+    "comm_scatter_min_rows": 256,
+    "comm_scatter_min_tiles": 16,
+    "skew_rgs": 16,
+    "skew_comm_heavy": {
+     "WEAVE_CU_WAVE_SPLIT": "4-4",
+     "WEAVE_SCATTER_WARPS": "8",
+     "WEAVE_V_HEAD": "0"
+    },
+    "skew_comp_heavy": {
+     "WEAVE_CU_WAVE_SPLIT": "0-8"
+    }
+   }
+  },
+  "Qwen3.5-35B": {
+   "schema": "weave_autotune/v1",
+   "tool_version": "1.0",
+   "hw": {
+    "cc_major": 9,
+    "cc_minor": 4,
+    "device_name": "AMD Instinct MI308X",
+    "num_sms": 80,
+    "smem_per_sm": 65536,
+    "l2_bytes": 4194304,
+    "ep": 16,
+    "gcn_arch": "gfx942",
+    "hw_id": "gfx942_amd_instinct_mi308x_80cu_ep16",
+    "family": "cdna3"
+   },
+   "model": {
+    "E": 256,
+    "K": 8,
+    "H": 2048,
+    "I": 512,
+    "shared": 0,
+    "mma_type": "fp8xfp8"
+   },
+   "buckets": [
+    {
+     "S": 16,
+     "env": {
+      "WEAVE_CU_WAVE_SPLIT": "0-8",
+      "WEAVE_GEMM1_CONFIG": "16",
+      "WEAVE_GEMM2_CONFIG": "16",
+      "WEAVE_SCATTER_OWNER": "epilogue_only",
+      "WEAVE_SCATTER_STAGING": "reg_2stage",
+      "WEAVE_DEDUP_MODE": "1"
+     },
+     "winner_arm": "v30",
+     "measured_us": 436.079,
+     "fastest_baseline_us": 830.961,
+     "speedup_vs_fastest_baseline": 1.733,
+     "verified_variants": [
+      {
+       "WEAVE_CU_WAVE_SPLIT": "0-8",
+       "WEAVE_GEMM1_CONFIG": "16",
+       "WEAVE_GEMM2_CONFIG": "16",
+       "WEAVE_SCATTER_OWNER": "epilogue_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_DEDUP_MODE": "1"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "0-8",
+       "WEAVE_GEMM1_CONFIG": "32",
+       "WEAVE_GEMM2_CONFIG": "32",
+       "WEAVE_SCATTER_OWNER": "epilogue_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_DEDUP_MODE": "1"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "4-4",
+       "WEAVE_GEMM1_CONFIG": "0",
+       "WEAVE_GEMM2_CONFIG": "0",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "1",
+       "WEAVE_READY_GROUP_SIZE": "16",
+       "WEAVE_V_HEAD": "25"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "4-4",
+       "WEAVE_GEMM1_CONFIG": "64",
+       "WEAVE_GEMM2_CONFIG": "64",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "1",
+       "WEAVE_READY_GROUP_SIZE": "16",
+       "WEAVE_V_HEAD": "25"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "4-4",
+       "WEAVE_GEMM1_CONFIG": "32",
+       "WEAVE_GEMM2_CONFIG": "32",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "1",
+       "WEAVE_READY_GROUP_SIZE": "16",
+       "WEAVE_V_HEAD": "25"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "0-8",
+       "WEAVE_GEMM1_CONFIG": "64",
+       "WEAVE_GEMM2_CONFIG": "64",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "1"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "8-0",
+       "WEAVE_GEMM1_CONFIG": "0",
+       "WEAVE_GEMM2_CONFIG": "0",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "1"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "4-4",
+       "WEAVE_GEMM1_CONFIG": "0",
+       "WEAVE_GEMM2_CONFIG": "0",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "0"
+      }
+     ]
+    },
+    {
+     "S": 128,
+     "env": {
+      "WEAVE_CU_WAVE_SPLIT": "0-8",
+      "WEAVE_GEMM1_CONFIG": "16",
+      "WEAVE_GEMM2_CONFIG": "16",
+      "WEAVE_SCATTER_OWNER": "epilogue_only",
+      "WEAVE_SCATTER_STAGING": "reg_2stage",
+      "WEAVE_DEDUP_MODE": "1"
+     },
+     "winner_arm": "v30",
+     "measured_us": 551.201,
+     "fastest_baseline_us": 1130.222,
+     "speedup_vs_fastest_baseline": 1.905,
+     "verified_variants": [
+      {
+       "WEAVE_CU_WAVE_SPLIT": "0-8",
+       "WEAVE_GEMM1_CONFIG": "16",
+       "WEAVE_GEMM2_CONFIG": "16",
+       "WEAVE_SCATTER_OWNER": "epilogue_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_DEDUP_MODE": "1"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "0-8",
+       "WEAVE_GEMM1_CONFIG": "32",
+       "WEAVE_GEMM2_CONFIG": "32",
+       "WEAVE_SCATTER_OWNER": "epilogue_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_DEDUP_MODE": "1"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "4-4",
+       "WEAVE_GEMM1_CONFIG": "0",
+       "WEAVE_GEMM2_CONFIG": "0",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "1",
+       "WEAVE_READY_GROUP_SIZE": "16",
+       "WEAVE_V_HEAD": "25"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "4-4",
+       "WEAVE_GEMM1_CONFIG": "64",
+       "WEAVE_GEMM2_CONFIG": "64",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "1",
+       "WEAVE_READY_GROUP_SIZE": "16",
+       "WEAVE_V_HEAD": "25"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "4-4",
+       "WEAVE_GEMM1_CONFIG": "32",
+       "WEAVE_GEMM2_CONFIG": "32",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "1",
+       "WEAVE_READY_GROUP_SIZE": "16",
+       "WEAVE_V_HEAD": "25"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "0-8",
+       "WEAVE_GEMM1_CONFIG": "64",
+       "WEAVE_GEMM2_CONFIG": "64",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "1"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "8-0",
+       "WEAVE_GEMM1_CONFIG": "0",
+       "WEAVE_GEMM2_CONFIG": "0",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "1"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "4-4",
+       "WEAVE_GEMM1_CONFIG": "0",
+       "WEAVE_GEMM2_CONFIG": "0",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "0"
+      }
+     ]
+    },
+    {
+     "S": 1024,
+     "env": {
+      "WEAVE_CU_WAVE_SPLIT": "4-4",
+      "WEAVE_GEMM1_CONFIG": "0",
+      "WEAVE_GEMM2_CONFIG": "0",
+      "WEAVE_SCATTER_OWNER": "comm_only",
+      "WEAVE_SCATTER_STAGING": "reg_2stage",
+      "WEAVE_REG_PULL_BYTES": "8192",
+      "WEAVE_DEDUP_MODE": "0"
+     },
+     "winner_arm": "k16_dedup_0",
+     "measured_us": 635.004,
+     "fastest_baseline_us": 906.762,
+     "speedup_vs_fastest_baseline": 1.428,
+     "verified_variants": [
+      {
+       "WEAVE_CU_WAVE_SPLIT": "0-8",
+       "WEAVE_GEMM1_CONFIG": "16",
+       "WEAVE_GEMM2_CONFIG": "16",
+       "WEAVE_SCATTER_OWNER": "epilogue_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_DEDUP_MODE": "1"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "0-8",
+       "WEAVE_GEMM1_CONFIG": "32",
+       "WEAVE_GEMM2_CONFIG": "32",
+       "WEAVE_SCATTER_OWNER": "epilogue_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_DEDUP_MODE": "1"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "4-4",
+       "WEAVE_GEMM1_CONFIG": "0",
+       "WEAVE_GEMM2_CONFIG": "0",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "1",
+       "WEAVE_READY_GROUP_SIZE": "16",
+       "WEAVE_V_HEAD": "25"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "4-4",
+       "WEAVE_GEMM1_CONFIG": "64",
+       "WEAVE_GEMM2_CONFIG": "64",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "1",
+       "WEAVE_READY_GROUP_SIZE": "16",
+       "WEAVE_V_HEAD": "25"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "4-4",
+       "WEAVE_GEMM1_CONFIG": "32",
+       "WEAVE_GEMM2_CONFIG": "32",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "1",
+       "WEAVE_READY_GROUP_SIZE": "16",
+       "WEAVE_V_HEAD": "25"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "0-8",
+       "WEAVE_GEMM1_CONFIG": "64",
+       "WEAVE_GEMM2_CONFIG": "64",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "1"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "8-0",
+       "WEAVE_GEMM1_CONFIG": "0",
+       "WEAVE_GEMM2_CONFIG": "0",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "1"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "4-4",
+       "WEAVE_GEMM1_CONFIG": "0",
+       "WEAVE_GEMM2_CONFIG": "0",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "0"
+      }
+     ]
+    },
+    {
+     "S": 8192,
+     "env": {
+      "WEAVE_CU_WAVE_SPLIT": "4-4",
+      "WEAVE_GEMM1_CONFIG": "0",
+      "WEAVE_GEMM2_CONFIG": "0",
+      "WEAVE_SCATTER_OWNER": "comm_only",
+      "WEAVE_SCATTER_STAGING": "reg_2stage",
+      "WEAVE_REG_PULL_BYTES": "8192",
+      "WEAVE_DEDUP_MODE": "1",
+      "WEAVE_READY_GROUP_SIZE": "16",
+      "WEAVE_V_HEAD": "25"
+     },
+     "winner_arm": "v70_champ_4_4",
+     "measured_us": 871.88,
+     "fastest_baseline_us": 1601.144,
+     "speedup_vs_fastest_baseline": 1.594,
+     "verified_variants": [
+      {
+       "WEAVE_CU_WAVE_SPLIT": "0-8",
+       "WEAVE_GEMM1_CONFIG": "16",
+       "WEAVE_GEMM2_CONFIG": "16",
+       "WEAVE_SCATTER_OWNER": "epilogue_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_DEDUP_MODE": "1"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "0-8",
+       "WEAVE_GEMM1_CONFIG": "32",
+       "WEAVE_GEMM2_CONFIG": "32",
+       "WEAVE_SCATTER_OWNER": "epilogue_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_DEDUP_MODE": "1"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "4-4",
+       "WEAVE_GEMM1_CONFIG": "0",
+       "WEAVE_GEMM2_CONFIG": "0",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "1",
+       "WEAVE_READY_GROUP_SIZE": "16",
+       "WEAVE_V_HEAD": "25"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "4-4",
+       "WEAVE_GEMM1_CONFIG": "64",
+       "WEAVE_GEMM2_CONFIG": "64",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "1",
+       "WEAVE_READY_GROUP_SIZE": "16",
+       "WEAVE_V_HEAD": "25"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "4-4",
+       "WEAVE_GEMM1_CONFIG": "32",
+       "WEAVE_GEMM2_CONFIG": "32",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "1",
+       "WEAVE_READY_GROUP_SIZE": "16",
+       "WEAVE_V_HEAD": "25"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "0-8",
+       "WEAVE_GEMM1_CONFIG": "64",
+       "WEAVE_GEMM2_CONFIG": "64",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "1"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "8-0",
+       "WEAVE_GEMM1_CONFIG": "0",
+       "WEAVE_GEMM2_CONFIG": "0",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "1"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "4-4",
+       "WEAVE_GEMM1_CONFIG": "0",
+       "WEAVE_GEMM2_CONFIG": "0",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "0"
+      }
+     ]
+    },
+    {
+     "S": 16384,
+     "env": {
+      "WEAVE_CU_WAVE_SPLIT": "4-4",
+      "WEAVE_GEMM1_CONFIG": "64",
+      "WEAVE_GEMM2_CONFIG": "64",
+      "WEAVE_SCATTER_OWNER": "comm_only",
+      "WEAVE_SCATTER_STAGING": "reg_2stage",
+      "WEAVE_REG_PULL_BYTES": "8192",
+      "WEAVE_DEDUP_MODE": "1",
+      "WEAVE_READY_GROUP_SIZE": "16",
+      "WEAVE_V_HEAD": "25"
+     },
+     "winner_arm": "v70_bm64_fixed",
+     "measured_us": 1284.683,
+     "fastest_baseline_us": 2665.076,
+     "speedup_vs_fastest_baseline": 2.075,
+     "verified_variants": [
+      {
+       "WEAVE_CU_WAVE_SPLIT": "0-8",
+       "WEAVE_GEMM1_CONFIG": "16",
+       "WEAVE_GEMM2_CONFIG": "16",
+       "WEAVE_SCATTER_OWNER": "epilogue_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_DEDUP_MODE": "1"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "0-8",
+       "WEAVE_GEMM1_CONFIG": "32",
+       "WEAVE_GEMM2_CONFIG": "32",
+       "WEAVE_SCATTER_OWNER": "epilogue_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_DEDUP_MODE": "1"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "4-4",
+       "WEAVE_GEMM1_CONFIG": "0",
+       "WEAVE_GEMM2_CONFIG": "0",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "1",
+       "WEAVE_READY_GROUP_SIZE": "16",
+       "WEAVE_V_HEAD": "25"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "4-4",
+       "WEAVE_GEMM1_CONFIG": "64",
+       "WEAVE_GEMM2_CONFIG": "64",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "1",
+       "WEAVE_READY_GROUP_SIZE": "16",
+       "WEAVE_V_HEAD": "25"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "4-4",
+       "WEAVE_GEMM1_CONFIG": "32",
+       "WEAVE_GEMM2_CONFIG": "32",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "1",
+       "WEAVE_READY_GROUP_SIZE": "16",
+       "WEAVE_V_HEAD": "25"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "0-8",
+       "WEAVE_GEMM1_CONFIG": "64",
+       "WEAVE_GEMM2_CONFIG": "64",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "1"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "8-0",
+       "WEAVE_GEMM1_CONFIG": "0",
+       "WEAVE_GEMM2_CONFIG": "0",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "1"
+      },
+      {
+       "WEAVE_CU_WAVE_SPLIT": "4-4",
+       "WEAVE_GEMM1_CONFIG": "0",
+       "WEAVE_GEMM2_CONFIG": "0",
+       "WEAVE_SCATTER_OWNER": "comm_only",
+       "WEAVE_SCATTER_STAGING": "reg_2stage",
+       "WEAVE_REG_PULL_BYTES": "8192",
+       "WEAVE_DEDUP_MODE": "0"
+      }
+     ]
+    }
+   ],
+   "thresholds": {
+    "dedup_min_saved_rows": 32,
+    "comm_scatter_min_rows": 256,
+    "comm_scatter_min_tiles": 16,
+    "skew_rgs": 16,
+    "skew_comm_heavy": {
+     "WEAVE_CU_WAVE_SPLIT": "4-4",
+     "WEAVE_SCATTER_WARPS": "8",
+     "WEAVE_V_HEAD": "0"
+    },
+    "skew_comp_heavy": {
+     "WEAVE_CU_WAVE_SPLIT": "0-8"
+    }
+   }
+  }
+ },
+ "cells": [
+  {
+   "model": "Qwen3.8-2.4T",
+   "S": 16,
+   "auto_us": 732.079,
+   "oracle_us": 732.079,
+   "auto_over_oracle": 1.0,
+   "speedup_vs_official": 1.245,
+   "winner_arm": "v30"
+  },
+  {
+   "model": "Qwen3.8-2.4T",
+   "S": 128,
+   "auto_us": 1084.781,
+   "oracle_us": 1084.781,
+   "auto_over_oracle": 1.0,
+   "speedup_vs_official": 1.018,
+   "winner_arm": "v30"
+  },
+  {
+   "model": "Qwen3.8-2.4T",
+   "S": 1024,
+   "auto_us": 1695.411,
+   "oracle_us": 1695.411,
+   "auto_over_oracle": 1.0,
+   "speedup_vs_official": 1.062,
+   "winner_arm": "k16_dedup_0"
+  },
+  {
+   "model": "Qwen3.8-2.4T",
+   "S": 8192,
+   "auto_us": 4027.628,
+   "oracle_us": 4027.628,
+   "auto_over_oracle": 1.0,
+   "speedup_vs_official": 1.997,
+   "winner_arm": "v70_champ_4_4"
+  },
+  {
+   "model": "Qwen3.8-2.4T",
+   "S": 16384,
+   "auto_us": 6981.124,
+   "oracle_us": 6981.124,
+   "auto_over_oracle": 1.0,
+   "speedup_vs_official": 2.556,
+   "winner_arm": "v70_champ_4_4"
+  },
+  {
+   "model": "MiniMax-M3",
+   "S": 16,
+   "auto_us": 513.5,
+   "oracle_us": 513.5,
+   "auto_over_oracle": 1.0,
+   "speedup_vs_official": 2.049,
+   "winner_arm": "v30"
+  },
+  {
+   "model": "MiniMax-M3",
+   "S": 128,
+   "auto_us": 607.639,
+   "oracle_us": 607.639,
+   "auto_over_oracle": 1.0,
+   "speedup_vs_official": 1.489,
+   "winner_arm": "v31"
+  },
+  {
+   "model": "MiniMax-M3",
+   "S": 1024,
+   "auto_us": 914.686,
+   "oracle_us": 914.686,
+   "auto_over_oracle": 1.0,
+   "speedup_vs_official": 1.559,
+   "winner_arm": "v70_bm32_fixed"
+  },
+  {
+   "model": "MiniMax-M3",
+   "S": 8192,
+   "auto_us": 2124.925,
+   "oracle_us": 2124.925,
+   "auto_over_oracle": 1.0,
+   "speedup_vs_official": 2.054,
+   "winner_arm": "v70_cu_8_0"
+  },
+  {
+   "model": "MiniMax-M3",
+   "S": 16384,
+   "auto_us": 3519.162,
+   "oracle_us": 3519.162,
+   "auto_over_oracle": 1.0,
+   "speedup_vs_official": 2.302,
+   "winner_arm": "v70_champ_4_4"
+  },
+  {
+   "model": "Qwen3.5-397B",
+   "S": 16,
+   "auto_us": 554.819,
+   "oracle_us": 554.819,
+   "auto_over_oracle": 1.0,
+   "speedup_vs_official": 1.949,
+   "winner_arm": "v30"
+  },
+  {
+   "model": "Qwen3.5-397B",
+   "S": 128,
+   "auto_us": 688.381,
+   "oracle_us": 688.381,
+   "auto_over_oracle": 1.0,
+   "speedup_vs_official": 1.167,
+   "winner_arm": "v30"
+  },
+  {
+   "model": "Qwen3.5-397B",
+   "S": 1024,
+   "auto_us": 855.409,
+   "oracle_us": 855.409,
+   "auto_over_oracle": 1.0,
+   "speedup_vs_official": 1.316,
+   "winner_arm": "v70_cu_8_0"
+  },
+  {
+   "model": "Qwen3.5-397B",
+   "S": 8192,
+   "auto_us": 1584.656,
+   "oracle_us": 1584.656,
+   "auto_over_oracle": 1.0,
+   "speedup_vs_official": 2.15,
+   "winner_arm": "k16_dedup_0"
+  },
+  {
+   "model": "Qwen3.5-397B",
+   "S": 16384,
+   "auto_us": 2363.361,
+   "oracle_us": 2363.361,
+   "auto_over_oracle": 1.0,
+   "speedup_vs_official": 2.75,
+   "winner_arm": "v70_champ_4_4"
+  },
+  {
+   "model": "Qwen3.5-122B",
+   "S": 16,
+   "auto_us": 456.841,
+   "oracle_us": 456.841,
+   "auto_over_oracle": 1.0,
+   "speedup_vs_official": 2.39,
+   "winner_arm": "v30"
+  },
+  {
+   "model": "Qwen3.5-122B",
+   "S": 128,
+   "auto_us": 529.083,
+   "oracle_us": 529.083,
+   "auto_over_oracle": 1.0,
+   "speedup_vs_official": 2.188,
+   "winner_arm": "v70_bm64_fixed"
+  },
+  {
+   "model": "Qwen3.5-122B",
+   "S": 1024,
+   "auto_us": 615.404,
+   "oracle_us": 615.404,
+   "auto_over_oracle": 1.0,
+   "speedup_vs_official": 1.881,
+   "winner_arm": "v70_cu_8_0"
+  },
+  {
+   "model": "Qwen3.5-122B",
+   "S": 8192,
+   "auto_us": 1117.043,
+   "oracle_us": 1117.043,
+   "auto_over_oracle": 1.0,
+   "speedup_vs_official": 2.168,
+   "winner_arm": "k16_dedup_0"
+  },
+  {
+   "model": "Qwen3.5-122B",
+   "S": 16384,
+   "auto_us": 1728.611,
+   "oracle_us": 1728.611,
+   "auto_over_oracle": 1.0,
+   "speedup_vs_official": 2.414,
+   "winner_arm": "v70_champ_4_4"
+  },
+  {
+   "model": "DSKv4-Flash",
+   "S": 16,
+   "auto_us": 474.92,
+   "oracle_us": 474.92,
+   "auto_over_oracle": 1.0,
+   "speedup_vs_official": 1.954,
+   "winner_arm": "v30"
+  },
+  {
+   "model": "DSKv4-Flash",
+   "S": 128,
+   "auto_us": 658.439,
+   "oracle_us": 658.439,
+   "auto_over_oracle": 1.0,
+   "speedup_vs_official": 1.266,
+   "winner_arm": "v30"
+  },
+  {
+   "model": "DSKv4-Flash",
+   "S": 1024,
+   "auto_us": 872.361,
+   "oracle_us": 872.361,
+   "auto_over_oracle": 1.0,
+   "speedup_vs_official": 1.119,
+   "winner_arm": "v30"
+  },
+  {
+   "model": "DSKv4-Flash",
+   "S": 8192,
+   "auto_us": 1606.523,
+   "oracle_us": 1606.523,
+   "auto_over_oracle": 1.0,
+   "speedup_vs_official": 1.72,
+   "winner_arm": "k16_dedup_0"
+  },
+  {
+   "model": "DSKv4-Flash",
+   "S": 16384,
+   "auto_us": 2573.048,
+   "oracle_us": 2573.048,
+   "auto_over_oracle": 1.0,
+   "speedup_vs_official": 1.939,
+   "winner_arm": "v70_champ_4_4"
+  },
+  {
+   "model": "Qwen3.5-35B",
+   "S": 16,
+   "auto_us": 436.079,
+   "oracle_us": 436.079,
+   "auto_over_oracle": 1.0,
+   "speedup_vs_official": 1.733,
+   "winner_arm": "v30"
+  },
+  {
+   "model": "Qwen3.5-35B",
+   "S": 128,
+   "auto_us": 551.201,
+   "oracle_us": 551.201,
+   "auto_over_oracle": 1.0,
+   "speedup_vs_official": 1.905,
+   "winner_arm": "v30"
+  },
+  {
+   "model": "Qwen3.5-35B",
+   "S": 1024,
+   "auto_us": 635.004,
+   "oracle_us": 635.004,
+   "auto_over_oracle": 1.0,
+   "speedup_vs_official": 1.428,
+   "winner_arm": "k16_dedup_0"
+  },
+  {
+   "model": "Qwen3.5-35B",
+   "S": 8192,
+   "auto_us": 871.88,
+   "oracle_us": 871.88,
+   "auto_over_oracle": 1.0,
+   "speedup_vs_official": 1.594,
+   "winner_arm": "v70_champ_4_4"
+  },
+  {
+   "model": "Qwen3.5-35B",
+   "S": 16384,
+   "auto_us": 1284.683,
+   "oracle_us": 1284.683,
+   "auto_over_oracle": 1.0,
+   "speedup_vs_official": 2.075,
+   "winner_arm": "v70_bm64_fixed"
+  }
+ ]
+}

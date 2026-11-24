@@ -14,11 +14,30 @@ ROOT = Path(__file__).resolve().parents[1]
 FILES = {
     "b300": ROOT / "deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh",
     "b300_nvfp4": ROOT / "deep_gemm/include/deep_gemm/impls/sm100_fp4_fp4_mega_moe.cuh",
+    "b300_bf16": ROOT / "deep_gemm/include/deep_gemm/impls/sm100_bf16_mega_moe.cuh",
     "h20": ROOT / "deep_gemm/include/deep_gemm/impls/sm90_fp8_mega_moe.cuh",
     "mi308x": ROOT / "deep_gemm/include/deep_gemm/impls/gfx942_fp8_mega_moe.cuh",
     "mi308x_body": ROOT / "deep_gemm/include/deep_gemm/impls/amd/megamoe_amd.hip",
     "mi308x_route": ROOT / "deep_gemm/include/deep_gemm/impls/amd/include/direct_gather_and_greedy_tiles.hpp",
     "mi308x_comm": ROOT / "deep_gemm/include/deep_gemm/impls/amd/include/weave_comm_4wave_turbo.hpp",
+    "nvfp4_host": ROOT / "csrc/jit_kernels/heuristics/nvfp4_mega_moe.hpp",
+    "bf16_host": ROOT / "csrc/jit_kernels/impls/sm100_bf16_mega_moe.hpp",
+}
+
+# Additional files concatenated into the audited text of a label.
+EXTRA_FILES = {
+    "mi308x": [
+        ROOT / "deep_gemm/include/deep_gemm/impls/amd/megamoe_amd.hip",
+        ROOT / "deep_gemm/include/deep_gemm/impls/amd/include/direct_gather_and_greedy_tiles.hpp",
+        ROOT / "deep_gemm/include/deep_gemm/impls/amd/include/weave_comm_4wave_turbo.hpp",
+    ],
+    "nvfp4_host": [
+        ROOT / "csrc/jit_kernels/impls/sm100_fp4_fp4_mega_moe.hpp",
+        ROOT / "csrc/apis/nvfp4_mega_moe.hpp",
+    ],
+    "bf16_host": [
+        ROOT / "csrc/jit_kernels/heuristics/mega_moe.hpp",
+    ],
 }
 
 # (label, needle, expected_count).  expected_count == 0 is a negative check.
@@ -49,6 +68,26 @@ CHECKS = {
         ("consume_v_head", "selected_v_head", 1),
         ("all_cta_read", "load_published_policy", 1),
         ("epoch_wait", "wait_and_copy_policy", 1),
+        ("consume_sm0_sched", "WEAVE_SM0_STREAM_SCHED", 1),
+        ("consume_dispatch_sms", "WEAVE_DISPATCH_ACTIVE_SMS", 1),
+        ("assert_dispatch_warps", "WEAVE_DISPATCH_WARPS disagrees with the launch thread layout", 1),
+        ("assert_ring_blocks", "WEAVE_RING_BLOCKS must match the allocated ring", 1),
+    ],
+    "b300_bf16": [
+        ("scheduler_include", "scheduler/mega_moe.cuh", 1),
+        ("entry", "sm100_bf16_mega_moe_impl", 1),
+        ("scheduler", "sched::MegaMoEScheduler", 1),
+        ("include", "weave_policy_runtime.cuh", 1),
+        ("cta0", "cta0_select_from_packed_hist", 1),
+        ("consume_r", "selected_r_mask", 1),
+        ("consume_scatter", "selected_scatter_mode", 1),
+        ("consume_v_head", "selected_v_head", 1),
+        ("all_cta_read", "load_published_policy", 1),
+        ("epoch_wait", "wait_and_copy_policy", 1),
+        ("consume_sm0_sched", "WEAVE_SM0_STREAM_SCHED", 1),
+        ("consume_dispatch_sms", "WEAVE_DISPATCH_ACTIVE_SMS", 1),
+        ("assert_dispatch_warps", "WEAVE_DISPATCH_WARPS disagrees with the launch thread layout", 1),
+        ("assert_ring_blocks", "WEAVE_RING_BLOCKS must match the allocated ring", 1),
     ],
     "h20": [
         ("include", "weave_policy_runtime.cuh", 1),
@@ -90,11 +129,39 @@ CHECKS = {
         ("consume_v_head", "selected_v_head", 1),
         ("policy_valid", "weave_policy_ok", 1),
     ],
+    # Host/JIT dispatchers: the unified WEAVE_* request must be resolved from
+    # the environment and mirrored into the kernel translation unit, not
+    # silently dropped between Python and the compiled kernel.
+    "nvfp4_host": [
+        ("from_env", "weave_knobs::from_env", 1),
+        ("dispatch_warps_resolver", "weave::resolve_dispatch_warps", 1),
+        ("block_m_envelope", "resolve_block_m_envelope", 1),
+        ("ring_cap", "knobs.ring_blocks", 1),
+        ("define_precision", "#define WEAVE_PRECISION_MODE", 1),
+        ("define_v_head", "#define WEAVE_V_HEAD", 1),
+        ("define_dispatch_warps", "#define WEAVE_DISPATCH_WARPS", 1),
+        ("define_sm0_sched", "#define WEAVE_SM0_STREAM_SCHED", 1),
+        ("define_dispatch_sms", "#define WEAVE_DISPATCH_ACTIVE_SMS", 1),
+        ("define_ring_blocks", "#define WEAVE_RING_BLOCKS", 1),
+        ("define_block_m_l1", "#define WEAVE_BLOCK_M_L1", 1),
+        ("define_block_m_l2", "#define WEAVE_BLOCK_M_L2", 1),
+    ],
+    "bf16_host": [
+        ("from_env", "weave_knobs::from_env", 1),
+        ("define_precision", "#define WEAVE_PRECISION_MODE", 1),
+        ("define_v_head", "#define WEAVE_V_HEAD", 1),
+        ("define_dispatch_warps", "#define WEAVE_DISPATCH_WARPS", 1),
+        ("define_sm0_sched", "#define WEAVE_SM0_STREAM_SCHED", 1),
+        ("define_dispatch_sms", "#define WEAVE_DISPATCH_ACTIVE_SMS", 1),
+        ("define_ring_blocks", "#define WEAVE_RING_BLOCKS", 1),
+        ("define_block_m_l1", "#define WEAVE_BLOCK_M_L1", 1),
+        ("define_block_m_l2", "#define WEAVE_BLOCK_M_L2", 1),
+    ],
 }
 
 
 def audit() -> dict:
-    report = {"schema": "weave-kernel-policy-wiring/v3", "pass": True, "files": {}}
+    report = {"schema": "weave-kernel-policy-wiring/v4", "pass": True, "files": {}}
     for name, checks in CHECKS.items():
         path = FILES[name]
         if not path.exists():
@@ -102,13 +169,8 @@ def audit() -> dict:
             report["files"][name] = {"exists": False, "checks": {}}
             continue
         text = path.read_text(encoding="utf-8", errors="replace")
-        if name == "mi308x":
-            for extra in (
-                ROOT / "deep_gemm/include/deep_gemm/impls/amd/megamoe_amd.hip",
-                ROOT / "deep_gemm/include/deep_gemm/impls/amd/include/direct_gather_and_greedy_tiles.hpp",
-                ROOT / "deep_gemm/include/deep_gemm/impls/amd/include/weave_comm_4wave_turbo.hpp",
-            ):
-                text += "\n" + extra.read_text(encoding="utf-8", errors="replace")
+        for extra in EXTRA_FILES.get(name, []):
+            text += "\n" + extra.read_text(encoding="utf-8", errors="replace")
         rows = {}
         for label, needle, expected in checks:
             count = text.count(needle)

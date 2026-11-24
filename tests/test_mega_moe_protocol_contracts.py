@@ -27,8 +27,18 @@ def mega(monkeypatch):
     for name, module in ((package.__name__, package), (utils.__name__, utils), (math.__name__, math)):
         monkeypatch.setitem(sys.modules, name, module)
     path = Path(importlib.util.find_spec('deep_gemm').origin).parent / 'mega/__init__.py'
+    # __init__.py imports the pure-Python precision / cost_model / knobs
+    # submodules relatively; resolve the real files under the mock package.
+    for sub in ('precision', 'cost_model', 'knobs'):
+        sub_spec = importlib.util.spec_from_file_location(
+            f'{package.__name__}.{sub}', path.parent / f'{sub}.py')
+        sub_module = importlib.util.module_from_spec(sub_spec)
+        monkeypatch.setitem(sys.modules, sub_spec.name, sub_module)
+        sub_spec.loader.exec_module(sub_module)
+        setattr(package, sub, sub_module)
     spec = importlib.util.spec_from_file_location('_mega_protocol_test.mega', path)
     module = importlib.util.module_from_spec(spec)
+    monkeypatch.setitem(sys.modules, spec.name, module)
     spec.loader.exec_module(module)
     yield module
     for name in ('fp4_fp4_mega_moe', 'fp8_fp4_mega_moe', 'bf16_mega_moe', 'fp8_mega_moe'):
@@ -314,18 +324,18 @@ def test_other_forwarding_and_subclasses(mega, name, arity):
 @pytest.mark.parametrize('scheduler', ['mega_moe', 'nvfp4_mega_moe'])
 def test_task_info_release_orders_metadata_reads(scheduler):
     include = Path(__file__).resolve().parents[1] / 'deep_gemm/include/deep_gemm'
-    source = (include / f'scheduler/{scheduler}.cuh').read_text()
+    source = (include / f'scheduler/{scheduler}.cuh').read_text(encoding='utf-8')
     release = source.split('void release_task_info() const {', 1)[1].split('}', 1)[0]
     assert release.index('ptx::fence_acq_rel_cta();') < release.index(
         'task_info_empty_barriers[sched_stage_idx ^ 1].arrive(0u);')
-    helper = (include / 'ptx/ld_st.cuh').read_text()
+    helper = (include / 'ptx/ld_st.cuh').read_text(encoding='utf-8')
     assert 'asm volatile("fence.acq_rel.cta;" ::: "memory");' in helper
 
 
 @pytest.mark.parametrize('kernel', ['sm90_fp8_mega_moe', 'sm100_fp4_fp4_mega_moe'])
 def test_nv_moe_launch_preserves_stream_dependency(kernel):
     source = (Path(__file__).resolve().parents[1] /
-              f'csrc/jit_kernels/impls/{kernel}.hpp').read_text()
+              f'csrc/jit_kernels/impls/{kernel}.hpp').read_text(encoding='utf-8')
     assert '.enable_pdl = false,' in source
 
 
@@ -333,7 +343,7 @@ def test_nv_moe_launch_preserves_stream_dependency(kernel):
                                   'sm100_bf16_mega_moe', 'sm100_fp8_fp4_mega_moe'])
 def test_moe_combine_waits_for_readers_before_refill(kernel):
     source = (Path(__file__).resolve().parents[1] /
-              f'deep_gemm/include/deep_gemm/impls/{kernel}.cuh').read_text()
+              f'deep_gemm/include/deep_gemm/impls/{kernel}.cuh').read_text(encoding='utf-8')
     refill = source.split('const auto move_mask_and_load =', 1)[1].split('return true;', 1)[0]
     assert refill.index('__syncwarp();') < refill.index('cute::elect_one_sync()')
     assert refill.index('cute::elect_one_sync()') < refill.index('ptx::tma_load_1d(')
@@ -341,7 +351,7 @@ def test_moe_combine_waits_for_readers_before_refill(kernel):
 
 def test_nvfp4_amax_preserves_nv_dev_functor():
     source = (Path(__file__).resolve().parents[1] /
-              'deep_gemm/include/deep_gemm/impls/sm100_fp4_fp4_mega_moe.cuh').read_text()
+              'deep_gemm/include/deep_gemm/impls/sm100_fp4_fp4_mega_moe.cuh').read_text(encoding='utf-8')
     assert 'CUTLASS_DEVICE T operator()(T a, T b) const { return a > b ? a : b; }' in source
     assert 'math::ReduceMax<float>()' not in source
     for component in ('x', 'y'):

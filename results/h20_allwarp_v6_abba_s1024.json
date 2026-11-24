@@ -1,0 +1,271 @@
+{
+  "model": "qwen38max",
+  "S": 1024,
+  "world": 4,
+  "num_shared_experts": 0,
+  "gates": {
+    "calc_diff": 0.001,
+    "cos_sim": 0.999,
+    "repeat": 0.001,
+    "stress": 0.001
+  },
+  "timing": {
+    "method": "cuda_event_per_launch_max_over_ranks",
+    "warmup": 2,
+    "rounds": 4,
+    "order": "palindromic_ABBA",
+    "samples_per_arm": 8,
+    "wall_s": 0.13
+  },
+  "ref_arm": "official",
+  "routing_hist": [
+    {
+      "rank": 0,
+      "total": 2482,
+      "max": 131,
+      "nonzero": 123,
+      "mean": 19.39,
+      "buckets": {
+        "<= 8": 48,
+        "<= 16": 25,
+        "<= 24": 12,
+        "<= 32": 15,
+        "<= 48": 12,
+        "<= 64": 6,
+        "<= 96": 3,
+        "<= 128": 1,
+        "<= 1000000000": 1
+      }
+    },
+    {
+      "rank": 1,
+      "total": 2540,
+      "max": 157,
+      "nonzero": 121,
+      "mean": 19.84,
+      "buckets": {
+        "<= 8": 35,
+        "<= 16": 29,
+        "<= 24": 25,
+        "<= 32": 14,
+        "<= 48": 8,
+        "<= 64": 6,
+        "<= 96": 1,
+        "<= 128": 0,
+        "<= 1000000000": 3
+      }
+    },
+    {
+      "rank": 2,
+      "total": 2937,
+      "max": 346,
+      "nonzero": 119,
+      "mean": 22.95,
+      "buckets": {
+        "<= 8": 33,
+        "<= 16": 29,
+        "<= 24": 21,
+        "<= 32": 9,
+        "<= 48": 10,
+        "<= 64": 9,
+        "<= 96": 7,
+        "<= 128": 0,
+        "<= 1000000000": 1
+      }
+    },
+    {
+      "rank": 3,
+      "total": 2281,
+      "max": 102,
+      "nonzero": 121,
+      "mean": 17.82,
+      "buckets": {
+        "<= 8": 44,
+        "<= 16": 32,
+        "<= 24": 16,
+        "<= 32": 9,
+        "<= 48": 9,
+        "<= 64": 7,
+        "<= 96": 2,
+        "<= 128": 2,
+        "<= 1000000000": 0
+      }
+    }
+  ],
+  "rank_hit_multiplicity": [
+    {
+      "rank": 0,
+      "tokens_hitting": 964,
+      "mean_hits": 2.575,
+      "rows": 2482,
+      "dedup_rows": 964
+    },
+    {
+      "rank": 1,
+      "tokens_hitting": 991,
+      "mean_hits": 2.563,
+      "rows": 2540,
+      "dedup_rows": 991
+    },
+    {
+      "rank": 2,
+      "tokens_hitting": 1002,
+      "mean_hits": 2.931,
+      "rows": 2937,
+      "dedup_rows": 1002
+    },
+    {
+      "rank": 3,
+      "tokens_hitting": 943,
+      "mean_hits": 2.419,
+      "rows": 2281,
+      "dedup_rows": 943
+    }
+  ],
+  "arms": {
+    "official": {
+      "env": {
+        "WEAVE_FORCE_OFFICIAL": "1"
+      },
+      "accuracy": {
+        "passed": true,
+        "max_calc_diff": 0.00035859476815258695,
+        "min_cos_sim": 0.9996415376663208,
+        "all_finite": true,
+        "stats_exact": true,
+        "repeat_diff": 0.0,
+        "stress_iters": 2,
+        "stress_diff": 0.0,
+        "max_abs_err": 2.3671875
+      },
+      "median_us": 3279.84,
+      "min_us": 3266.688,
+      "stdev_us": 16.244,
+      "samples_us": [
+        3303.712,
+        3267.2,
+        3272.96,
+        3286.72,
+        3300.608,
+        3266.688,
+        3305.728,
+        3267.776
+      ],
+      "speedup_vs_ref": 1.0,
+      "speedup_vs_official": 1.0
+    },
+    "adapt_4wg_allwarp": {
+      "env": {
+        "WEAVE_ADAPT_BM": "1"
+      },
+      "accuracy": {
+        "passed": true,
+        "max_calc_diff": 0.0004723043488449319,
+        "min_cos_sim": 0.9995278120040894,
+        "all_finite": true,
+        "stats_exact": true,
+        "repeat_diff": 0.0,
+        "stress_iters": 2,
+        "stress_diff": 0.0,
+        "max_abs_err": 2.5625
+      },
+      "median_us": 2520.96,
+      "min_us": 2516.576,
+      "stdev_us": 3.012,
+      "samples_us": [
+        2520.096,
+        2526.56,
+        2519.168,
+        2516.576,
+        2516.896,
+        2521.824,
+        2521.888,
+        2521.888
+      ],
+      "speedup_vs_ref": 1.30103,
+      "speedup_vs_official": 1.30103
+    },
+    "tuned_4wg_allwarp": {
+      "env": {
+        "WEAVE_ADAPT_BM": "1",
+        "WEAVE_SCATTER_OWNER": "comm_only",
+        "WEAVE_SCATTER_STAGING": "smem",
+        "WEAVE_V_HEAD": "64",
+        "WEAVE_SM0_STREAM_SCHED": "1"
+      },
+      "accuracy": {
+        "passed": true,
+        "max_calc_diff": 0.0004723043488449319,
+        "min_cos_sim": 0.9995278120040894,
+        "all_finite": true,
+        "stats_exact": true,
+        "repeat_diff": 0.0,
+        "stress_iters": 2,
+        "stress_diff": 0.0,
+        "max_abs_err": 2.5625
+      },
+      "median_us": 2518.24,
+      "min_us": 2511.424,
+      "stdev_us": 9.832,
+      "samples_us": [
+        2534.464,
+        2511.424,
+        2520.512,
+        2541.536,
+        2517.856,
+        2517.792,
+        2518.624,
+        2513.28
+      ],
+      "speedup_vs_ref": 1.30243,
+      "speedup_vs_official": 1.30243
+    },
+    "all_on": {
+      "env": {
+        "WEAVE_DISPATCH_ACTIVE_SMS": "52",
+        "WEAVE_SCATTER_ACTIVE_SMS": "52",
+        "WEAVE_SM0_STREAM_SCHED": "1",
+        "WEAVE_REDUCE_WARPS": "4",
+        "WEAVE_REG_BALANCE": "1",
+        "WEAVE_V_HEAD": "64",
+        "WEAVE_READY_GROUP_SIZE": "4",
+        "WEAVE_READY_QUEUE": "sm0_fifo",
+        "WEAVE_SCATTER_OWNER": "comm_only",
+        "WEAVE_COMBINE_SYNC_CHUNK": "32",
+        "WEAVE_ADAPT_BM": "1",
+        "WEAVE_BLOCK_M_L1": "64",
+        "WEAVE_BLOCK_M_L2": "64",
+        "WEAVE_REG_PULL_BYTES": "2048",
+        "WEAVE_DEDUP_MODE": "1",
+        "WEAVE_SCATTER_STAGING": "hbm_dedup",
+        "WEAVE_LOCAL_SCATTER_DEDUP": "1"
+      },
+      "accuracy": {
+        "passed": true,
+        "max_calc_diff": 0.00047491663224974445,
+        "min_cos_sim": 0.999525249004364,
+        "all_finite": true,
+        "stats_exact": true,
+        "repeat_diff": 2.1821474405214758e-08,
+        "stress_iters": 2,
+        "stress_diff": 2.5991418906023966e-08,
+        "max_abs_err": 2.5
+      },
+      "median_us": 3739.776,
+      "min_us": 3722.784,
+      "stdev_us": 22.735,
+      "samples_us": [
+        3784.96,
+        3731.776,
+        3766.912,
+        3776.992,
+        3722.784,
+        3724.8,
+        3739.808,
+        3739.744
+      ],
+      "speedup_vs_ref": 0.87702,
+      "speedup_vs_official": 0.87702
+    }
+  }
+}

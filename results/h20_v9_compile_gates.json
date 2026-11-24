@@ -1,0 +1,310 @@
+{
+ "schema": "weave-h20-v9-compile-gates/v2",
+ "host": "DESKTOP-3FP24HM",
+ "nvcc": "C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v13.3\\bin\\nvcc.EXE",
+ "arch": "sm_90a",
+ "regs_limit": 96,
+ "epilogue_threads_4wg": 512,
+ "winner_env": {
+  "WEAVE_ADAPT_BM": "1",
+  "WEAVE_SCATTER_OWNER": "comm_only",
+  "WEAVE_SCATTER_STAGING": "smem"
+ },
+ "arms": [
+  {
+   "arm": "h20_v9_s1024",
+   "tokens": 1024,
+   "env": {
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem"
+   },
+   "informational_l1": false,
+   "host": {
+    "SPEC_ENABLED": "1",
+    "SPEC_RAW": "fast_host=1,fused=1,compact=1,dyn=1,alias=1,bm=64,adapt_bm=1,bf16_acc=0,bn=256,bk=128,wgs=4,swap=1,l1_nmajor=1,l2_nmajor=1,stages=0,swap_pipe=0,fast_swap_epi=1,rank_cache=1,fast_clean=1,fast_pull=1,dedup_disp=1,dedup_tier=1,reg_comb=1,fast_comb=1,all_idle_comb=1,taskq_lag=128,scatter_owner=1,scatter_staging=1",
+    "FUSED": "1",
+    "BF16_ACC": "0",
+    "STAGING": "1",
+    "OWNER": "1",
+    "COMB_WARPS": "0",
+    "L1_BM": "64",
+    "L1_BN": "256",
+    "L1_BK": "128",
+    "L1_STAGES": "3",
+    "L1_SMEM": "204384",
+    "L1_DISP": "64",
+    "L1_NONEPI": "64",
+    "L1_EPI": "512",
+    "L1_SWAP": "1",
+    "L1_NMAJOR": "1",
+    "L1_EPW": "128",
+    "L1_SF_STRIDE": "131328",
+    "L1_POOL": "65664",
+    "L1_DIRECT_L2": "0",
+    "L2_BM": "64",
+    "L2_BN": "256",
+    "L2_BK": "128",
+    "L2_STAGES": "3",
+    "L2_SMEM": "204384",
+    "L2_DISP": "64",
+    "L2_NONEPI": "64",
+    "L2_EPI": "512",
+    "L2_SWAP": "1",
+    "L2_NMAJOR": "1",
+    "L2_EPW": "128",
+    "L2_SF_STRIDE": "131328",
+    "L2_POOL": "65664",
+    "L2_DIRECT_L2": "0",
+    "KERNELS": "fused"
+   },
+   "jit_defines": "#define AGY_ALIAS_DISPATCH_SMEM 1\n#define WEAVE_SCATTER_OWNER 1\n#define WEAVE_SCATTER_STAGING 1\n#define AGY_FUSED_1KERNEL 1\n#define AGY_COMPACT_NOTIFY 1\n#define WEAVE_DYN_SCHED 1\n#define WEAVE_FAST_PULL 1\n#define WEAVE_DEDUP_DISPATCH 1\n#define AGY_FAST_COMB 1\n#define WEAVE_REG_COMBINE 1\n#define AGY_FAST_SWAP_EPI 1\n#define AGY_CACHE_RANK_COUNTS 1\n#define AGY_FAST_CLEAN 1\n#define AGY_DEDUP_TIER 1\n#define WEAVE_ALL_IDLE_COMBINE 1\n#define WEAVE_INTERLEAVE_L1_L2 7\n#define WEAVE_TASKQ_LAG 128u\n#define WEAVE_SCATTER_ROLE_DISP 1\n",
+   "fused": true,
+   "kernels": {
+    "fused": {
+     "kernel_hash": "78bf6762b0660043",
+     "gating": true,
+     "epilogue_threads": 512,
+     "bm_bn_bk": [
+      "64",
+      "256",
+      "128"
+     ],
+     "stages": "3",
+     "threads": [
+      "64",
+      "64",
+      512
+     ],
+     "registers": [
+      96
+     ],
+     "spill": [
+      [
+       0,
+       0,
+       0
+      ]
+     ],
+     "ptx_probes": {
+      "fence.acq_rel.sys": true,
+      "red.relaxed.sys.global.add.u32": true,
+      "ld.acquire.sys.global.u32": true,
+      "atom.global.or.b32": false,
+      "red.release.sys.global.add.u32": false,
+      "atom.acq_rel.gpu.global.add.u32": false,
+      "fence.acq_rel.gpu": true
+     },
+     "problems": []
+    }
+   },
+   "pass": true,
+   "problems": []
+  },
+  {
+   "arm": "h20_v9_s4096",
+   "tokens": 4096,
+   "env": {
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem"
+   },
+   "informational_l1": false,
+   "host": {
+    "SPEC_ENABLED": "1",
+    "SPEC_RAW": "fast_host=1,fused=1,compact=1,dyn=1,alias=1,bm=64,adapt_bm=1,bf16_acc=0,bn=256,bk=128,wgs=4,swap=1,l1_nmajor=1,l2_nmajor=1,stages=0,swap_pipe=0,fast_swap_epi=1,rank_cache=1,fast_clean=1,fast_pull=1,dedup_disp=1,dedup_tier=1,reg_comb=1,fast_comb=1,all_idle_comb=1,taskq_lag=128,scatter_owner=1,scatter_staging=1",
+    "FUSED": "1",
+    "BF16_ACC": "0",
+    "STAGING": "1",
+    "OWNER": "1",
+    "COMB_WARPS": "0",
+    "L1_BM": "64",
+    "L1_BN": "256",
+    "L1_BK": "128",
+    "L1_STAGES": "3",
+    "L1_SMEM": "204384",
+    "L1_DISP": "64",
+    "L1_NONEPI": "64",
+    "L1_EPI": "512",
+    "L1_SWAP": "1",
+    "L1_NMAJOR": "1",
+    "L1_EPW": "128",
+    "L1_SF_STRIDE": "377088",
+    "L1_POOL": "188544",
+    "L1_DIRECT_L2": "0",
+    "L2_BM": "64",
+    "L2_BN": "256",
+    "L2_BK": "128",
+    "L2_STAGES": "3",
+    "L2_SMEM": "204384",
+    "L2_DISP": "64",
+    "L2_NONEPI": "64",
+    "L2_EPI": "512",
+    "L2_SWAP": "1",
+    "L2_NMAJOR": "1",
+    "L2_EPW": "128",
+    "L2_SF_STRIDE": "377088",
+    "L2_POOL": "188544",
+    "L2_DIRECT_L2": "0",
+    "KERNELS": "fused"
+   },
+   "jit_defines": "#define AGY_ALIAS_DISPATCH_SMEM 1\n#define WEAVE_SCATTER_OWNER 1\n#define WEAVE_SCATTER_STAGING 1\n#define AGY_FUSED_1KERNEL 1\n#define AGY_COMPACT_NOTIFY 1\n#define WEAVE_DYN_SCHED 1\n#define WEAVE_FAST_PULL 1\n#define WEAVE_DEDUP_DISPATCH 1\n#define AGY_FAST_COMB 1\n#define WEAVE_REG_COMBINE 1\n#define AGY_FAST_SWAP_EPI 1\n#define AGY_CACHE_RANK_COUNTS 1\n#define AGY_FAST_CLEAN 1\n#define AGY_DEDUP_TIER 1\n#define WEAVE_ALL_IDLE_COMBINE 1\n#define WEAVE_INTERLEAVE_L1_L2 7\n#define WEAVE_TASKQ_LAG 128u\n#define WEAVE_SCATTER_ROLE_DISP 1\n",
+   "fused": true,
+   "kernels": {
+    "fused": {
+     "kernel_hash": "8e624014150d5025",
+     "gating": true,
+     "epilogue_threads": 512,
+     "bm_bn_bk": [
+      "64",
+      "256",
+      "128"
+     ],
+     "stages": "3",
+     "threads": [
+      "64",
+      "64",
+      512
+     ],
+     "registers": [
+      96
+     ],
+     "spill": [
+      [
+       0,
+       0,
+       0
+      ]
+     ],
+     "ptx_probes": {
+      "fence.acq_rel.sys": true,
+      "red.relaxed.sys.global.add.u32": true,
+      "ld.acquire.sys.global.u32": true,
+      "atom.global.or.b32": false,
+      "red.release.sys.global.add.u32": false,
+      "atom.acq_rel.gpu.global.add.u32": false,
+      "fence.acq_rel.gpu": true
+     },
+     "problems": []
+    }
+   },
+   "pass": true,
+   "problems": []
+  }
+ ],
+ "host_fail_closed": [
+  {
+   "arm": "h20_v9_rw8_host_fail_closed",
+   "env": {
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_REDUCE_WARPS": "8"
+   },
+   "pass": true,
+   "host_error": "terminate called after throwing an instance of 'deep_gemm::DGException'\n  what():  Assertion error (/mnt/c/Users/HP/work/wt_clean_15knob/scratch/h20_v9_compile/host/sm90_mega_moe_host.hpp:273): not smem_stream_engine or warps <= 4"
+  },
+  {
+   "arm": "h20_v9_ws_amd_code_fail_closed",
+   "env": {
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_CU_WAVE_SPLIT": "2"
+   },
+   "pass": true,
+   "host_error": "terminate called after throwing an instance of 'deep_gemm::DGException'\n  what():  Assertion error (/mnt/c/Users/HP/work/wt_clean_15knob/scratch/h20_v9_compile/host/sm90_mega_moe_host.hpp:314): first >= 4 and first <= 1024 and \"WEAVE_CU_WAVE_SPLIT=E on SM90 needs E >= 4 (1/2/3 are MI308X codes)\""
+  },
+  {
+   "arm": "h20_v9_c256_fail_closed",
+   "env": {
+    "WEAVE_ADAPT_BM": "1",
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_COMBINE_SYNC_CHUNK": "256"
+   },
+   "pass": true,
+   "host_error": "terminate called after throwing an instance of 'deep_gemm::DGException'\n  what():  Assertion error (/mnt/c/Users/HP/work/wt_clean_15knob/scratch/h20_v9_compile/host/sm90_mega_moe_host.hpp:526): ok"
+  },
+  {
+   "arm": "h20_v9_split_bm64_16_fail_closed",
+   "env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_BLOCK_M_L1": "64",
+    "WEAVE_BLOCK_M_L2": "16"
+   },
+   "pass": true,
+   "host_error": "ssertion error (/mnt/c/Users/HP/work/wt_clean_15knob/scratch/h20_v9_compile/host/sm90_mega_moe_host.hpp:855): not (can_bn256 and decoupled_bm and req_l1_bm == 64) and \"decoupled WEAVE_BLOCK_M_L1=64 split L1 kernel spills at the 4-WG cap; \" \"use WEAVE_BLOCK_M_L1 16/32, or equal L1/L2 BLOCK_M (fused)\""
+  },
+  {
+   "arm": "h20_v9_split_bm64_32_fail_closed",
+   "env": {
+    "WEAVE_SCATTER_OWNER": "comm_only",
+    "WEAVE_SCATTER_STAGING": "smem",
+    "WEAVE_BLOCK_M_L1": "64",
+    "WEAVE_BLOCK_M_L2": "32"
+   },
+   "pass": true,
+   "host_error": "ssertion error (/mnt/c/Users/HP/work/wt_clean_15knob/scratch/h20_v9_compile/host/sm90_mega_moe_host.hpp:855): not (can_bn256 and decoupled_bm and req_l1_bm == 64) and \"decoupled WEAVE_BLOCK_M_L1=64 split L1 kernel spills at the 4-WG cap; \" \"use WEAVE_BLOCK_M_L1 16/32, or equal L1/L2 BLOCK_M (fused)\""
+  }
+ ],
+ "unique_kernels": 2,
+ "compiled": {
+  "78bf6762b0660043": {
+   "source": "h20_v9_s1024_fused.cu",
+   "nvcc_ptx_returncode": 0,
+   "nvcc_errors": 0,
+   "ptxas_returncode": 0,
+   "kernels": {
+    "_ZN9deep_gemm28sm90_fp8_mega_moe_fused_implILj1024ELj8192ELj2048ELj512ELj10ELj128ELj64ELj256ELj128ELj65664ELj131328ELj131328ELj3ELj64ELj64ELj512ELj78ELj4ELf41200000ELb1ELb1ELb0ELb0ELb1ELb0ELb1EEEvPvPijNS_6layout9SymBufferIXT16_EEE14CUtensorMap_stS6_S6_PKfS6_S6_S6_S6_S8_": {
+     "arch": "sm_90a",
+     "registers": 96,
+     "spill_stores": 0,
+     "spill_loads": 0,
+     "stack_frame": 0
+    }
+   },
+   "ptx_bytes": 901858,
+   "cubin_bytes": 390744,
+   "ptx_probes": {
+    "fence.acq_rel.sys": true,
+    "red.relaxed.sys.global.add.u32": true,
+    "ld.acquire.sys.global.u32": true,
+    "atom.global.or.b32": false,
+    "red.release.sys.global.add.u32": false,
+    "atom.acq_rel.gpu.global.add.u32": false,
+    "fence.acq_rel.gpu": true
+   },
+   "problems": []
+  },
+  "8e624014150d5025": {
+   "source": "h20_v9_s4096_fused.cu",
+   "nvcc_ptx_returncode": 0,
+   "nvcc_errors": 0,
+   "ptxas_returncode": 0,
+   "kernels": {
+    "_ZN9deep_gemm28sm90_fp8_mega_moe_fused_implILj4096ELj8192ELj2048ELj512ELj10ELj128ELj64ELj256ELj128ELj188544ELj377088ELj377088ELj3ELj64ELj64ELj512ELj78ELj4ELf41200000ELb1ELb1ELb0ELb0ELb1ELb0ELb1EEEvPvPijNS_6layout9SymBufferIXT16_EEE14CUtensorMap_stS6_S6_PKfS6_S6_S6_S6_S8_": {
+     "arch": "sm_90a",
+     "registers": 96,
+     "spill_stores": 0,
+     "spill_loads": 0,
+     "stack_frame": 0
+    }
+   },
+   "ptx_bytes": 902123,
+   "cubin_bytes": 390744,
+   "ptx_probes": {
+    "fence.acq_rel.sys": true,
+    "red.relaxed.sys.global.add.u32": true,
+    "ld.acquire.sys.global.u32": true,
+    "atom.global.or.b32": false,
+    "red.release.sys.global.add.u32": false,
+    "atom.acq_rel.gpu.global.add.u32": false,
+    "fence.acq_rel.gpu": true
+   },
+   "problems": []
+  }
+ },
+ "pass": true
+}

@@ -7231,7 +7231,7 @@
    "baseline": "Weave v5_ep16_ultra",
    "arm": "weave_v5_ep16_ultra",
    "status": "UNDER_CONSTRUCTION__NO_MEASURED_2NODE_LATENCY",
-   "evidence": "pre-GEMM shrinkage + scatter mode 1/2 under CPU-only compilation and 71-check static gate on mail-21; no GPU timing exists yet"
+   "evidence": "pre-GEMM shrinkage + scatter mode 1/2 under CPU-only compilation and 71-check static gate on gpu-node; no GPU timing exists yet"
   }
  ],
  "mega_replays_raw": [

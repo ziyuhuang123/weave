@@ -1,0 +1,16 @@
+{
+  "schema": "weave-two-level-adaptive-policy-test/v3",
+  "checks": 50307,
+  "failures": 0,
+  "online_policies_compared": 108,
+  "calibration_lines": 3,
+  "phase_nk_envelopes_compared": 192,
+  "phase_nk_inner_tuples_compared": 3456,
+  "sm0_order_permutations_compared": 13,
+  "profile_lut_publications_compared": 36,
+  "sm0_mode_fixtures_compared": 4,
+  "prereduce_stress_lines": 1,
+  "ready_ring_lines": 2,
+  "cluster_dsmem_sim_lines": 3,
+  "pass": true
+}

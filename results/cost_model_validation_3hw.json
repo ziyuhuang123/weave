@@ -1,5 +1,5 @@
 {
-  "schema": "weave-cost-model-validation-3hw/v3",
+  "schema": "weave-cost-model-validation-3hw/v4",
   "model": "deep_gemm/include/deep_gemm/scheduler/weave_cost_model.cuh",
   "python_mirror": "deep_gemm/mega/cost_model.py",
   "routing_source": "result/b300/scatter_dedup_study/routing_duplicate_stats.json",
@@ -29,6 +29,45 @@
       "act_in_bytes": 2.03125,
       "p_tc_full_tflops": 2100.0,
       "predicted_total_us": 14.0372
+    }
+  },
+  "max_runtime_experts": 256,
+  "reduce_warps": {
+    "b300": {
+      "predicted_total_us": {
+        "0": 14.0222,
+        "2": 14.0222,
+        "4": 14.0222
+      },
+      "cpp_golden_total_us": [
+        14.022,
+        14.022,
+        14.022
+      ]
+    },
+    "h20": {
+      "predicted_total_us": {
+        "0": 18.1071,
+        "2": 18.0974,
+        "4": 18.0969
+      },
+      "cpp_golden_total_us": [
+        18.107,
+        18.097,
+        18.097
+      ]
+    },
+    "mi308x": {
+      "predicted_total_us": {
+        "0": 22.1029,
+        "2": 22.0834,
+        "4": 22.0782
+      },
+      "cpp_golden_total_us": [
+        22.103,
+        22.083,
+        22.078
+      ]
     }
   },
   "platforms": [
@@ -658,5 +697,33 @@
     "default_bit_identical": true,
     "nvfp4_bytes_and_rate": true,
     "bf16_bytes_and_rate": true
+  },
+  "reduce_warps_invariants": {
+    "zero_bit_identical": true,
+    "cpp_golden_match": true
+  },
+  "experts_256": {
+    "max_runtime_experts": 256,
+    "local_experts_checked": {
+      "b300": [
+        128,
+        129,
+        192,
+        256
+      ],
+      "h20": [
+        128,
+        129,
+        192,
+        256
+      ],
+      "mi308x": [
+        128,
+        129,
+        192,
+        256
+      ]
+    },
+    "pass": true
   }
 }

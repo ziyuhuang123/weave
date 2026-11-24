@@ -26,7 +26,7 @@
     "phase5c_measurements": {
       "b300_fp4xfp4": {
         "commit": "12697d8",
-        "device": "mail-17-fa3f",
+        "device": "gpu-node",
         "gpus": [
           4,
           5,
@@ -42,7 +42,7 @@
       },
       "b300_fp8xfp4": {
         "commit": "fa3e98f",
-        "device": "mail-17-fa3f",
+        "device": "gpu-node",
         "gpu": 4,
         "harness": "/root/weave_e2e_verify/harness/verify_fp8xfp4.py",
         "run_dir": "/root/p5c_verify",
@@ -61,13 +61,13 @@
     {
       "id": "b300",
       "hardware": {
-        "gpu": "NVIDIA L20D (B300/SM103 class)",
+        "gpu": "NVIDIA SM103 (148-SM)",
         "gpu_count_installed": 8,
         "gpu_count_tested_max": 4,
         "memory_per_gpu_mib": 275040,
         "sm_count_per_gpu": 148,
         "sm_clock_max_mhz": 2032,
-        "remote_device": "mail-17-fa3f"
+        "remote_device": "gpu-node"
       },
       "software": {
         "cuda": "13.2",
@@ -83,7 +83,7 @@
         "fp4xfp4": {
           "world_size": 4,
           "status": "PASS",
-          "measurement_scope": "fresh policy-wired build, commit 12697d8, 4x NVIDIA L20D (B300/SM103 class), GPUs 4-7, mail-17-fa3f",
+          "measurement_scope": "fresh policy-wired build, commit 12697d8, 4x NVIDIA SM103 (148-SM), GPUs 4-7, gpu-node",
           "config": {
             "S": 16,
             "H": 6144,
@@ -307,7 +307,7 @@
           },
           "evidence": {
             "run_json": "/root/p5c_verify/results/p5c_fp4_ep4_full.json",
-            "job_note": "Fresh clone of commit 12697d8 on mail-17-fa3f, CUDA_VISIBLE_DEVICES=4,5,6,7, DG_JIT_CACHE_DIR=/root/p5c_verify/jit_cache_fp4d",
+            "job_note": "Fresh clone of commit 12697d8 on gpu-node, CUDA_VISIBLE_DEVICES=4,5,6,7, DG_JIT_CACHE_DIR=/root/p5c_verify/jit_cache_fp4d",
             "summary": {
               "all_finite": true,
               "all_unified_bitexact": true,
@@ -315,7 +315,7 @@
               "latency_median_us_rank_median": 172.38399386405945,
               "latency_worst_rank_median_us": 172.4800020456314,
               "tflops_per_gpu": 54.41828614628073,
-              "gpu_name": "NVIDIA L20D        "
+              "gpu_name": "NVIDIA SM103 (148-SM)        "
             },
             "reference_log": "/root/p5c_verify/run_fp4_ref.log"
           }
@@ -391,7 +391,7 @@
           "phase5c_recheck": {
             "timestamp_utc": "2026-11-20T02:46:46Z",
             "commit": "fa3e98f",
-            "device": "mail-17-fa3f",
+            "device": "gpu-node",
             "gpu": 4,
             "shape": {
               "S": 16,
@@ -458,7 +458,7 @@
       },
       "phase5a_session": {
         "timestamp_utc": "2026-11-20T08:20:00Z",
-        "remote_device": "mail-17-fa3f",
+        "remote_device": "gpu-node",
         "gpu_used": 3,
         "shape_fp8": {
           "num_tokens": 16,
@@ -489,7 +489,7 @@
         "gpu_count_tested": 8,
         "memory_per_gpu_mib": 97871,
         "architecture": "SM90",
-        "remote_device": "mail-12-wpfast"
+        "remote_device": "gpu-node"
       },
       "software": {
         "cuda": "13.3",
@@ -573,7 +573,7 @@
         "gpu_count_tested": 8,
         "architecture": "gfx942",
         "vram_per_gpu_bytes": 206141652992,
-        "remote_device": "mail-21",
+        "remote_device": "gpu-node",
         "node_count": 2,
         "gpu_count_installed_total": 16
       },

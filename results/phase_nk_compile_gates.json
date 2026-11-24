@@ -1,0 +1,223 @@
+{
+  "schema": "weave-phase-nk-compile-gates/v2",
+  "toolchain": "nvcc + ptxas (see nvcc_version); MSVC host env via VsDevCmd -arch=x64 with /Zc:preprocessor (CCCL)",
+  "reality_boundary": "Compilation evidence only. No GPU execution on this host: the local GPU is not a target device and application control blocks freshly built unsigned executables. The device rails run on a target GPU via tests/test_cost_model_eq123.cpp.",
+  "includes": [
+    "./deep_gemm/include",
+    "../weave_unified_cpp/third-party/cutlass/include",
+    "../weave_unified_cpp/third-party/deep_jit/include"
+  ],
+  "nvcc": "nvcc.EXE",
+  "gates": {
+    "sm100_two_level_sm_100a": {
+      "source": "tests/compile_sm100_two_level.cu",
+      "arch": "sm_100a",
+      "defines": [],
+      "nvcc_ptx_returncode": 0,
+      "nvcc_errors": 0,
+      "ptx_bytes": 345700,
+      "ptxas_returncode": 0,
+      "kernels": {
+        "_ZN9deep_gemm27sm100_fp8_fp4_mega_moe_implILj1024ELj8192ELj2048ELj512ELj0ELj10ELj128ELj128ELj128ELj32ELj128ELj128ELj8192ELj8192ELj4ELj4096ELj128ELj128ELj256ELj148ELj4ELf41200000ELb1ELb0ELj128ELj128ELj128ELj128ELj256ELj4096ELj8192ELj8192ELj2048ELj0ELj4ELj4ELj8ELj2ELj512ELj3ELj128ELj64ELj16384ENS_5sched8TaskInfoILb0EEEEEvPvPijNS_6layout9SymBufferIXT19_EEE14CUtensorMap_stS9_S9_S9_S9_S9_S9_S9_S9_S9_S9_S9_S9_S9_S9_S9_S9_S9_PKh": {
+          "arch": "sm_100a",
+          "registers": 128,
+          "spill_stores": 0,
+          "spill_loads": 0,
+          "stack_frame": 80
+        }
+      },
+      "cubin_bytes": 249456,
+      "ptxas_output": "ptxas <tmp>\\weave_BUILD_TMP\\compile_sm100_two_level_default_sm_100a.ptx, line 6965; warning : Vector Type not specified properly\nptxas <tmp>\\weave_BUILD_TMP\\compile_sm100_two_level_default_sm_100a.ptx, line 6969; warning : Vector Type not specified properly\nptxas <tmp>\\weave_BUILD_TMP\\compile_sm100_two_level_default_sm_100a.ptx, line 7017; warning : Vector Type not specified properly\nptxas <tmp>\\weave_BUILD_TMP\\compile_sm100_two_level_default_sm_100a.ptx, line 7021; warning : Vector Type not specified properly\nptxas info    : 606 bytes gmem\nptxas info    : Compiling entry function '_ZN9deep_gemm27sm100_fp8_fp4_mega_moe_implILj1024ELj8192ELj2048ELj512ELj0ELj10ELj128ELj128ELj128ELj32ELj128ELj128ELj8192ELj8192ELj4ELj4096ELj128ELj128ELj256ELj148ELj4ELf41200000ELb1ELb0ELj128ELj128ELj128ELj128ELj256ELj4096ELj8192ELj8192ELj2048ELj0ELj4ELj4ELj8ELj2ELj512ELj3ELj128ELj64ELj16384ENS_5sched8TaskInfoILb0EEEEEvPvPijNS_6layout9SymBufferIXT19_EEE14CUtensorMap_stS9_S9_S9_S9_S9_S9_S9_S9_S9_S9_S9_S9_S9_S9_S9_S9_S9_PKh' for 'sm_100a'\nptxas info    : Function properties for _ZN9deep_gemm27sm100_fp8_fp4_mega_moe_implILj1024ELj8192ELj2048ELj512ELj0ELj10ELj128ELj128ELj128ELj32ELj128ELj128ELj8192ELj8192ELj4ELj4096ELj128ELj128ELj256ELj148ELj4ELf41200000ELb1ELb0ELj128ELj128ELj128ELj128ELj256ELj4096ELj8192ELj8192ELj2048ELj0ELj4ELj4ELj8ELj2ELj512ELj3ELj128ELj64ELj16384ENS_5sched8TaskInfoILb0EEEEEvPvPijNS_6layout9SymBufferIXT19_EEE14CUtensorMap_stS9_S9_S9_S9_S9_S9_S9_S9_S9_S9_S9_S9_S9_S9_S9_S9_S9_PKh\n    80 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads\nptxas info    : Used 128 registers, used 16 barriers, 80 bytes cumulative stack size\n",
+      "pass": true,
+      "problems": []
+    },
+    "sm100_two_level_runtime_policy_sm_100a": {
+      "source": "tests/compile_sm100_two_level.cu",
+      "arch": "sm_100a",
+      "defines": [
+        "-DWEAVE_RUNTIME_POLICY=1"
+      ],
+      "nvcc_ptx_returncode": 0,
+      "nvcc_errors": 0,
+      "ptx_bytes": 432865,
+      "ptxas_returncode": 0,
+      "kernels": {
+        "_ZN9deep_gemm27sm100_fp8_fp4_mega_moe_implILj1024ELj8192ELj2048ELj512ELj0ELj10ELj128ELj128ELj128ELj32ELj128ELj128ELj8192ELj8192ELj4ELj4096ELj128ELj128ELj256ELj148ELj4ELf41200000ELb1ELb0ELj128ELj128ELj128ELj128ELj256ELj4096ELj8192ELj8192ELj2048ELj0ELj4ELj4ELj8ELj2ELj512ELj3ELj128ELj64ELj16384ENS_5sched8TaskInfoILb0EEEEEvPvPijNS_6layout9SymBufferIXT19_EEE14CUtensorMap_stS9_S9_S9_S9_S9_S9_S9_S9_S9_S9_S9_S9_S9_S9_S9_S9_S9_PKh": {
+          "arch": "sm_100a",
+          "registers": 128,
+          "spill_stores": 0,
+          "spill_loads": 0,
+          "stack_frame": 104
+        }
+      },
+      "cubin_bytes": 344592,
+      "ptxas_output": "ptxas <tmp>\\weave_BUILD_TMP\\compile_sm100_two_level_runtime_policy_sm_100a.ptx, line 9548; warning : Vector Type not specified properly\nptxas <tmp>\\weave_BUILD_TMP\\compile_sm100_two_level_runtime_policy_sm_100a.ptx, line 9552; warning : Vector Type not specified properly\nptxas <tmp>\\weave_BUILD_TMP\\compile_sm100_two_level_runtime_policy_sm_100a.ptx, line 9600; warning : Vector Type not specified properly\nptxas <tmp>\\weave_BUILD_TMP\\compile_sm100_two_level_runtime_policy_sm_100a.ptx, line 9604; warning : Vector Type not specified properly\nptxas info    : 606 bytes gmem\nptxas info    : Compiling entry function '_ZN9deep_gemm27sm100_fp8_fp4_mega_moe_implILj1024ELj8192ELj2048ELj512ELj0ELj10ELj128ELj128ELj128ELj32ELj128ELj128ELj8192ELj8192ELj4ELj4096ELj128ELj128ELj256ELj148ELj4ELf41200000ELb1ELb0ELj128ELj128ELj128ELj128ELj256ELj4096ELj8192ELj8192ELj2048ELj0ELj4ELj4ELj8ELj2ELj512ELj3ELj128ELj64ELj16384ENS_5sched8TaskInfoILb0EEEEEvPvPijNS_6layout9SymBufferIXT19_EEE14CUtensorMap_stS9_S9_S9_S9_S9_S9_S9_S9_S9_S9_S9_S9_S9_S9_S9_S9_S9_PKh' for 'sm_100a'\nptxas info    : Function properties for _ZN9deep_gemm27sm100_fp8_fp4_mega_moe_implILj1024ELj8192ELj2048ELj512ELj0ELj10ELj128ELj128ELj128ELj32ELj128ELj128ELj8192ELj8192ELj4ELj4096ELj128ELj128ELj256ELj148ELj4ELf41200000ELb1ELb0ELj128ELj128ELj128ELj128ELj256ELj4096ELj8192ELj8192ELj2048ELj0ELj4ELj4ELj8ELj2ELj512ELj3ELj128ELj64ELj16384ENS_5sched8TaskInfoILb0EEEEEvPvPijNS_6layout9SymBufferIXT19_EEE14CUtensorMap_stS9_S9_S9_S9_S9_S9_S9_S9_S9_S9_S9_S9_S9_S9_S9_S9_S9_PKh\n    104 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads\nptxas info    : Used 128 registers, used 16 barriers, 104 bytes cumulative stack size\n",
+      "pass": true,
+      "problems": []
+    },
+    "sm100_two_level_fused_shared_int7_sm_100a": {
+      "source": "tests/compile_sm100_two_level.cu",
+      "arch": "sm_100a",
+      "defines": [
+        "-DT_NUM_SHARED=1",
+        "-DT_TOPK=8",
+        "-DT_STORE_L2=8",
+        "-DWEAVE_REDUCE_WARPS=0",
+        "-DWEAVE_COMBINE_GROUP_TILES=0u",
+        "-DWEAVE_ADAPT_BM=0",
+        "-DWEAVE_EXPERT_STEP_MODE=0",
+        "-DWEAVE_FUSED_SHARED_INT7=1"
+      ],
+      "nvcc_ptx_returncode": 0,
+      "nvcc_errors": 0,
+      "ptx_bytes": 335084,
+      "ptxas_returncode": 0,
+      "kernels": {
+        "_ZN9deep_gemm27sm100_fp8_fp4_mega_moe_implILj1024ELj8192ELj2048ELj512ELj1ELj8ELj128ELj128ELj128ELj32ELj128ELj128ELj8192ELj8192ELj4ELj4096ELj128ELj128ELj256ELj148ELj4ELf41200000ELb1ELb1ELj128ELj128ELj128ELj128ELj256ELj4096ELj8192ELj8192ELj2048ELj2048ELj4ELj4ELj8ELj2ELj512ELj4ELj128ELj64ELj16384ENS_5sched8TaskInfoILb1EEEEEvPvPijNS_6layout9SymBufferIXT19_EEE14CUtensorMap_stS9_S9_S9_S9_S9_S9_S9_S9_S9_S9_S9_S9_S9_S9_S9_S9_S9_PKh": {
+          "arch": "sm_100a",
+          "registers": 128,
+          "spill_stores": 0,
+          "spill_loads": 0,
+          "stack_frame": 112
+        }
+      },
+      "cubin_bytes": 199344,
+      "ptxas_output": "ptxas <tmp>\\weave_BUILD_TMP\\compile_sm100_two_level_fused_shared_int7_sm_100a.ptx, line 1879; warning : Vector Type not specified properly\nptxas <tmp>\\weave_BUILD_TMP\\compile_sm100_two_level_fused_shared_int7_sm_100a.ptx, line 1885; warning : Vector Type not specified properly\nptxas <tmp>\\weave_BUILD_TMP\\compile_sm100_two_level_fused_shared_int7_sm_100a.ptx, line 4186; warning : Vector Type not specified properly\nptxas <tmp>\\weave_BUILD_TMP\\compile_sm100_two_level_fused_shared_int7_sm_100a.ptx, line 4190; warning : Vector Type not specified properly\nptxas <tmp>\\weave_BUILD_TMP\\compile_sm100_two_level_fused_shared_int7_sm_100a.ptx, line 4276; warning : Vector Type not specified properly\nptxas <tmp>\\weave_BUILD_TMP\\compile_sm100_two_level_fused_shared_int7_sm_100a.ptx, line 4282; warning : Vector Type not specified properly\nptxas <tmp>\\weave_BUILD_TMP\\compile_sm100_two_level_fused_shared_int7_sm_100a.ptx, line 4329; warning : Vector Type not specified properly\nptxas <tmp>\\weave_BUILD_TMP\\compile_sm100_two_level_fused_shared_int7_sm_100a.ptx, line 4333; warning : Vector Type not specified properly\nptxas info    : 355 bytes gmem\nptxas info    : Compiling entry function '_ZN9deep_gemm27sm100_fp8_fp4_mega_moe_implILj1024ELj8192ELj2048ELj512ELj1ELj8ELj128ELj128ELj128ELj32ELj128ELj128ELj8192ELj8192ELj4ELj4096ELj128ELj128ELj256ELj148ELj4ELf41200000ELb1ELb1ELj128ELj128ELj128ELj128ELj256ELj4096ELj8192ELj8192ELj2048ELj2048ELj4ELj4ELj8ELj2ELj512ELj4ELj128ELj64ELj16384ENS_5sched8TaskInfoILb1EEEEEvPvPijNS_6layout9SymBufferIXT19_EEE14CUtensorMap_stS9_S9_S9_S9_S9_S9_S9_S9_S9_S9_S9_S9_S9_S9_S9_S9_S9_PKh' for 'sm_100a'\nptxas info    : Function properties for _ZN9deep_gemm27sm100_fp8_fp4_mega_moe_implILj1024ELj8192ELj2048ELj512ELj1ELj8ELj128ELj128ELj128ELj32ELj128ELj128ELj8192ELj8192ELj4ELj4096ELj128ELj128ELj256ELj148ELj4ELf41200000ELb1ELb1ELj128ELj128ELj128ELj128ELj256ELj4096ELj8192ELj8192ELj2048ELj2048ELj4ELj4ELj8ELj2ELj512ELj4ELj128ELj64ELj16384ENS_5sched8TaskInfoILb1EEEEEvPvPijNS_6layout9SymBufferIXT19_EEE14CUtensorMap_stS9_S9_S9_S9_S9_S9_S9_S9_S9_S9_S9_S9_S9_S9_S9_S9_S9_PKh\n    112 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads\nptxas info    : Used 128 registers, used 16 barriers, 112 bytes cumulative stack size\n",
+      "pass": true,
+      "problems": [],
+      "fused_control": {
+        "defines": [
+          "-DT_NUM_SHARED=1",
+          "-DT_TOPK=8",
+          "-DT_STORE_L2=8",
+          "-DWEAVE_REDUCE_WARPS=0",
+          "-DWEAVE_COMBINE_GROUP_TILES=0u",
+          "-DWEAVE_ADAPT_BM=0",
+          "-DWEAVE_EXPERT_STEP_MODE=0",
+          "-DWEAVE_FUSED_SHARED_INT7=0"
+        ],
+        "nvcc_ptx_returncode": 1,
+        "outcome": "control failed to compile (non-fused path diverges)",
+        "control_errors": [
+          "./deep_gemm/include\\deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh(6199): error: static assertion failed with \"Hidden is too large\"",
+          "1 error detected in the compilation of \"./tests/compile_sm100_two_level.cu\"."
+        ],
+        "fused_path_instantiated": true
+      }
+    },
+    "sm100_two_level_sm_103a": {
+      "source": "tests/compile_sm100_two_level.cu",
+      "arch": "sm_103a",
+      "defines": [],
+      "nvcc_ptx_returncode": 0,
+      "nvcc_errors": 0,
+      "ptx_bytes": 345700,
+      "ptxas_returncode": 0,
+      "kernels": {
+        "_ZN9deep_gemm27sm100_fp8_fp4_mega_moe_implILj1024ELj8192ELj2048ELj512ELj0ELj10ELj128ELj128ELj128ELj32ELj128ELj128ELj8192ELj8192ELj4ELj4096ELj128ELj128ELj256ELj148ELj4ELf41200000ELb1ELb0ELj128ELj128ELj128ELj128ELj256ELj4096ELj8192ELj8192ELj2048ELj0ELj4ELj4ELj8ELj2ELj512ELj3ELj128ELj64ELj16384ENS_5sched8TaskInfoILb0EEEEEvPvPijNS_6layout9SymBufferIXT19_EEE14CUtensorMap_stS9_S9_S9_S9_S9_S9_S9_S9_S9_S9_S9_S9_S9_S9_S9_S9_S9_PKh": {
+          "arch": "sm_103a",
+          "registers": 128,
+          "spill_stores": 0,
+          "spill_loads": 0,
+          "stack_frame": 80
+        }
+      },
+      "cubin_bytes": 249456,
+      "ptxas_output": "ptxas <tmp>\\weave_BUILD_TMP\\compile_sm100_two_level_default_sm_103a.ptx, line 6965; warning : Vector Type not specified properly\nptxas <tmp>\\weave_BUILD_TMP\\compile_sm100_two_level_default_sm_103a.ptx, line 6969; warning : Vector Type not specified properly\nptxas <tmp>\\weave_BUILD_TMP\\compile_sm100_two_level_default_sm_103a.ptx, line 7017; warning : Vector Type not specified properly\nptxas <tmp>\\weave_BUILD_TMP\\compile_sm100_two_level_default_sm_103a.ptx, line 7021; warning : Vector Type not specified properly\nptxas info    : 606 bytes gmem\nptxas info    : Compiling entry function '_ZN9deep_gemm27sm100_fp8_fp4_mega_moe_implILj1024ELj8192ELj2048ELj512ELj0ELj10ELj128ELj128ELj128ELj32ELj128ELj128ELj8192ELj8192ELj4ELj4096ELj128ELj128ELj256ELj148ELj4ELf41200000ELb1ELb0ELj128ELj128ELj128ELj128ELj256ELj4096ELj8192ELj8192ELj2048ELj0ELj4ELj4ELj8ELj2ELj512ELj3ELj128ELj64ELj16384ENS_5sched8TaskInfoILb0EEEEEvPvPijNS_6layout9SymBufferIXT19_EEE14CUtensorMap_stS9_S9_S9_S9_S9_S9_S9_S9_S9_S9_S9_S9_S9_S9_S9_S9_S9_PKh' for 'sm_103a'\nptxas info    : Function properties for _ZN9deep_gemm27sm100_fp8_fp4_mega_moe_implILj1024ELj8192ELj2048ELj512ELj0ELj10ELj128ELj128ELj128ELj32ELj128ELj128ELj8192ELj8192ELj4ELj4096ELj128ELj128ELj256ELj148ELj4ELf41200000ELb1ELb0ELj128ELj128ELj128ELj128ELj256ELj4096ELj8192ELj8192ELj2048ELj0ELj4ELj4ELj8ELj2ELj512ELj3ELj128ELj64ELj16384ENS_5sched8TaskInfoILb0EEEEEvPvPijNS_6layout9SymBufferIXT19_EEE14CUtensorMap_stS9_S9_S9_S9_S9_S9_S9_S9_S9_S9_S9_S9_S9_S9_S9_S9_S9_PKh\n    80 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads\nptxas info    : Used 128 registers, used 16 barriers, 80 bytes cumulative stack size\n",
+      "pass": true,
+      "problems": []
+    },
+    "sm100_two_level_runtime_policy_sm_103a": {
+      "source": "tests/compile_sm100_two_level.cu",
+      "arch": "sm_103a",
+      "defines": [
+        "-DWEAVE_RUNTIME_POLICY=1"
+      ],
+      "nvcc_ptx_returncode": 0,
+      "nvcc_errors": 0,
+      "ptx_bytes": 432865,
+      "ptxas_returncode": 0,
+      "kernels": {
+        "_ZN9deep_gemm27sm100_fp8_fp4_mega_moe_implILj1024ELj8192ELj2048ELj512ELj0ELj10ELj128ELj128ELj128ELj32ELj128ELj128ELj8192ELj8192ELj4ELj4096ELj128ELj128ELj256ELj148ELj4ELf41200000ELb1ELb0ELj128ELj128ELj128ELj128ELj256ELj4096ELj8192ELj8192ELj2048ELj0ELj4ELj4ELj8ELj2ELj512ELj3ELj128ELj64ELj16384ENS_5sched8TaskInfoILb0EEEEEvPvPijNS_6layout9SymBufferIXT19_EEE14CUtensorMap_stS9_S9_S9_S9_S9_S9_S9_S9_S9_S9_S9_S9_S9_S9_S9_S9_S9_PKh": {
+          "arch": "sm_103a",
+          "registers": 128,
+          "spill_stores": 0,
+          "spill_loads": 0,
+          "stack_frame": 104
+        }
+      },
+      "cubin_bytes": 344584,
+      "ptxas_output": "ptxas <tmp>\\weave_BUILD_TMP\\compile_sm100_two_level_runtime_policy_sm_103a.ptx, line 9548; warning : Vector Type not specified properly\nptxas <tmp>\\weave_BUILD_TMP\\compile_sm100_two_level_runtime_policy_sm_103a.ptx, line 9552; warning : Vector Type not specified properly\nptxas <tmp>\\weave_BUILD_TMP\\compile_sm100_two_level_runtime_policy_sm_103a.ptx, line 9600; warning : Vector Type not specified properly\nptxas <tmp>\\weave_BUILD_TMP\\compile_sm100_two_level_runtime_policy_sm_103a.ptx, line 9604; warning : Vector Type not specified properly\nptxas info    : 606 bytes gmem\nptxas info    : Compiling entry function '_ZN9deep_gemm27sm100_fp8_fp4_mega_moe_implILj1024ELj8192ELj2048ELj512ELj0ELj10ELj128ELj128ELj128ELj32ELj128ELj128ELj8192ELj8192ELj4ELj4096ELj128ELj128ELj256ELj148ELj4ELf41200000ELb1ELb0ELj128ELj128ELj128ELj128ELj256ELj4096ELj8192ELj8192ELj2048ELj0ELj4ELj4ELj8ELj2ELj512ELj3ELj128ELj64ELj16384ENS_5sched8TaskInfoILb0EEEEEvPvPijNS_6layout9SymBufferIXT19_EEE14CUtensorMap_stS9_S9_S9_S9_S9_S9_S9_S9_S9_S9_S9_S9_S9_S9_S9_S9_S9_PKh' for 'sm_103a'\nptxas info    : Function properties for _ZN9deep_gemm27sm100_fp8_fp4_mega_moe_implILj1024ELj8192ELj2048ELj512ELj0ELj10ELj128ELj128ELj128ELj32ELj128ELj128ELj8192ELj8192ELj4ELj4096ELj128ELj128ELj256ELj148ELj4ELf41200000ELb1ELb0ELj128ELj128ELj128ELj128ELj256ELj4096ELj8192ELj8192ELj2048ELj0ELj4ELj4ELj8ELj2ELj512ELj3ELj128ELj64ELj16384ENS_5sched8TaskInfoILb0EEEEEvPvPijNS_6layout9SymBufferIXT19_EEE14CUtensorMap_stS9_S9_S9_S9_S9_S9_S9_S9_S9_S9_S9_S9_S9_S9_S9_S9_S9_PKh\n    104 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads\nptxas info    : Used 128 registers, used 16 barriers, 104 bytes cumulative stack size\n",
+      "pass": true,
+      "problems": []
+    },
+    "sm100_two_level_fused_shared_int7_sm_103a": {
+      "source": "tests/compile_sm100_two_level.cu",
+      "arch": "sm_103a",
+      "defines": [
+        "-DT_NUM_SHARED=1",
+        "-DT_TOPK=8",
+        "-DT_STORE_L2=8",
+        "-DWEAVE_REDUCE_WARPS=0",
+        "-DWEAVE_COMBINE_GROUP_TILES=0u",
+        "-DWEAVE_ADAPT_BM=0",
+        "-DWEAVE_EXPERT_STEP_MODE=0",
+        "-DWEAVE_FUSED_SHARED_INT7=1"
+      ],
+      "nvcc_ptx_returncode": 0,
+      "nvcc_errors": 0,
+      "ptx_bytes": 335084,
+      "ptxas_returncode": 0,
+      "kernels": {
+        "_ZN9deep_gemm27sm100_fp8_fp4_mega_moe_implILj1024ELj8192ELj2048ELj512ELj1ELj8ELj128ELj128ELj128ELj32ELj128ELj128ELj8192ELj8192ELj4ELj4096ELj128ELj128ELj256ELj148ELj4ELf41200000ELb1ELb1ELj128ELj128ELj128ELj128ELj256ELj4096ELj8192ELj8192ELj2048ELj2048ELj4ELj4ELj8ELj2ELj512ELj4ELj128ELj64ELj16384ENS_5sched8TaskInfoILb1EEEEEvPvPijNS_6layout9SymBufferIXT19_EEE14CUtensorMap_stS9_S9_S9_S9_S9_S9_S9_S9_S9_S9_S9_S9_S9_S9_S9_S9_S9_PKh": {
+          "arch": "sm_103a",
+          "registers": 128,
+          "spill_stores": 0,
+          "spill_loads": 0,
+          "stack_frame": 112
+        }
+      },
+      "cubin_bytes": 199344,
+      "ptxas_output": "ptxas <tmp>\\weave_BUILD_TMP\\compile_sm100_two_level_fused_shared_int7_sm_103a.ptx, line 1879; warning : Vector Type not specified properly\nptxas <tmp>\\weave_BUILD_TMP\\compile_sm100_two_level_fused_shared_int7_sm_103a.ptx, line 1885; warning : Vector Type not specified properly\nptxas <tmp>\\weave_BUILD_TMP\\compile_sm100_two_level_fused_shared_int7_sm_103a.ptx, line 4186; warning : Vector Type not specified properly\nptxas <tmp>\\weave_BUILD_TMP\\compile_sm100_two_level_fused_shared_int7_sm_103a.ptx, line 4190; warning : Vector Type not specified properly\nptxas <tmp>\\weave_BUILD_TMP\\compile_sm100_two_level_fused_shared_int7_sm_103a.ptx, line 4276; warning : Vector Type not specified properly\nptxas <tmp>\\weave_BUILD_TMP\\compile_sm100_two_level_fused_shared_int7_sm_103a.ptx, line 4282; warning : Vector Type not specified properly\nptxas <tmp>\\weave_BUILD_TMP\\compile_sm100_two_level_fused_shared_int7_sm_103a.ptx, line 4329; warning : Vector Type not specified properly\nptxas <tmp>\\weave_BUILD_TMP\\compile_sm100_two_level_fused_shared_int7_sm_103a.ptx, line 4333; warning : Vector Type not specified properly\nptxas info    : 355 bytes gmem\nptxas info    : Compiling entry function '_ZN9deep_gemm27sm100_fp8_fp4_mega_moe_implILj1024ELj8192ELj2048ELj512ELj1ELj8ELj128ELj128ELj128ELj32ELj128ELj128ELj8192ELj8192ELj4ELj4096ELj128ELj128ELj256ELj148ELj4ELf41200000ELb1ELb1ELj128ELj128ELj128ELj128ELj256ELj4096ELj8192ELj8192ELj2048ELj2048ELj4ELj4ELj8ELj2ELj512ELj4ELj128ELj64ELj16384ENS_5sched8TaskInfoILb1EEEEEvPvPijNS_6layout9SymBufferIXT19_EEE14CUtensorMap_stS9_S9_S9_S9_S9_S9_S9_S9_S9_S9_S9_S9_S9_S9_S9_S9_S9_PKh' for 'sm_103a'\nptxas info    : Function properties for _ZN9deep_gemm27sm100_fp8_fp4_mega_moe_implILj1024ELj8192ELj2048ELj512ELj1ELj8ELj128ELj128ELj128ELj32ELj128ELj128ELj8192ELj8192ELj4ELj4096ELj128ELj128ELj256ELj148ELj4ELf41200000ELb1ELb1ELj128ELj128ELj128ELj128ELj256ELj4096ELj8192ELj8192ELj2048ELj2048ELj4ELj4ELj8ELj2ELj512ELj4ELj128ELj64ELj16384ENS_5sched8TaskInfoILb1EEEEEvPvPijNS_6layout9SymBufferIXT19_EEE14CUtensorMap_stS9_S9_S9_S9_S9_S9_S9_S9_S9_S9_S9_S9_S9_S9_S9_S9_S9_PKh\n    112 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads\nptxas info    : Used 128 registers, used 16 barriers, 112 bytes cumulative stack size\n",
+      "pass": true,
+      "problems": [],
+      "fused_control": {
+        "defines": [
+          "-DT_NUM_SHARED=1",
+          "-DT_TOPK=8",
+          "-DT_STORE_L2=8",
+          "-DWEAVE_REDUCE_WARPS=0",
+          "-DWEAVE_COMBINE_GROUP_TILES=0u",
+          "-DWEAVE_ADAPT_BM=0",
+          "-DWEAVE_EXPERT_STEP_MODE=0",
+          "-DWEAVE_FUSED_SHARED_INT7=0"
+        ],
+        "nvcc_ptx_returncode": 1,
+        "outcome": "control failed to compile (non-fused path diverges)",
+        "control_errors": [
+          "./deep_gemm/include\\deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh(6199): error: static assertion failed with \"Hidden is too large\"",
+          "1 error detected in the compilation of \"./tests/compile_sm100_two_level.cu\"."
+        ],
+        "fused_path_instantiated": true
+      }
+    },
+    "sm90_two_level_sm_90a": {
+      "source": "tests/compile_sm90_two_level.cu",
+      "arch": "sm_90a",
+      "defines": [],
+      "nvcc_ptx_returncode": 0,
+      "nvcc_errors": 0,
+      "ptx_bytes": 1707,
+      "ptxas_returncode": 0,
+      "kernels": {},
+      "cubin_bytes": 4024,
+      "ptxas_output": "ptxas info    : 12 bytes gmem\n",
+      "pass": true,
+      "problems": []
+    }
+  },
+  "pass": true,
+  "nvcc_version": [
+    "Build cuda_13.3.r13.3/compiler.38244171_0"
+  ]
+}

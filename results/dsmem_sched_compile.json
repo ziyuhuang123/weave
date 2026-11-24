@@ -1,0 +1,280 @@
+{
+  "schema": "weave-dsmem-sched-compile/v2",
+  "source": "tests/compile_sm100_dsmem_sched.cu",
+  "register_budgets": {
+    "default": 64,
+    "dsmem_push_kernel": 24,
+    "lockfree_prereduce_kernel": 28,
+    "lockfree_prereduce_scalar_kernel": 28,
+    "lockfree_prereduce_readback_kernel": 28
+  },
+  "required_ptx": [
+    "mapa.shared::cluster",
+    "st.async.shared::cluster",
+    "mbarrier.arrive.expect_tx",
+    "red.global.add.f32",
+    "fence.acq_rel.gpu",
+    "fence.acquire.gpu",
+    "atom.acq_rel.gpu.global.add.u32"
+  ],
+  "includes": [
+    "./deep_gemm/include",
+    "../weave_unified_cpp/third-party/cutlass/include",
+    "../weave_unified_cpp/third-party/deep_jit/include"
+  ],
+  "nvcc": "nvcc.EXE",
+  "archs": {
+    "sm_103a": {
+      "arch": "sm_103a",
+      "nvcc_returncode": 0,
+      "kernels": {
+        "_Z24profile_code_load_kernelPKN5weave13PolicyControlEjPj": {
+          "arch": "sm_103a",
+          "registers": 14,
+          "spill_stores": 0,
+          "spill_loads": 0,
+          "stack_frame": 0
+        },
+        "_Z26gemm_profile_device_kerneljjjjPj": {
+          "arch": "sm_103a",
+          "registers": 40,
+          "spill_stores": 0,
+          "spill_loads": 0,
+          "stack_frame": 0
+        },
+        "_Z23sm0_order_serial_kernelPKjS0_S0_jjjPjS1_": {
+          "arch": "sm_103a",
+          "registers": 32,
+          "spill_stores": 0,
+          "spill_loads": 0,
+          "stack_frame": 0
+        },
+        "_Z21sm0_order_warp_kernelPKjS0_S0_jjjPjS1_": {
+          "arch": "sm_103a",
+          "registers": 32,
+          "spill_stores": 0,
+          "spill_loads": 0,
+          "stack_frame": 0
+        },
+        "_Z32lockfree_prereduce_scalar_kernelPffPjjS0_": {
+          "arch": "sm_103a",
+          "registers": 14,
+          "spill_stores": 0,
+          "spill_loads": 0,
+          "stack_frame": 0
+        },
+        "_Z34lockfree_prereduce_readback_kernelPKfjPf": {
+          "arch": "sm_103a",
+          "registers": 8,
+          "spill_stores": 0,
+          "spill_loads": 0,
+          "stack_frame": 0
+        },
+        "_Z25lockfree_prereduce_kernelPfPKfjPjjS2_": {
+          "arch": "sm_103a",
+          "registers": 15,
+          "spill_stores": 0,
+          "spill_loads": 0,
+          "stack_frame": 0
+        },
+        "_Z20shard_tracker_kernelPKjjPN5weave21ShardedReadyTokenRingEPj": {
+          "arch": "sm_103a",
+          "registers": 32,
+          "spill_stores": 0,
+          "spill_loads": 0,
+          "stack_frame": 0
+        },
+        "_Z22ring_mpmc_steal_kernelPN5weave21ShardedReadyTokenRingEjPj": {
+          "arch": "sm_103a",
+          "registers": 17,
+          "spill_stores": 0,
+          "spill_loads": 0,
+          "stack_frame": 0
+        },
+        "_Z22ring_mpsc_epoch_kernelPN5weave21ShardedReadyTokenRingEjPj": {
+          "arch": "sm_103a",
+          "registers": 19,
+          "spill_stores": 0,
+          "spill_loads": 0,
+          "stack_frame": 0
+        },
+        "_Z24ring_cluster_spsc_kernelPN5weave21ShardedReadyTokenRingEjPj": {
+          "arch": "sm_103a",
+          "registers": 17,
+          "spill_stores": 0,
+          "spill_loads": 0,
+          "stack_frame": 0
+        },
+        "_Z17dsmem_wait_kernelPN5weave18ClusterSchedPacketE": {
+          "arch": "sm_103a",
+          "registers": 10,
+          "spill_stores": 0,
+          "spill_loads": 0,
+          "stack_frame": 0
+        },
+        "_Z19dsmem_fanout_kernelPN5weave19ClusterSchedChannelEjjPj": {
+          "arch": "sm_103a",
+          "registers": 32,
+          "spill_stores": 0,
+          "spill_loads": 0,
+          "stack_frame": 0
+        },
+        "_Z17dsmem_push_kernelPN5weave19ClusterSchedChannelEjj": {
+          "arch": "sm_103a",
+          "registers": 14,
+          "spill_stores": 0,
+          "spill_loads": 0,
+          "stack_frame": 0
+        }
+      },
+      "cubin_bytes": 292368,
+      "pass": true,
+      "problems": [],
+      "ptxas_output": "ptxas <tmp>/tmpxft_STABLE_compile_sm100_dsmem_sched.ptx, line 76; warning : Vector Type not specified properly\nptxas <tmp>/tmpxft_STABLE_compile_sm100_dsmem_sched.ptx, line 184; warning : Vector Type not specified properly\nptxas <tmp>/tmpxft_STABLE_compile_sm100_dsmem_sched.ptx, line 200; warning : Vector Type not specified properly\nptxas <tmp>/tmpxft_STABLE_compile_sm100_dsmem_sched.ptx, line 216; warning : Vector Type not specified properly\nptxas info    : 0 bytes gmem\nptxas info    : Compiling entry function '_Z24profile_code_load_kernelPKN5weave13PolicyControlEjPj' for 'sm_103a'\nptxas info    : Function properties for _Z24profile_code_load_kernelPKN5weave13PolicyControlEjPj\n    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads\nptxas info    : Used 14 registers, used 0 barriers\nptxas info    : Compiling entry function '_Z26gemm_profile_device_kerneljjjjPj' for 'sm_103a'\nptxas info    : Function properties for _Z26gemm_profile_device_kerneljjjjPj\n    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads\nptxas info    : Used 40 registers, used 0 barriers\nptxas info    : Compiling entry function '_Z23sm0_order_serial_kernelPKjS0_S0_jjjPjS1_' for 'sm_103a'\nptxas info    : Function properties for _Z23sm0_order_serial_kernelPKjS0_S0_jjjPjS1_\n    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads\nptxas info    : Used 32 registers, used 0 barriers, 16384 bytes smem\nptxas info    : Compiling entry function '_Z21sm0_order_warp_kernelPKjS0_S0_jjjPjS1_' for 'sm_103a'\nptxas info    : Function properties for _Z21sm0_order_warp_kernelPKjS0_S0_jjjPjS1_\n    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads\nptxas info    : Used 32 registers, used 0 barriers, 16384 bytes smem\nptxas info    : Compiling entry function '_Z32lockfree_prereduce_scalar_kernelPffPjjS0_' for 'sm_103a'\nptxas info    : Function properties for _Z32lockfree_prereduce_scalar_kernelPffPjjS0_\n    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads\nptxas info    : Used 14 registers, used 0 barriers\nptxas info    : Compiling entry function '_Z34lockfree_prereduce_readback_kernelPKfjPf' for 'sm_103a'\nptxas info    : Function properties for _Z34lockfree_prereduce_readback_kernelPKfjPf\n    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads\nptxas info    : Used 8 registers, used 0 barriers\nptxas info    : Compiling entry function '_Z25lockfree_prereduce_kernelPfPKfjPjjS2_' for 'sm_103a'\nptxas info    : Function properties for _Z25lockfree_prereduce_kernelPfPKfjPjjS2_\n    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads\nptxas info    : Used 15 registers, used 0 barriers\nptxas info    : Compiling entry function '_Z20shard_tracker_kernelPKjjPN5weave21ShardedReadyTokenRingEPj' for 'sm_103a'\nptxas info    : Function properties for _Z20shard_tracker_kernelPKjjPN5weave21ShardedReadyTokenRingEPj\n    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads\nptxas info    : Used 32 registers, used 0 barriers, 516 bytes smem\nptxas info    : Compiling entry function '_Z22ring_mpmc_steal_kernelPN5weave21ShardedReadyTokenRingEjPj' for 'sm_103a'\nptxas info    : Function properties for _Z22ring_mpmc_steal_kernelPN5weave21ShardedReadyTokenRingEjPj\n    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads\nptxas info    : Used 17 registers, used 1 barriers\nptxas info    : Compiling entry function '_Z22ring_mpsc_epoch_kernelPN5weave21ShardedReadyTokenRingEjPj' for 'sm_103a'\nptxas info    : Function properties for _Z22ring_mpsc_epoch_kernelPN5weave21ShardedReadyTokenRingEjPj\n    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads\nptxas info    : Used 19 registers, used 1 barriers\nptxas info    : Compiling entry function '_Z24ring_cluster_spsc_kernelPN5weave21ShardedReadyTokenRingEjPj' for 'sm_103a'\nptxas info    : Function properties for _Z24ring_cluster_spsc_kernelPN5weave21ShardedReadyTokenRingEjPj\n    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads\nptxas info    : Used 17 registers, used 0 barriers\nptxas info    : Compiling entry function '_Z17dsmem_wait_kernelPN5weave18ClusterSchedPacketE' for 'sm_103a'\nptxas info    : Function properties for _Z17dsmem_wait_kernelPN5weave18ClusterSchedPacketE\n    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads\nptxas info    : Used 10 registers, used 0 barriers, 32 bytes smem\nptxas info    : Compiling entry function '_Z19dsmem_fanout_kernelPN5weave19ClusterSchedChannelEjjPj' for 'sm_103a'\nptxas info    : Function properties for _Z19dsmem_fanout_kernelPN5weave19ClusterSchedChannelEjjPj\n    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads\nptxas info    : Used 32 registers, used 0 barriers, 128 bytes smem\nptxas info    : Compiling entry function '_Z17dsmem_push_kernelPN5weave19ClusterSchedChannelEjj' for 'sm_103a'\nptxas info    : Function properties for _Z17dsmem_push_kernelPN5weave19ClusterSchedChannelEjj\n    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads\nptxas info    : Used 14 registers, used 0 barriers, 32 bytes smem\ncompile_sm100_dsmem_sched.cu\n"
+    },
+    "sm_90a": {
+      "arch": "sm_90a",
+      "nvcc_returncode": 0,
+      "kernels": {
+        "_Z24profile_code_load_kernelPKN5weave13PolicyControlEjPj": {
+          "arch": "sm_90a",
+          "registers": 14,
+          "spill_stores": 0,
+          "spill_loads": 0,
+          "stack_frame": 0
+        },
+        "_Z26gemm_profile_device_kerneljjjjPj": {
+          "arch": "sm_90a",
+          "registers": 64,
+          "spill_stores": 0,
+          "spill_loads": 0,
+          "stack_frame": 0
+        },
+        "_Z23sm0_order_serial_kernelPKjS0_S0_jjjPjS1_": {
+          "arch": "sm_90a",
+          "registers": 32,
+          "spill_stores": 0,
+          "spill_loads": 0,
+          "stack_frame": 0
+        },
+        "_Z21sm0_order_warp_kernelPKjS0_S0_jjjPjS1_": {
+          "arch": "sm_90a",
+          "registers": 32,
+          "spill_stores": 0,
+          "spill_loads": 0,
+          "stack_frame": 0
+        },
+        "_Z32lockfree_prereduce_scalar_kernelPffPjjS0_": {
+          "arch": "sm_90a",
+          "registers": 14,
+          "spill_stores": 0,
+          "spill_loads": 0,
+          "stack_frame": 0
+        },
+        "_Z34lockfree_prereduce_readback_kernelPKfjPf": {
+          "arch": "sm_90a",
+          "registers": 8,
+          "spill_stores": 0,
+          "spill_loads": 0,
+          "stack_frame": 0
+        },
+        "_Z25lockfree_prereduce_kernelPfPKfjPjjS2_": {
+          "arch": "sm_90a",
+          "registers": 16,
+          "spill_stores": 0,
+          "spill_loads": 0,
+          "stack_frame": 0
+        },
+        "_Z20shard_tracker_kernelPKjjPN5weave21ShardedReadyTokenRingEPj": {
+          "arch": "sm_90a",
+          "registers": 23,
+          "spill_stores": 0,
+          "spill_loads": 0,
+          "stack_frame": 0
+        },
+        "_Z22ring_mpmc_steal_kernelPN5weave21ShardedReadyTokenRingEjPj": {
+          "arch": "sm_90a",
+          "registers": 19,
+          "spill_stores": 0,
+          "spill_loads": 0,
+          "stack_frame": 0
+        },
+        "_Z22ring_mpsc_epoch_kernelPN5weave21ShardedReadyTokenRingEjPj": {
+          "arch": "sm_90a",
+          "registers": 23,
+          "spill_stores": 0,
+          "spill_loads": 0,
+          "stack_frame": 0
+        },
+        "_Z24ring_cluster_spsc_kernelPN5weave21ShardedReadyTokenRingEjPj": {
+          "arch": "sm_90a",
+          "registers": 19,
+          "spill_stores": 0,
+          "spill_loads": 0,
+          "stack_frame": 0
+        },
+        "_Z17dsmem_wait_kernelPN5weave18ClusterSchedPacketE": {
+          "arch": "sm_90a",
+          "registers": 10,
+          "spill_stores": 0,
+          "spill_loads": 0,
+          "stack_frame": 0
+        },
+        "_Z19dsmem_fanout_kernelPN5weave19ClusterSchedChannelEjjPj": {
+          "arch": "sm_90a",
+          "registers": 32,
+          "spill_stores": 0,
+          "spill_loads": 0,
+          "stack_frame": 0
+        },
+        "_Z17dsmem_push_kernelPN5weave19ClusterSchedChannelEjj": {
+          "arch": "sm_90a",
+          "registers": 14,
+          "spill_stores": 0,
+          "spill_loads": 0,
+          "stack_frame": 0
+        }
+      },
+      "cubin_bytes": 200600,
+      "pass": true,
+      "problems": [],
+      "ptxas_output": "ptxas <tmp>/tmpxft_STABLE_compile_sm100_dsmem_sched.ptx, line 85; warning : Vector Type not specified properly\nptxas <tmp>/tmpxft_STABLE_compile_sm100_dsmem_sched.ptx, line 230; warning : Vector Type not specified properly\nptxas <tmp>/tmpxft_STABLE_compile_sm100_dsmem_sched.ptx, line 255; warning : Vector Type not specified properly\nptxas <tmp>/tmpxft_STABLE_compile_sm100_dsmem_sched.ptx, line 281; warning : Vector Type not specified properly\nptxas info    : 0 bytes gmem\nptxas info    : Compiling entry function '_Z24profile_code_load_kernelPKN5weave13PolicyControlEjPj' for 'sm_90a'\nptxas info    : Function properties for _Z24profile_code_load_kernelPKN5weave13PolicyControlEjPj\n    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads\nptxas info    : Used 14 registers, used 0 barriers\nptxas info    : Compiling entry function '_Z26gemm_profile_device_kerneljjjjPj' for 'sm_90a'\nptxas info    : Function properties for _Z26gemm_profile_device_kerneljjjjPj\n    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads\nptxas info    : Used 64 registers, used 0 barriers\nptxas info    : Compiling entry function '_Z23sm0_order_serial_kernelPKjS0_S0_jjjPjS1_' for 'sm_90a'\nptxas info    : Function properties for _Z23sm0_order_serial_kernelPKjS0_S0_jjjPjS1_\n    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads\nptxas info    : Used 32 registers, used 0 barriers, 16384 bytes smem\nptxas info    : Compiling entry function '_Z21sm0_order_warp_kernelPKjS0_S0_jjjPjS1_' for 'sm_90a'\nptxas info    : Function properties for _Z21sm0_order_warp_kernelPKjS0_S0_jjjPjS1_\n    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads\nptxas info    : Used 32 registers, used 0 barriers, 16384 bytes smem\nptxas info    : Compiling entry function '_Z32lockfree_prereduce_scalar_kernelPffPjjS0_' for 'sm_90a'\nptxas info    : Function properties for _Z32lockfree_prereduce_scalar_kernelPffPjjS0_\n    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads\nptxas info    : Used 14 registers, used 0 barriers\nptxas info    : Compiling entry function '_Z34lockfree_prereduce_readback_kernelPKfjPf' for 'sm_90a'\nptxas info    : Function properties for _Z34lockfree_prereduce_readback_kernelPKfjPf\n    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads\nptxas info    : Used 8 registers, used 0 barriers\nptxas info    : Compiling entry function '_Z25lockfree_prereduce_kernelPfPKfjPjjS2_' for 'sm_90a'\nptxas info    : Function properties for _Z25lockfree_prereduce_kernelPfPKfjPjjS2_\n    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads\nptxas info    : Used 16 registers, used 0 barriers\nptxas info    : Compiling entry function '_Z20shard_tracker_kernelPKjjPN5weave21ShardedReadyTokenRingEPj' for 'sm_90a'\nptxas info    : Function properties for _Z20shard_tracker_kernelPKjjPN5weave21ShardedReadyTokenRingEPj\n    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads\nptxas info    : Used 23 registers, used 0 barriers, 516 bytes smem\nptxas info    : Compiling entry function '_Z22ring_mpmc_steal_kernelPN5weave21ShardedReadyTokenRingEjPj' for 'sm_90a'\nptxas info    : Function properties for _Z22ring_mpmc_steal_kernelPN5weave21ShardedReadyTokenRingEjPj\n    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads\nptxas info    : Used 19 registers, used 1 barriers\nptxas info    : Compiling entry function '_Z22ring_mpsc_epoch_kernelPN5weave21ShardedReadyTokenRingEjPj' for 'sm_90a'\nptxas info    : Function properties for _Z22ring_mpsc_epoch_kernelPN5weave21ShardedReadyTokenRingEjPj\n    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads\nptxas info    : Used 23 registers, used 1 barriers\nptxas info    : Compiling entry function '_Z24ring_cluster_spsc_kernelPN5weave21ShardedReadyTokenRingEjPj' for 'sm_90a'\nptxas info    : Function properties for _Z24ring_cluster_spsc_kernelPN5weave21ShardedReadyTokenRingEjPj\n    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads\nptxas info    : Used 19 registers, used 0 barriers\nptxas info    : Compiling entry function '_Z17dsmem_wait_kernelPN5weave18ClusterSchedPacketE' for 'sm_90a'\nptxas info    : Function properties for _Z17dsmem_wait_kernelPN5weave18ClusterSchedPacketE\n    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads\nptxas info    : Used 10 registers, used 0 barriers, 32 bytes smem\nptxas info    : Compiling entry function '_Z19dsmem_fanout_kernelPN5weave19ClusterSchedChannelEjjPj' for 'sm_90a'\nptxas info    : Function properties for _Z19dsmem_fanout_kernelPN5weave19ClusterSchedChannelEjjPj\n    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads\nptxas info    : Used 32 registers, used 0 barriers, 128 bytes smem\nptxas info    : Compiling entry function '_Z17dsmem_push_kernelPN5weave19ClusterSchedChannelEjj' for 'sm_90a'\nptxas info    : Function properties for _Z17dsmem_push_kernelPN5weave19ClusterSchedChannelEjj\n    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads\nptxas info    : Used 14 registers, used 0 barriers, 32 bytes smem\ncompile_sm100_dsmem_sched.cu\n"
+    }
+  },
+  "ptx": {
+    "sm_103a": {
+      "arch": "sm_103a",
+      "nvcc_returncode": 0,
+      "instruction_counts": {
+        "mapa.shared::cluster": 12,
+        "st.async.shared::cluster": 4,
+        "mbarrier.arrive.expect_tx": 4,
+        "red.global.add.f32": 2,
+        "fence.acq_rel.gpu": 2,
+        "fence.acquire.gpu": 1,
+        "atom.acq_rel.gpu.global.add.u32": 2
+      },
+      "pass": true,
+      "problems": []
+    },
+    "sm_90a": {
+      "arch": "sm_90a",
+      "nvcc_returncode": 0,
+      "instruction_counts": {
+        "mapa.shared::cluster": 12,
+        "st.async.shared::cluster": 4,
+        "mbarrier.arrive.expect_tx": 4,
+        "red.global.add.f32": 2,
+        "fence.acq_rel.gpu": 2,
+        "fence.acquire.gpu": 1,
+        "atom.acq_rel.gpu.global.add.u32": 2
+      },
+      "pass": true,
+      "problems": []
+    }
+  },
+  "pass": true,
+  "nvcc_version": [
+    "Build cuda_13.3.r13.3/compiler.38244171_0"
+  ]
+}

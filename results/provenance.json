@@ -5,7 +5,7 @@
   "files": [
     {
       "path": "results/cta0_costmodel_latency_summary.json",
-      "source_absolute_path": "C:/Users/HP/work/weave_new1_light/rebuttal/result/amd/cta0_costmodel_latency_summary.json",
+      "source_absolute_path": "source_archive/rebuttal/result/amd/cta0_costmodel_latency_summary.json",
       "sha256": "aae721e838c672b92fa5d8a1b69938c3fddb7a779d76dc8fb5d84f0c848e1c4b",
       "bytes": 2424,
       "status": "archived_measurement_not_rerun",
@@ -13,7 +13,7 @@
     },
     {
       "path": "results/h20_table4_48cells_ablation_and_costmodel.json",
-      "source_absolute_path": "C:/Users/HP/work/weave_new1_light/rebuttal/result/h20/h20_table4_48cells_ablation_and_costmodel.json",
+      "source_absolute_path": "source_archive/rebuttal/result/h20/h20_table4_48cells_ablation_and_costmodel.json",
       "sha256": "3e9681bf5ffdedb496e2d929504a8ed2809f7958aae87b47c02156198d1b1826",
       "bytes": 61370,
       "status": "archived_measurement_not_rerun",
@@ -21,7 +21,7 @@
     },
     {
       "path": "results/ep8_all16_synced_summary.json",
-      "source_absolute_path": "C:/Users/HP/work/weave_new1_light/rebuttal/result/b300/traces/ep8_all16_synced_summary.json",
+      "source_absolute_path": "source_archive/rebuttal/result/b300/traces/ep8_all16_synced_summary.json",
       "sha256": "32a1b7dbcf6b56d7190b29bb4694076dd57c3189ef92b8675e59dd119030cac4",
       "bytes": 7282,
       "status": "archived_measurement_not_rerun",
@@ -29,7 +29,7 @@
     },
     {
       "path": "results/ep16_baselines_and_roofline.json",
-      "source_absolute_path": "C:/Users/HP/work/weave_new1_light/rebuttal/result/amd/ep16_baselines_and_roofline.json",
+      "source_absolute_path": "source_archive/rebuttal/result/amd/ep16_baselines_and_roofline.json",
       "sha256": "77e2533ee15673fc3c0ae776de5ab63068192f9e3b969941b502bf0eb09c0b27",
       "bytes": 269009,
       "status": "archived_measurement_not_rerun",
@@ -37,7 +37,7 @@
     },
     {
       "path": "data/routing_duplicate_stats_b300.json",
-      "source_absolute_path": "C:/Users/HP/work/weave_new1_light/rebuttal/result/b300/scatter_dedup_study/routing_duplicate_stats.json",
+      "source_absolute_path": "source_archive/rebuttal/result/b300/scatter_dedup_study/routing_duplicate_stats.json",
       "sha256": "09094f6c073bff1f673d6dd863e2a78cc63edcb6138222ef6204386659c5d420",
       "bytes": 15988,
       "status": "archived_measurement_not_rerun",

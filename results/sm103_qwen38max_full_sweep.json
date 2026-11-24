@@ -1,0 +1,4541 @@
+{
+ "schema": "sm103_qwen38max_full_sweep/v2",
+ "platform": "NVIDIA SM103 (sm_103a, 148 SMs), 4 GPUs, EP4, NVLink",
+ "protocol": "ABBA palindromic windows inside ONE process (arm vs same-process default_rw0), CUDA Graph replay, 256 MiB L2 flush per replay, slowest rank per window, 15 replays x 5 rounds; \"both\" mode first runs the randn accuracy gate (bit-exact vs same-process default over every launch + FP32 reference) in the same process. Official DeepGEMM is measured in the same batch.",
+ "contamination_rule": "Foreign compute processes on the 4 cards are sampled every 2 s; an attempt with any foreign sample is discarded and re-run (max 3). clean=false means all 3 attempts were contaminated: the number is reported but not used for conclusions.",
+ "runs": [
+  {
+   "tag": "K18s1024",
+   "workload": "Qwen3.8-Max (E=512, top-10, H=8192, I=2048, fp8 x fp4)",
+   "shape": {
+    "E": 512,
+    "K": 10,
+    "H": 8192,
+    "I": 2048,
+    "S": 256
+   },
+   "routing": "uniform random",
+   "official_deepgemm_us": 593.9359962940216,
+   "official_windows": [
+    593.952,
+    593.92
+   ],
+   "abba": [
+    {
+     "arm": "abl_headoff",
+     "public_knobs": {},
+     "diag_env": {
+      "DG_TUNE_HEAD16_OFF": 1
+     },
+     "legal_21knob": false,
+     "clean": false,
+     "discarded_contaminated_attempts": 3,
+     "default_us": 622.6239800453186,
+     "arm_us": 600.0000238418579,
+     "delta_us": -22.623956203460693,
+     "arm_over_official": 1.0102099007059244,
+     "acc_default": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3780826926231384,
+      "rel_l2": 0.3780826926231384,
+      "cos_sim": 0.9282435178756714
+     },
+     "acc_arm": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3780826926231384,
+      "rel_l2": 0.3780826926231384,
+      "cos_sim": 0.9282435178756714
+     },
+     "status": "measured"
+    },
+    {
+     "arm": "adaptbm",
+     "public_knobs": {
+      "WEAVE_ADAPT_BM": 1
+     },
+     "diag_env": null,
+     "legal_21knob": true,
+     "clean": false,
+     "discarded_contaminated_attempts": 3,
+     "default_us": 620.5120086669922,
+     "arm_us": 597.9840159416199,
+     "delta_us": -22.527992725372314,
+     "arm_over_official": 1.006815582272933,
+     "acc_default": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3780826926231384,
+      "rel_l2": 0.3780826926231384,
+      "cos_sim": 0.9282435178756714
+     },
+     "acc_arm": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3780826926231384,
+      "rel_l2": 0.3780826926231384,
+      "cos_sim": 0.9282435178756714
+     },
+     "status": "measured"
+    },
+    {
+     "arm": "rp1k",
+     "public_knobs": {
+      "WEAVE_REG_PULL_BYTES": 1024
+     },
+     "diag_env": null,
+     "legal_21knob": true,
+     "clean": false,
+     "discarded_contaminated_attempts": 3,
+     "default_us": 618.7520027160645,
+     "arm_us": 607.2319746017456,
+     "delta_us": -11.520028114318848,
+     "arm_over_official": 1.022386213987175,
+     "acc_default": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3780826926231384,
+      "rel_l2": 0.3780826926231384,
+      "cos_sim": 0.9282435178756714
+     },
+     "acc_arm": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3780826926231384,
+      "rel_l2": 0.3780826926231384,
+      "cos_sim": 0.9282435178756714
+     },
+     "status": "measured"
+    },
+    {
+     "arm": "comm_rp1k_sasm74",
+     "public_knobs": {
+      "WEAVE_SCATTER_OWNER": 1,
+      "WEAVE_SCATTER_STAGING": 1,
+      "WEAVE_REG_PULL_BYTES": 1024,
+      "WEAVE_SCATTER_ACTIVE_SMS": 74
+     },
+     "diag_env": null,
+     "legal_21knob": true,
+     "clean": true,
+     "discarded_contaminated_attempts": 0,
+     "default_us": 618.5280084609985,
+     "arm_us": 612.3520135879517,
+     "delta_us": -6.175994873046875,
+     "arm_over_official": 1.0310067371044025,
+     "acc_default": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3780826926231384,
+      "rel_l2": 0.3780826926231384,
+      "cos_sim": 0.9282435178756714
+     },
+     "acc_arm": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3780826926231384,
+      "rel_l2": 0.3780826926231384,
+      "cos_sim": 0.9282435178756714
+     },
+     "status": "measured"
+    },
+    {
+     "arm": "abl_tail8",
+     "public_knobs": {},
+     "diag_env": {
+      "WEAVE_COMBINE_REDUCE_WARPS": 0
+     },
+     "legal_21knob": false,
+     "clean": false,
+     "discarded_contaminated_attempts": 3,
+     "default_us": 621.8559741973877,
+     "arm_us": 616.7680025100708,
+     "delta_us": -5.0879716873168945,
+     "arm_over_official": 1.038441863026511,
+     "acc_default": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3780826926231384,
+      "rel_l2": 0.3780826926231384,
+      "cos_sim": 0.9282435178756714
+     },
+     "acc_arm": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3780826926231384,
+      "rel_l2": 0.3780826926231384,
+      "cos_sim": 0.9282435178756714
+     },
+     "status": "measured"
+    },
+    {
+     "arm": "comm_smem_rp1k",
+     "public_knobs": {
+      "WEAVE_SCATTER_OWNER": 1,
+      "WEAVE_SCATTER_STAGING": 1,
+      "WEAVE_REG_PULL_BYTES": 1024
+     },
+     "diag_env": null,
+     "legal_21knob": true,
+     "clean": true,
+     "discarded_contaminated_attempts": 0,
+     "default_us": 618.5600161552429,
+     "arm_us": 614.3360137939453,
+     "delta_us": -4.224002361297607,
+     "arm_over_official": 1.0343471647234947,
+     "acc_default": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3780826926231384,
+      "rel_l2": 0.3780826926231384,
+      "cos_sim": 0.9282435178756714
+     },
+     "acc_arm": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3780826926231384,
+      "rel_l2": 0.3780826926231384,
+      "cos_sim": 0.9282435178756714
+     },
+     "status": "measured"
+    },
+    {
+     "arm": "bm32",
+     "public_knobs": {
+      "WEAVE_BLOCK_M_L1": 32,
+      "WEAVE_BLOCK_M_L2": 32
+     },
+     "diag_env": null,
+     "legal_21knob": true,
+     "clean": true,
+     "discarded_contaminated_attempts": 0,
+     "default_us": 619.3919777870178,
+     "arm_us": 618.6239719390869,
+     "delta_us": -0.7680058479309082,
+     "arm_over_official": 1.0415667273900062,
+     "acc_default": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3780826926231384,
+      "rel_l2": 0.3780826926231384,
+      "cos_sim": 0.9282435178756714
+     },
+     "acc_arm": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3780826926231384,
+      "rel_l2": 0.3780826926231384,
+      "cos_sim": 0.9282435178756714
+     },
+     "status": "measured"
+    },
+    {
+     "arm": "dasm74",
+     "public_knobs": {
+      "WEAVE_DISPATCH_ACTIVE_SMS": 74
+     },
+     "diag_env": null,
+     "legal_21knob": true,
+     "clean": false,
+     "discarded_contaminated_attempts": 3,
+     "default_us": 620.4800009727478,
+     "arm_us": 620.4800009727478,
+     "delta_us": 0.0,
+     "arm_over_official": 1.0446916921088343,
+     "acc_default": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3780826926231384,
+      "rel_l2": 0.3780826926231384,
+      "cos_sim": 0.9282435178756714
+     },
+     "acc_arm": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3780826926231384,
+      "rel_l2": 0.3780826926231384,
+      "cos_sim": 0.9282435178756714
+     },
+     "status": "measured"
+    },
+    {
+     "arm": "regbal",
+     "public_knobs": {
+      "WEAVE_REG_BALANCE": 1
+     },
+     "diag_env": null,
+     "legal_21knob": true,
+     "clean": true,
+     "discarded_contaminated_attempts": 2,
+     "default_us": 618.5280084609985,
+     "arm_us": 618.5280084609985,
+     "delta_us": 0.0,
+     "arm_over_official": 1.0414051553036414,
+     "acc_default": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3780826926231384,
+      "rel_l2": 0.3780826926231384,
+      "cos_sim": 0.9282435178756714
+     },
+     "acc_arm": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3780826926231384,
+      "rel_l2": 0.3780826926231384,
+      "cos_sim": 0.9282435178756714
+     },
+     "status": "measured"
+    },
+    {
+     "arm": "comm_smem",
+     "public_knobs": {
+      "WEAVE_SCATTER_OWNER": 1,
+      "WEAVE_SCATTER_STAGING": 1
+     },
+     "diag_env": null,
+     "legal_21knob": true,
+     "clean": true,
+     "discarded_contaminated_attempts": 1,
+     "default_us": 618.5280084609985,
+     "arm_us": 620.639979839325,
+     "delta_us": 2.111971378326416,
+     "arm_over_official": 1.0449610458229979,
+     "acc_default": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3780826926231384,
+      "rel_l2": 0.3780826926231384,
+      "cos_sim": 0.9282435178756714
+     },
+     "acc_arm": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3780826926231384,
+      "rel_l2": 0.3780826926231384,
+      "cos_sim": 0.9282435178756714
+     },
+     "status": "measured"
+    },
+    {
+     "arm": "ht2",
+     "public_knobs": {},
+     "diag_env": {
+      "DG_TUNE_HEAD_TOK": 2
+     },
+     "legal_21knob": false,
+     "clean": false,
+     "discarded_contaminated_attempts": 3,
+     "default_us": 618.5600161552429,
+     "arm_us": 622.5600242614746,
+     "delta_us": 4.0000081062316895,
+     "arm_over_official": 1.0481937921696245,
+     "acc_default": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3780826926231384,
+      "rel_l2": 0.3780826926231384,
+      "cos_sim": 0.9282435178756714
+     },
+     "acc_arm": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3780826926231384,
+      "rel_l2": 0.3780826926231384,
+      "cos_sim": 0.9282435178756714
+     },
+     "status": "measured"
+    },
+    {
+     "arm": "vh1_l2pf5",
+     "public_knobs": {},
+     "diag_env": {
+      "DG_TUNE_L2_PREFETCH_EXPERTS": 5
+     },
+     "legal_21knob": false,
+     "clean": true,
+     "discarded_contaminated_attempts": 0,
+     "default_us": 618.5280084609985,
+     "arm_us": 622.655987739563,
+     "delta_us": 4.127979278564453,
+     "arm_over_official": 1.0483553642559893,
+     "acc_default": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3780826926231384,
+      "rel_l2": 0.3780826926231384,
+      "cos_sim": 0.9282435178756714
+     },
+     "acc_arm": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3780826926231384,
+      "rel_l2": 0.3780826926231384,
+      "cos_sim": 0.9282435178756714
+     },
+     "status": "measured"
+    },
+    {
+     "arm": "vh2",
+     "public_knobs": {
+      "WEAVE_V_HEAD": 2
+     },
+     "diag_env": null,
+     "legal_21knob": true,
+     "clean": true,
+     "discarded_contaminated_attempts": 2,
+     "default_us": 618.7520027160645,
+     "arm_us": 624.7040033340454,
+     "delta_us": 5.952000617980957,
+     "arm_over_official": 1.0518035735028803,
+     "acc_default": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3780826926231384,
+      "rel_l2": 0.3780826926231384,
+      "cos_sim": 0.9282435178756714
+     },
+     "acc_arm": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3780826926231384,
+      "rel_l2": 0.3780826926231384,
+      "cos_sim": 0.9282435178756714
+     },
+     "status": "measured"
+    },
+    {
+     "arm": "csc64",
+     "public_knobs": {
+      "WEAVE_COMBINE_SYNC_CHUNK": 64
+     },
+     "diag_env": null,
+     "legal_21knob": true,
+     "clean": true,
+     "discarded_contaminated_attempts": 1,
+     "default_us": 619.6799874305725,
+     "arm_us": 679.967999458313,
+     "delta_us": 60.28801202774048,
+     "arm_over_official": 1.1448506298677041,
+     "acc_default": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3780826926231384,
+      "rel_l2": 0.3780826926231384,
+      "cos_sim": 0.9282435178756714
+     },
+     "acc_arm": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3780826926231384,
+      "rel_l2": 0.3780826926231384,
+      "cos_sim": 0.9282435178756714
+     },
+     "status": "measured"
+    },
+    {
+     "arm": "comm_gap2_rp1k",
+     "public_knobs": {
+      "WEAVE_SCATTER_OWNER": 1,
+      "WEAVE_SCATTER_STAGING": 1,
+      "WEAVE_REDUCE_WARPS": 2,
+      "WEAVE_REG_PULL_BYTES": 1024
+     },
+     "diag_env": null,
+     "legal_21knob": true,
+     "clean": true,
+     "discarded_contaminated_attempts": 0,
+     "default_us": 620.576024055481,
+     "arm_us": 1330.2079439163208,
+     "delta_us": 709.6319198608398,
+     "arm_over_official": 2.23964863590759,
+     "acc_default": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3780826926231384,
+      "rel_l2": 0.3780826926231384,
+      "cos_sim": 0.9282435178756714
+     },
+     "acc_arm": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3780826926231384,
+      "rel_l2": 0.3780826926231384,
+      "cos_sim": 0.9282435178756714
+     },
+     "status": "measured"
+    },
+    {
+     "arm": "comm_dedgap2",
+     "public_knobs": {},
+     "diag_env": {
+      "WEAVE_SCATTER_OWNER": 1,
+      "WEAVE_SCATTER_STAGING": 1,
+      "WEAVE_REDUCE_WARPS": 2,
+      "DG_TUNE_REDUCE_GAP": 0
+     },
+     "legal_21knob": false,
+     "clean": true,
+     "discarded_contaminated_attempts": 2,
+     "default_us": 618.3680295944214,
+     "arm_us": 1545.9519624710083,
+     "delta_us": 927.5839328765869,
+     "arm_over_official": 2.6028931940769278,
+     "acc_default": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3780826926231384,
+      "rel_l2": 0.3780826926231384,
+      "cos_sim": 0.9282435178756714
+     },
+     "acc_arm": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3780826926231384,
+      "rel_l2": 0.3780826926231384,
+      "cos_sim": 0.9282435178756714
+     },
+     "status": "measured"
+    },
+    {
+     "arm": "comm_gap2",
+     "public_knobs": {
+      "WEAVE_SCATTER_OWNER": 1,
+      "WEAVE_SCATTER_STAGING": 1,
+      "WEAVE_REDUCE_WARPS": 2
+     },
+     "diag_env": null,
+     "legal_21knob": true,
+     "clean": true,
+     "discarded_contaminated_attempts": 0,
+     "default_us": 618.5280084609985,
+     "arm_us": 1835.9040021896362,
+     "delta_us": 1217.3759937286377,
+     "arm_over_official": 3.0910805434341646,
+     "acc_default": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3780826926231384,
+      "rel_l2": 0.3780826926231384,
+      "cos_sim": 0.9282435178756714
+     },
+     "acc_arm": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3780826926231384,
+      "rel_l2": 0.3780826926231384,
+      "cos_sim": 0.9282435178756714
+     },
+     "status": "measured"
+    }
+   ],
+   "accuracy_only": []
+  },
+  {
+   "tag": "K18s4096",
+   "workload": "Qwen3.8-Max (E=512, top-10, H=8192, I=2048, fp8 x fp4)",
+   "shape": {
+    "E": 512,
+    "K": 10,
+    "H": 8192,
+    "I": 2048,
+    "S": 1024
+   },
+   "routing": "uniform random",
+   "official_deepgemm_us": 714.7200107574463,
+   "official_windows": [
+    714.72
+   ],
+   "abba": [
+    {
+     "arm": "abl_headoff",
+     "public_knobs": {},
+     "diag_env": {
+      "DG_TUNE_HEAD16_OFF": 1
+     },
+     "legal_21knob": false,
+     "clean": false,
+     "discarded_contaminated_attempts": 3,
+     "default_us": 798.6559867858887,
+     "arm_us": 753.7919878959656,
+     "delta_us": -44.863998889923096,
+     "arm_over_official": 1.0546675293127885,
+     "acc_default": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.378997266292572,
+      "rel_l2": 0.378997266292572,
+      "cos_sim": 0.9278557300567627
+     },
+     "acc_arm": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.378997266292572,
+      "rel_l2": 0.378997266292572,
+      "cos_sim": 0.9278557300567627
+     },
+     "status": "measured"
+    },
+    {
+     "arm": "rp1k",
+     "public_knobs": {
+      "WEAVE_REG_PULL_BYTES": 1024
+     },
+     "diag_env": null,
+     "legal_21knob": true,
+     "clean": false,
+     "discarded_contaminated_attempts": 3,
+     "default_us": 810.912013053894,
+     "arm_us": 802.9119968414307,
+     "delta_us": -8.000016212463379,
+     "arm_over_official": 1.12339375525602,
+     "acc_default": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.378997266292572,
+      "rel_l2": 0.378997266292572,
+      "cos_sim": 0.9278557300567627
+     },
+     "acc_arm": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.378997266292572,
+      "rel_l2": 0.378997266292572,
+      "cos_sim": 0.9278557300567627
+     },
+     "status": "measured"
+    },
+    {
+     "arm": "abl_tail8",
+     "public_knobs": {},
+     "diag_env": {
+      "WEAVE_COMBINE_REDUCE_WARPS": 0
+     },
+     "legal_21knob": false,
+     "clean": true,
+     "discarded_contaminated_attempts": 0,
+     "default_us": 829.4399976730347,
+     "arm_us": 825.2480030059814,
+     "delta_us": -4.191994667053223,
+     "arm_over_official": 1.1546451625600909,
+     "acc_default": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.378997266292572,
+      "rel_l2": 0.378997266292572,
+      "cos_sim": 0.9278557300567627
+     },
+     "acc_arm": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.378997266292572,
+      "rel_l2": 0.378997266292572,
+      "cos_sim": 0.9278557300567627
+     },
+     "status": "measured"
+    },
+    {
+     "arm": "vh2",
+     "public_knobs": {
+      "WEAVE_V_HEAD": 2
+     },
+     "diag_env": null,
+     "legal_21knob": true,
+     "clean": false,
+     "discarded_contaminated_attempts": 3,
+     "default_us": 813.0879998207092,
+     "arm_us": 824.3200182914734,
+     "delta_us": 11.23201847076416,
+     "arm_over_official": 1.1533467733999432,
+     "acc_default": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.378997266292572,
+      "rel_l2": 0.378997266292572,
+      "cos_sim": 0.9278557300567627
+     },
+     "acc_arm": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.378997266292572,
+      "rel_l2": 0.378997266292572,
+      "cos_sim": 0.9278557300567627
+     },
+     "status": "measured"
+    },
+    {
+     "arm": "comm_smem",
+     "public_knobs": {
+      "WEAVE_SCATTER_OWNER": 1,
+      "WEAVE_SCATTER_STAGING": 1
+     },
+     "diag_env": null,
+     "legal_21knob": true,
+     "clean": true,
+     "discarded_contaminated_attempts": 2,
+     "default_us": 802.8479814529419,
+     "arm_us": 888.8639807701111,
+     "delta_us": 86.01599931716919,
+     "arm_over_official": 1.2436534130730583,
+     "acc_default": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.378997266292572,
+      "rel_l2": 0.378997266292572,
+      "cos_sim": 0.9278557300567627
+     },
+     "acc_arm": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.378997266292572,
+      "rel_l2": 0.378997266292572,
+      "cos_sim": 0.9278557300567627
+     },
+     "status": "measured"
+    },
+    {
+     "arm": "comm_smem_rp1k",
+     "public_knobs": {
+      "WEAVE_SCATTER_OWNER": 1,
+      "WEAVE_SCATTER_STAGING": 1,
+      "WEAVE_REG_PULL_BYTES": 1024
+     },
+     "diag_env": null,
+     "legal_21knob": true,
+     "clean": true,
+     "discarded_contaminated_attempts": 1,
+     "default_us": 756.8320035934448,
+     "arm_us": 896.992027759552,
+     "delta_us": 140.16002416610718,
+     "arm_over_official": 1.2550257642974587,
+     "acc_default": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.378997266292572,
+      "rel_l2": 0.378997266292572,
+      "cos_sim": 0.9278557300567627
+     },
+     "acc_arm": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.378997266292572,
+      "rel_l2": 0.378997266292572,
+      "cos_sim": 0.9278557300567627
+     },
+     "status": "measured"
+    },
+    {
+     "arm": "comm_gap1_rp1k",
+     "public_knobs": {
+      "WEAVE_SCATTER_OWNER": 1,
+      "WEAVE_SCATTER_STAGING": 1,
+      "WEAVE_REDUCE_WARPS": 1,
+      "WEAVE_REG_PULL_BYTES": 1024
+     },
+     "diag_env": null,
+     "legal_21knob": true,
+     "clean": false,
+     "discarded_contaminated_attempts": 3,
+     "default_us": 739.359974861145,
+     "arm_us": 3677.216053009033,
+     "delta_us": 2937.856078147888,
+     "arm_over_official": 5.144974252381701,
+     "acc_default": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.378997266292572,
+      "rel_l2": 0.378997266292572,
+      "cos_sim": 0.9278557300567627
+     },
+     "acc_arm": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.378997266292572,
+      "rel_l2": 0.378997266292572,
+      "cos_sim": 0.9278557300567627
+     },
+     "status": "measured"
+    },
+    {
+     "arm": "comm_gap2_rp1k",
+     "public_knobs": {
+      "WEAVE_SCATTER_OWNER": 1,
+      "WEAVE_SCATTER_STAGING": 1,
+      "WEAVE_REDUCE_WARPS": 2,
+      "WEAVE_REG_PULL_BYTES": 1024
+     },
+     "diag_env": null,
+     "legal_21knob": true,
+     "clean": false,
+     "discarded_contaminated_attempts": 3,
+     "default_us": 736.4159822463989,
+     "arm_us": 3708.159923553467,
+     "delta_us": 2971.743941307068,
+     "arm_over_official": 5.188269347074292,
+     "acc_default": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.378997266292572,
+      "rel_l2": 0.378997266292572,
+      "cos_sim": 0.9278557300567627
+     },
+     "acc_arm": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.378997266292572,
+      "rel_l2": 0.378997266292572,
+      "cos_sim": 0.9278557300567627
+     },
+     "status": "measured"
+    }
+   ],
+   "accuracy_only": []
+  },
+  {
+   "tag": "K19s1024",
+   "workload": "Qwen3.8-Max (E=512, top-10, H=8192, I=2048, fp8 x fp4)",
+   "shape": {
+    "E": 512,
+    "K": 10,
+    "H": 8192,
+    "I": 2048,
+    "S": 256
+   },
+   "routing": "uniform random",
+   "official_deepgemm_us": 593.9039885997772,
+   "official_windows": [
+    593.888,
+    593.92
+   ],
+   "abba": [
+    {
+     "arm": "rp4k",
+     "public_knobs": {
+      "WEAVE_REG_PULL_BYTES": 4096
+     },
+     "diag_env": null,
+     "legal_21knob": true,
+     "clean": true,
+     "discarded_contaminated_attempts": 0,
+     "default_us": 618.5280084609985,
+     "arm_us": 604.095995426178,
+     "delta_us": -14.432013034820557,
+     "arm_over_official": 1.017161034480388,
+     "acc_default": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3780826926231384,
+      "rel_l2": 0.3780826926231384,
+      "cos_sim": 0.9282435178756714
+     },
+     "acc_arm": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3780826926231384,
+      "rel_l2": 0.3780826926231384,
+      "cos_sim": 0.9282435178756714
+     },
+     "status": "measured"
+    },
+    {
+     "arm": "rpb2048",
+     "public_knobs": {
+      "WEAVE_REG_PULL_BYTES": 2048
+     },
+     "diag_env": null,
+     "legal_21knob": true,
+     "clean": true,
+     "discarded_contaminated_attempts": 0,
+     "default_us": 618.4960007667542,
+     "arm_us": 604.095995426178,
+     "delta_us": -14.400005340576172,
+     "arm_over_official": 1.017161034480388,
+     "acc_default": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3780826926231384,
+      "rel_l2": 0.3780826926231384,
+      "cos_sim": 0.9282435178756714
+     },
+     "acc_arm": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3780826926231384,
+      "rel_l2": 0.3780826926231384,
+      "cos_sim": 0.9282435178756714
+     },
+     "status": "measured"
+    },
+    {
+     "arm": "rp1k_regbal",
+     "public_knobs": {
+      "WEAVE_REG_PULL_BYTES": 1024,
+      "WEAVE_REG_BALANCE": 1
+     },
+     "diag_env": null,
+     "legal_21knob": true,
+     "clean": true,
+     "discarded_contaminated_attempts": 0,
+     "default_us": 618.5920238494873,
+     "arm_us": 606.2399744987488,
+     "delta_us": -12.352049350738525,
+     "arm_over_official": 1.020771010358182,
+     "acc_default": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3780826926231384,
+      "rel_l2": 0.3780826926231384,
+      "cos_sim": 0.9282435178756714
+     },
+     "acc_arm": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3780826926231384,
+      "rel_l2": 0.3780826926231384,
+      "cos_sim": 0.9282435178756714
+     },
+     "status": "measured"
+    },
+    {
+     "arm": "rp1k_bm32",
+     "public_knobs": {
+      "WEAVE_REG_PULL_BYTES": 1024,
+      "WEAVE_BLOCK_M_L1": 32,
+      "WEAVE_BLOCK_M_L2": 32
+     },
+     "diag_env": null,
+     "legal_21knob": true,
+     "clean": true,
+     "discarded_contaminated_attempts": 1,
+     "default_us": 618.4960007667542,
+     "arm_us": 606.2080264091492,
+     "delta_us": -12.28797435760498,
+     "arm_over_official": 1.020717217000648,
+     "acc_default": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3780826926231384,
+      "rel_l2": 0.3780826926231384,
+      "cos_sim": 0.9282435178756714
+     },
+     "acc_arm": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3780826926231384,
+      "rel_l2": 0.3780826926231384,
+      "cos_sim": 0.9282435178756714
+     },
+     "status": "measured"
+    },
+    {
+     "arm": "rp1k",
+     "public_knobs": {
+      "WEAVE_REG_PULL_BYTES": 1024
+     },
+     "diag_env": null,
+     "legal_21knob": true,
+     "clean": true,
+     "discarded_contaminated_attempts": 1,
+     "default_us": 618.4960007667542,
+     "arm_us": 608.1600189208984,
+     "delta_us": -10.335981845855713,
+     "arm_over_official": 1.0240039309295297,
+     "acc_default": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3780826926231384,
+      "rel_l2": 0.3780826926231384,
+      "cos_sim": 0.9282435178756714
+     },
+     "acc_arm": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3780826926231384,
+      "rel_l2": 0.3780826926231384,
+      "cos_sim": 0.9282435178756714
+     },
+     "status": "measured"
+    },
+    {
+     "arm": "rp1k_dasm74",
+     "public_knobs": {
+      "WEAVE_REG_PULL_BYTES": 1024,
+      "WEAVE_DISPATCH_ACTIVE_SMS": 74
+     },
+     "diag_env": null,
+     "legal_21knob": true,
+     "clean": false,
+     "discarded_contaminated_attempts": 3,
+     "default_us": 622.4960088729858,
+     "arm_us": 612.4799847602844,
+     "delta_us": -10.016024112701416,
+     "arm_over_official": 1.0312777764033931,
+     "acc_default": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3780826926231384,
+      "rel_l2": 0.3780826926231384,
+      "cos_sim": 0.9282435178756714
+     },
+     "acc_arm": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3780826926231384,
+      "rel_l2": 0.3780826926231384,
+      "cos_sim": 0.9282435178756714
+     },
+     "status": "measured"
+    },
+    {
+     "arm": "comm_rp1k_sasm74",
+     "public_knobs": {
+      "WEAVE_SCATTER_OWNER": 1,
+      "WEAVE_SCATTER_STAGING": 1,
+      "WEAVE_REG_PULL_BYTES": 1024,
+      "WEAVE_SCATTER_ACTIVE_SMS": 74
+     },
+     "diag_env": null,
+     "legal_21knob": true,
+     "clean": true,
+     "discarded_contaminated_attempts": 2,
+     "default_us": 618.2720065116882,
+     "arm_us": 618.5280084609985,
+     "delta_us": 0.25600194931030273,
+     "arm_over_official": 1.041461280499692,
+     "acc_default": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3780826926231384,
+      "rel_l2": 0.3780826926231384,
+      "cos_sim": 0.9282435178756714
+     },
+     "acc_arm": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3780826926231384,
+      "rel_l2": 0.3780826926231384,
+      "cos_sim": 0.9282435178756714
+     },
+     "status": "measured"
+    },
+    {
+     "arm": "comm_rp1k_sasm40",
+     "public_knobs": {
+      "WEAVE_SCATTER_OWNER": 1,
+      "WEAVE_SCATTER_STAGING": 1,
+      "WEAVE_REG_PULL_BYTES": 1024,
+      "WEAVE_SCATTER_ACTIVE_SMS": 40
+     },
+     "diag_env": null,
+     "legal_21knob": true,
+     "clean": true,
+     "discarded_contaminated_attempts": 0,
+     "default_us": 616.6719794273376,
+     "arm_us": 618.5280084609985,
+     "delta_us": 1.8560290336608887,
+     "arm_over_official": 1.041461280499692,
+     "acc_default": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3780826926231384,
+      "rel_l2": 0.3780826926231384,
+      "cos_sim": 0.9282435178756714
+     },
+     "acc_arm": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3780826926231384,
+      "rel_l2": 0.3780826926231384,
+      "cos_sim": 0.9282435178756714
+     },
+     "status": "measured"
+    },
+    {
+     "arm": "comm_rp2k_sasm74",
+     "public_knobs": {
+      "WEAVE_SCATTER_OWNER": 1,
+      "WEAVE_SCATTER_STAGING": 1,
+      "WEAVE_REG_PULL_BYTES": 2048,
+      "WEAVE_SCATTER_ACTIVE_SMS": 74
+     },
+     "diag_env": null,
+     "legal_21knob": true,
+     "clean": false,
+     "discarded_contaminated_attempts": 3,
+     "default_us": 620.5440163612366,
+     "arm_us": 624.5120167732239,
+     "delta_us": 3.9680004119873047,
+     "arm_over_official": 1.0515369971594397,
+     "acc_default": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3780826926231384,
+      "rel_l2": 0.3780826926231384,
+      "cos_sim": 0.9282435178756714
+     },
+     "acc_arm": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3780826926231384,
+      "rel_l2": 0.3780826926231384,
+      "cos_sim": 0.9282435178756714
+     },
+     "status": "measured"
+    },
+    {
+     "arm": "rg4",
+     "public_knobs": {
+      "WEAVE_READY_GROUP_SIZE": 4
+     },
+     "diag_env": null,
+     "legal_21knob": true,
+     "clean": true,
+     "discarded_contaminated_attempts": 1,
+     "default_us": 618.3680295944214,
+     "arm_us": 631.0719847679138,
+     "delta_us": 12.703955173492432,
+     "arm_over_official": 1.062582499665924,
+     "acc_default": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3780826926231384,
+      "rel_l2": 0.3780826926231384,
+      "cos_sim": 0.9282435178756714
+     },
+     "acc_arm": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3780826926231384,
+      "rel_l2": 0.3780826926231384,
+      "cos_sim": 0.9282435178756714
+     },
+     "status": "measured"
+    }
+   ],
+   "accuracy_only": []
+  },
+  {
+   "tag": "K19s4096",
+   "workload": "Qwen3.8-Max (E=512, top-10, H=8192, I=2048, fp8 x fp4)",
+   "shape": {
+    "E": 512,
+    "K": 10,
+    "H": 8192,
+    "I": 2048,
+    "S": 1024
+   },
+   "routing": "uniform random",
+   "official_deepgemm_us": 716.8319821357727,
+   "official_windows": [
+    716.832,
+    716.832
+   ],
+   "abba": [
+    {
+     "arm": "abl_headoff",
+     "public_knobs": {},
+     "diag_env": {
+      "DG_TUNE_HEAD16_OFF": 1
+     },
+     "legal_21knob": false,
+     "clean": false,
+     "discarded_contaminated_attempts": 3,
+     "default_us": 790.5600070953369,
+     "arm_us": 766.048014163971,
+     "delta_us": -24.511992931365967,
+     "arm_over_official": 1.0686576956033143,
+     "acc_default": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.378997266292572,
+      "rel_l2": 0.378997266292572,
+      "cos_sim": 0.9278557300567627
+     },
+     "acc_arm": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.378997266292572,
+      "rel_l2": 0.378997266292572,
+      "cos_sim": 0.9278557300567627
+     },
+     "status": "measured"
+    },
+    {
+     "arm": "rp4k",
+     "public_knobs": {
+      "WEAVE_REG_PULL_BYTES": 4096
+     },
+     "diag_env": null,
+     "legal_21knob": true,
+     "clean": false,
+     "discarded_contaminated_attempts": 3,
+     "default_us": 795.6479787826538,
+     "arm_us": 772.0000147819519,
+     "delta_us": -23.647964000701904,
+     "arm_over_official": 1.0769608974223055,
+     "acc_default": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.378997266292572,
+      "rel_l2": 0.378997266292572,
+      "cos_sim": 0.9278557300567627
+     },
+     "acc_arm": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.378997266292572,
+      "rel_l2": 0.378997266292572,
+      "cos_sim": 0.9278557300567627
+     },
+     "status": "measured"
+    },
+    {
+     "arm": "abl_tail8",
+     "public_knobs": {},
+     "diag_env": {
+      "WEAVE_COMBINE_REDUCE_WARPS": 0
+     },
+     "legal_21knob": false,
+     "clean": true,
+     "discarded_contaminated_attempts": 1,
+     "default_us": 767.6159739494324,
+     "arm_us": 762.0159983634949,
+     "delta_us": -5.5999755859375,
+     "arm_over_official": 1.0630329245259094,
+     "acc_default": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.378997266292572,
+      "rel_l2": 0.378997266292572,
+      "cos_sim": 0.9278557300567627
+     },
+     "acc_arm": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.378997266292572,
+      "rel_l2": 0.378997266292572,
+      "cos_sim": 0.9278557300567627
+     },
+     "status": "measured"
+    },
+    {
+     "arm": "dasm74",
+     "public_knobs": {
+      "WEAVE_DISPATCH_ACTIVE_SMS": 74
+     },
+     "diag_env": null,
+     "legal_21knob": true,
+     "clean": false,
+     "discarded_contaminated_attempts": 3,
+     "default_us": 803.8399815559387,
+     "arm_us": 801.5360236167908,
+     "delta_us": -2.303957939147949,
+     "arm_over_official": 1.1181644284740835,
+     "acc_default": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.378997266292572,
+      "rel_l2": 0.378997266292572,
+      "cos_sim": 0.9278557300567627
+     },
+     "acc_arm": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.378997266292572,
+      "rel_l2": 0.378997266292572,
+      "cos_sim": 0.9278557300567627
+     },
+     "status": "measured"
+    },
+    {
+     "arm": "rg4",
+     "public_knobs": {
+      "WEAVE_READY_GROUP_SIZE": 4
+     },
+     "diag_env": null,
+     "legal_21knob": true,
+     "clean": true,
+     "discarded_contaminated_attempts": 1,
+     "default_us": 776.1279940605164,
+     "arm_us": 776.0639786720276,
+     "delta_us": -0.06401538848876953,
+     "arm_over_official": 1.0826302369486578,
+     "acc_default": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.378997266292572,
+      "rel_l2": 0.378997266292572,
+      "cos_sim": 0.9278557300567627
+     },
+     "acc_arm": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.378997266292572,
+      "rel_l2": 0.378997266292572,
+      "cos_sim": 0.9278557300567627
+     },
+     "status": "measured"
+    },
+    {
+     "arm": "rpb2048",
+     "public_knobs": {
+      "WEAVE_REG_PULL_BYTES": 2048
+     },
+     "diag_env": null,
+     "legal_21knob": true,
+     "clean": true,
+     "discarded_contaminated_attempts": 0,
+     "default_us": 792.6080226898193,
+     "arm_us": 798.7200021743774,
+     "delta_us": 6.1119794845581055,
+     "arm_over_official": 1.1142360024096896,
+     "acc_default": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.378997266292572,
+      "rel_l2": 0.378997266292572,
+      "cos_sim": 0.9278557300567627
+     },
+     "acc_arm": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.378997266292572,
+      "rel_l2": 0.378997266292572,
+      "cos_sim": 0.9278557300567627
+     },
+     "status": "measured"
+    },
+    {
+     "arm": "regbal",
+     "public_knobs": {
+      "WEAVE_REG_BALANCE": 1
+     },
+     "diag_env": null,
+     "legal_21knob": true,
+     "clean": true,
+     "discarded_contaminated_attempts": 0,
+     "default_us": 814.1120076179504,
+     "arm_us": 825.6000280380249,
+     "delta_us": 11.488020420074463,
+     "arm_over_official": 1.1517343653922667,
+     "acc_default": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.378997266292572,
+      "rel_l2": 0.378997266292572,
+      "cos_sim": 0.9278557300567627
+     },
+     "acc_arm": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.378997266292572,
+      "rel_l2": 0.378997266292572,
+      "cos_sim": 0.9278557300567627
+     },
+     "status": "measured"
+    },
+    {
+     "arm": "vh2",
+     "public_knobs": {
+      "WEAVE_V_HEAD": 2
+     },
+     "diag_env": null,
+     "legal_21knob": true,
+     "clean": false,
+     "discarded_contaminated_attempts": 3,
+     "default_us": 788.6719703674316,
+     "arm_us": 811.0399842262268,
+     "delta_us": 22.368013858795166,
+     "arm_over_official": 1.1314227105349919,
+     "acc_default": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.378997266292572,
+      "rel_l2": 0.378997266292572,
+      "cos_sim": 0.9278557300567627
+     },
+     "acc_arm": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.378997266292572,
+      "rel_l2": 0.378997266292572,
+      "cos_sim": 0.9278557300567627
+     },
+     "status": "measured"
+    },
+    {
+     "arm": "comm_smem_rp1k",
+     "public_knobs": {
+      "WEAVE_SCATTER_OWNER": 1,
+      "WEAVE_SCATTER_STAGING": 1,
+      "WEAVE_REG_PULL_BYTES": 1024
+     },
+     "diag_env": null,
+     "legal_21knob": true,
+     "clean": true,
+     "discarded_contaminated_attempts": 0,
+     "default_us": 795.6799864768982,
+     "arm_us": 831.5520286560059,
+     "delta_us": 35.872042179107666,
+     "arm_over_official": 1.1600375672112582,
+     "acc_default": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.378997266292572,
+      "rel_l2": 0.378997266292572,
+      "cos_sim": 0.9278557300567627
+     },
+     "acc_arm": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.378997266292572,
+      "rel_l2": 0.378997266292572,
+      "cos_sim": 0.9278557300567627
+     },
+     "status": "measured"
+    },
+    {
+     "arm": "rp1k",
+     "public_knobs": {
+      "WEAVE_REG_PULL_BYTES": 1024
+     },
+     "diag_env": null,
+     "legal_21knob": true,
+     "clean": true,
+     "discarded_contaminated_attempts": 1,
+     "default_us": 802.8799891471863,
+     "arm_us": 839.7120237350464,
+     "delta_us": 36.83203458786011,
+     "arm_over_official": 1.1714209810130924,
+     "acc_default": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.378997266292572,
+      "rel_l2": 0.378997266292572,
+      "cos_sim": 0.9278557300567627
+     },
+     "acc_arm": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.378997266292572,
+      "rel_l2": 0.378997266292572,
+      "cos_sim": 0.9278557300567627
+     },
+     "status": "measured"
+    },
+    {
+     "arm": "comm_rp1k_sasm74",
+     "public_knobs": {
+      "WEAVE_SCATTER_OWNER": 1,
+      "WEAVE_SCATTER_STAGING": 1,
+      "WEAVE_REG_PULL_BYTES": 1024,
+      "WEAVE_SCATTER_ACTIVE_SMS": 74
+     },
+     "diag_env": null,
+     "legal_21knob": true,
+     "clean": true,
+     "discarded_contaminated_attempts": 1,
+     "default_us": 774.399995803833,
+     "arm_us": 839.6160006523132,
+     "delta_us": 65.21600484848022,
+     "arm_over_official": 1.1712870262159765,
+     "acc_default": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.378997266292572,
+      "rel_l2": 0.378997266292572,
+      "cos_sim": 0.9278557300567627
+     },
+     "acc_arm": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.378997266292572,
+      "rel_l2": 0.378997266292572,
+      "cos_sim": 0.9278557300567627
+     },
+     "status": "measured"
+    },
+    {
+     "arm": "comm_smem",
+     "public_knobs": {
+      "WEAVE_SCATTER_OWNER": 1,
+      "WEAVE_SCATTER_STAGING": 1
+     },
+     "diag_env": null,
+     "legal_21knob": true,
+     "clean": true,
+     "discarded_contaminated_attempts": 0,
+     "default_us": 774.1760015487671,
+     "arm_us": 861.3119721412659,
+     "delta_us": 87.13597059249878,
+     "arm_over_official": 1.2015534931561238,
+     "acc_default": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.378997266292572,
+      "rel_l2": 0.378997266292572,
+      "cos_sim": 0.9278557300567627
+     },
+     "acc_arm": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.378997266292572,
+      "rel_l2": 0.378997266292572,
+      "cos_sim": 0.9278557300567627
+     },
+     "status": "measured"
+    },
+    {
+     "arm": "csc64",
+     "public_knobs": {
+      "WEAVE_COMBINE_SYNC_CHUNK": 64
+     },
+     "diag_env": null,
+     "legal_21knob": true,
+     "clean": true,
+     "discarded_contaminated_attempts": 2,
+     "default_us": 751.6160011291504,
+     "arm_us": 888.9920115470886,
+     "delta_us": 137.37601041793823,
+     "arm_over_official": 1.2401678966643925,
+     "acc_default": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.378997266292572,
+      "rel_l2": 0.378997266292572,
+      "cos_sim": 0.9278557300567627
+     },
+     "acc_arm": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.378997266292572,
+      "rel_l2": 0.378997266292572,
+      "cos_sim": 0.9278557300567627
+     },
+     "status": "measured"
+    },
+    {
+     "arm": "bm64",
+     "public_knobs": {
+      "WEAVE_BLOCK_M_L1": 64,
+      "WEAVE_BLOCK_M_L2": 64
+     },
+     "diag_env": null,
+     "legal_21knob": true,
+     "clean": false,
+     "discarded_contaminated_attempts": 3,
+     "default_us": 747.5200295448303,
+     "arm_us": 1313.920021057129,
+     "delta_us": 566.3999915122986,
+     "arm_over_official": 1.8329539610416876,
+     "acc_default": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.378997266292572,
+      "rel_l2": 0.378997266292572,
+      "cos_sim": 0.9278557300567627
+     },
+     "acc_arm": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.378997266292572,
+      "rel_l2": 0.378997266292572,
+      "cos_sim": 0.9278557300567627
+     },
+     "status": "measured"
+    }
+   ],
+   "accuracy_only": []
+  },
+  {
+   "tag": "K19q35s8192",
+   "workload": "Qwen3.5-35B (E=256, top-8, H=2048, I=512, fp8 x fp4)",
+   "shape": {
+    "E": 256,
+    "K": 8,
+    "H": 2048,
+    "I": 512,
+    "S": 2048
+   },
+   "routing": "uniform random",
+   "official_deepgemm_us": 208.97600054740906,
+   "official_windows": [
+    209.056,
+    208.896
+   ],
+   "abba": [
+    {
+     "arm": "abl_headoff",
+     "public_knobs": {},
+     "diag_env": {
+      "DG_TUNE_HEAD16_OFF": 1
+     },
+     "legal_21knob": false,
+     "clean": false,
+     "discarded_contaminated_attempts": 3,
+     "default_us": 217.15199947357178,
+     "arm_us": 213.15200626850128,
+     "delta_us": -3.9999932050704956,
+     "arm_over_official": 1.0199831832849382,
+     "acc_default": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3202458620071411,
+      "rel_l2": 0.3202458620071411,
+      "cos_sim": 0.9484539031982422
+     },
+     "acc_arm": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3202458620071411,
+      "rel_l2": 0.3202458620071411,
+      "cos_sim": 0.9484539031982422
+     },
+     "status": "measured"
+    },
+    {
+     "arm": "rp1k",
+     "public_knobs": {
+      "WEAVE_REG_PULL_BYTES": 1024
+     },
+     "diag_env": null,
+     "legal_21knob": true,
+     "clean": true,
+     "discarded_contaminated_attempts": 0,
+     "default_us": 217.40800142288208,
+     "arm_us": 215.2319997549057,
+     "delta_us": -2.1760016679763794,
+     "arm_over_official": 1.0299364481620337,
+     "acc_default": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3202458620071411,
+      "rel_l2": 0.3202458620071411,
+      "cos_sim": 0.9484539031982422
+     },
+     "acc_arm": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3202458620071411,
+      "rel_l2": 0.3202458620071411,
+      "cos_sim": 0.9484539031982422
+     },
+     "status": "measured"
+    },
+    {
+     "arm": "rpb2048",
+     "public_knobs": {
+      "WEAVE_REG_PULL_BYTES": 2048
+     },
+     "diag_env": null,
+     "legal_21knob": true,
+     "clean": false,
+     "discarded_contaminated_attempts": 3,
+     "default_us": 217.21599996089935,
+     "arm_us": 215.2319997549057,
+     "delta_us": -1.9840002059936523,
+     "arm_over_official": 1.0299364481620337,
+     "acc_default": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3202458620071411,
+      "rel_l2": 0.3202458620071411,
+      "cos_sim": 0.9484539031982422
+     },
+     "acc_arm": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3202458620071411,
+      "rel_l2": 0.3202458620071411,
+      "cos_sim": 0.9484539031982422
+     },
+     "status": "measured"
+    },
+    {
+     "arm": "vh2",
+     "public_knobs": {
+      "WEAVE_V_HEAD": 2
+     },
+     "diag_env": null,
+     "legal_21knob": true,
+     "clean": false,
+     "discarded_contaminated_attempts": 3,
+     "default_us": 217.1200066804886,
+     "arm_us": 219.16800737380981,
+     "delta_us": 2.048000693321228,
+     "arm_over_official": 1.048771183292354,
+     "acc_default": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3202458620071411,
+      "rel_l2": 0.3202458620071411,
+      "cos_sim": 0.9484539031982422
+     },
+     "acc_arm": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3202458620071411,
+      "rel_l2": 0.3202458620071411,
+      "cos_sim": 0.9484539031982422
+     },
+     "status": "measured"
+    },
+    {
+     "arm": "dedup1",
+     "public_knobs": {
+      "WEAVE_DEDUP_MODE": 1
+     },
+     "diag_env": null,
+     "legal_21knob": true,
+     "clean": true,
+     "discarded_contaminated_attempts": 1,
+     "default_us": 218.9760059118271,
+     "arm_us": 225.2800017595291,
+     "delta_us": 6.303995847702026,
+     "arm_over_official": 1.0780185340393729,
+     "acc_default": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3202458620071411,
+      "rel_l2": 0.3202458620071411,
+      "cos_sim": 0.9484539031982422
+     },
+     "acc_arm": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3202458620071411,
+      "rel_l2": 0.3202458620071411,
+      "cos_sim": 0.9484539031982422
+     },
+     "status": "measured"
+    },
+    {
+     "arm": "csc64",
+     "public_knobs": {
+      "WEAVE_COMBINE_SYNC_CHUNK": 64
+     },
+     "diag_env": null,
+     "legal_21knob": true,
+     "clean": true,
+     "discarded_contaminated_attempts": 0,
+     "default_us": 216.95999801158905,
+     "arm_us": 268.3520019054413,
+     "delta_us": 51.392003893852234,
+     "arm_over_official": 1.2841283267097552,
+     "acc_default": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3202458620071411,
+      "rel_l2": 0.3202458620071411,
+      "cos_sim": 0.9484539031982422
+     },
+     "acc_arm": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3202458620071411,
+      "rel_l2": 0.3202458620071411,
+      "cos_sim": 0.9484539031982422
+     },
+     "status": "measured"
+    },
+    {
+     "arm": "rw2",
+     "public_knobs": {
+      "WEAVE_REDUCE_WARPS": 2
+     },
+     "diag_env": null,
+     "legal_21knob": true,
+     "clean": false,
+     "discarded_contaminated_attempts": 3,
+     "default_us": 217.1200066804886,
+     "arm_us": 308.896005153656,
+     "delta_us": 91.77599847316742,
+     "arm_over_official": 1.4781410513384705,
+     "acc_default": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3202458620071411,
+      "rel_l2": 0.3202458620071411,
+      "cos_sim": 0.9484539031982422
+     },
+     "acc_arm": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3202458620071411,
+      "rel_l2": 0.3202458620071411,
+      "cos_sim": 0.9484539031982422
+     },
+     "status": "measured"
+    },
+    {
+     "arm": "dasm74",
+     "public_knobs": {
+      "WEAVE_DISPATCH_ACTIVE_SMS": 74
+     },
+     "diag_env": null,
+     "legal_21knob": true,
+     "clean": false,
+     "discarded_contaminated_attempts": 3,
+     "default_us": 217.0879989862442,
+     "arm_us": 313.34400177001953,
+     "delta_us": 96.25600278377533,
+     "arm_over_official": 1.499425775922691,
+     "acc_default": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3202458620071411,
+      "rel_l2": 0.3202458620071411,
+      "cos_sim": 0.9484539031982422
+     },
+     "acc_arm": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3202458620071411,
+      "rel_l2": 0.3202458620071411,
+      "cos_sim": 0.9484539031982422
+     },
+     "status": "measured"
+    },
+    {
+     "arm": "comm_smem_rp1k",
+     "public_knobs": {
+      "WEAVE_SCATTER_OWNER": 1,
+      "WEAVE_SCATTER_STAGING": 1,
+      "WEAVE_REG_PULL_BYTES": 1024
+     },
+     "diag_env": null,
+     "legal_21knob": true,
+     "clean": true,
+     "discarded_contaminated_attempts": 0,
+     "default_us": 217.24799275398254,
+     "arm_us": 315.39198756217957,
+     "delta_us": 98.14399480819702,
+     "arm_over_official": 1.509225876349512,
+     "acc_default": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3202458620071411,
+      "rel_l2": 0.3202458620071411,
+      "cos_sim": 0.9484539031982422
+     },
+     "acc_arm": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3202458620071411,
+      "rel_l2": 0.3202458620071411,
+      "cos_sim": 0.9484539031982422
+     },
+     "status": "measured"
+    },
+    {
+     "arm": "comm_smem",
+     "public_knobs": {
+      "WEAVE_SCATTER_OWNER": 1,
+      "WEAVE_SCATTER_STAGING": 1
+     },
+     "diag_env": null,
+     "legal_21knob": true,
+     "clean": true,
+     "discarded_contaminated_attempts": 0,
+     "default_us": 217.21599996089935,
+     "arm_us": 325.56799054145813,
+     "delta_us": 108.35199058055878,
+     "arm_over_official": 1.557920477416729,
+     "acc_default": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3202458620071411,
+      "rel_l2": 0.3202458620071411,
+      "cos_sim": 0.9484539031982422
+     },
+     "acc_arm": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3202458620071411,
+      "rel_l2": 0.3202458620071411,
+      "cos_sim": 0.9484539031982422
+     },
+     "status": "measured"
+    }
+   ],
+   "accuracy_only": []
+  },
+  {
+   "tag": "K19q35s16384",
+   "workload": "Qwen3.5-35B (E=256, top-8, H=2048, I=512, fp8 x fp4)",
+   "shape": {
+    "E": 256,
+    "K": 8,
+    "H": 2048,
+    "I": 512,
+    "S": 4096
+   },
+   "routing": "uniform random",
+   "official_deepgemm_us": 372.8160113096237,
+   "official_windows": [
+    372.768,
+    372.864
+   ],
+   "abba": [
+    {
+     "arm": "dedup1",
+     "public_knobs": {
+      "WEAVE_DEDUP_MODE": 1
+     },
+     "diag_env": null,
+     "legal_21knob": true,
+     "clean": false,
+     "discarded_contaminated_attempts": 3,
+     "default_us": 384.0320110321045,
+     "arm_us": 346.24001383781433,
+     "delta_us": -37.79199719429016,
+     "arm_over_official": 0.9287155147160833,
+     "acc_default": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3208155930042267,
+      "rel_l2": 0.3208155930042267,
+      "cos_sim": 0.9482810497283936
+     },
+     "acc_arm": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3208155930042267,
+      "rel_l2": 0.3208155930042267,
+      "cos_sim": 0.9482810497283936
+     },
+     "status": "measured"
+    },
+    {
+     "arm": "rpb2048",
+     "public_knobs": {
+      "WEAVE_REG_PULL_BYTES": 2048
+     },
+     "diag_env": null,
+     "legal_21knob": true,
+     "clean": true,
+     "discarded_contaminated_attempts": 1,
+     "default_us": 383.1680119037628,
+     "arm_us": 378.87999415397644,
+     "delta_us": -4.288017749786377,
+     "arm_over_official": 1.0162653498251086,
+     "acc_default": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3208155930042267,
+      "rel_l2": 0.3208155930042267,
+      "cos_sim": 0.9482810497283936
+     },
+     "acc_arm": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3208155930042267,
+      "rel_l2": 0.3208155930042267,
+      "cos_sim": 0.9482810497283936
+     },
+     "status": "measured"
+    },
+    {
+     "arm": "rp1k",
+     "public_knobs": {
+      "WEAVE_REG_PULL_BYTES": 1024
+     },
+     "diag_env": null,
+     "legal_21knob": true,
+     "clean": true,
+     "discarded_contaminated_attempts": 0,
+     "default_us": 383.0080032348633,
+     "arm_us": 378.87999415397644,
+     "delta_us": -4.128009080886841,
+     "arm_over_official": 1.0162653498251086,
+     "acc_default": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3208155930042267,
+      "rel_l2": 0.3208155930042267,
+      "cos_sim": 0.9482810497283936
+     },
+     "acc_arm": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3208155930042267,
+      "rel_l2": 0.3208155930042267,
+      "cos_sim": 0.9482810497283936
+     },
+     "status": "measured"
+    },
+    {
+     "arm": "abl_headoff",
+     "public_knobs": {},
+     "diag_env": {
+      "DG_TUNE_HEAD16_OFF": 1
+     },
+     "legal_21knob": false,
+     "clean": false,
+     "discarded_contaminated_attempts": 3,
+     "default_us": 383.0080032348633,
+     "arm_us": 380.95998764038086,
+     "delta_us": -2.048015594482422,
+     "arm_over_official": 1.0218444918772374,
+     "acc_default": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3208155930042267,
+      "rel_l2": 0.3208155930042267,
+      "cos_sim": 0.9482810497283936
+     },
+     "acc_arm": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3208155930042267,
+      "rel_l2": 0.3208155930042267,
+      "cos_sim": 0.9482810497283936
+     },
+     "status": "measured"
+    },
+    {
+     "arm": "csc64",
+     "public_knobs": {
+      "WEAVE_COMBINE_SYNC_CHUNK": 64
+     },
+     "diag_env": null,
+     "legal_21knob": true,
+     "clean": true,
+     "discarded_contaminated_attempts": 1,
+     "default_us": 383.13600420951843,
+     "arm_us": 450.655996799469,
+     "delta_us": 67.51999258995056,
+     "arm_over_official": 1.208789277092499,
+     "acc_default": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3208155930042267,
+      "rel_l2": 0.3208155930042267,
+      "cos_sim": 0.9482810497283936
+     },
+     "acc_arm": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3208155930042267,
+      "rel_l2": 0.3208155930042267,
+      "cos_sim": 0.9482810497283936
+     },
+     "status": "measured"
+    },
+    {
+     "arm": "comm_smem_rp1k",
+     "public_knobs": {
+      "WEAVE_SCATTER_OWNER": 1,
+      "WEAVE_SCATTER_STAGING": 1,
+      "WEAVE_REG_PULL_BYTES": 1024
+     },
+     "diag_env": null,
+     "legal_21knob": true,
+     "clean": true,
+     "discarded_contaminated_attempts": 1,
+     "default_us": 384.92798805236816,
+     "arm_us": 530.4319858551025,
+     "delta_us": 145.50399780273438,
+     "arm_over_official": 1.4227714737674686,
+     "acc_default": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3208155930042267,
+      "rel_l2": 0.3208155930042267,
+      "cos_sim": 0.9482810497283936
+     },
+     "acc_arm": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3208155930042267,
+      "rel_l2": 0.3208155930042267,
+      "cos_sim": 0.9482810497283936
+     },
+     "status": "measured"
+    }
+   ],
+   "accuracy_only": []
+  },
+  {
+   "tag": "K20q35s16384",
+   "workload": "Qwen3.5-35B (E=256, top-8, H=2048, I=512, fp8 x fp4)",
+   "shape": {
+    "E": 256,
+    "K": 8,
+    "H": 2048,
+    "I": 512,
+    "S": 4096
+   },
+   "routing": "uniform random",
+   "official_deepgemm_us": 372.8960007429123,
+   "official_windows": [
+    372.864,
+    372.928
+   ],
+   "abba": [
+    {
+     "arm": "dedup1_regbal",
+     "public_knobs": {
+      "WEAVE_DEDUP_MODE": 1,
+      "WEAVE_REG_BALANCE": 1
+     },
+     "diag_env": null,
+     "legal_21knob": true,
+     "clean": true,
+     "discarded_contaminated_attempts": 0,
+     "default_us": 383.4240138530731,
+     "arm_us": 346.3680148124695,
+     "delta_us": -37.05599904060364,
+     "arm_over_official": 0.928859559025595,
+     "acc_default": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3208155930042267,
+      "rel_l2": 0.3208155930042267,
+      "cos_sim": 0.9482810497283936
+     },
+     "acc_arm": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3208155930042267,
+      "rel_l2": 0.3208155930042267,
+      "cos_sim": 0.9482810497283936
+     },
+     "status": "measured"
+    },
+    {
+     "arm": "dedup1",
+     "public_knobs": {
+      "WEAVE_DEDUP_MODE": 1
+     },
+     "diag_env": null,
+     "legal_21knob": true,
+     "clean": false,
+     "discarded_contaminated_attempts": 3,
+     "default_us": 383.0080032348633,
+     "arm_us": 346.17599844932556,
+     "delta_us": -36.83200478553772,
+     "arm_over_official": 0.9283446262755485,
+     "acc_default": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3208155930042267,
+      "rel_l2": 0.3208155930042267,
+      "cos_sim": 0.9482810497283936
+     },
+     "acc_arm": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3208155930042267,
+      "rel_l2": 0.3208155930042267,
+      "cos_sim": 0.9482810497283936
+     },
+     "status": "measured"
+    },
+    {
+     "arm": "dedup1_vh2",
+     "public_knobs": {
+      "WEAVE_DEDUP_MODE": 1,
+      "WEAVE_V_HEAD": 2
+     },
+     "diag_env": null,
+     "legal_21knob": true,
+     "clean": true,
+     "discarded_contaminated_attempts": 0,
+     "default_us": 383.1999897956848,
+     "arm_us": 348.09601306915283,
+     "delta_us": -35.10397672653198,
+     "arm_over_official": 0.9334935541696585,
+     "acc_default": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3208155930042267,
+      "rel_l2": 0.3208155930042267,
+      "cos_sim": 0.9482810497283936
+     },
+     "acc_arm": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3208155930042267,
+      "rel_l2": 0.3208155930042267,
+      "cos_sim": 0.9482810497283936
+     },
+     "status": "measured"
+    },
+    {
+     "arm": "rpb2048",
+     "public_knobs": {
+      "WEAVE_REG_PULL_BYTES": 2048
+     },
+     "diag_env": null,
+     "legal_21knob": true,
+     "clean": false,
+     "discarded_contaminated_attempts": 3,
+     "default_us": 383.10399651527405,
+     "arm_us": 378.9120018482208,
+     "delta_us": -4.191994667053223,
+     "arm_over_official": 1.0161331875196382,
+     "acc_default": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3208155930042267,
+      "rel_l2": 0.3208155930042267,
+      "cos_sim": 0.9482810497283936
+     },
+     "acc_arm": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3208155930042267,
+      "rel_l2": 0.3208155930042267,
+      "cos_sim": 0.9482810497283936
+     },
+     "status": "measured"
+    },
+    {
+     "arm": "dedup1_rpb2048",
+     "public_knobs": {
+      "WEAVE_DEDUP_MODE": 1,
+      "WEAVE_REG_PULL_BYTES": 2048
+     },
+     "diag_env": null,
+     "legal_21knob": true,
+     "clean": true,
+     "discarded_contaminated_attempts": 1,
+     "default_us": 383.0080032348633,
+     "arm_us": 395.29600739479065,
+     "delta_us": 12.288004159927368,
+     "arm_over_official": 1.0600703858642928,
+     "acc_default": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3208155930042267,
+      "rel_l2": 0.3208155930042267,
+      "cos_sim": 0.9482810497283936
+     },
+     "acc_arm": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3208155930042267,
+      "rel_l2": 0.3208155930042267,
+      "cos_sim": 0.9482810497283936
+     },
+     "status": "measured"
+    },
+    {
+     "arm": "dedup1_rp1k",
+     "public_knobs": {
+      "WEAVE_DEDUP_MODE": 1,
+      "WEAVE_REG_PULL_BYTES": 1024
+     },
+     "diag_env": null,
+     "legal_21knob": true,
+     "clean": true,
+     "discarded_contaminated_attempts": 0,
+     "default_us": 382.81598687171936,
+     "arm_us": 395.29600739479065,
+     "delta_us": 12.480020523071289,
+     "arm_over_official": 1.0600703858642928,
+     "acc_default": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3208155930042267,
+      "rel_l2": 0.3208155930042267,
+      "cos_sim": 0.9482810497283936
+     },
+     "acc_arm": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3208155930042267,
+      "rel_l2": 0.3208155930042267,
+      "cos_sim": 0.9482810497283936
+     },
+     "status": "measured"
+    }
+   ],
+   "accuracy_only": []
+  },
+  {
+   "tag": "K20s4096_skew",
+   "workload": null,
+   "shape": null,
+   "routing": "skewed (linspace(2,0) bias, random expert permutation)",
+   "official_deepgemm_us": 854.0160059928894,
+   "official_windows": [
+    856.16,
+    851.872
+   ],
+   "abba": [],
+   "accuracy_only": []
+  },
+  {
+   "tag": "K20s4096r",
+   "workload": "Qwen3.8-Max (E=512, top-10, H=8192, I=2048, fp8 x fp4)",
+   "shape": {
+    "E": 512,
+    "K": 10,
+    "H": 8192,
+    "I": 2048,
+    "S": 1024
+   },
+   "routing": "uniform random",
+   "official_deepgemm_us": 716.1279916763306,
+   "official_windows": [
+    715.808,
+    716.448
+   ],
+   "abba": [
+    {
+     "arm": "rp1k_hoff",
+     "public_knobs": {},
+     "diag_env": {
+      "WEAVE_REG_PULL_BYTES": 1024,
+      "DG_TUNE_HEAD16_OFF": 1
+     },
+     "legal_21knob": false,
+     "clean": true,
+     "discarded_contaminated_attempts": 2,
+     "default_us": 786.6560220718384,
+     "arm_us": 721.9200134277344,
+     "delta_us": -64.736008644104,
+     "arm_over_official": 1.0080879700538528,
+     "acc_default": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.378997266292572,
+      "rel_l2": 0.378997266292572,
+      "cos_sim": 0.9278557300567627
+     },
+     "acc_arm": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.378997266292572,
+      "rel_l2": 0.378997266292572,
+      "cos_sim": 0.9278557300567627
+     },
+     "status": "measured"
+    },
+    {
+     "arm": "abl_headoff",
+     "public_knobs": {},
+     "diag_env": {
+      "DG_TUNE_HEAD16_OFF": 1
+     },
+     "legal_21knob": false,
+     "clean": true,
+     "discarded_contaminated_attempts": 2,
+     "default_us": 813.0879998207092,
+     "arm_us": 780.3199887275696,
+     "delta_us": -32.76801109313965,
+     "arm_over_official": 1.0896376036090654,
+     "acc_default": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.378997266292572,
+      "rel_l2": 0.378997266292572,
+      "cos_sim": 0.9278557300567627
+     },
+     "acc_arm": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.378997266292572,
+      "rel_l2": 0.378997266292572,
+      "cos_sim": 0.9278557300567627
+     },
+     "status": "measured"
+    },
+    {
+     "arm": "rp1k",
+     "public_knobs": {
+      "WEAVE_REG_PULL_BYTES": 1024
+     },
+     "diag_env": null,
+     "legal_21knob": true,
+     "clean": false,
+     "discarded_contaminated_attempts": 3,
+     "default_us": 790.5279994010925,
+     "arm_us": 853.0880212783813,
+     "delta_us": 62.56002187728882,
+     "arm_over_official": 1.1912507696863675,
+     "acc_default": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.378997266292572,
+      "rel_l2": 0.378997266292572,
+      "cos_sim": 0.9278557300567627
+     },
+     "acc_arm": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.378997266292572,
+      "rel_l2": 0.378997266292572,
+      "cos_sim": 0.9278557300567627
+     },
+     "status": "measured"
+    },
+    {
+     "arm": "comm_smem_rp1k",
+     "public_knobs": {
+      "WEAVE_SCATTER_OWNER": 1,
+      "WEAVE_SCATTER_STAGING": 1,
+      "WEAVE_REG_PULL_BYTES": 1024
+     },
+     "diag_env": null,
+     "legal_21knob": true,
+     "clean": true,
+     "discarded_contaminated_attempts": 1,
+     "default_us": 745.311975479126,
+     "arm_us": 877.5359988212585,
+     "delta_us": 132.22402334213257,
+     "arm_over_official": 1.2253898870327635,
+     "acc_default": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.378997266292572,
+      "rel_l2": 0.378997266292572,
+      "cos_sim": 0.9278557300567627
+     },
+     "acc_arm": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.378997266292572,
+      "rel_l2": 0.378997266292572,
+      "cos_sim": 0.9278557300567627
+     },
+     "status": "measured"
+    }
+   ],
+   "accuracy_only": []
+  },
+  {
+   "tag": "K20s1024",
+   "workload": "Qwen3.8-Max (E=512, top-10, H=8192, I=2048, fp8 x fp4)",
+   "shape": {
+    "E": 512,
+    "K": 10,
+    "H": 8192,
+    "I": 2048,
+    "S": 256
+   },
+   "routing": "uniform random",
+   "official_deepgemm_us": 593.8719809055328,
+   "official_windows": [
+    593.888,
+    593.856
+   ],
+   "abba": [
+    {
+     "arm": "rp1k_hoff",
+     "public_knobs": {},
+     "diag_env": {
+      "WEAVE_REG_PULL_BYTES": 1024,
+      "DG_TUNE_HEAD16_OFF": 1
+     },
+     "legal_21knob": false,
+     "clean": false,
+     "discarded_contaminated_attempts": 3,
+     "default_us": 618.3680295944214,
+     "arm_us": 592.0959711074829,
+     "delta_us": -26.272058486938477,
+     "arm_over_official": 0.997009439988494,
+     "acc_default": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3780826926231384,
+      "rel_l2": 0.3780826926231384,
+      "cos_sim": 0.9282435178756714
+     },
+     "acc_arm": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3780826926231384,
+      "rel_l2": 0.3780826926231384,
+      "cos_sim": 0.9282435178756714
+     },
+     "status": "measured"
+    },
+    {
+     "arm": "rp1k_dasm120",
+     "public_knobs": {
+      "WEAVE_REG_PULL_BYTES": 1024,
+      "WEAVE_DISPATCH_ACTIVE_SMS": 120
+     },
+     "diag_env": null,
+     "legal_21knob": true,
+     "clean": false,
+     "discarded_contaminated_attempts": 3,
+     "default_us": 618.5280084609985,
+     "arm_us": 606.2399744987488,
+     "delta_us": -12.288033962249756,
+     "arm_over_official": 1.020826026468461,
+     "acc_default": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3780826926231384,
+      "rel_l2": 0.3780826926231384,
+      "cos_sim": 0.9282435178756714
+     },
+     "acc_arm": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3780826926231384,
+      "rel_l2": 0.3780826926231384,
+      "cos_sim": 0.9282435178756714
+     },
+     "status": "measured"
+    }
+   ],
+   "accuracy_only": []
+  },
+  {
+   "tag": "K22acc_s1024",
+   "workload": null,
+   "shape": null,
+   "routing": "uniform random",
+   "official_deepgemm_us": null,
+   "official_windows": [],
+   "abba": [],
+   "accuracy_only": [
+    {
+     "arm": "rp1k",
+     "public_knobs": {
+      "WEAVE_REG_PULL_BYTES": 1024
+     },
+     "diag_env": null,
+     "acc_default": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3780826926231384,
+      "rel_l2": 0.3780826926231384,
+      "cos_sim": 0.9282435178756714
+     },
+     "acc_arm": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3780826926231384,
+      "rel_l2": 0.3780826926231384,
+      "cos_sim": 0.9282435178756714
+     },
+     "status": "passed"
+    },
+    {
+     "arm": "t16_nodefer",
+     "public_knobs": {},
+     "diag_env": {
+      "DG_TUNE_ALL16_DEFER": 0
+     },
+     "acc_default": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3780826926231384,
+      "rel_l2": 0.3780826926231384,
+      "cos_sim": 0.9282435178756714
+     },
+     "acc_arm": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3780826926231384,
+      "rel_l2": 0.3780826926231384,
+      "cos_sim": 0.9282435178756714
+     },
+     "status": "passed"
+    },
+    {
+     "arm": "t16_old",
+     "public_knobs": {},
+     "diag_env": {
+      "DG_TUNE_ALL16_DEFER": 0,
+      "DG_TUNE_ALL16_SUB": 2048
+     },
+     "acc_default": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3780826926231384,
+      "rel_l2": 0.3780826926231384,
+      "cos_sim": 0.9282435178756714
+     },
+     "acc_arm": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3780826926231384,
+      "rel_l2": 0.3780826926231384,
+      "cos_sim": 0.9282435178756714
+     },
+     "status": "passed"
+    },
+    {
+     "arm": "t16_sub2k",
+     "public_knobs": {},
+     "diag_env": {
+      "DG_TUNE_ALL16_SUB": 2048
+     },
+     "acc_default": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3780826926231384,
+      "rel_l2": 0.3780826926231384,
+      "cos_sim": 0.9282435178756714
+     },
+     "acc_arm": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3780826926231384,
+      "rel_l2": 0.3780826926231384,
+      "cos_sim": 0.9282435178756714
+     },
+     "status": "passed"
+    }
+   ]
+  },
+  {
+   "tag": "K22acc_s4096",
+   "workload": null,
+   "shape": null,
+   "routing": "uniform random",
+   "official_deepgemm_us": null,
+   "official_windows": [],
+   "abba": [],
+   "accuracy_only": [
+    {
+     "arm": "t16_old",
+     "public_knobs": {},
+     "diag_env": {
+      "DG_TUNE_ALL16_DEFER": 0,
+      "DG_TUNE_ALL16_SUB": 2048
+     },
+     "acc_default": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.378997266292572,
+      "rel_l2": 0.378997266292572,
+      "cos_sim": 0.9278557300567627
+     },
+     "acc_arm": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.378997266292572,
+      "rel_l2": 0.378997266292572,
+      "cos_sim": 0.9278557300567627
+     },
+     "status": "passed"
+    }
+   ]
+  },
+  {
+   "tag": "K22acc_q35s8192",
+   "workload": null,
+   "shape": null,
+   "routing": "uniform random",
+   "official_deepgemm_us": null,
+   "official_windows": [],
+   "abba": [],
+   "accuracy_only": [
+    {
+     "arm": "t16_old",
+     "public_knobs": {},
+     "diag_env": {
+      "DG_TUNE_ALL16_DEFER": 0,
+      "DG_TUNE_ALL16_SUB": 2048
+     },
+     "acc_default": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3202458620071411,
+      "rel_l2": 0.3202458620071411,
+      "cos_sim": 0.9484539031982422
+     },
+     "acc_arm": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3202458620071411,
+      "rel_l2": 0.3202458620071411,
+      "cos_sim": 0.9484539031982422
+     },
+     "status": "passed"
+    }
+   ]
+  },
+  {
+   "tag": "K22s1024",
+   "workload": "Qwen3.8-Max (E=512, top-10, H=8192, I=2048, fp8 x fp4)",
+   "shape": {
+    "E": 512,
+    "K": 10,
+    "H": 8192,
+    "I": 2048,
+    "S": 256
+   },
+   "routing": "uniform random",
+   "official_deepgemm_us": 593.887984752655,
+   "official_windows": [
+    593.856,
+    593.92
+   ],
+   "abba": [
+    {
+     "arm": "rpb2048",
+     "public_knobs": {
+      "WEAVE_REG_PULL_BYTES": 2048
+     },
+     "diag_env": null,
+     "legal_21knob": true,
+     "clean": false,
+     "discarded_contaminated_attempts": 3,
+     "default_us": 618.399977684021,
+     "arm_us": 604.095995426178,
+     "delta_us": -14.303982257843018,
+     "arm_over_official": 1.017188444514119,
+     "acc_default": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3780826926231384,
+      "rel_l2": 0.3780826926231384,
+      "cos_sim": 0.9282435178756714
+     },
+     "acc_arm": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3780826926231384,
+      "rel_l2": 0.3780826926231384,
+      "cos_sim": 0.9282435178756714
+     },
+     "status": "measured"
+    },
+    {
+     "arm": "rp1k",
+     "public_knobs": {
+      "WEAVE_REG_PULL_BYTES": 1024
+     },
+     "diag_env": null,
+     "legal_21knob": true,
+     "clean": true,
+     "discarded_contaminated_attempts": 0,
+     "default_us": 618.4639930725098,
+     "arm_us": 605.3760051727295,
+     "delta_us": -13.087987899780273,
+     "arm_over_official": 1.0193437495201372,
+     "acc_default": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3780826926231384,
+      "rel_l2": 0.3780826926231384,
+      "cos_sim": 0.9282435178756714
+     },
+     "acc_arm": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3780826926231384,
+      "rel_l2": 0.3780826926231384,
+      "cos_sim": 0.9282435178756714
+     },
+     "status": "measured"
+    },
+    {
+     "arm": "rp1k_t16old",
+     "public_knobs": {
+      "WEAVE_REG_PULL_BYTES": 1024
+     },
+     "diag_env": {
+      "WEAVE_REG_PULL_BYTES": 1024,
+      "DG_TUNE_ALL16_DEFER": 0,
+      "DG_TUNE_ALL16_SUB": 2048
+     },
+     "legal_21knob": false,
+     "clean": true,
+     "discarded_contaminated_attempts": 0,
+     "default_us": 616.6719794273376,
+     "arm_us": 606.2080264091492,
+     "delta_us": -10.463953018188477,
+     "arm_over_official": 1.0207447228649107,
+     "acc_default": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3780826926231384,
+      "rel_l2": 0.3780826926231384,
+      "cos_sim": 0.9282435178756714
+     },
+     "acc_arm": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3780826926231384,
+      "rel_l2": 0.3780826926231384,
+      "cos_sim": 0.9282435178756714
+     },
+     "status": "measured"
+    },
+    {
+     "arm": "t16_sub2k",
+     "public_knobs": {},
+     "diag_env": {
+      "DG_TUNE_ALL16_SUB": 2048
+     },
+     "legal_21knob": false,
+     "clean": true,
+     "discarded_contaminated_attempts": 0,
+     "default_us": 618.4960007667542,
+     "arm_us": 618.5280084609985,
+     "delta_us": 0.032007694244384766,
+     "arm_over_official": 1.0414893453663752,
+     "acc_default": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3780826926231384,
+      "rel_l2": 0.3780826926231384,
+      "cos_sim": 0.9282435178756714
+     },
+     "acc_arm": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3780826926231384,
+      "rel_l2": 0.3780826926231384,
+      "cos_sim": 0.9282435178756714
+     },
+     "status": "measured"
+    },
+    {
+     "arm": "t16_nodefer",
+     "public_knobs": {},
+     "diag_env": {
+      "DG_TUNE_ALL16_DEFER": 0
+     },
+     "legal_21knob": false,
+     "clean": true,
+     "discarded_contaminated_attempts": 1,
+     "default_us": 617.3760294914246,
+     "arm_us": 618.4960007667542,
+     "delta_us": 1.1199712753295898,
+     "arm_over_official": 1.041435450195794,
+     "acc_default": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3780826926231384,
+      "rel_l2": 0.3780826926231384,
+      "cos_sim": 0.9282435178756714
+     },
+     "acc_arm": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3780826926231384,
+      "rel_l2": 0.3780826926231384,
+      "cos_sim": 0.9282435178756714
+     },
+     "status": "measured"
+    },
+    {
+     "arm": "t16_old",
+     "public_knobs": {},
+     "diag_env": {
+      "DG_TUNE_ALL16_DEFER": 0,
+      "DG_TUNE_ALL16_SUB": 2048
+     },
+     "legal_21knob": false,
+     "clean": false,
+     "discarded_contaminated_attempts": 3,
+     "default_us": 616.5760159492493,
+     "arm_us": 618.5280084609985,
+     "delta_us": 1.9519925117492676,
+     "arm_over_official": 1.0414893453663752,
+     "acc_default": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3780826926231384,
+      "rel_l2": 0.3780826926231384,
+      "cos_sim": 0.9282435178756714
+     },
+     "acc_arm": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3780826926231384,
+      "rel_l2": 0.3780826926231384,
+      "cos_sim": 0.9282435178756714
+     },
+     "status": "measured"
+    }
+   ],
+   "accuracy_only": []
+  },
+  {
+   "tag": "K22s4096",
+   "workload": "Qwen3.8-Max (E=512, top-10, H=8192, I=2048, fp8 x fp4)",
+   "shape": {
+    "E": 512,
+    "K": 10,
+    "H": 8192,
+    "I": 2048,
+    "S": 1024
+   },
+   "routing": "uniform random",
+   "official_deepgemm_us": 722.9920029640198,
+   "official_windows": [
+    731.136,
+    714.848
+   ],
+   "abba": [
+    {
+     "arm": "rp1k",
+     "public_knobs": {
+      "WEAVE_REG_PULL_BYTES": 1024
+     },
+     "diag_env": null,
+     "legal_21knob": true,
+     "clean": true,
+     "discarded_contaminated_attempts": 0,
+     "default_us": 797.6959943771362,
+     "arm_us": 784.38401222229,
+     "delta_us": -13.311982154846191,
+     "arm_over_official": 1.0849138150997302,
+     "acc_default": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.378997266292572,
+      "rel_l2": 0.378997266292572,
+      "cos_sim": 0.9278557300567627
+     },
+     "acc_arm": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.378997266292572,
+      "rel_l2": 0.378997266292572,
+      "cos_sim": 0.9278557300567627
+     },
+     "status": "measured"
+    },
+    {
+     "arm": "t16_old",
+     "public_knobs": {},
+     "diag_env": {
+      "DG_TUNE_ALL16_DEFER": 0,
+      "DG_TUNE_ALL16_SUB": 2048
+     },
+     "legal_21knob": false,
+     "clean": true,
+     "discarded_contaminated_attempts": 0,
+     "default_us": 792.576014995575,
+     "arm_us": 816.1280155181885,
+     "delta_us": 23.552000522613525,
+     "arm_over_official": 1.1288202527446265,
+     "acc_default": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.378997266292572,
+      "rel_l2": 0.378997266292572,
+      "cos_sim": 0.9278557300567627
+     },
+     "acc_arm": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.378997266292572,
+      "rel_l2": 0.378997266292572,
+      "cos_sim": 0.9278557300567627
+     },
+     "status": "measured"
+    }
+   ],
+   "accuracy_only": []
+  },
+  {
+   "tag": "K22bmiso",
+   "workload": null,
+   "shape": null,
+   "routing": "uniform random",
+   "official_deepgemm_us": null,
+   "official_windows": [],
+   "abba": [],
+   "accuracy_only": [
+    {
+     "arm": "bml1_128_l2_64",
+     "public_knobs": {
+      "WEAVE_BLOCK_M_L1": 128,
+      "WEAVE_BLOCK_M_L2": 64
+     },
+     "diag_env": null,
+     "acc_default": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.378997266292572,
+      "rel_l2": 0.378997266292572,
+      "cos_sim": 0.9278557300567627
+     },
+     "acc_arm": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.378997266292572,
+      "rel_l2": 0.378997266292572,
+      "cos_sim": 0.9278557300567627
+     },
+     "status": "passed"
+    },
+    {
+     "arm": "bml1_64_l2_128",
+     "public_knobs": {
+      "WEAVE_BLOCK_M_L1": 64,
+      "WEAVE_BLOCK_M_L2": 128
+     },
+     "diag_env": null,
+     "acc_default": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.378997266292572,
+      "rel_l2": 0.378997266292572,
+      "cos_sim": 0.9278557300567627
+     },
+     "acc_arm": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.378997266292572,
+      "rel_l2": 0.378997266292572,
+      "cos_sim": 0.9278557300567627
+     },
+     "status": "passed"
+    }
+   ]
+  },
+  {
+   "tag": "K22s4096_skew",
+   "workload": "Qwen3.8-Max (E=512, top-10, H=8192, I=2048, fp8 x fp4)",
+   "shape": {
+    "E": 512,
+    "K": 10,
+    "H": 8192,
+    "I": 2048,
+    "S": 1024
+   },
+   "routing": "skewed (linspace(2,0) bias, random expert permutation)",
+   "official_deepgemm_us": 847.8720188140869,
+   "official_windows": [
+    847.872,
+    847.872
+   ],
+   "abba": [
+    {
+     "arm": "abl_headoff",
+     "public_knobs": {},
+     "diag_env": {
+      "DG_TUNE_HEAD16_OFF": 1
+     },
+     "legal_21knob": false,
+     "clean": true,
+     "discarded_contaminated_attempts": 2,
+     "default_us": 1005.7920217514038,
+     "arm_us": 906.3680171966553,
+     "delta_us": -99.42400455474854,
+     "arm_over_official": 1.0689915424551766,
+     "acc_default": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3789185881614685,
+      "rel_l2": 0.3789185881614685,
+      "cos_sim": 0.9279148578643799
+     },
+     "acc_arm": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3789185881614685,
+      "rel_l2": 0.3789185881614685,
+      "cos_sim": 0.9279148578643799
+     },
+     "status": "measured"
+    },
+    {
+     "arm": "rg4",
+     "public_knobs": {
+      "WEAVE_READY_GROUP_SIZE": 4
+     },
+     "diag_env": null,
+     "legal_21knob": true,
+     "clean": true,
+     "discarded_contaminated_attempts": 2,
+     "default_us": 956.4160108566284,
+     "arm_us": 952.3199796676636,
+     "delta_us": -4.096031188964844,
+     "arm_over_official": 1.1231883568933756,
+     "acc_default": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3789185881614685,
+      "rel_l2": 0.3789185881614685,
+      "cos_sim": 0.9279148578643799
+     },
+     "acc_arm": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3789185881614685,
+      "rel_l2": 0.3789185881614685,
+      "cos_sim": 0.9279148578643799
+     },
+     "status": "measured"
+    },
+    {
+     "arm": "t16_old",
+     "public_knobs": {},
+     "diag_env": {
+      "DG_TUNE_ALL16_DEFER": 0,
+      "DG_TUNE_ALL16_SUB": 2048
+     },
+     "legal_21knob": false,
+     "clean": true,
+     "discarded_contaminated_attempts": 1,
+     "default_us": 944.0320134162903,
+     "arm_us": 941.9839978218079,
+     "delta_us": -2.048015594482422,
+     "arm_over_official": 1.1109978592516294,
+     "acc_default": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3789185881614685,
+      "rel_l2": 0.3789185881614685,
+      "cos_sim": 0.9279148578643799
+     },
+     "acc_arm": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3789185881614685,
+      "rel_l2": 0.3789185881614685,
+      "cos_sim": 0.9279148578643799
+     },
+     "status": "measured"
+    },
+    {
+     "arm": "regbal",
+     "public_knobs": {
+      "WEAVE_REG_BALANCE": 1
+     },
+     "diag_env": null,
+     "legal_21knob": true,
+     "clean": true,
+     "discarded_contaminated_attempts": 0,
+     "default_us": 956.2559723854065,
+     "arm_us": 967.6480293273926,
+     "delta_us": 11.392056941986084,
+     "arm_over_official": 1.141266615545157,
+     "acc_default": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3789185881614685,
+      "rel_l2": 0.3789185881614685,
+      "cos_sim": 0.9279148578643799
+     },
+     "acc_arm": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3789185881614685,
+      "rel_l2": 0.3789185881614685,
+      "cos_sim": 0.9279148578643799
+     },
+     "status": "measured"
+    },
+    {
+     "arm": "rp1k",
+     "public_knobs": {
+      "WEAVE_REG_PULL_BYTES": 1024
+     },
+     "diag_env": null,
+     "legal_21knob": true,
+     "clean": false,
+     "discarded_contaminated_attempts": 3,
+     "default_us": 967.0400023460388,
+     "arm_us": 1015.9679651260376,
+     "delta_us": 48.92796277999878,
+     "arm_over_official": 1.1982562728595116,
+     "acc_default": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3789185881614685,
+      "rel_l2": 0.3789185881614685,
+      "cos_sim": 0.9279148578643799
+     },
+     "acc_arm": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3789185881614685,
+      "rel_l2": 0.3789185881614685,
+      "cos_sim": 0.9279148578643799
+     },
+     "status": "measured"
+    }
+   ],
+   "accuracy_only": []
+  },
+  {
+   "tag": "K23acc_s1024",
+   "workload": null,
+   "shape": null,
+   "routing": "uniform random",
+   "official_deepgemm_us": null,
+   "official_windows": [],
+   "abba": [],
+   "accuracy_only": [
+    {
+     "arm": "adaptbm",
+     "public_knobs": {
+      "WEAVE_ADAPT_BM": 1
+     },
+     "diag_env": null,
+     "acc_default": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3780826926231384,
+      "rel_l2": 0.3780826926231384,
+      "cos_sim": 0.9282435178756714
+     },
+     "acc_arm": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3780826926231384,
+      "rel_l2": 0.3780826926231384,
+      "cos_sim": 0.9282435178756714
+     },
+     "status": "passed"
+    }
+   ]
+  },
+  {
+   "tag": "K23acc_s4096",
+   "workload": null,
+   "shape": null,
+   "routing": "uniform random",
+   "official_deepgemm_us": null,
+   "official_windows": [],
+   "abba": [],
+   "accuracy_only": [
+    {
+     "arm": "adaptbm",
+     "public_knobs": {
+      "WEAVE_ADAPT_BM": 1
+     },
+     "diag_env": null,
+     "acc_default": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.378997266292572,
+      "rel_l2": 0.378997266292572,
+      "cos_sim": 0.9278557300567627
+     },
+     "acc_arm": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.378997266292572,
+      "rel_l2": 0.378997266292572,
+      "cos_sim": 0.9278557300567627
+     },
+     "status": "passed"
+    },
+    {
+     "arm": "adaptbm_bm128",
+     "public_knobs": {
+      "WEAVE_ADAPT_BM": 1,
+      "WEAVE_BLOCK_M_L1": 128,
+      "WEAVE_BLOCK_M_L2": 128
+     },
+     "diag_env": null,
+     "acc_default": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.378997266292572,
+      "rel_l2": 0.378997266292572,
+      "cos_sim": 0.9278557300567627
+     },
+     "acc_arm": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.378997266292572,
+      "rel_l2": 0.378997266292572,
+      "cos_sim": 0.9278557300567627
+     },
+     "status": "passed"
+    },
+    {
+     "arm": "adaptbm_bm64",
+     "public_knobs": {
+      "WEAVE_ADAPT_BM": 1,
+      "WEAVE_BLOCK_M_L1": 64,
+      "WEAVE_BLOCK_M_L2": 64
+     },
+     "diag_env": null,
+     "acc_default": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.378997266292572,
+      "rel_l2": 0.378997266292572,
+      "cos_sim": 0.9278557300567627
+     },
+     "acc_arm": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.378997266292572,
+      "rel_l2": 0.378997266292572,
+      "cos_sim": 0.9278557300567627
+     },
+     "status": "passed"
+    }
+   ]
+  },
+  {
+   "tag": "K23acc_s8192",
+   "workload": null,
+   "shape": null,
+   "routing": "uniform random",
+   "official_deepgemm_us": null,
+   "official_windows": [],
+   "abba": [],
+   "accuracy_only": []
+  },
+  {
+   "tag": "K23acc_s4096_skew",
+   "workload": null,
+   "shape": null,
+   "routing": "skewed (linspace(2,0) bias, random expert permutation)",
+   "official_deepgemm_us": null,
+   "official_windows": [],
+   "abba": [],
+   "accuracy_only": [
+    {
+     "arm": "adaptbm",
+     "public_knobs": {
+      "WEAVE_ADAPT_BM": 1
+     },
+     "diag_env": null,
+     "acc_default": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3789185881614685,
+      "rel_l2": 0.3789185881614685,
+      "cos_sim": 0.9279148578643799
+     },
+     "acc_arm": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3789185881614685,
+      "rel_l2": 0.3789185881614685,
+      "cos_sim": 0.9279148578643799
+     },
+     "status": "passed"
+    },
+    {
+     "arm": "adaptbm_bm128",
+     "public_knobs": {
+      "WEAVE_ADAPT_BM": 1,
+      "WEAVE_BLOCK_M_L1": 128,
+      "WEAVE_BLOCK_M_L2": 128
+     },
+     "diag_env": null,
+     "acc_default": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3789185881614685,
+      "rel_l2": 0.3789185881614685,
+      "cos_sim": 0.9279148578643799
+     },
+     "acc_arm": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3789185881614685,
+      "rel_l2": 0.3789185881614685,
+      "cos_sim": 0.9279148578643799
+     },
+     "status": "passed"
+    }
+   ]
+  },
+  {
+   "tag": "K23acc_q35s16384",
+   "workload": null,
+   "shape": null,
+   "routing": "uniform random",
+   "official_deepgemm_us": null,
+   "official_windows": [],
+   "abba": [],
+   "accuracy_only": [
+    {
+     "arm": "dedup1",
+     "public_knobs": {
+      "WEAVE_DEDUP_MODE": 1
+     },
+     "diag_env": null,
+     "acc_default": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3208155930042267,
+      "rel_l2": 0.3208155930042267,
+      "cos_sim": 0.9482810497283936
+     },
+     "acc_arm": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3208155930042267,
+      "rel_l2": 0.3208155930042267,
+      "cos_sim": 0.9482810497283936
+     },
+     "status": "passed"
+    },
+    {
+     "arm": "t16_old",
+     "public_knobs": {},
+     "diag_env": {
+      "DG_TUNE_ALL16_DEFER": 0,
+      "DG_TUNE_ALL16_SUB": 2048
+     },
+     "acc_default": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3208155930042267,
+      "rel_l2": 0.3208155930042267,
+      "cos_sim": 0.9482810497283936
+     },
+     "acc_arm": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3208155930042267,
+      "rel_l2": 0.3208155930042267,
+      "cos_sim": 0.9482810497283936
+     },
+     "status": "passed"
+    }
+   ]
+  },
+  {
+   "tag": "K23s4096",
+   "workload": "Qwen3.8-Max (E=512, top-10, H=8192, I=2048, fp8 x fp4)",
+   "shape": {
+    "E": 512,
+    "K": 10,
+    "H": 8192,
+    "I": 2048,
+    "S": 1024
+   },
+   "routing": "uniform random",
+   "official_deepgemm_us": 715.8080041408539,
+   "official_windows": [
+    715.008,
+    716.608
+   ],
+   "abba": [
+    {
+     "arm": "t16_nodefer",
+     "public_knobs": {},
+     "diag_env": {
+      "DG_TUNE_ALL16_DEFER": 0
+     },
+     "legal_21knob": false,
+     "clean": true,
+     "discarded_contaminated_attempts": 1,
+     "default_us": 798.7520098686218,
+     "arm_us": 823.2640027999878,
+     "delta_us": 24.511992931365967,
+     "arm_over_official": 1.1501184647803815,
+     "acc_default": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.378997266292572,
+      "rel_l2": 0.378997266292572,
+      "cos_sim": 0.9278557300567627
+     },
+     "acc_arm": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.378997266292572,
+      "rel_l2": 0.378997266292572,
+      "cos_sim": 0.9278557300567627
+     },
+     "status": "measured"
+    },
+    {
+     "arm": "t16_old",
+     "public_knobs": {},
+     "diag_env": {
+      "DG_TUNE_ALL16_DEFER": 0,
+      "DG_TUNE_ALL16_SUB": 2048
+     },
+     "legal_21knob": false,
+     "clean": false,
+     "discarded_contaminated_attempts": 3,
+     "default_us": 774.1760015487671,
+     "arm_us": 837.6960158348083,
+     "delta_us": 63.52001428604126,
+     "arm_over_official": 1.1702803139792355,
+     "acc_default": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.378997266292572,
+      "rel_l2": 0.378997266292572,
+      "cos_sim": 0.9278557300567627
+     },
+     "acc_arm": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.378997266292572,
+      "rel_l2": 0.378997266292572,
+      "cos_sim": 0.9278557300567627
+     },
+     "status": "measured"
+    },
+    {
+     "arm": "adaptbm",
+     "public_knobs": {
+      "WEAVE_ADAPT_BM": 1
+     },
+     "diag_env": null,
+     "legal_21knob": true,
+     "clean": true,
+     "discarded_contaminated_attempts": 0,
+     "default_us": 778.2719731330872,
+     "arm_us": 1099.8719930648804,
+     "delta_us": 321.6000199317932,
+     "arm_over_official": 1.5365460943469025,
+     "acc_default": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.378997266292572,
+      "rel_l2": 0.378997266292572,
+      "cos_sim": 0.9278557300567627
+     },
+     "acc_arm": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.378997266292572,
+      "rel_l2": 0.378997266292572,
+      "cos_sim": 0.9278557300567627
+     },
+     "status": "measured"
+    },
+    {
+     "arm": "adaptbm_bm128",
+     "public_knobs": {
+      "WEAVE_ADAPT_BM": 1,
+      "WEAVE_BLOCK_M_L1": 128,
+      "WEAVE_BLOCK_M_L2": 128
+     },
+     "diag_env": null,
+     "legal_21knob": true,
+     "clean": false,
+     "discarded_contaminated_attempts": 3,
+     "default_us": 756.7359805107117,
+     "arm_us": 1145.6639766693115,
+     "delta_us": 388.92799615859985,
+     "arm_over_official": 1.6005185329610707,
+     "acc_default": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.378997266292572,
+      "rel_l2": 0.378997266292572,
+      "cos_sim": 0.9278557300567627
+     },
+     "acc_arm": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.378997266292572,
+      "rel_l2": 0.378997266292572,
+      "cos_sim": 0.9278557300567627
+     },
+     "status": "measured"
+    }
+   ],
+   "accuracy_only": []
+  },
+  {
+   "tag": "K23s4096_skew",
+   "workload": "Qwen3.8-Max (E=512, top-10, H=8192, I=2048, fp8 x fp4)",
+   "shape": {
+    "E": 512,
+    "K": 10,
+    "H": 8192,
+    "I": 2048,
+    "S": 1024
+   },
+   "routing": "skewed (linspace(2,0) bias, random expert permutation)",
+   "official_deepgemm_us": 850.4799902439117,
+   "official_windows": [
+    851.968,
+    848.992
+   ],
+   "abba": [
+    {
+     "arm": "t16_old",
+     "public_knobs": {},
+     "diag_env": {
+      "DG_TUNE_ALL16_DEFER": 0,
+      "DG_TUNE_ALL16_SUB": 2048
+     },
+     "legal_21knob": false,
+     "clean": false,
+     "discarded_contaminated_attempts": 3,
+     "default_us": 988.1600141525269,
+     "arm_us": 987.16801404953,
+     "delta_us": -0.9920001029968262,
+     "arm_over_official": 1.1607186828304064,
+     "acc_default": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3789185881614685,
+      "rel_l2": 0.3789185881614685,
+      "cos_sim": 0.9279148578643799
+     },
+     "acc_arm": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3789185881614685,
+      "rel_l2": 0.3789185881614685,
+      "cos_sim": 0.9279148578643799
+     },
+     "status": "measured"
+    },
+    {
+     "arm": "adaptbm",
+     "public_knobs": {
+      "WEAVE_ADAPT_BM": 1
+     },
+     "diag_env": null,
+     "legal_21knob": true,
+     "clean": true,
+     "discarded_contaminated_attempts": 2,
+     "default_us": 972.6079702377319,
+     "arm_us": 1146.9440460205078,
+     "delta_us": 174.33607578277588,
+     "arm_over_official": 1.3485843984307875,
+     "acc_default": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3789185881614685,
+      "rel_l2": 0.3789185881614685,
+      "cos_sim": 0.9279148578643799
+     },
+     "acc_arm": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3789185881614685,
+      "rel_l2": 0.3789185881614685,
+      "cos_sim": 0.9279148578643799
+     },
+     "status": "measured"
+    }
+   ],
+   "accuracy_only": []
+  },
+  {
+   "tag": "K23s1024",
+   "workload": "Qwen3.8-Max (E=512, top-10, H=8192, I=2048, fp8 x fp4)",
+   "shape": {
+    "E": 512,
+    "K": 10,
+    "H": 8192,
+    "I": 2048,
+    "S": 256
+   },
+   "routing": "uniform random",
+   "official_deepgemm_us": 594.0479934215546,
+   "official_windows": [
+    593.92,
+    594.176
+   ],
+   "abba": [
+    {
+     "arm": "adaptbm",
+     "public_knobs": {
+      "WEAVE_ADAPT_BM": 1
+     },
+     "diag_env": null,
+     "legal_21knob": true,
+     "clean": true,
+     "discarded_contaminated_attempts": 0,
+     "default_us": 618.4639930725098,
+     "arm_us": 595.9360003471375,
+     "delta_us": -22.527992725372314,
+     "arm_over_official": 1.0031782060481484,
+     "acc_default": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3780826926231384,
+      "rel_l2": 0.3780826926231384,
+      "cos_sim": 0.9282435178756714
+     },
+     "acc_arm": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3780826926231384,
+      "rel_l2": 0.3780826926231384,
+      "cos_sim": 0.9282435178756714
+     },
+     "status": "measured"
+    }
+   ],
+   "accuracy_only": []
+  },
+  {
+   "tag": "K24acc_s8192",
+   "workload": null,
+   "shape": null,
+   "routing": "uniform random",
+   "official_deepgemm_us": null,
+   "official_windows": [],
+   "abba": [],
+   "accuracy_only": [
+    {
+     "arm": "adaptbm",
+     "public_knobs": {
+      "WEAVE_ADAPT_BM": 1
+     },
+     "diag_env": null,
+     "acc_default": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.37844425439834595,
+      "rel_l2": 0.37844425439834595,
+      "cos_sim": 0.9280341863632202
+     },
+     "acc_arm": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.37844425439834595,
+      "rel_l2": 0.37844425439834595,
+      "cos_sim": 0.9280341863632202
+     },
+     "status": "passed"
+    }
+   ]
+  },
+  {
+   "tag": "K24acc_s8192_skew",
+   "workload": null,
+   "shape": null,
+   "routing": "skewed (linspace(2,0) bias, random expert permutation)",
+   "official_deepgemm_us": null,
+   "official_windows": [],
+   "abba": [],
+   "accuracy_only": [
+    {
+     "arm": "adaptbm",
+     "public_knobs": {
+      "WEAVE_ADAPT_BM": 1
+     },
+     "diag_env": null,
+     "acc_default": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3782888352870941,
+      "rel_l2": 0.3782888352870941,
+      "cos_sim": 0.9281418323516846
+     },
+     "acc_arm": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3782888352870941,
+      "rel_l2": 0.3782888352870941,
+      "cos_sim": 0.9281418323516846
+     },
+     "status": "passed"
+    }
+   ]
+  },
+  {
+   "tag": "K24acc_s1024",
+   "workload": null,
+   "shape": null,
+   "routing": "uniform random",
+   "official_deepgemm_us": null,
+   "official_windows": [],
+   "abba": [],
+   "accuracy_only": [
+    {
+     "arm": "adaptbm",
+     "public_knobs": {
+      "WEAVE_ADAPT_BM": 1
+     },
+     "diag_env": null,
+     "acc_default": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3780826926231384,
+      "rel_l2": 0.3780826926231384,
+      "cos_sim": 0.9282435178756714
+     },
+     "acc_arm": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.3780826926231384,
+      "rel_l2": 0.3780826926231384,
+      "cos_sim": 0.9282435178756714
+     },
+     "status": "passed"
+    }
+   ]
+  },
+  {
+   "tag": "K24s8192",
+   "workload": "Qwen3.8-Max (E=512, top-10, H=8192, I=2048, fp8 x fp4)",
+   "shape": {
+    "E": 512,
+    "K": 10,
+    "H": 8192,
+    "I": 2048,
+    "S": 2048
+   },
+   "routing": "uniform random",
+   "official_deepgemm_us": 1041.9039726257324,
+   "official_windows": [
+    1039.328,
+    1044.48
+   ],
+   "abba": [
+    {
+     "arm": "adaptbm",
+     "public_knobs": {
+      "WEAVE_ADAPT_BM": 1
+     },
+     "diag_env": null,
+     "legal_21knob": true,
+     "clean": true,
+     "discarded_contaminated_attempts": 0,
+     "default_us": 1064.8959875106812,
+     "arm_us": 1783.8079929351807,
+     "delta_us": 718.9120054244995,
+     "arm_over_official": 1.7120656411739696,
+     "acc_default": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.37844425439834595,
+      "rel_l2": 0.37844425439834595,
+      "cos_sim": 0.9280341863632202
+     },
+     "acc_arm": {
+      "launches": 10,
+      "vs_base_bitexact_all": true,
+      "all_finite": true,
+      "nan": 0,
+      "inf": 0,
+      "worst_rel_l2": 0.37844425439834595,
+      "rel_l2": 0.37844425439834595,
+      "cos_sim": 0.9280341863632202
+     },
+     "status": "measured"
+    }
+   ],
+   "accuracy_only": []
+  }
+ ],
+ "notes": {
+  "platform": "SM103 (148 SMs) x4, EP4, fp8 x fp4 MegaMoE, sm_103a",
+  "protocol": "ABBA palindromic in-process A/B vs default_rw0, CUDA Graph replay, 256 MiB L2 flush before each replay, slowest rank, 15 replays x 5 rounds, median; official DeepGEMM MegaMoE measured in the same batch with the same protocol; delta = arm - default (negative = faster)",
+  "contamination": "foreign compute processes on the 4 cards sampled every 2 s; an attempt with any foreign process is discarded and retried (max 3); clean=true iff the kept result comes from a CONTAM=0 attempt; clean=false numbers are reference only",
+  "accuracy_gate": "randn inputs, 10 consecutive launches, full output tensor bit-exact vs same-process default_rw0 plus finite / rel_l2 vs FP32 reference (rel_l2 ~0.378 Qwen3.8-Max, ~0.321 Qwen3.5-35B, identical for default and arms)",
+  "code_changes": [
+   "U1: 16-warp cooperative head (WEAVE_V_HEAD rounds) kept; measured net negative (see head_off ablations)",
+   "U2: TMEM-direct scatter not implemented (2 TMEM accumulator stages; lending one to W00..W03 stalls the MMA); alternative implemented: reg-pull-freed SMEM 16-row slots + 4-slot D7 ring for strict comm_only",
+   "U3: gap reduce on W00..W03 implemented (WEAVE_REDUCE_WARPS 1/2 with comm_only), measured strongly negative; 16-warp tail kept and fixed: SM0 cleanup-barrier wait deferred to the end of the all-16 tail, runtime 1 KiB sub-chunks when 2 KiB sub-chunks give fewer tiles per SM than reduce warps",
+   "U4: ADAPT_BM ladder places 32-row tiles only as an expert's single tile (odd SF TMEM column faulted on SM103); host rejects fixed 32-row sub-tiles inside larger envelopes; host SMEM planner accum-stage default aligned with codegen (16 B under-allocation at BM=256); ADAPT auto envelope capped at 128 rows (BM=256 spills on sm_103a)",
+   "U5: sm_103a ptxas: default, rg4, strict comm_only, strict+reg-pull, strict+reg-pull+profiler, ADAPT_BM variants all 128 regs / 0 spill; a BM=256 envelope spills (428 B on the previous commit, 444 B now) and is no longer produced by ADAPT"
+  ],
+  "known_failures": [
+   "Head (U1) is net negative on every measured shape: head-off ablation -22.6 us (S=1024), -32.8 us clean (S=4096), -99.4 us clean (skew S=4096), -2 to -4 us (Qwen3.5)",
+   "Gap reduce (U3, WEAVE_REDUCE_WARPS=1/2 + comm_only): +710 to +2972 us; root cause: per-slot fence.acq_rel.sys plus publish wait on all slots",
+   "ADAPT_BM is correct after the fix (S=1024/4096/8192, uniform and skew, randn, 10 launches, bit-exact) but slower at S=4096 (+321.6 us clean), skew S=4096 (+174.3 us clean) and S=8192 (+718.9 us clean; the same-batch official was contaminated, 1039-1044 us, reference only)",
+   "WEAVE_DISPATCH_WARPS=8 / WEAVE_SCATTER_WARPS=8 hang on Qwen3.5-35B S=8192; not measured",
+   "WEAVE_REG_PULL_BYTES=4096 is invalid at H=2048 (Qwen3.5-35B)"
+  ],
+  "final_capture": {
+   "config": "Qwen3.8-Max S=1024 (S_rank=256), WEAVE_REG_PULL_BYTES=2048 (strongest legal arm that still runs the 16-warp head; ADAPT_BM is faster but compiles the head out)",
+   "tool": "nsys gb11x GPU metrics 200 kHz + in-kernel software recorder, same run, taskset 0-15, nice -10, no banner",
+   "validator": "ok=true, 0 errors, 0 warnings (two independent captures)",
+   "kernel_span_us": "about 601-604"
+  },
+  "adapt_bm_s8192": "JIT at S_rank=2048 now builds a 128-row envelope with 7 GEMM stages, 128 regs, 0 local memory (no spill); before the fix it built BM=256 and failed the host-SMEM static_assert"
+ }
+}

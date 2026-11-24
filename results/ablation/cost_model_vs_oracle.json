@@ -1,6 +1,6 @@
 {
   "schema": "weave-cost-model-vs-oracle/v1",
-  "routing_input": "C:\\Users\\HP\\work\\weave_unified_cpp\\data\\routing_stats_3hw.json",
+  "routing_input": "data/routing_stats_3hw.json",
   "routing_reality_boundary": "total_tokens, local_contributions, remote_contributions, baseline_remote_scatter_rows, and dedup_remote_scatter_rows are copied from the recorded B300 routing replay. Per-local-expert m_e is not present in that artifact; the validator derives it deterministically from local_contributions with a Zipf(0.9) split and labels it as a proxy.",
   "local_replay": {
     "cells_per_platform": 6,

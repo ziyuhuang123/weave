@@ -1,0 +1,89 @@
+{
+  "schema": "ep16-mi308x-v58-5arm/v1",
+  "description": "V58 2-Node 16xMI308X EP16 6-model 5-arm measured ledger (qwen35 35B/122B/397B, qwen38max 2.4T, dskv4-flash, minimax-m3); the Level-1 calibration source for the mi308x_ep16 profile of results/hardware_calibration_3hw.json",
+  "provenance": {
+    "source": "V58 6-model 5-arm measurement ledger (v58_full5arm.json) + per-cell roofline summary (roofline_sum_c04_ep16.json), exported from the EP16 run directory of the MI308X build host, captured 2026-11-22",
+    "n_ranks": 16,
+    "topology": "2 nodes x 8 MI308X (gfx942), 4xNIC fic2 per node",
+    "timing": "ABBA, median of 48 samples, 256 MiB L2 flush outside the window, 1830-class clock discipline per the V58 ledger",
+    "arms": {
+      "rccl_aiter": "rank-persistent RCCL all-to-all + AITER grouped GEMM baseline (the deployment baseline)",
+      "P0": "v46C champion flat-cursor bank (V46_SP, N08=4 N44=16)",
+      "P1": "Fleet 4-XCD home-queue bank (v54_XCD_PART + CACHE_S1, 4,16,60)",
+      "P2": "Fleet (1,32,47) bank",
+      "P3": "Coalesce group-claim bank (4,8,68) + per-rank hetero dynamic role map (preset 3)",
+      "P4": "Coalesce (4,16,60) bank"
+    }
+  },
+  "model_gated_geomean_vs_rccl": 1.449524157520611,
+  "model_gated_geomean_vs_p0": 1.091264849227943,
+  "models": {
+    "qwen35_35b_S8192": {
+      "S": 8192, "world": 16,
+      "rccl_aiter_us": 1547.515,
+      "arms_us": {"P0": 1201.966, "P1": 1172.936, "P2": 1261.866, "P3": 1166.633, "P4": 1182.602},
+      "valid_rows_per_rank": [30, 30, 30, 30, 30, 30, 30, 30, 12, 12, 12, 12, 12, 12, 12, 12],
+      "winner": "P3"
+    },
+    "qwen35_122b_S8192": {
+      "S": 8192, "world": 16,
+      "rccl_aiter_us": 2361.523,
+      "arms_us": {"P0": 1598.928, "P1": 1566.807, "P2": 1663.137, "P3": 1556.523, "P4": 1572.335},
+      "valid_rows_per_rank": [30, 30, 30, 30, 30, 30, 30, 30, 12, 12, 12, 12, 12, 12, 12, 12],
+      "winner": "P3"
+    },
+    "qwen35_397b_S16384": {
+      "S": 16384, "world": 16,
+      "rccl_aiter_us": 5910.06,
+      "arms_us": {"P0": 3984.876, "P1": 3986.457, "P2": 4022.145, "P3": 3831.518, "P4": 3862.33},
+      "valid_rows_per_rank": [30, 30, 30, 30, 30, 30, 30, 30, 60, 60, 60, 60, 60, 60, 60, 60],
+      "winner": "P3"
+    },
+    "qwen38max_S16384": {
+      "S": 16384, "world": 16,
+      "rccl_aiter_us": 6902.37,
+      "arms_us": {"P0": 4764.286, "P1": 4816.777, "P2": 4877.25, "P3": 4485.619, "P4": 4509.744},
+      "valid_rows_per_rank": [30, 30, 30, 30, 30, 30, 30, 30, 60, 60, 60, 60, 60, 60, 60, 60],
+      "winner": "P3",
+      "roofline": {"tflops": 89.02279218814735, "arm": "P3", "note": "per-GPU achieved TFLOPS of the 2.4T cell -- the f_eff measurement of the mi308x_ep16 profile"}
+    },
+    "dskv4_flash_S16384": {
+      "S": 16384, "world": 16,
+      "rccl_aiter_us": 7517.088,
+      "arms_us": {"P0": 5611.678, "P1": 5715.152, "P2": 5615.708, "P3": 5440.392, "P4": 5457.194},
+      "valid_rows_per_rank": [30, 30, 30, 30, 30, 30, 30, 30, 60, 60, 60, 60, 60, 60, 60, 60],
+      "winner": "P3"
+    },
+    "minimax_m3_S16384": {
+      "S": 16384, "world": 16,
+      "rccl_aiter_us": 6122.798,
+      "arms_us": {"P0": 4345.804, "P1": 4381.237, "P2": 4375.872, "P3": 4173.524, "P4": 4201.326},
+      "valid_rows_per_rank": [30, 30, 30, 30, 30, 30, 30, 30, 60, 60, 60, 60, 60, 60, 60, 60],
+      "winner": "P3"
+    }
+  },
+  "bank_space": {
+    "C_FLT_32": {"n08": 1, "n44": 32, "mode": "fleet", "wcomm": 136, "ncg": 126},
+    "C_FLT_16": {"n08": 4, "n44": 16, "mode": "fleet", "wcomm": 96, "ncg": 136},
+    "C_COAL_16": {"n08": 4, "n44": 16, "mode": "coalesce", "wcomm": 96, "ncg": 136},
+    "C_COAL_68": {"n08": 4, "n44": 8, "mode": "coalesce", "wcomm": 64, "ncg": 144},
+    "C_BASE_16": {"n08": 4, "n44": 16, "mode": "base", "wcomm": 96, "ncg": 136},
+    "C_BASE_68": {"n08": 4, "n44": 8, "mode": "base", "wcomm": 64, "ncg": 144}
+  },
+  "host_pick_rule_preset3": {
+    "description": "V58 host launcher pick rule (preset 3, _v58_pick_arm): per-rank heterogeneous dynamic selection from the live valid_rows ratio (rows / 16-rank mean); all banks keep NPULL >= 30 (the V57 failure-mode guard)",
+    "comm_bound_models": {"models": ["qwen35_35b", "qwen35_122b"], "ratio_gt": 1.15, "then": "C_FLT_16", "else": "C_FLT_32"},
+    "coalesce_models": {"models": ["qwen35_397b"], "ratio_gt": 1.18, "then": "C_COAL_68", "else": "C_COAL_16"},
+    "qwen38max": {"ratio_gt": 1.10, "then": "C_COAL_68", "else": "C_BASE_16"},
+    "other": {"models": ["dskv4_flash", "minimax_m3"], "ratio_gt": 1.15, "then": "C_BASE_68", "else": "C_BASE_16"}
+  },
+  "derived_constants": {
+    "mu_dedup_thresh_ep16": 1.3057744104118794,
+    "mu_dedup_derivation": "(K/ep)/(1-C(E-E/ep,K)/C(E,K)) with E=512 K=10 ep=16 (the EP8 profile used ep=8 -> 1.688616929230157)",
+    "b_hbm_gbps": 3684.0,
+    "b_comm_gbps": 287.2,
+    "b_xgmi_7peer_gbps": 346.5,
+    "b_rdma_per_gpu_gbps": 24.05,
+    "tau_sync_us": 22.0
+  }
+}

@@ -1,18 +1,18 @@
 {
-  "agent": "opus-h20",
+  "agent": "prior-h20-run",
   "hardware": "4x NVIDIA H20 (SM90, 78 SMs/GPU, 4.0 TB/s HBM3, 450 GB/s NVLink4, EP4 GPUs 0,1,2,3)",
   "model": "Qwen3.8-Max (E=512, K=10, H=8192, I=2048, num_shared_experts=0)",
-  "remote_repo": "weave_opus_h20_ep4",
+  "remote_repo": "weave_h20_ep4",
   "base_commit": "be219cb",
   "deliverables": {
-    "patch": "opus_h20.patch",
-    "report": "OPUS_H20_REPORT.md",
-    "result_json": "OPUS_H20_RESULT.json",
-    "optimal_trace_gz": "opus_h20_optimal.sw_hw.perfetto.json.gz",
-    "optimal_png": "opus_h20_optimal_timeline.png",
-    "official_png": "opus_h20_official_timeline.png",
-    "smem_comm_v1_png": "opus_h20_smem_comm_timeline.png",
-    "hbm_dedup_diag_png": "opus_h20_hbm_dedup_diag.png"
+    "patch": "prior_h20.patch",
+    "report": "PRIOR_H20_REPORT.md",
+    "result_json": "PRIOR_H20_RESULT.json",
+    "optimal_trace_gz": "prior_h20_optimal.sw_hw.perfetto.json.gz",
+    "optimal_png": "prior_h20_optimal_timeline.png",
+    "official_png": "prior_h20_official_timeline.png",
+    "smem_comm_v1_png": "prior_h20_smem_comm_timeline.png",
+    "hbm_dedup_diag_png": "prior_h20_hbm_dedup_diag.png"
   },
   "winning_configs": {
     "S1024_and_S4096": {

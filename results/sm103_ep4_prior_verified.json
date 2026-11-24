@@ -106,7 +106,7 @@
       "num_sms": 148
     },
     "hw_curves_same_run_nsys": {
-      "source": "opus_sm103_optimal.sw_hw.perfetto.json.gz (same-run nsys, 200 kHz)",
+      "source": "prior_sm103_optimal.sw_hw.perfetto.json.gz (same-run nsys, 200 kHz)",
       "workload": "Qwen3.8-Max, EP4, S_rank=1024 (S_global=4096), num_shared_experts=0",
       "config": "BM=80, STORE_BLOCK_M_L1/L2=8/8, 8 stages, WEAVE_EPI_REG_STAGES=2, epilogue_only",
       "counters": {
@@ -3538,11 +3538,11 @@
     }
   },
   "deliverables": {
-    "patch": "opus_sm103.patch",
-    "result_json": "OPUS_SM103_RESULT.json",
-    "report_md": "OPUS_SM103_REPORT.md",
-    "trace_gz": "opus_sm103_optimal.sw_hw.perfetto.json.gz",
-    "timeline_png": "opus_sm103_optimal_timeline.png"
+    "patch": "prior_sm103.patch",
+    "result_json": "PRIOR_SM103_RESULT.json",
+    "report_md": "PRIOR_SM103_REPORT.md",
+    "trace_gz": "prior_sm103_optimal.sw_hw.perfetto.json.gz",
+    "timeline_png": "prior_sm103_optimal_timeline.png"
   },
   "s8192_tmem_pipeline_study": {
     "workload": "Qwen3.8-Max, EP4, S_rank=8192, num_shared_experts=0",
