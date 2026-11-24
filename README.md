@@ -1,146 +1,76 @@
 [English](README.md) | [简体中文](README_zh.md)
 
-# Weave: Routing-Adaptive Runtime-Dynamic MoE Megakernel
+# Weave: Routing-Adaptive Dynamic Scheduling & Turnkey Autotuning for MoE Megakernels
 
-Weave is a **routing-adaptive, runtime-dynamic MoE megakernel** implemented in a
-unified C++/CUDA/HIP codebase ([Weave: Fine-Grained Dynamic SM Scheduling in an
-MoE Megakernel for Compute-Communication Overlap](https://arxiv.org/abs/2609.21483)),
-supporting **NVIDIA SM103 (148-SM)**, **NVIDIA H20**, and **AMD MI308X**. Right
-after dispatch finishes, the kernel reads live per-expert token counts and
-performs **spatial partitioning and temporal scheduling** directly on the GPU at
-runtime.
+Weave is a **routing-adaptive, barrier-free (zero inter-operator `grid_sync`) fused MoE megakernel** implemented in unified C++/CUDA/HIP ([Weave: Fine-Grained Dynamic SM Scheduling in an MoE Megakernel for Compute-Communication Overlap](https://arxiv.org/abs/2609.21483)), supporting **NVIDIA SM100 / SM103**, **NVIDIA H20 (SM90)**, and **AMD MI308X (CDNA3 gfx942)**. Through **one-time compile-time calibration + zero-env runtime selection**, Weave drives a unified **14-knob surface (Spatial 5 / Temporal 3 / Implementation 6)** to overlap cross-GPU communication with Tensor/Matrix Core execution at fine granularity.
 
-## Architecture and runtime scheduling
+## Architecture and cross-hardware role partitioning
 
-| Hardware | Language | Supported precision values | Entry point |
+| Hardware platform | Language | Supported precision (`WEAVE_PRECISION_MODE`) | Entry point |
 |---|---|---|---|
-| NVIDIA SM103 (148-SM) | CUDA C++ | `0 = fp8xfp4` (default), `1 = fp4xfp4` (NVFP4), `3 = bf16`; `2 = fp8` is not supported | sm100_fp8_fp4_mega_moe.cuh / sm100_fp4_fp4_mega_moe.cuh via weave_mega_moe(..., mma_type=...) |
-| NVIDIA H20 (SM90) | CUDA C++ | `2 = fp8` (fp8xfp8) only | sm90_fp8_mega_moe.cuh |
-| AMD MI308X (gfx942) | HIP C++ | `2 = fp8` (fp8xfp8) only; EP8 and EP16 | gfx942_fp8_mega_moe.cuh and amd/megamoe_amd.hip |
+| NVIDIA SM100 / SM103 (148-SM) | CUDA C++ | `0=fp8xfp4` (default), `1=fp4xfp4` (NVFP4), `3=bf16` | `sm100_fp8_fp4_mega_moe.cuh` / `sm100_fp4_fp4_mega_moe.cuh` |
+| NVIDIA H20 (SM90, 78-SM) | CUDA C++ | `2=fp8` (`fp8xfp8`) | `sm90_fp8_mega_moe.cuh` |
+| AMD MI308X (gfx942, 80-CU) | HIP C++ | `2=fp8` (`fp8xfp8`, single-node EP8 & 2-node EP16) | `gfx942_fp8_mega_moe.cuh` and `amd/ep16/v70/` |
 
 ![Weave System Design Overview](docs/figures/weave_design_overview.png)
 
-![Weave Spatial Warp Ratio & Temporal Warp Roles vs MegaMoE](docs/figures/weave_design_rolegraph.png)
+![Weave Cross-Hardware Spatial Partitioning & Barrier-Free Temporal Schedules](docs/figures/weave_design_rolegraph.png)
 
-After dispatch completes, CTA 0 evaluates an on-device cost model over the live
-per-expert token distribution and communication volume, selecting the layer's
-**spatial resource ratios** and **temporal schedule**, executed on top of
-independently tuned **single-operator and data-path implementations**:
+Weave eliminates coarse inter-operator barriers (`Notify->Pull`, `GEMM1->GEMM2`, and `Scatter->Combine` all synchronize through fine-grained atomic counters and `ld.acquire.sys` readiness gates) across three orthogonal axes:
 
-- **Spatial partitioning (SM-level and Warp-level hardware ratios):**
-  - **Across SMs/CUs:** independently assigns active SMs for Dispatch pulling
-    (`D`), active SMs for async Scatter draining (`K`, $D \neq K$), and whether
-    CTA 0's communication warps are dedicated as the streaming scheduler
-    (`WEAVE_SM0_STREAM_SCHED`), while recruiting all SMs for tail Combine
-    reduction.
-  - **Within each SM/CU:** configures the warp/wave split between the
-    communication partition (`N_c`: Dispatch / Scatter warps) and the compute
-    partition (`N_e`: TMA/MMA + Epilogue warps)—including `4D+4N+8E` vs.
-    `8D+4N+8E` on NVIDIA SMs and **`0-8` / `4-4` / `8-0`** `(comm - compute)`
-    wavefront splits on AMD MI308X CUs—together with per-role register file
-    budgets (e.g., `96/72/168` vs. `64/56/192`).
-- **Temporal scheduling (eliminating head, middle, and tail bubbles):**
-  - **Head:** at layer start all warps help pull remote tokens by default to
-    saturate link bandwidth; `WEAVE_V_HEAD` sets how many pull tasks (tokens)
-    those helping warps complete before exiting back to GEMM, while fine-grained
-    group readiness (`WEAVE_READY_GROUP_SIZE`) starts GEMM1 without waiting for
-    full experts;
-  - **Task dispatch & Middle:** tile claiming switches between a **static
-    heuristic formula** over prefix-summed offsets (`formula`) and **SM 0
-    dynamic global-FIFO scheduling** (`sm0_fifo`, where SM 0's communication
-    warps compute and push ready tiles across all regions into a global queue for
-    dynamic CTA preemption); during interleaved GEMM1<->GEMM2 execution,
-    **strict binary Scatter ownership** selects either inline epilogue stores
-    (`epilogue_only`) or 100% dedicated communication-warp draining (`comm_only`,
-    with zero mixed fallback) to overlap NVLink/xGMI scatter with ongoing GEMM;
-  - **Tail:** replaces the global cross-GPU barrier with **chunked (`G`-token)
-    cross-GPU readiness paired with local deduplication** (emitting a single
-    `red.release.sys` per `G`-token destination chunk to avoid per-tile or
-    per-token system-atomic storms), while all finished warps/waves
-    automatically join cooperative Combine reduction overlapping tail Scatter.
-- **Single-op optimizations & prior-art implementations (Implementation):**
-  - **Independent 4-operator configuration & `M -> blockM` coupled profiles:**
-    **GEMM1**, **GEMM2**, **Dispatch**, and **Scatter** configure their
-    parameters independently. For GEMM1 and GEMM2, offline calibration maps each
-    `M` bucket to `blockM`, which **synchronously fixes `(blockM, blockN,
-    blockK, mainloop_stages)` and `(epi_M, epi_N, epi_K, epi_stages)`** (packing
-    compact asymmetric store sub-blocks, `1.75/2.0`-stage TMEM accumulation, and
-    2-stage register prefetch inside the profile tuple); at runtime each expert
-    looks up its own profile from live `tokens[e]`, while in-flight `FC1 -> FC2`
-    activations reuse a bounded modulo ring buffer (8-9x HBM compression);
-  - **Independent Dispatch & Scatter transfer/staging/deduplication:** Dispatch
-    independently configures per-warp register-direct pull chunk width (`1024 /
-    2048 / 4096 B` per 32-lane warp = `8 / 16 / 32` 32-bit registers per thread)
-    and pull deduplication, while Scatter independently selects among
-    `reg_2stage`, bank-conflict-free `smem`, and `hbm_dedup` staging plus local
-    `bf16x2` multi-hit deduplication.
+- **Spatial dimension (5 knobs)**: independently assigns active SMs/CUs for Dispatch pulling (`D`) and async Scatter draining (`K`, $D \neq K$), plus intra-SM/CU warp/wave ratios—NVIDIA SM103 uses `16 warps/CTA` (`4 Comm + 2 TMA + 2 UMMA/CLC + 8 TMEM Epilogue`), NVIDIA H20 uses `20 warps/CTA` (`8 Comm + 2 TMA + 8 Math WG0/1`), and AMD MI308X dynamically switches its 8 Wave64/CU (2-CTA/CU) layout between `0-8` (all 8 compute waves saturating HBM at small `S`) and `4-4` (4 compute + 4 dedicated comm waves overlapping xGMI + GDA RDMA at large `S`).
+- **Temporal dimension (3 knobs)**: in the Head phase, `WEAVE_V_HEAD` bounds cooperative helper-warp pulling while `WEAVE_READY_GROUP_SIZE` starts GEMM1 at `N`-tile arrival granularity; in the Middle phase, `WEAVE_SCATTER_OWNER` enforces strict binary scatter ownership (`epilogue_only` vs. `comm_only`) while H20's `7-W` K-block bitmap interleaves `GEMM1 <-> GEMM2` with zero `grid_sync`; in the Tail phase, all warps/waves finishing upstream work join ready-gated Combine reduction.
+- **Implementation dimension (6 knobs)**: **GEMM1, GEMM2, Dispatch, and Scatter** select configurations independently—choosing `blockM` via `WEAVE_GEMM1_CONFIG` / `WEAVE_GEMM2_CONFIG` synchronously locks `(blockN, blockK, mainloop_stages, epi_stages)` (default `0` keeps host shape-adaptive tuple selection always on with 0-spill clamping); Dispatch independently configures zero-SMEM register-direct pull width (`WEAVE_REG_PULL_BYTES`: `1024..4096 B/warp` on NVIDIA, `8192 B/wave` on MI308X) and remote pull deduplication (`WEAVE_DEDUP_MODE`); Scatter independently selects `reg_2stage`, bank-conflict-free `smem` ring, or `hbm_dedup` staging (`WEAVE_SCATTER_STAGING`).
 
-## Hardware partitions and global ready queues
-
-Warps on each SM/CU are divided into a **Communication Partition (`N_c`)** and a
-**Compute/GEMM Partition (`N_e`)**, each pulling work from its own global task
-queue:
-
-- **GEMM Ready Queue** (consumed by `N_e`): holds `(expert_id, m_tile_idx)`
-  compute tiles. As remote tokens land in local buffers, communication warps
-  atomically increment per-expert (or per-group) arrival counters; instead of
-  materializing and sorting a full per-tile array at runtime, compute CTAs claim
-  ready tiles directly via prefix-summed expert offsets in a preset expert order
-  (descending load / L2 tile-swizzle), or pop ready tile IDs from a global FIFO
-  when `WEAVE_READY_QUEUE=1`. When `WEAVE_SCATTER_MODE=0`, epilogue warps send
-  FC2 outputs directly over NVLink/xGMI inside the compute partition.
-- **Communication Ready Queue** (consumed by `N_c`): holds cross-GPU Pull and
-  async Scatter tasks. When `WEAVE_SCATTER_MODE=1`, epilogue warps hand off
-  completed FC2 tile scatter descriptors into this queue; when
-  `WEAVE_SCATTER_MODE=2`, duplicate partial outputs for the same source token on
-  the local GPU (or node) are first merged in HBM before enqueuing a single
-  transfer, allowing `N_c` warps to overlap NVLink/xGMI scatter with ongoing
-  GEMM tiles.
-
-## Quick start
+## Quick start and turnkey two-stage autotune
 
     git clone https://github.com/ziyuhuang123/weave.git
     cd weave
     python -m pip install -e .
-    python -m py_compile baselines/*.py ablation/*.py
     python tests/verify_tunable_params_doc.py
 
-Minimal Python dispatch:
+On any GPU of a supported architecture family (queried dynamically from runtime device properties with **zero hardcoded SKU names**), tuning takes two steps (full guide in [docs/AUTOTUNE_AND_TUNING_GUIDE.md](docs/AUTOTUNE_AND_TUNING_GUIDE.md)):
 
-    import torch
-    from deep_gemm.mega import SymmBuffer, weave_mega_moe
+    # 1) One-time compile + calibration pass (0-spill gate + per-bucket ABBA search + 4-rule break-even probes)
+    python -m deep_gemm.mega.autotune --model qwen3.8-2.4t --num-processes 4
 
-    # Construct the symmetric buffer for your process group and model shape,
-    # then call weave_mega_moe(y, l1_weights, l2_weights, sym_buffer,
-    #                        mma_type="fp4xfp4").
-    # NVIDIA SM103 (148-SM) supports fp8xfp4, fp4xfp4 and bf16;
-    # NVIDIA H20 and AMD MI308X use fp8.
+    # 2) Zero-env production inference (weave_mega_moe auto-loads the calibrated JSON; 0 host overhead in CUDA/HIP Graph)
+    python -c "from deep_gemm.mega import SymmBuffer, weave_mega_moe"
 
-The public precision selector can also be set before import or before the
-call:
+End-to-end autotune receipts: [results/autotune_e2e_b300_h20.json](results/autotune_e2e_b300_h20.json), [results/autotune_e2e_mi308x_v70.json](results/autotune_e2e_mi308x_v70.json), and cross-SKU compile proof [results/blackwell_sm100a_sm103a_compile_proof.json](results/blackwell_sm100a_sm103a_compile_proof.json) (`1,440` `sm_100a`/`sm_103a` cells with `0` failures):
+- **NVIDIA H20 (30 cells)**: zero-env `auto` lands within `2%` of the hand-tuned Oracle on **30/30** cells (`1.13x–1.25x` geomean speedup over official DeepGEMM, up to **`1.69x`**);
+- **NVIDIA SM103 (148-SM) (20 cells)**: **19/20** cells land within `2%` of Oracle (`0.973` and `0.992` geomean `auto/Oracle`);
+- **AMD MI308X 2-node 16x EP16 (30 cells)**: beats the fastest official baseline on **30/30** cells with **`1.875x`** geomean speedup.
 
-    export WEAVE_PRECISION_MODE=fp4xfp4
-
-## Measured performance
+## Measured end-to-end performance and bound-resource utilization
 
 ![3-Hardware End-to-End Speedup across 6 Models x 5 Batch Sizes](docs/figures/weave_eval_3hw_speedup.png)
 
-Paper Fig. 7: measured 3-hardware MoE-layer speedup across 6 models x 5 batch
-sizes.
-
 ![Bound Hardware Resource Utilization % across 6 Models x 5 Batch Sizes x 3 Hardware Platforms](docs/figures/weave_bound_utilization_3hw.png)
 
-Bound hardware resource utilization: each point is the measured peak
-utilization of the resource that actually bounds that cell (HBM, NVLink/xGMI,
-or compute). Small models such as `Qwen3.5-35B` (`H=2048, I=512`) and
-`Qwen3.5-122B` at `S=16..1024` across 8-GPU EP8 are strictly latency-floor
-dominated (their entire ideal HBM/NVLink time is only `2-10 us` on 148-SM SM103
-versus the `~35 us` 8-GPU barrier/launch floor), and climb back to `79.4%`
-(SM103) / `60.8%` (H20) once `S=16K` amortizes the fixed floor. On 8-GPU-scale
-models (`Qwen3.8-2.4T`, `MiniMax-M3`), Weave reaches up to `97.6%` on 148-SM
-SM103 and `85.5%` on H20; at `S=1024` on H20, `Qwen3.8-2.4T` is HBM3-bound
-(`T_hbm=755 us` vs `T_comp=437 us`), which physically caps FP8 Tensor Core
-activity below `58%`.
+Across all **90 evaluation cells** (3 hardware platforms x 6 models x 5 token counts `S in {16, 128, 1K, 8K, 16K}` on real ShareGPT routing; self-contained ledger [results/bound_utilization_90cells_3hw.json](results/bound_utilization_90cells_3hw.json), renderers `scripts/render_fig7_eval_speedup_3hw.py` and `scripts/render_fig7_bound_utilization_3hw.py`), each system's bound-peak utilization is `100 * T_bound / measured_latency` (`T_bound` = critical-rank roofline floor across HBM, interconnect, and compute). Weave ranks **#1 in 90/90 cells**:
+
+| Platform | Baselines compared | 30-cell geomean speedup (range) | Weave bound-peak util. (GM / range) | Representative large-`S` highlight |
+|---|---|---|---|---|
+| **8x NVIDIA SM103 (148-SM)**, EP8 | DeepGEMM-MegaMoE, FlashInfer, SGLang, mKernel, FlashMoE, NanoFlow | **`1.219x`** (`1.05x–1.97x`) | `42.9%` (`5.8%–97.6%`) | **`1.97x`** (`97.6%` peak util.) on `Qwen3.5-35B S=16K` |
+| **8x NVIDIA H20 (SM90)**, EP8 | DeepGEMM-MegaMoE, FlashInfer | **`1.212x`** (`1.01x–1.61x`) | `53.6%` (`13.3%–85.5%`) | **`1.18x–1.61x`** at `S <= 1K`; `85.5%` compute peak at `S=16K` |
+| **16x AMD MI308X (CDNA3)**, 2-node EP16 | AITER-1stage, vLLM (RCCL + 2-stage CK) | **`1.875x`** (`1.06x–2.87x`) | `21.6%` (mean `34.2%`, `1.4%–92.0%`) | **`58.0%–92.0%`** bound util. across all 6 models at `S=16K` (`25 GB/s/GPU` 4x400GbE RDMA & `398.7 TFLOPS` SKU peak) |
+
+### Same-precision platform highlights
+
+- **NVIDIA H20 (4x EP4, zero-`grid_sync` fused kernel vs. upstream official DeepGEMM)**: 72/72 full-tensor checks pass (500 back-to-back launches + 100 alternating uniform/skew launches per cell, `max calc_diff = 3.96e-4`; receipts [results/h20_ep4_nogridsync_verified.json](results/h20_ep4_nogridsync_verified.json) and [results/h20_ep4_pure21_live_sweep.json](results/h20_ep4_pure21_live_sweep.json)), reaching **`1.49x–1.51x`** on `Qwen3.8-Max S=1024` (`3246 -> 2174 us`), **`1.16x`** at `S=4096`, and **`1.25x`** on `Qwen3.5-35B S=16384`.
+- **AMD MI308X (2-Node 16x EP16, V70 2-CTA/CU Path-B `160x256` champion vs. `RCCL + AITER`)**: all 21 `.co` variants compile at `256 VGPR / 106 SGPR / 0 spill`, passing 576/576 16-rank full-element FP64 checks ([results/ep16_mi308x_v70_16gpu_champion.json](results/ep16_mi308x_v70_16gpu_champion.json)):
+
+| Model (16x MI308X EP16) | `S` | Weave V70 | Prior V62 | RCCL + AITER | V70 vs. RCCL + AITER |
+|---|---:|---:|---:|---:|---:|
+| `Qwen3.8-Max` 2.4T | `16384` | **`6,981.1 us`** | `8,042.6 us` | `17,156.9 us` | **`2.458x`** |
+| `Qwen3.5-397B` | `16384` | **`2,363.4 us`** | `2,805.8 us` | `6,955.1 us` | **`2.943x`** |
+| `MiniMax M3` | `16384` | **`3,519.2 us`** | `4,328.6 us` | `7,876.9 us` | **`2.238x`** |
+| `DeepSeek-V4-Flash` | `16384` | **`2,573.0 us`** | `3,037.9 us` | `5,969.4 us` | **`2.320x`** |
+| `Qwen3.5-122B` | `8192` | **`1,091.1 us`** | `1,362.6 us` | `2,374.1 us` | **`2.176x`** |
+| `Qwen3.5-35B` | `8192` | **`850.0 us`** | `1,097.1 us` | `1,562.2 us` | **`1.838x`** |
+
+- **NVIDIA SM103 (148-SM, 4x EP4, `FP8 x MXFP4`, `E=256`)**: palindromic solo ABBA vs. upstream official DeepGEMM ([results/sm103_ep4_vs_official_solo_summary.json](results/sm103_ep4_vs_official_solo_summary.json)) achieves **`292.86 us` vs. `294.91 us` (`1.007x`)** at `S=1024` (`WEAVE_DISPATCH_ACTIVE_SMS=40`) and parity at `S=4096` (`399.44` vs. `399.38 us`) with 10-launch bit-exactness.
 
 ## WeaveProfiler software + hardware timelines
 
@@ -150,230 +80,87 @@ activity below `58%`.
 
 ![AMD MI308X WeaveProfiler SW+HW Timeline](docs/figures/weaveprofiler_mi308x_timeline.png)
 
-Each figure shows aligned software + hardware timelines on `Qwen3.8-Max`
-(hardware utilization curves, all physical SM/CU lanes, and representative CTA
-warp-role pipelines). `S_rank` is the token count per rank and `S_global` the
-total across all ranks:
+Each 4-panel figure is a same-run software + hardware capture (Panel A: hardware utilization curves; Panel B: all physical SM/CU lanes; Panel C: representative CTA's full warp/wave tracks and async depth strips; Panel D: deterministic micro-zoom):
 
-- **NVIDIA SM103 (148-SM), 4x EP4, `S_rank=1024` (`S_global=4096`, `num_shared_experts=0`, `BM=80, store=8/8, stages=8, WEAVE_EPI_REG_STAGES=2`)**:
-  same-run WeaveProfiler SW+HW capture (`3.52%` warm instrumentation overhead,
-  `0` buffer overflow, bitwise-exact output across all 4 ranks) measures
-  **Active SMs `100.0%`** median / max, **HBM bandwidth `81.0%`** median / `94.0%` max,
-  **NVLink `43.0%`** median / `100.0%` max, and **Tensor Active `38.0%`**
-  median / `42.0%` max (141 same-run `nsys` samples per curve, recorded in
-  `weaveprofiler_optimal_s1024.hw_curves_same_run_nsys`).
-- **NVIDIA H20 (78-SM), 8x EP8, `S_global=1024` (`Qwen3.8-Max`, `num_shared_experts=0`)**:
-  aligned software + hardware timeline across all 78 physical SMs showing
-  multi-wave `L1 GEMM <-> L2 GEMM <-> Scatter` interleaving and dedicated
-  communication-warp scatter draining (`epi_scatter_spans = 0` on `Math+Epi
-  WG0..WG3`).
-- **AMD MI308X, 8x EP8 (`Qwen3.8-Max, S=1024`)**: aligned per-wavefront software
-  events and hardware activity curves across all physical CUs.
-
-### Same-precision EP4 comparison vs. upstream official DeepGEMM MegaMoE (`num_shared_experts = 0`)
-
-Full raw receipts live in
-[results/opus_sm103_ep4_verified.json](results/opus_sm103_ep4_verified.json),
-[results/opus_h20_ep4_verified.json](results/opus_h20_ep4_verified.json), and
-[results/gcmoe_same_precision_ep4.json](results/gcmoe_same_precision_ep4.json).
-
-**NVIDIA SM103 (148-SM), 4x EP4 (`FP8 x MXFP4`, `num_shared_experts = 0`):**
-
-| Workload | Upstream Official DeepGEMM MegaMoE | Weave | Speedup vs. Official | 4-GPU Accuracy |
-|---|---:|---:|---:|---|
-| `Qwen3.8-Max`, `S_rank=1024` (`S_global=4096`) | `881.38 us` (`BM=240`) / `748.88 us` (`BM=128`) | **`710.53 us`** | **`1.241x`** (`+24.1%`) / **`1.054x`** (`+5.4%`) | `rel_l2=2.91e-5`, `stats_exact` |
-| `416E`, `S_rank=1024` (`S_global=4096`) | `450.26 us` (`BM=240`) / `411.66 us` (`BM=128`) | **`382.85 us`** | **`1.176x`** (`+17.6%`) / **`1.075x`** (`+7.5%`) | `rel_l2=5.37e-5`, `stats_exact` |
-
-Under random multinomial routing against the same-precision `GC-MoE` baseline,
-Weave also achieves **`1.055x`** (`779.0 us` vs. `824.7 us`) on `Qwen3.8-Max` and
-**`1.042x`** (`393.8 us` vs. `412.9 us`) on `416E`, matching `GC-MoE` bit-for-bit
-across all 4 ranks.
-
-**NVIDIA H20 (78-SM), 4x EP4 (`FP8 x FP8`, `num_shared_experts = 0`, `Qwen3.8-Max`):**
-
-| Global Sequence Length (`S_global`) | Upstream Official DeepGEMM MegaMoE | Weave | Speedup vs. Official |
-|---|---:|---:|---:|
-| `S=128` (`S_rank=32`) | `1477.84 us` | **`1328.26 us`** | **`1.113x`** (`+11.3%`) |
-| `S=1024` (`S_rank=256`) | `3241.71 us` | **`2177.54 us`** | **`1.489x`** (`+48.9%`) |
-| `S=4096` (`S_rank=1024`) | `6210.22 us` | **`5248.66 us`** | **`1.183x`** (`+18.3%`) |
-
-Full tuned `WEAVE_*` presets (organized by **Spatial**, **Temporal**, and
-**Implementation**) and reproducible launch scripts live under
-[examples/](examples/README.md):
-
-- NVIDIA SM103 (148-SM): [examples/sm103_qwen38max_ep8_s1024.sh](examples/sm103_qwen38max_ep8_s1024.sh)
-- NVIDIA H20: [examples/h20_qwen38max_ep8_s1024.sh](examples/h20_qwen38max_ep8_s1024.sh)
-- AMD MI308X: [examples/mi308x_qwen38max_ep8_s1024.sh](examples/mi308x_qwen38max_ep8_s1024.sh) (EP8) and [examples/mi308x_qwen38max_ep16_s128.sh](examples/mi308x_qwen38max_ep16_s128.sh) (2-node EP16)
-- One-command runner & renderer: `python examples/profile_and_render_timeline.py --preset sm103` (supports `sm103`, `h20`, `mi308x_ep8`, `mi308x_ep16`, plus `--run` / `--render`)
-
-## Parameter taxonomy: Spatial, Temporal, and Implementation
-
-Weave's tunable surface is partitioned strictly across three axes:
-
-- **Spatial dimension:** strictly **SM-level and per-SM/CU Warp/Wave-level
-  hardware resource ratios**—active SMs for Dispatch
-  (`WEAVE_DISPATCH_ACTIVE_SMS`), active SMs for Scatter
-  (`WEAVE_SCATTER_ACTIVE_SMS`), whether CTA 0's communication warps are
-  allocated as the streaming scheduler (`WEAVE_SM0_STREAM_SCHED`), per-SM/CU
-  communication, compute, and streaming-reduce warp/wave ratios (`WEAVE_DISPATCH_WARPS`,
-  `WEAVE_SCATTER_WARPS`, dedicated Middle zero-SMEM fine-grained reduce warps
-  `WEAVE_REDUCE_WARPS`, and MI308X's 3-mode `0-8 / 4-4 / 8-0`
-  `WEAVE_CU_WAVE_SPLIT`), and per-role register file ratios
-  (`WEAVE_REG_BALANCE`).
-- **Temporal dimension:** **cross-stage role switching, dynamic task dispatch,
-  compute-communication overlap, and synchronization granularity**—how many
-  opening pull tasks helping warps complete before switching to GEMM
-  (`WEAVE_V_HEAD`) and fine-grained group arrival readiness
-  (`WEAVE_READY_GROUP_SIZE`), static heuristic formula vs. SM 0 dynamic
-  global-FIFO tile preemption (`WEAVE_READY_QUEUE`), strict binary Scatter role
-  ownership (`WEAVE_SCATTER_OWNER`), and tail chunked `G`-token cross-GPU
-  Combine readiness (`WEAVE_COMBINE_SYNC_CHUNK`, with all idle warps joining
-  Combine by default).
-- **Single-op optimizations & prior work (Implementation):** **independent
-  GEMM1, GEMM2, Dispatch, and Scatter single-operator configurations**—numeric
-  precision (`WEAVE_PRECISION_MODE`), runtime per-expert `M -> blockM` profile
-  lookup (`WEAVE_ADAPT_BM`) and independent GEMM1 / GEMM2 profile selectors
-  (`WEAVE_BLOCK_M_L1`, `WEAVE_BLOCK_M_L2`, where selecting `blockM`
-  synchronously locks `blockN/K`, `mainloop_stages`, `epi_M/N/K`, and
-  `epi_stages`), independent Dispatch pull width & deduplication
-  (`WEAVE_REG_PULL_BYTES`, `WEAVE_DEDUP_MODE`), and independent Scatter staging
-  & local deduplication (`WEAVE_SCATTER_STAGING`, `WEAVE_LOCAL_SCATTER_DEDUP`).
-
-At runtime, CTA 0 ranks candidate schedules with the lightweight on-device cost
-model: shared fixed overheads cancel in the ranking, matching the exhaustive
-oracle on 38/48 measured 148-SM SM103 cells (1.301x geomean speedup vs. 1.332x
-oracle, 2.4% selection regret; 34.0% mean absolute latency error).
-
-Every file:line citation below is checked by
-`tests/verify_tunable_params_doc.py`. The full reference is in
-[docs/TUNABLE_PARAMETERS.md](docs/TUNABLE_PARAMETERS.md).
+- **NVIDIA SM103 (148-SM), 4x EP4, `Qwen3.8-2.4T S=1024` (`FP8 x NVFP4`)**: 200 kHz `nsys` capture across all 16 warps (`W00..W15`), 0 spill, 4/4 rank bit-exactness, `+9.28%` warm ABBA overhead. HBM bandwidth peaks at **`82.0%`** (mean `72.8%`) and Active SMs average **`98.6%`** (`0.14%` imbalance across 148 SMs), with `MEM`/`MMA` async in-flight strips and issue pins.
+- **NVIDIA H20 (78-SM), 4x EP4, `Qwen3.5-35B S=16384` (`FP8`, zero-`grid_sync` fused engine)**: 200 kHz `nsys` capture across all 20 warps (`W00..W19`), `+8.84%` warm ABBA overhead. With inter-operator `grid_sync` eliminated, `Tensor Active x4` stays continuously at **`75–100%`** (peak `96.0%`, zero mid-kernel barrier valley), `W00..W07` overlap `Async Comm Scatter (SMEM->NVLink)` immediately after pull completes, and Panel D (`700–730 us`) shows concurrent `WGMMA + TMA + NVLink Scatter`.
+- **AMD MI308X (80-CU), 2-node 16x EP16, `Qwen3.8-Max S=16384` (V70 `4-4` build)**: same-run capture across all 80 CUs and all 8 Wave64s of CU 0 (`W00..W03`: `Compute / Combine`, `W04..W07`: `Comm / Dispatch & Async Scatter`), `256 VGPR / 0 spill`. `rocprofiler-sdk` curves show FP8 Matrix Core utilization sustained at **`50–62%`** (of the `398.7 TFLOPS` SKU peak) under 2-node RDMA, full-duplex xGMI TX/RX, and `100.0%` Active CUs.
 
 ## Unified core WEAVE_* parameters
 
-The parameter surface is organized strictly as **Spatial / Temporal / Implementation**. Every row names both its host parse and its kernel consumption; `tests/verify_tunable_params_doc.py` resolves each `file:line` citation. The full value semantics are in [docs/TUNABLE_PARAMETERS.md](docs/TUNABLE_PARAMETERS.md).
+The public surface is strictly **14 knobs in 3 categories** (Spatial 5 / Temporal 3 / Implementation 6). Every row reports **verified same-batch measured gains** (ledgers: `results/ep16_mi308x_v70_16gpu_champion.json`, `results/h20_v12_comm_bound_sweep.json`, `results/sm103_v3_clean_config_sweep.json`, `results/sm103_qwen38max_full_sweep.json`) alongside machine-verified `file:line` citations (`tests/verify_tunable_params_doc.py`); full per-hardware value grammar is in [docs/TUNABLE_PARAMETERS.md](docs/TUNABLE_PARAMETERS.md) and tuning workflow in [docs/AUTOTUNE_AND_TUNING_GUIDE.md](docs/AUTOTUNE_AND_TUNING_GUIDE.md).
 
 ### Spatial
 
-| Parameter | Category | Values (every accepted value is named) | Default | Mechanism | Host parse | Kernel consumption |
-|---|---|---|---|---|---|---|
-| `WEAVE_DISPATCH_ACTIVE_SMS` | Spatial | `0 = auto` (all SMs run dispatch pull); `D = 1..num_sms`: only D SMs pull remote tokens | 0 | SM-level dispatch allocation: assigns D SMs to remote token pulling while remaining SMs enter prefetch/GEMM immediately. | `csrc/jit_kernels/heuristics/weave_knob_config.hpp:100` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:49` |
-| `WEAVE_SCATTER_ACTIVE_SMS` | Spatial | `0 = auto` (all SMs/CUs participate); `K = 1..num_sms`: only K SMs drain the scatter queue | 0 | SM-level scatter allocation (independent from dispatch SMs): bounds async NVLink/xGMI scatter draining to K SMs while Combine uses all SMs. | `csrc/jit_kernels/impls/sm100_fp8_fp4_mega_moe.hpp:203` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:531` |
-| `WEAVE_SM0_STREAM_SCHED` | Spatial | `0 = CTA 0 communication warps run normal pull/scatter`; `1 = allocate CTA 0 communication warps as a dedicated streaming scheduler` | 0 | CTA-0 warp allocation: decides whether CTA 0's communication warps are dedicated to streaming tile scheduling while remaining SMs split the pull range. | `csrc/jit_kernels/heuristics/weave_knob_config.hpp:86` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:3031` |
-| `WEAVE_DISPATCH_WARPS` | Spatial | `0 = auto` (4 warps); `4`; `8` | 0 | Per-SM dispatch warp ratio: sets the CTA communication warp count dedicated to remote token/SF pulling (`4D+4N+8E` vs `8D+4N+8E`). | `csrc/jit_kernels/heuristics/weave_knob_config.hpp:73` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:972` |
-| `WEAVE_SCATTER_WARPS` | Spatial | `0 = automatic`; `4`; `8` | 0 | Per-SM scatter warp ratio: sets the CTA communication warp budget dedicated to async FC2 scatter (independent from dispatch pull parameters). | `csrc/jit_kernels/impls/sm100_fp8_fp4_mega_moe.hpp:224` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:504` |
-| `WEAVE_REDUCE_WARPS` | Spatial | `0 = off` (tail-only Combine); `2, 4, 8 = dedicated fine-grained streaming Reduce warps` carved out of the CTA communication warp group during Middle | 0 | Per-SM Reduce warp allocation: assigns dedicated warps after opening Pull to zero-SMEM out-of-order fine-grained Reduce overlapping Middle GEMM/Scatter. | `csrc/jit_kernels/heuristics/weave_knob_config.hpp:76` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:1269` |
-| `WEAVE_CU_WAVE_SPLIT` | Spatial | `0 = auto` (cost-model selection); `1 = 0-8` (0 comm + 8 compute waves); `2 = 4-4` (4 comm + 4 compute waves); `3 = 8-0` (8 comm + 0 compute waves on dedicated comm CUs; names or codes accepted) | 0 | Per-CU wavefront ratio on MI308X: selects `(comm_waves - compute_waves)` across `0-8`, `4-4`, and `8-0` out of 8 waves per CU. | `csrc/jit_kernels/heuristics/weave_knob_config.hpp:94` | `deep_gemm/include/deep_gemm/impls/amd/ep8/megamoe_amd_ep8.hip:4` |
-| `WEAVE_REG_BALANCE` | Spatial | `0 = default (96/72/168)`; `1 = rebalanced (64/56/192) at E/rank > 64` | 0 | Per-SM register file ratio across warp roles: shifts spare dispatch/non-epilogue registers to epilogue warps (`64/56/192` vs `96/72/168`). | `csrc/jit_kernels/heuristics/weave_knob_config.hpp:161` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:1516` |
+| Parameter | Category | Values (`0` = default / auto) | Mechanism | Measured gain (same-batch ABBA) | Code (`host` / `kernel`) |
+|---|---|---|---|---|---|
+| `WEAVE_DISPATCH_ACTIVE_SMS` | Spatial | `0=auto`, `D=1..N` (`D != K`) | Active SMs/CUs pulling remote tokens; remaining SMs prefetch/compute immediately | **1.41x** MI308X EP16 (`auto` vs `2`: `1431->1015 us`); **1.007x** SM103 (`D=40`: `294.9->292.9 us`) | `csrc/jit_kernels/heuristics/weave_knob_config.hpp:173` / `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:4073` |
+| `WEAVE_SCATTER_ACTIVE_SMS` | Spatial | `0=auto`, `K=1..N` (`K != D`) | Active SMs/CUs draining async scatter queue; tail Combine still uses all SMs | **1.015x** MI308X EP16 (`1030->1015 us`); **1.013x** H20 `S=4K` (`K=39`: `5299->5233 us`) | `csrc/jit_kernels/impls/sm100_fp8_fp4_mega_moe.hpp:204` / `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:554` |
+| `WEAVE_DISPATCH_WARPS` | Spatial | `0=default`, `4`, `8` | Per-CTA communication warps assigned to remote token/scale pulling | **1.17x** H20 `S=16K` (`8` vs `4`: `1644->1403 us`, `-14.6%`) | `csrc/jit_kernels/heuristics/weave_knob_config.hpp:146` / `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:1134` |
+| `WEAVE_SCATTER_WARPS` | Spatial | `0=default`, `4`, `8` | Per-CTA communication warps/waves dedicated to async FC2 scatter | **1.17x** H20 `S=16K` (`1644->1405 us`); **1.04x** MI308X EP16 (`8` vs `4`: `1015->976 us`) | `csrc/jit_kernels/impls/sm100_fp8_fp4_mega_moe.hpp:195` / `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:529` |
+| `WEAVE_CU_WAVE_SPLIT` | Spatial | MI308X: `auto, 0-8, 4-4, 8-0`; H20: `auto/7-W, 5-E, 6-E` | MI308X per-CU 8-wave comm/compute split; H20 zero-`grid_sync` L1/L2 K-bitmap interleave | **2.15x** MI308X EP16 (`4-4` vs `0-8`: `2185->1015 us`); **1.053x** H20 `S=8K` (`926->880 us`) | `csrc/jit_kernels/heuristics/weave_knob_config.hpp:167` / `deep_gemm/include/deep_gemm/impls/amd/ep8/megamoe_amd_ep8.hip:80` |
 
 ### Temporal
 
-| Parameter | Category | Values (every accepted value is named) | Default | Mechanism | Host parse | Kernel consumption |
-|---|---|---|---|---|---|---|
-| `WEAVE_V_HEAD` | Temporal | `0 = automatic`; `N = head-pull task quota (tokens) before helping warps exit back to GEMM` | automatic | Head schedule: all warps help pull by default at layer start; controls how many pull tasks (tokens) helping non-comm warps complete before finishing and switching to GEMM. | `deep_gemm/include/deep_gemm/scheduler/weave_knobs.cuh:263` | `deep_gemm/include/deep_gemm/scheduler/weave_cost_model.cuh:30` |
-| `WEAVE_READY_GROUP_SIZE` | Temporal | `0 = full-expert readiness`; `N = group-granularity readiness publication (in BLOCK_M tiles)` | 0 | Head schedule: fine-grained arrival readiness group size so GEMM1 starts as soon as N tiles arrive without waiting for full experts. | `csrc/jit_kernels/impls/sm100_fp8_fp4_mega_moe.hpp:270` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:90` |
-| `WEAVE_READY_QUEUE` | Temporal | `0 = formula`: static heuristic formula over prefix-summed offsets; `1 = sm0_fifo`: SM 0 streaming scheduler dynamically pushes ready tiles across all regions into the global FIFO queue for CTA preemption (names or codes accepted) | 0 | Head/Middle task dispatch: selects static heuristic formula addressing vs SM 0 dedicated dynamic global FIFO work-stealing queue. | `csrc/jit_kernels/heuristics/weave_knob_config.hpp:85` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:386` |
-| `WEAVE_SCATTER_OWNER` | Temporal | `0 = epilogue_only`: epilogue warps issue every remote FC2 store; `1 = comm_only`: epilogue warps only stage locally and communication warps own every remote store (names or codes accepted) | 0 (auto `comm_only` when a staged path or a scatter SM throttle is requested) | Middle schedule: strict binary scatter role ownership (never mixes inline epilogue scatter with comm-warp scatter) to overlap FC2 scatter with ongoing GEMM. | `csrc/jit_kernels/heuristics/weave_knob_config.hpp:177` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:1444` |
-| `WEAVE_COMBINE_SYNC_CHUNK` | Temporal | `0 = global barrier before combine`; `16, 32, 64, 128 = chunked dedup combine sync granularity (tokens per chunk)` | 0 | Tail schedule: aggregates deduplicated sends into G-token chunks in local L2 and emits one cross-GPU release per chunk so all idle warps stream Combine reduction overlapping tail Scatter. | `csrc/jit_kernels/heuristics/weave_knob_config.hpp:129` | `deep_gemm/include/deep_gemm/impls/sm90_fp8_mega_moe.cuh:730` |
+| Parameter | Category | Values (`0` = default / auto) | Mechanism | Measured gain (same-batch ABBA) | Code (`host` / `kernel`) |
+|---|---|---|---|---|---|
+| `WEAVE_V_HEAD` | Temporal | `0=auto`, `N=1..65536` | Head cooperative helper-warp pull quota before compute warps enter GEMM1 | **1.088x** H20 `S=8K` (`4096`: `941.5->865.3 us`, `-8.1%`); **1.043x** MI308X (`1015->973 us`) | `csrc/jit_kernels/heuristics/weave_knob_config.hpp:177` / `deep_gemm/include/deep_gemm/scheduler/weave_cost_model.cuh:30` |
+| `WEAVE_READY_GROUP_SIZE` | Temporal | `0=full expert`, `1, 2, 4, 8, 16` | Fine-grained N-tile arrival publication so GEMM1 starts before full expert arrives | **1.030x** MI308X EP16 (`1` vs `16`: `1015->985 us`); **1.009x** H20 `S=4K` (`5337->5289 us`) | `csrc/jit_kernels/impls/sm100_fp8_fp4_mega_moe.hpp:131` / `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:111` |
+| `WEAVE_SCATTER_OWNER` | Temporal | `0=epilogue_only`, `1=comm_only` | Strict binary FC2 scatter ownership to overlap cross-GPU writes with ongoing GEMM | **1.14x** H20 `S=16K` (`comm_only`: `1244->1094 us`, `-12.0%`); **1.034x** MI308X (`1015->981 us`) | `csrc/jit_kernels/heuristics/weave_knob_config.hpp:260` / `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:1780` |
 
 ### Implementation
 
-| Parameter | Category | Values (every accepted value is named) | Default | Mechanism | Host parse | Kernel consumption |
-|---|---|---|---|---|---|---|
-| `WEAVE_PRECISION_MODE` | Implementation | `0 = fp8xfp4`; `1 = fp4xfp4`; `2 = fp8xfp8`; `3 = bf16` | 0 | Single-op numeric precision and tensor-core instruction format across GEMM1/GEMM2. | `deep_gemm/include/deep_gemm/scheduler/weave_knobs.cuh:273` | `deep_gemm/include/deep_gemm/scheduler/weave_cost_model.cuh:25` |
-| `WEAVE_ADAPT_BM` | Implementation | `0 = fixed layer-wide profile`; `1 = per-expert M-bucketed offline profile lookup` | 0 | Runtime per-expert lookup from M_e -> blockM, synchronously binding the offline-calibrated (blockM/N/K, mainloop_stages, epi_M/N/K, epi_stages) group. | `csrc/jit_kernels/heuristics/sm90_mega_moe.hpp:283` | `deep_gemm/include/deep_gemm/impls/sm90_fp8_mega_moe.cuh:591` |
-| `WEAVE_BLOCK_M_L1` | Implementation | `0 = auto lookup from M`; `16, 32, 64, 80, 96, 128, 192, 240, 256` | 0 | Independent GEMM1 (FC1) profile selector: choosing blockM synchronously locks GEMM1's paired blockN/K, mainloop TMA stages, and epilogue M/N/K & TMEM/reg stages. | `csrc/jit_kernels/heuristics/weave_knob_config.hpp:146` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:1091` |
-| `WEAVE_BLOCK_M_L2` | Implementation | `0 = auto lookup from M`; `16, 32, 64, 80, 96, 128, 192, 240, 256` | 0 | Independent GEMM2 (FC2) profile selector (decoupled from GEMM1): choosing blockM synchronously locks GEMM2's paired blockN/K, mainloop stages, and epilogue M/N/K & stages. | `csrc/jit_kernels/heuristics/weave_knob_config.hpp:149` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:1093` |
-| `WEAVE_REG_PULL_BYTES` | Implementation | `0 = TMA SMEM staging`; `1024, 2048, 4096 = per-warp bytes per pull chunk` (= `32, 64, 128 B` or `8, 16, 32` 32-bit regs per thread) | 0 | Independent Dispatch operator parameter: per-warp (32-lane) chunk width for zero-SMEM register-direct remote pulling (`uint4 regs[2/4/8]` per thread, freeing SMEM for deeper GEMM mainloop stages). | `csrc/jit_kernels/impls/sm100_fp8_fp4_mega_moe.hpp:272` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:122` |
-| `WEAVE_DEDUP_MODE` | Implementation | `0 = off` (per-slot pull); `1 = on` (pull each unique `(src_rank, token)` once over NVLink/xGMI, then fan out locally across all hit experts) | 0 | Independent Dispatch operator remote-pull deduplication: pulls a multi-hit remote token once and broadcasts it into all hit local expert slots. | `csrc/jit_kernels/impls/sm100_fp8_fp4_mega_moe.hpp:294` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:418` |
-| `WEAVE_SCATTER_STAGING` | Implementation | `0 = reg_2stage`: double-buffered register transfer; `1 = smem`: per-SM bank-conflict-free SMEM ring handoff; `2 = hbm_dedup`: L2-resident HBM buffer with bf16x2 atomic dedup (names or codes accepted) | 0 (auto `hbm_dedup` when `WEAVE_LOCAL_SCATTER_DEDUP=1`) | Independent Scatter operator staging implementation (`reg_2stage`, XOR-swizzled `smem`, or `hbm_dedup`). | `csrc/jit_kernels/heuristics/weave_knob_config.hpp:169` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:1450` |
-| `WEAVE_LOCAL_SCATTER_DEDUP` | Implementation | `0 = direct per-hit scatter`; `1 = bf16x2 local merge of multi-expert hits before send` | 0 | Independent Scatter operator local deduplication merging duplicate destination hits on the same GPU before NVLink/xGMI send. | `csrc/jit_kernels/impls/sm100_fp8_fp4_mega_moe.hpp:247` | `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:1433` |
+| Parameter | Category | Values (`0` = default / auto) | Mechanism | Measured gain (same-batch ABBA) | Code (`host` / `kernel`) |
+|---|---|---|---|---|---|
+| `WEAVE_PRECISION_MODE` | Implementation | `0=fp8xfp4`, `1=fp4xfp4`, `2=fp8`, `3=bf16` | Selects Tensor/Matrix Core numeric format and backend across GEMM1 & GEMM2 | **1.59x** SM103 `S=16K` (`fp4xfp4` vs `fp8xfp4`: `1038->654 us`); **1.010x** H20 `fp8` (`5276->5224 us`) | `csrc/jit_kernels/heuristics/weave_knob_config.hpp:389` / `deep_gemm/include/deep_gemm/scheduler/weave_cost_model.cuh:25` |
+| `WEAVE_GEMM1_CONFIG` | Implementation | `0=auto` or `BM[:STORE_BM[:BK[:ST[:EPI]]]]` (`16..256`; alias `WEAVE_BLOCK_M_L1`) | Independent FC1 tuple selector; locks paired `BN/BK/stages/epi_stages` (0-spill clamped) | **1.51x** H20 `S=16K` (`BM=128`: `1651->1091 us`, `-33.9%`); **1.047x** SM103 (`96,16`: `766->731 us`) | `csrc/jit_kernels/heuristics/weave_knob_config.hpp:113` / `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:1253` |
+| `WEAVE_GEMM2_CONFIG` | Implementation | `0=follow/auto` or `BM[...]` (`16..256`; alias `WEAVE_BLOCK_M_L2`) | Independent FC2 tuple selector decoupled from GEMM1 (e.g. `32/64` or `96,16` + `96,8`) | **1.036x** MI308X EP16 (`64` vs `32`: `1051->1015 us`); **1.025x** H20 `32/64` (`2234->2178 us`) | `csrc/jit_kernels/heuristics/weave_knob_config.hpp:116` / `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:1255` |
+| `WEAVE_REG_PULL_BYTES` | Implementation | `0=SMEM`, `1024, 2048, 4096` (NV), `8192` (MI308X) | Zero-SMEM register-direct remote pull width per warp/wavefront (frees SMEM/LDS stages) | **1.19x** MI308X EP16 (`8192` vs `1024`: `1212->1015 us`); **1.024x** SM103 (`4096`: `618.5->604.1 us`) | `csrc/jit_kernels/impls/sm100_fp8_fp4_mega_moe.hpp:135` / `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:143` |
+| `WEAVE_DEDUP_MODE` | Implementation | `0=off`, `1=on` (unset=arch default) | Remote pull deduplication: pulls unique `(src_rank, token)` once and fans out locally | **1.067x** H20 `S=16K` (`1644->1540 us`); **1.023x** MI308X EP16 (`1` vs `0`: `1038->1015 us`) | `csrc/jit_kernels/impls/sm100_fp8_fp4_mega_moe.hpp:170` / `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:443` |
+| `WEAVE_SCATTER_STAGING` | Implementation | `0=reg_2stage`, `1=smem`, `2=hbm_dedup` | Scatter staging data path (2-stage regs, XOR-swizzled SMEM ring, or L2/HBM dedup) | **1.14x** H20 `S=16K` (`smem` vs `reg_2stage`: `1244->1094 us`); **1.010x** MI308X (`1025->1015 us`) | `csrc/jit_kernels/heuristics/weave_knob_config.hpp:265` / `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:1786` |
 
-`num_shared_experts` is a Python/C++ API argument rather than an environment knob. Its default is `0` on every MegaMoE entry point; shared-expert buffers are allocated only when it is explicitly non-zero. The gate API (`bf16_mega_gate`) takes it explicitly together with `use_shared_as_routed`.
+### Retired internal knobs and legacy aliases
 
-## Baselines
+The public surface is strictly the **14 knobs** above (Spatial 5 / Temporal 3 / Implementation 6), and **every one of the 14 knobs delivers a verified positive speedup** in same-batch ABBA sweeps on its target regime. Six former knobs (`WEAVE_REDUCE_WARPS`, `WEAVE_COMBINE_SYNC_CHUNK`, `WEAVE_REG_BALANCE`, `WEAVE_LOCAL_SCATTER_DEDUP`, `WEAVE_SM0_STREAM_SCHED`, `WEAVE_READY_QUEUE`) are retired to internal compile-time macros (default `0`) and host diagnostics; `WEAVE_ADAPT_GEMM_CONFIG` (legacy alias `WEAVE_ADAPT_BM`) is likewise non-public—host shape-adaptive GEMM tuple selection is ALWAYS ON when `WEAVE_GEMM1_CONFIG=0` and `WEAVE_GEMM2_CONFIG=0` (`=0` stays accepted only as an internal canonical-tuple diagnostic). Transparent legacy aliases:
 
-Installation and benchmark scripts for official DeepGEMM, DeepEP + DeepGEMM,
-FlashInfer, SGLang, vLLM, and RCCL + AITER (1-stage and 2-stage CK) live under
-[baselines/README.md](baselines/README.md) and
-[baselines/README_zh.md](baselines/README_zh.md).
+- legacy `WEAVE_BLOCK_M_L1` -> `WEAVE_GEMM1_CONFIG`
+- legacy `WEAVE_BLOCK_M_L2` -> `WEAVE_GEMM2_CONFIG`
 
-    python baselines/run_b300_baselines.py --baseline all --dry-run
-    python baselines/run_h20_baselines.py --baseline all --dry-run
-    python baselines/run_mi308x_baselines.py --baseline all --ep 16 --dry-run
+`num_shared_experts` is a Python/C++ API argument (default `0`; shared-expert buffers are allocated only when non-zero).
 
-## Ablation and reproduction
+### Known limitations
 
-Progressive ablation scripts, cost-model vs. exhaustive-oracle evaluation, EPLB
-experiments, and WeaveProfiler timeline capture live under
-[ablation/README.md](ablation/README.md) and
-[ablation/README_zh.md](ablation/README_zh.md).
+Summary of measured and audited boundaries (full details in [docs/TUNABLE_PARAMETERS.md](docs/TUNABLE_PARAMETERS.md)):
 
-    python ablation/run_progressive_ablation.py --backend b300 --presets 0,1,2,3 --dry-run
-    python ablation/eval_cost_model_vs_oracle.py
-    python ablation/capture_weaveprofiler_timeline.py --trace result.sw_hw.perfetto.json.gz --out-png result.png
+**NVIDIA SM103**
 
-Geomean speedup across the 48 evaluated configurations vs. official baselines
-(paper Table IV):
+- The internal `WEAVE_LOCAL_SCATTER_DEDUP=1` pin (retired) near-livelocks (`81-363 ms` at `S=1024..8192`); do not enable on SM103.
+- Manual `BM=128` + `EPI=2` is clamped to `EPI=1` by the host (`BM128 epi2` spills `208 B/304 B`, whereas `BM128 epi1` and `BM80/96 epi2` compile with `0` spill). Legacy `WEAVE_ADAPT_GEMM_CONFIG=1` (`WEAVE_ADAPT_BM=1`, compat-only) previously triggered `misaligned address` at `S >= 4096` when driving device-side per-expert sub-tiling; the current always-on host adaptive selector binds launch-level tuples only.
+- Internal `WEAVE_REDUCE_WARPS > 0` is slower than `0` (`315-317 us` vs. `295 us` at `S=1024`); `WEAVE_REG_BALANCE=1` only activates at `E/rank > 64`; `WEAVE_CU_WAVE_SPLIT` is parsed as a no-op on SM103; online CTA-0 policy compiles in only with internal `WEAVE_SM0_STREAM_SCHED=1` or `WEAVE_READY_QUEUE=sm0_fifo`.
 
-| Platform | Weave | -S | -S-T | -S-T-C |
-|---|---:|---:|---:|---:|
-| NVIDIA SM103 (148-SM) | 1.301 | 1.192 | 1.010 | 0.996 |
-| NVIDIA H20 | 1.162 | 1.137 | 1.053 | 0.947 |
-| AMD MI308X EP16 | 2.147 | 1.808 | 1.537 | 1.362 |
+**NVIDIA H20**
 
-Combined with Expert-Parallel Load Balancing (EPLB, paper Table V): Weave
-achieves 1.274x speedup without EPLB; enabling EPLB alone gives 1.128x over the
-baseline, and enabling Weave on top of EPLB yields an additional 1.144x speedup.
+- 4-warpgroup Swap-AB launches show `~1e-8` BF16 last-bit repeat variance (`calc_diff ~ 3.55e-4 < 1e-3`, `cos > 0.9996` vs. FP32).
+- Decoupled split with `WEAVE_GEMM1_CONFIG=64` (`WEAVE_BLOCK_M_L1=64`) is rejected (split L1 spills); use `16`/`32` or fused equal `BM`. Pinned GEMM1/GEMM2 tuples override host adaptive selection.
+- Internal `WEAVE_REDUCE_WARPS=1/2` is `1.0-2.5%` slower than `0`; internal `WEAVE_COMBINE_SYNC_CHUNK > 0` is not part of any winner. On fused H20, `WEAVE_CU_WAVE_SPLIT` defaults to barrier-free `7-W` (legacy coarse-barrier modes `0..4` are rejected).
 
-## Build
+## Baselines, ablation, and verification gates
 
-Dependencies: CUDA 13.x or ROCm 7.x, CMake, a C++20 compiler, PyTorch, and the
-vendored CUTLASS headers (AMD builds also use `WEAVE_AITER_SITE` to point to
-external AITER headers).
+- **Launch scripts & baselines**: [examples/README.md](examples/README.md), [baselines/README.md](baselines/README.md), [ablation/README.md](ablation/README.md). Progressive 48-cell ablation (paper Table IV) reaches `1.301x / 1.162x / 2.147x` geomean speedup on SM103 / H20 / MI308X EP16 (`1.192x / 1.137x / 1.808x` without Spatial `-S`; `1.010x / 1.053x / 1.537x` without `-S-T`).
+- **AMD MI308X EP16 V70 build & autotune**: `python deep_gemm/include/deep_gemm/impls/amd/ep16/v70/build_v70.py --dry-run` (verifies source closure without ROCm) or `v70_autotune.py`.
+- **Repository verification gates**:
 
-    python -m pip install -e .
-
-Standalone NVIDIA kernel compilation checks:
-
-    nvcc -std=c++20 -ptx -arch=sm_90a -I deep_gemm/include         -I third-party/cutlass/include -I third-party/deep_jit/include         -x cu deep_gemm/include/deep_gemm/impls/sm90_fp8_mega_moe.cuh -o h20.ptx
-
-    nvcc -std=c++20 -ptx -arch=sm_100a -I deep_gemm/include         -I third-party/cutlass/include -I third-party/deep_jit/include         -x cu deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh -o sm103_fp8.ptx
-
-    nvcc -std=c++20 -ptx -arch=sm_100a -I deep_gemm/include         -I third-party/cutlass/include -I third-party/deep_jit/include         -x cu deep_gemm/include/deep_gemm/impls/sm100_fp4_fp4_mega_moe.cuh -o sm103_fp4.ptx
-
-AMD EP16 build:
-
-    cd deep_gemm/include/deep_gemm/impls/amd/ep16
-    WEAVE_PROFILER_LEVEL=0 python build_port.py
-
-## Verification gates
-
-Run from the repository root:
-
-    g++ -std=c++17 -O2 -Wall -Wextra -I deep_gemm/include         tests/test_cost_model_eq123.cpp -o test_cost_model
-    ./test_cost_model
-
-    for p in 0 1 2 3; do
-      g++ -std=c++17 -O2 -Wall -Wextra -I deep_gemm/include           -DWEAVE_ABLATION_PRESET=$p tests/test_ablation_presets.cpp           -o test_ablation_$p
-      ./test_ablation_$p
-    done
-
-    python tests/validate_cost_model_3hw.py
-    python tests/check_kernel_policy_wiring.py
+    python tools/gen_tunable_params_doc.py --check
     python tests/verify_tunable_params_doc.py
-    python -m py_compile baselines/*.py ablation/*.py
-    python ablation/eval_cost_model_vs_oracle.py
+    python tests/check_weave_knob_schema.py
+    python tests/test_21_weave_knobs_surface.py
+    python tests/test_no_inter_op_grid_sync.py
+    python tests/test_autotune_and_runtime_selector.py
+    python tests/test_ep16_v70_champion.py
 
 ## Citation
 
-If you find Weave useful in your research, please cite our paper:
-
-Ziyu Huang, Yangjie Zhou, Chenhao Zhu, Peng Yu, Zihan Liu, Jinyu Liu,
-Shulai Zhang, Xingxun Tang, Hongzhe Yan, Xinhao Luo, Minyi Guo, Xiu Lin,
-Yinghao Yu, Guodong Yang, Liping Zhang, Shixuan Sun, and Jingwen Leng.
-Weave: Fine-Grained Dynamic SM Scheduling in an MoE Megakernel for
-Compute-Communication Overlap. arXiv:2609.21483, 2026.
-<https://arxiv.org/abs/2609.21483>
+Ziyu Huang, Yangjie Zhou, Chenhao Zhu, Peng Yu, Zihan Liu, Jinyu Liu, Shulai Zhang, Xingxun Tang, Hongzhe Yan, Xinhao Luo, Minyi Guo, Xiu Lin, Yinghao Yu, Guodong Yang, Liping Zhang, Shixuan Sun, and Jingwen Leng. Weave: Fine-Grained Dynamic SM Scheduling in an MoE Megakernel for Compute-Communication Overlap. arXiv:2609.21483, 2026. <https://arxiv.org/abs/2609.21483>
 
     @misc{huang2026weavefinegraineddynamicsm,
           title={Weave: Fine-Grained Dynamic SM Scheduling in an MoE Megakernel for Compute-Communication Overlap},

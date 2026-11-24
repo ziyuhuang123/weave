@@ -22,3 +22,6 @@ stubs/
 
 # Symlinks to compiled extensions
 deep_gemm/*.so
+
+# Agent scratch space (remote harnesses, pulled artifacts, compile probes)
+.qwen_tmp/
