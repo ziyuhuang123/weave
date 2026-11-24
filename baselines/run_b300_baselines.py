@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Launch the official NVIDIA B300 baselines through one stable CLI.
+"""Launch the official NVIDIA SM103 baselines through one stable CLI.
 
 The script uses only the Python standard library. It validates the host,
 materialises a command plan, and executes the selected baseline. Use
@@ -124,8 +124,9 @@ def _check_gpu(allow_other: bool) -> None:
     import torch
     name = torch.cuda.get_device_name(0)
     print(json.dumps({"event": "gpu", "name": name}))
-    if "b300" not in name.lower() and not allow_other:
-        raise SystemExit(f"expected a B300 device, got {name!r}; pass --allow-other-gpu")
+    folded = name.lower()
+    if not ("b300" in folded or "sm103" in folded) and not allow_other:
+        raise SystemExit(f"expected an SM103 device, got {name!r}; pass --allow-other-gpu")
 
 
 def main() -> int:

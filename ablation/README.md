@@ -8,7 +8,19 @@ paper's ablation, cost-model, EPLB, and profiler studies. All scripts accept
 
 ## 1. Four-arm progressive ablation
 
-The four public arms are selected by one environment variable:
+Every arm is a complete preset over the 14 public `WEAVE_*` parameters (plus the accepted-but-not-public `WEAVE_ADAPT_GEMM_CONFIG`)
+(Spatial / Temporal / Implementation). The recorded tuned presets were measured
+together with the internal pins of the six knobs retired from the public surface
+(`WEAVE_SM0_STREAM_SCHED`, `WEAVE_REDUCE_WARPS`, `WEAVE_REG_BALANCE`,
+`WEAVE_READY_QUEUE`, `WEAVE_COMBINE_SYNC_CHUNK`, `WEAVE_LOCAL_SCATTER_DEDUP`), so
+the script keeps setting those pins verbatim (held in a separate `INTERNAL_PINS`
+table) to reproduce the arms; it sets no other internal variable. On NVIDIA
+backends the renamed knobs are exported under their public names
+(`WEAVE_GEMM1_CONFIG`, `WEAVE_GEMM2_CONFIG`, and the internal compat `WEAVE_ADAPT_GEMM_CONFIG`); on MI308X
+the script exports their legacy spellings (`WEAVE_ADAPT_BM`, `WEAVE_BLOCK_M_L1`,
+`WEAVE_BLOCK_M_L2`), which are the only spellings the MI308X build scripts read.
+`WEAVE_ABLATION_PRESET` is exported only as an arm label for harnesses that
+consume it directly.
 
 | Preset | Arm | Spatial search | Temporal overlap | Selective dedup |
 |---:|---|---:|---:|---:|
@@ -17,18 +29,39 @@ The four public arms are selected by one environment variable:
 | 2 | -S-T | fixed default ratio | off | on |
 | 3 | -S-T-C | fixed default ratio | off | off |
 
+Arm 0 copies the tuned per-platform presets from `examples/*.sh`. Each later
+arm only overrides the knobs that encode the removed feature:
+
+| Arm | Delta (all other knobs stay at the arm-0 preset) |
+|---|---|
+| `-S` | SM103: `WEAVE_SCATTER_WARPS=0`, `WEAVE_GEMM1_CONFIG=128`, `WEAVE_GEMM2_CONFIG=128`, `WEAVE_REG_PULL_BYTES=0` and the internal `WEAVE_REDUCE_WARPS=0` pin; H20: `WEAVE_GEMM1_CONFIG=0`, `WEAVE_GEMM2_CONFIG=0`; MI308X: `WEAVE_CU_WAVE_SPLIT=0-8` |
+| `-T` | `WEAVE_V_HEAD=65536`, `WEAVE_READY_GROUP_SIZE=0` (SM103) and the internal pins `WEAVE_READY_QUEUE=formula`, `WEAVE_COMBINE_SYNC_CHUNK=0` |
+| `-C` | `WEAVE_DEDUP_MODE=0` and the internal pin `WEAVE_LOCAL_SCATTER_DEDUP=0` |
+
 Run all arms on one platform:
 
     python ablation/run_progressive_ablation.py --backend b300 --presets 0,1,2,3 --dry-run
     python ablation/run_progressive_ablation.py --backend h20 --presets 0,1,2,3 --dry-run
     python ablation/run_progressive_ablation.py --backend mi308x --presets 0,1,2,3 --dry-run
 
+`--backend b300` and `--backend sm103` select the same SM103 (148-SM) runner.
+
+### SM103 Reduce-warp sweep
+
+`--reduce-warps` appends SM103-only steps that rerun the full Weave arm with
+each value of the internal `WEAVE_REDUCE_WARPS` pin (a comma-separated subset of 0, 1, 2, 4, 8):
+
+    python ablation/run_progressive_ablation.py --backend b300 --presets 0 --reduce-warps 0,1,2,4,8 --dry-run
+
+Each sweep step gets its own JIT cache directory (`jit_rw<v>`) so a cached
+object built for one Reduce-warp value cannot silently supply another.
+
 For MI308X execution, provide the standalone kernel driver:
 
     export WEAVE_MI308X_BENCH_RUNNER=/absolute/path/to/mi308x_runner
     python ablation/run_progressive_ablation.py --backend mi308x --presets 0,1,2,3
 
-Every preset gets its own DG_JIT_CACHE_DIR under results/ablation. This is
+Every step gets its own DG_JIT_CACHE_DIR under results/ablation. This is
 required because the preset changes generated macros; sharing a cache can hide
 which arm actually ran.
 

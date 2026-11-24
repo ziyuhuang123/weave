@@ -4,7 +4,7 @@
 The compact repository file data/routing_stats_3hw.json contains six real
 routing aggregates and a documented Zipf(0.9) per-expert split proxy. This
 script replays those aggregates through the pure-Python mirror of Eq.(1)-(3)
-for B300, H20, and MI308X. It reports candidate selection, predicted latency,
+for SM103, H20, and MI308X. It reports candidate selection, predicted latency,
 and the gap to the best predicted candidate.
 
 An optional --oracle-json can supply measured per-candidate latencies for a
@@ -180,6 +180,15 @@ def oracle_metrics(data: dict) -> dict:
     }
 
 
+def _report_path(path: Path) -> str:
+    """Repository-relative POSIX path for inputs inside the repository, so the
+    archived report does not change with the checkout location."""
+    try:
+        return Path(path).resolve().relative_to(ROOT).as_posix()
+    except ValueError:
+        return str(path)
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--routing", type=Path,
@@ -206,7 +215,7 @@ def main() -> int:
     oracle_data = load_oracle(args.oracle_json)
     report = {
         "schema": "weave-cost-model-vs-oracle/v1",
-        "routing_input": str(args.routing),
+        "routing_input": _report_path(args.routing),
         "routing_reality_boundary": routing.get("reality_boundary"),
         "local_replay": {
             "cells_per_platform": len(routing["cells"]),
@@ -229,7 +238,7 @@ def main() -> int:
         print(f"[PASS] {name}: cells={len(rows)} "
               f"model_oracle_matches={matches}/{len(rows)} "
               f"max_model_regret={worst:.4f}%")
-    print("[REFERENCE] B300 48-cell: 38/48 exact, 2.4% geomean regret, "
+    print("[REFERENCE] SM103 48-cell: 38/48 exact, 2.4% geomean regret, "
           "1.301x selected vs 1.332x oracle, 34.0% mean absolute latency error")
     if oracle_data:
         metrics = oracle_metrics(oracle_data)

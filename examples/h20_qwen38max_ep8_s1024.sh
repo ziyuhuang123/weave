@@ -1,9 +1,14 @@
 #!/usr/bin/env bash
+# EP8 example; not measured on the current revision; does not represent the README performance table.
+# The measured winners (4x EP4) are in examples/h20_qwen38max_ep4_s1024.sh.
 # -----------------------------------------------------------------------------
 # NVIDIA H20 (SM90, 78 SMs) / Qwen3.8-Max / EP8 / S=1024
 #
-# Tuned preset expressed strictly with the unified 21 WEAVE_* parameters
-# (Spatial / Temporal / Implementation). Selecting WEAVE_BLOCK_M_L1=32 and
+# Tuned preset expressed with the unified WEAVE_* parameters (15 public knobs:
+# Spatial / Temporal / Implementation, plus the internal pins of the retired knobs
+# this preset was measured with; WEAVE_ADAPT_BM / WEAVE_BLOCK_M_L1 / WEAVE_BLOCK_M_L2
+# are the legacy spellings of WEAVE_ADAPT_GEMM_CONFIG / WEAVE_GEMM1_CONFIG /
+# WEAVE_GEMM2_CONFIG and are accepted as transparent aliases). Selecting WEAVE_BLOCK_M_L1=32 and
 # WEAVE_BLOCK_M_L2=32 synchronously locks the paired BN=256, BK=128, swapAB,
 # 4-warpgroup epilogue, and runtime pipeline stage profile.
 # -----------------------------------------------------------------------------

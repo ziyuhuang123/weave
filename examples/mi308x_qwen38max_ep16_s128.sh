@@ -2,8 +2,12 @@
 # -----------------------------------------------------------------------------
 # AMD MI308X (gfx942, 80 CUs) / Qwen3.8-Max / EP16 / S=128 (2 nodes x 8 ranks)
 #
-# Tuned build + run preset expressed strictly with the unified 21 WEAVE_*
-# parameters (Spatial / Temporal / Implementation).
+# Tuned build + run preset expressed with the unified WEAVE_* parameters (15
+# public knobs: Spatial / Temporal / Implementation, plus the internal pins of the
+# retired knobs this preset was measured with).  The MI308X build scripts read only
+# the legacy spellings WEAVE_ADAPT_BM / WEAVE_BLOCK_M_L1 / WEAVE_BLOCK_M_L2 of
+# WEAVE_ADAPT_GEMM_CONFIG / WEAVE_GEMM1_CONFIG / WEAVE_GEMM2_CONFIG, so those
+# names are kept here on purpose.
 # -----------------------------------------------------------------------------
 set -euo pipefail
 

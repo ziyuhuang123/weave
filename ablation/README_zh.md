@@ -7,7 +7,16 @@
 
 ## 1. 四臂渐进消融
 
-四个公开实验臂由同一个环境变量选择：
+每个实验臂都是一份由 14 个公开 `WEAVE_*` 参数（空间 / 时间 / 实现，另加被兼容接受的非公开 `WEAVE_ADAPT_GEMM_CONFIG`）组成的完整
+预设。已记录的调优预设是连同 6 个已退出公开参数面的 knob 的内部开关
+（`WEAVE_SM0_STREAM_SCHED`、`WEAVE_REDUCE_WARPS`、`WEAVE_REG_BALANCE`、
+`WEAVE_READY_QUEUE`、`WEAVE_COMBINE_SYNC_CHUNK`、`WEAVE_LOCAL_SCATTER_DEDUP`）一起实测的，
+因此脚本原样保留这些开关（放在独立的 `INTERNAL_PINS` 表中）以复现各实验臂；除此之外
+不设置其他内部变量。在 NVIDIA 后端上，改名的 knob 以公开名导出
+（`WEAVE_GEMM1_CONFIG`、`WEAVE_GEMM2_CONFIG`，以及内部兼容名 `WEAVE_ADAPT_GEMM_CONFIG`）；在 MI308X 上
+脚本导出它们的旧名（`WEAVE_ADAPT_BM`、`WEAVE_BLOCK_M_L1`、`WEAVE_BLOCK_M_L2`），因为
+MI308X 构建脚本只读取这几个旧名拼写。`WEAVE_ABLATION_PRESET` 仅作为实验臂
+标签导出，供直接消费该变量的测试入口使用。
 
 | 预设 | 实验臂 | 空间搜索 | 时间重叠 | 选择性去重 |
 |---:|---|---:|---:|---:|
@@ -16,18 +25,39 @@
 | 2 | -S-T | 固定默认配比 | 关 | 开 |
 | 3 | -S-T-C | 固定默认配比 | 关 | 关 |
 
+实验臂 0 直接复用 `examples/*.sh` 中各平台的调优预设；后续实验臂只覆盖表达
+被移除特性的参数：
+
+| 实验臂 | 参数增量（其余参数保持实验臂 0 的取值） |
+|---|---|
+| `-S` | SM103：`WEAVE_SCATTER_WARPS=0`、`WEAVE_GEMM1_CONFIG=128`、`WEAVE_GEMM2_CONFIG=128`、`WEAVE_REG_PULL_BYTES=0`，以及内部开关 `WEAVE_REDUCE_WARPS=0`；H20：`WEAVE_GEMM1_CONFIG=0`、`WEAVE_GEMM2_CONFIG=0`；MI308X：`WEAVE_CU_WAVE_SPLIT=0-8` |
+| `-T` | `WEAVE_V_HEAD=65536`、`WEAVE_READY_GROUP_SIZE=0`（SM103），以及内部开关 `WEAVE_READY_QUEUE=formula`、`WEAVE_COMBINE_SYNC_CHUNK=0` |
+| `-C` | `WEAVE_DEDUP_MODE=0`，以及内部开关 `WEAVE_LOCAL_SCATTER_DEDUP=0` |
+
 在单一平台上运行全部实验臂：
 
     python ablation/run_progressive_ablation.py --backend b300 --presets 0,1,2,3 --dry-run
     python ablation/run_progressive_ablation.py --backend h20 --presets 0,1,2,3 --dry-run
     python ablation/run_progressive_ablation.py --backend mi308x --presets 0,1,2,3 --dry-run
 
+`--backend b300` 与 `--backend sm103` 选择同一个 SM103（148-SM）runner。
+
+### SM103 Reduce-warp 扫描
+
+`--reduce-warps` 会追加仅在 SM103 上生效的步骤，在完整 Weave 实验臂之上逐一
+设置内部开关 `WEAVE_REDUCE_WARPS`（取值为 0、1、2、4、8 的逗号分隔子集）：
+
+    python ablation/run_progressive_ablation.py --backend b300 --presets 0 --reduce-warps 0,1,2,4,8 --dry-run
+
+每个扫描步骤使用独立的 JIT 缓存目录（`jit_rw<v>`），避免为某个 Reduce-warp
+取值编译的缓存对象被另一个取值静默复用。
+
 MI308X 实际执行需要指定独立 kernel driver：
 
     export WEAVE_MI308X_BENCH_RUNNER=/absolute/path/to/mi308x_runner
     python ablation/run_progressive_ablation.py --backend mi308x --presets 0,1,2,3
 
-每个预设使用独立的 DG_JIT_CACHE_DIR，位于 results/ablation 下。预设会改变生成
+每个步骤使用独立的 DG_JIT_CACHE_DIR，位于 results/ablation 下。预设会改变生成
 宏，共享缓存可能掩盖实际执行的实验臂。
 
 ### 已验证的 48 格汇总（论文 Table IV）

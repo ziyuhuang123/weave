@@ -1,9 +1,14 @@
 #!/usr/bin/env bash
+# EP8 example; not measured on the current revision; does not represent the README performance table.
+# The measured winners (4x EP4) are in examples/sm103_qwen38max_ep4_s1024.sh.
 # -----------------------------------------------------------------------------
 # NVIDIA SM103 (148-SM) / Qwen3.8-Max / EP8 / S=1024
 #
-# Tuned preset expressed strictly with the unified 21 WEAVE_* parameters
-# (Spatial / Temporal / Implementation).
+# Tuned preset expressed with the unified WEAVE_* parameters (15 public knobs:
+# Spatial / Temporal / Implementation, plus the internal pins of the retired knobs
+# this preset was measured with; WEAVE_ADAPT_BM / WEAVE_BLOCK_M_L1 / WEAVE_BLOCK_M_L2
+# are the legacy spellings of WEAVE_ADAPT_GEMM_CONFIG / WEAVE_GEMM1_CONFIG /
+# WEAVE_GEMM2_CONFIG and are accepted as transparent aliases).
 # -----------------------------------------------------------------------------
 set -euo pipefail
 

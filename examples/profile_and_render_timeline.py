@@ -1,10 +1,21 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""Print the unified 3-axis WEAVE_* preset table and drive a preset / timeline render."""
+"""Print the unified 3-axis WEAVE_* preset table and drive a preset / timeline render.
+
+Every render is gated by tests/validate_weaveprofiler_trace.py. The trace is rejected
+before drawing when its Panel A curves are not real hardware-counter samples (nsys GPU
+metrics on NVIDIA, rocprof PMC on AMD; "Model estimate" / synthetic / analytic curves
+are refused), when a curve is missing, empty or leaves 0..100 %, when the NVLink / xGMI
+curve is flat zero, when a Combine / Reduce slice would be dropped or hidden, or when
+any drawn string would contain a forbidden display string. With WEAVE_REDUCE_WARPS > 0
+the Panel C comm tracks that reduce during Middle are labeled, e.g.
+"W02..W03 (Dispatch -> Streaming Reduce)". --validate-only stops after the gate.
+"""
 from __future__ import annotations
 
 import argparse
 import importlib.util
+import json
 import subprocess
 import sys
 from pathlib import Path
@@ -12,28 +23,24 @@ from pathlib import Path
 EXAMPLES_DIR = Path(__file__).resolve().parent
 ROOT = EXAMPLES_DIR.parent
 RENDERER = ROOT / "ablation" / "render_weaveprofiler_moe_timeline.py"
+VALIDATOR = ROOT / "tests" / "validate_weaveprofiler_trace.py"
 DEFAULT_OUT = ROOT / "docs" / "figures"
 
 BANNERS = {
     "sm103": (
-        "Spatial: WEAVE_DISPATCH_ACTIVE_SMS=0, WEAVE_SCATTER_ACTIVE_SMS=0, WEAVE_SM0_STREAM_SCHED=0, "
-        "WEAVE_DISPATCH_WARPS=4, WEAVE_SCATTER_WARPS=4, WEAVE_REDUCE_WARPS=4, WEAVE_REG_BALANCE=0.\n"
-        "Temporal: WEAVE_V_HEAD=0 (auto), WEAVE_READY_GROUP_SIZE=2, WEAVE_READY_QUEUE=formula, "
-        "WEAVE_SCATTER_OWNER=comm_only, WEAVE_COMBINE_SYNC_CHUNK=32.\n"
-        "Implementation: WEAVE_PRECISION_MODE=0 (fp8xfp4), WEAVE_ADAPT_BM=0, WEAVE_BLOCK_M_L1=64, "
-        "WEAVE_BLOCK_M_L2=64, WEAVE_REG_PULL_BYTES=4096, WEAVE_DEDUP_MODE=1, WEAVE_SCATTER_STAGING=smem, WEAVE_LOCAL_SCATTER_DEDUP=0."
+        "Spatial: WEAVE_DISPATCH_ACTIVE_SMS=40 (measured winner at S=1024); all other spatial knobs at their defaults.\n"
+        "Temporal: all knobs at their defaults.\n"
+        "Implementation: WEAVE_PRECISION_MODE=0 (fp8xfp4); all other implementation knobs at their defaults."
     ),
     "h20": (
-        "Spatial: WEAVE_DISPATCH_ACTIVE_SMS=0, WEAVE_SCATTER_ACTIVE_SMS=0, WEAVE_SM0_STREAM_SCHED=0, "
-        "WEAVE_DISPATCH_WARPS=0 (auto), WEAVE_REG_BALANCE=0; 78 SMs.\n"
-        "Temporal: WEAVE_V_HEAD=0 (auto), WEAVE_READY_GROUP_SIZE=0, WEAVE_READY_QUEUE=sm0_fifo, "
-        "WEAVE_SCATTER_OWNER=comm_only, WEAVE_COMBINE_SYNC_CHUNK=0.\n"
-        "Implementation: WEAVE_PRECISION_MODE=2 (fp8xfp8), WEAVE_ADAPT_BM=0, WEAVE_BLOCK_M_L1=32, "
-        "WEAVE_BLOCK_M_L2=32, WEAVE_DEDUP_MODE=1, WEAVE_SCATTER_STAGING=smem, WEAVE_LOCAL_SCATTER_DEDUP=0."
+        "Spatial: all knobs at their defaults; 78 SMs.\n"
+        "Temporal: WEAVE_SCATTER_OWNER=comm_only.\n"
+        "Implementation: WEAVE_PRECISION_MODE=2 (fp8xfp8), WEAVE_BLOCK_M_L1=32, WEAVE_BLOCK_M_L2=64, "
+        "WEAVE_SCATTER_STAGING=smem; all other implementation knobs at their defaults."
     ),
     "mi308x": (
-        "Spatial: WEAVE_SCATTER_ACTIVE_SMS=0, WEAVE_SM0_STREAM_SCHED=0, WEAVE_CU_WAVE_SPLIT=4-4 "
-        "(80 CUs, 4 comm + 4 compute waves/CU).\n"
+        "Spatial: WEAVE_DISPATCH_ACTIVE_SMS=0, WEAVE_SCATTER_ACTIVE_SMS=0, WEAVE_SM0_STREAM_SCHED=0, "
+        "WEAVE_CU_WAVE_SPLIT=4-4 (80 CUs; 4/4 hybrid CUs run 4 compute + 4 comm waves).\n"
         "Temporal: WEAVE_V_HEAD=0 (auto), WEAVE_SCATTER_OWNER=comm_only.\n"
         "Implementation: WEAVE_PRECISION_MODE=2 (fp8xfp8), WEAVE_ADAPT_BM=1, WEAVE_BLOCK_M_L1=0 (auto), "
         "WEAVE_BLOCK_M_L2=0 (auto), WEAVE_DEDUP_MODE=1, WEAVE_LOCAL_SCATTER_DEDUP=1."
@@ -43,57 +50,29 @@ BANNERS = {
 PRESETS = {
     "sm103": dict(
         platform="sm103",
-        title="NVIDIA SM103 (148-SM) / Qwen3.8-Max / EP8 / S=1024",
-        script="sm103_qwen38max_ep8_s1024.sh",
+        title="NVIDIA SM103 (148-SM) / 4x EP4 / E=256 top-8 H=7168 I=2048 / S=1024 (measured winner)",
+        script="sm103_qwen38max_ep4_s1024.sh",
         trace_env="WEAVE_SM103_TRACE / WEAVE_SM103_RESULT_ROOT",
         render=True,
         rows=[
-            ("Spatial", "WEAVE_DISPATCH_ACTIVE_SMS", "0", "all SMs participate in dispatch pull"),
-            ("Spatial", "WEAVE_SCATTER_ACTIVE_SMS", "0", "all SMs participate in scatter"),
-            ("Spatial", "WEAVE_SM0_STREAM_SCHED", "0", "CTA 0 comm warps pull/scatter normally"),
-            ("Spatial", "WEAVE_DISPATCH_WARPS", "4", "4 dispatch comm warps per CTA"),
-            ("Spatial", "WEAVE_SCATTER_WARPS", "4", "4 scatter comm warps per CTA"),
-            ("Spatial", "WEAVE_REDUCE_WARPS", "4", "dedicated fine-grained streaming Reduce warps in Middle"),
-            ("Spatial", "WEAVE_REG_BALANCE", "0", "default 96/72/168 register file ratio"),
-            ("Temporal", "WEAVE_V_HEAD", "0", "automatic head-pull quota before helping warps switch to GEMM"),
-            ("Temporal", "WEAVE_READY_GROUP_SIZE", "2", "2-tile group arrival readiness"),
-            ("Temporal", "WEAVE_READY_QUEUE", "formula", "static heuristic formula over prefix-summed offsets"),
-            ("Temporal", "WEAVE_SCATTER_OWNER", "comm_only", "strict communication-warp scatter ownership"),
-            ("Temporal", "WEAVE_COMBINE_SYNC_CHUNK", "32", "fine-grained per-chunk arrival readiness"),
-            ("Implementation", "WEAVE_PRECISION_MODE", "0", "fp8xfp4"),
-            ("Implementation", "WEAVE_ADAPT_BM", "0", "fixed profile"),
-            ("Implementation", "WEAVE_BLOCK_M_L1", "64", "GEMM1 blockM=64 profile"),
-            ("Implementation", "WEAVE_BLOCK_M_L2", "64", "GEMM2 blockM=64 profile"),
-            ("Implementation", "WEAVE_REG_PULL_BYTES", "4096", "4096B per-warp (32 regs/thread) zero-SMEM pull"),
-            ("Implementation", "WEAVE_DEDUP_MODE", "1", "remote pull dedup + local multi-expert fanout"),
-            ("Implementation", "WEAVE_SCATTER_STAGING", "smem", "per-SM SMEM handoff"),
-            ("Implementation", "WEAVE_LOCAL_SCATTER_DEDUP", "0", "direct per-hit scatter"),
+            ("Spatial", "WEAVE_DISPATCH_ACTIVE_SMS", "40", "only 40 SMs pull remote tokens (S=4096 -> 96, S=8192 -> default 0)"),
+            ("Implementation", "WEAVE_PRECISION_MODE", "0", "fp8xfp4 (default)"),
+            ("-", "all other public knobs", "default", "unset; WEAVE_REDUCE_WARPS > 0 is measured slower than 0"),
         ],
     ),
     "h20": dict(
         platform="h20",
-        title="NVIDIA H20 (SM90, 78 SMs) / Qwen3.8-Max / EP8 / S=1024",
-        script="h20_qwen38max_ep8_s1024.sh",
+        title="NVIDIA H20 (SM90, 78 SMs) / Qwen3.8-Max / 4x EP4 / S=1024 (measured tuned winner bm32_64)",
+        script="h20_qwen38max_ep4_s1024.sh",
         trace_env="WEAVE_H20_TRACE / WEAVE_H20_RESULT_ROOT",
         render=True,
         rows=[
-            ("Spatial", "WEAVE_DISPATCH_ACTIVE_SMS", "0", "all 78 SMs participate in dispatch"),
-            ("Spatial", "WEAVE_SCATTER_ACTIVE_SMS", "0", "all 78 SMs participate in scatter"),
-            ("Spatial", "WEAVE_SM0_STREAM_SCHED", "0", "CTA 0 comm warps participate normally"),
-            ("Spatial", "WEAVE_DISPATCH_WARPS", "0", "auto dispatch warp ratio"),
-            ("Spatial", "WEAVE_REG_BALANCE", "0", "default register balance"),
-            ("Temporal", "WEAVE_V_HEAD", "0", "automatic head-pull quota"),
-            ("Temporal", "WEAVE_READY_GROUP_SIZE", "0", "expert arrival readiness"),
-            ("Temporal", "WEAVE_READY_QUEUE", "sm0_fifo", "dynamic work-stealing FIFO queue"),
             ("Temporal", "WEAVE_SCATTER_OWNER", "comm_only", "communication warps own remote stores"),
-            ("Temporal", "WEAVE_COMBINE_SYNC_CHUNK", "0", "barrier combine sync"),
             ("Implementation", "WEAVE_PRECISION_MODE", "2", "fp8xfp8"),
-            ("Implementation", "WEAVE_ADAPT_BM", "0", "fixed profile"),
-            ("Implementation", "WEAVE_BLOCK_M_L1", "32", "GEMM1 blockM=32 (locks BN=256, BK=128, swapAB, 4 WGs)"),
-            ("Implementation", "WEAVE_BLOCK_M_L2", "32", "GEMM2 blockM=32 (locks BN=256, BK=128, swapAB, 4 WGs)"),
-            ("Implementation", "WEAVE_DEDUP_MODE", "1", "remote pull dedup + local multi-expert fanout"),
+            ("Implementation", "WEAVE_GEMM1_CONFIG", "32", "GEMM1 blockM=32 (decoupled split launch; legacy WEAVE_BLOCK_M_L1)"),
+            ("Implementation", "WEAVE_GEMM2_CONFIG", "64", "GEMM2 blockM=64 (decoupled split launch; legacy WEAVE_BLOCK_M_L2)"),
             ("Implementation", "WEAVE_SCATTER_STAGING", "smem", "per-SM XOR-swizzled SMEM handoff"),
-            ("Implementation", "WEAVE_LOCAL_SCATTER_DEDUP", "0", "direct per-hit scatter"),
+            ("-", "default column (CONFIG=default)", "p21", "comm_only + smem + WEAVE_ADAPT_GEMM_CONFIG=1 (legacy WEAVE_ADAPT_BM), fused launch"),
         ],
     ),
     "mi308x_ep8": dict(
@@ -104,16 +83,16 @@ PRESETS = {
         render=True,
         rows=[
             ("Spatial", "WEAVE_SCATTER_ACTIVE_SMS", "0", "all 80 CUs participate"),
-            ("Spatial", "WEAVE_SM0_STREAM_SCHED", "0", "CTA 0 waves participate normally"),
+            ("Spatial", "WEAVE_SM0_STREAM_SCHED", "0", "CTA 0 waves participate normally (internal pin, retired from the public surface)"),
             ("Spatial", "WEAVE_CU_WAVE_SPLIT", "4-4", "4 communication waves + 4 compute waves per CU"),
             ("Temporal", "WEAVE_V_HEAD", "0", "automatic opening pull quota"),
             ("Temporal", "WEAVE_SCATTER_OWNER", "comm_only", "communication waves own remote xGMI scatter"),
             ("Implementation", "WEAVE_PRECISION_MODE", "2", "fp8xfp8"),
-            ("Implementation", "WEAVE_ADAPT_BM", "1", "per-expert M-bucketed profile lookup"),
-            ("Implementation", "WEAVE_BLOCK_M_L1", "0", "auto from M_e"),
-            ("Implementation", "WEAVE_BLOCK_M_L2", "0", "auto from M_e"),
+            ("Implementation", "WEAVE_ADAPT_BM", "1", "adaptive GEMM config tier (legacy spelling of WEAVE_ADAPT_GEMM_CONFIG, read by the MI308X build)"),
+            ("Implementation", "WEAVE_BLOCK_M_L1", "0", "auto from M_e (legacy spelling of WEAVE_GEMM1_CONFIG)"),
+            ("Implementation", "WEAVE_BLOCK_M_L2", "0", "auto from M_e (legacy spelling of WEAVE_GEMM2_CONFIG)"),
             ("Implementation", "WEAVE_DEDUP_MODE", "1", "unique (src_rank, token) pull + local fanout"),
-            ("Implementation", "WEAVE_LOCAL_SCATTER_DEDUP", "1", "local bf16x2 merge before xGMI send"),
+            ("Implementation", "WEAVE_LOCAL_SCATTER_DEDUP", "1", "local bf16x2 merge before xGMI send (internal pin, retired from the public surface)"),
         ],
     ),
     "mi308x_ep16": dict(
@@ -127,9 +106,9 @@ PRESETS = {
             ("Temporal", "WEAVE_V_HEAD", "0", "automatic opening pull quota"),
             ("Temporal", "WEAVE_SCATTER_OWNER", "comm_only", "communication waves own remote GDA/xGMI scatter"),
             ("Implementation", "WEAVE_PRECISION_MODE", "2", "fp8xfp8"),
-            ("Implementation", "WEAVE_ADAPT_BM", "1", "per-expert M-bucketed profile lookup"),
+            ("Implementation", "WEAVE_ADAPT_BM", "1", "adaptive GEMM config tier (legacy spelling of WEAVE_ADAPT_GEMM_CONFIG, read by the MI308X build)"),
             ("Implementation", "WEAVE_DEDUP_MODE", "1", "unique (src_rank, token) pull + local fanout"),
-            ("Implementation", "WEAVE_LOCAL_SCATTER_DEDUP", "1", "node-partial local merge before inter-node send"),
+            ("Implementation", "WEAVE_LOCAL_SCATTER_DEDUP", "1", "node-partial local merge before inter-node send (internal pin, retired from the public surface)"),
         ],
     ),
 }
@@ -148,13 +127,21 @@ def print_table(preset_key: str) -> None:
     print("-" * 108)
 
 
-def load_renderer(path: Path):
-    spec = importlib.util.spec_from_file_location("weave_timeline_renderer_v2", path)
+def _load_module(path: Path, name: str):
+    spec = importlib.util.spec_from_file_location(name, path)
     if spec is None or spec.loader is None:
-        raise SystemExit(f"ERROR: cannot import renderer: {path}")
+        raise SystemExit(f"ERROR: cannot import {name}: {path}")
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
+
+
+def load_renderer(path: Path):
+    return _load_module(path, "weave_timeline_renderer_v3")
+
+
+def load_validator(path: Path):
+    return _load_module(path, "weave_trace_validator")
 
 
 def run_preset(preset_key: str) -> None:
@@ -163,7 +150,34 @@ def run_preset(preset_key: str) -> None:
     subprocess.run(["bash", str(script)], cwd=str(EXAMPLES_DIR), check=True)
 
 
-def render_preview(preset_key: str, trace: Path | None, out_dir: Path, renderer: Path) -> None:
+def validate_preview(preset_key: str, trace: Path | None, renderer: Path, validator: Path,
+                     report_json: Path | None = None, no_banner: bool = False) -> Path:
+    """Resolve the preset trace exactly as the renderer does and run every red line on it."""
+    p = PRESETS[preset_key]
+    platform = p["platform"]
+    if platform is None:
+        raise SystemExit("ERROR: this preset has no matching 3-panel preview renderer")
+    module = load_renderer(renderer)
+    if module.SHARED_BANNERS.get(platform) != BANNERS[platform]:
+        raise SystemExit(f"ERROR: driver banner and renderer SHARED_BANNERS disagree for {platform}")
+    resolved = Path(module.resolve_trace(module.platform_cfg(platform, trace=trace)))
+    vmod = load_validator(validator)
+    rep = vmod.validate_trace(resolved, platform=platform,
+                              config_banner="" if no_banner else BANNERS[platform],
+                              repro_script="" if no_banner else f"examples/{p['script']}", renderer=module)
+    vmod.print_report(rep)
+    if report_json is not None:
+        report_json.parent.mkdir(parents=True, exist_ok=True)
+        report_json.write_text(json.dumps([vmod._json_ready(rep)], ensure_ascii=False, indent=1), encoding="utf-8")
+        print(f"validation report -> {report_json}")
+    if not rep["ok"]:
+        rules = ", ".join(sorted({e["rule"] for e in rep["errors"]}))
+        raise SystemExit(f"ERROR: trace rejected by WeaveProfiler red line(s): {rules}")
+    return resolved
+
+
+def render_preview(preset_key: str, trace: Path | None, out_dir: Path, renderer: Path,
+                   no_banner: bool = False, title: str = "") -> None:
     p = PRESETS[preset_key]
     platform = p["platform"]
     if platform is None:
@@ -175,9 +189,13 @@ def render_preview(preset_key: str, trace: Path | None, out_dir: Path, renderer:
         sys.executable, str(renderer),
         "--platform", platform,
         "--out-dir", str(out_dir),
-        "--config-banner", BANNERS[platform],
-        "--repro-script", f"examples/{p['script']}",
     ]
+    if no_banner:
+        cmd += ["--no-banner"]
+    else:
+        cmd += ["--config-banner", BANNERS[platform], "--repro-script", f"examples/{p['script']}"]
+    if title:
+        cmd += ["--title", title]
     if trace is not None:
         cmd += ["--trace", str(trace)]
     subprocess.run(cmd, cwd=str(ROOT), check=True)
@@ -192,17 +210,29 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--no-render", dest="render", action="store_false")
     ap.add_argument("--out-dir", type=Path, default=DEFAULT_OUT)
     ap.add_argument("--renderer", type=Path, default=RENDERER)
+    ap.add_argument("--validator", type=Path, default=VALIDATOR)
+    ap.add_argument("--validate-only", action="store_true",
+                    help="run the WeaveProfiler red-line gate on the preset trace and stop")
+    ap.add_argument("--validation-json", type=Path, default=None, help="write the red-line report as JSON")
+    ap.add_argument("--no-banner", action="store_true",
+                    help="draw no parameter banner (how the delivered README figures were rendered)")
+    ap.add_argument("--title", default="",
+                    help="explicit figure title (the sm103 / h20 renderer presets already title the delivered 4x EP4 figures)")
     args = ap.parse_args(argv)
     print_table(args.preset)
     if args.run:
         run_preset(args.preset)
     p = PRESETS[args.preset]
     do_render = p["render"] if args.render is None else args.render
-    if args.preset == "mi308x_ep16" or not do_render:
+    if not args.validate_only and (args.preset == "mi308x_ep16" or not do_render):
         return 0
     if args.trace is not None and not args.trace.is_file():
         raise SystemExit(f"ERROR: trace not found: {args.trace}")
-    render_preview(args.preset, args.trace, args.out_dir, args.renderer)
+    resolved = validate_preview(args.preset, args.trace, args.renderer, args.validator, args.validation_json,
+                                no_banner=args.no_banner)
+    if args.validate_only:
+        return 0
+    render_preview(args.preset, resolved, args.out_dir, args.renderer, no_banner=args.no_banner, title=args.title)
     return 0
 
 

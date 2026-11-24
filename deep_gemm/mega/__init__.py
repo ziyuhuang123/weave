@@ -14,6 +14,9 @@ except Exception as exception:
     print(f'Failed to load mega kernels, please check your PyTorch version: {exception}')
 
 from .. import _C
+from . import precision as _precision
+from . import autotune as _autotune
+from .autotune import autotune_moe, get_runtime_selector as weave_autotune_selector  # noqa: F401
 
 
 class SymmBuffer:
@@ -22,9 +25,13 @@ class SymmBuffer:
                  num_max_tokens_per_rank: int, num_topk: int,
                  hidden: int, intermediate_hidden: int,
                  num_shared_experts: int = 0,
-                 mma_type: str = 'fp8xfp4',
+                 mma_type: Optional[str] = None,
                  activation: str = 'swiglu',
                  base: Optional['SymmBuffer'] = None):
+        # Precision: explicit `mma_type` > WEAVE_PRECISION_MODE > 'fp8xfp4' (`None` / 'auto' =
+        # not specified), validated against the current GPU before anything is allocated
+        mma_type = _precision.resolve_symm_buffer_mma_type(mma_type, _precision.current_gpu_arch())
+
         # Align token count
         num_max_tokens_per_rank = align(num_max_tokens_per_rank, _C.get_token_alignment_for_mega_moe(mma_type))
 
@@ -101,8 +108,11 @@ def get_symm_buffer_for_mega_moe(group: dist.ProcessGroup,
                                  hidden: int, intermediate_hidden: int,
                                  num_shared_experts: int = 0,
                                  use_fp8_dispatch: Union[bool, None] = None,
-                                 mma_type: str = 'fp8xfp4',
+                                 mma_type: Optional[str] = None,
                                  activation: str = 'swiglu') -> SymmBuffer:
+    # Resolve first so the legacy `use_fp8_dispatch` check sees the effective precision
+    mma_type = _precision.resolve_symm_buffer_mma_type(mma_type, _precision.current_gpu_arch())
+
     # Backward compat: derive `mma_type` from `use_fp8_dispatch` if provided
     if use_fp8_dispatch is not None:
         assert use_fp8_dispatch == (mma_type.split('x')[0] == 'fp8')
@@ -514,33 +524,30 @@ def fp8_mega_moe(y: torch.Tensor,
         activation, activation_clamp,
         fast_math
     )
-WEAVE_PRECISION_MODES = ("fp8xfp4", "fp4xfp4", "nvfp4", "fp8", "fp8xfp8", "bf16")
-_PRECISION_ENV_TO_NAME = {
-    "0": "fp8xfp4", "1": "fp4xfp4", "2": "fp8", "3": "bf16",
-}
+
+
+# Every accepted WEAVE_PRECISION_MODE / mma_type spelling (superset of the historical tuple).
+WEAVE_PRECISION_MODES = _precision.ACCEPTED_SPELLINGS
 
 
 def _precision_mode_from_env() -> Optional[str]:
-    """Read the public precision selector before any legacy spelling."""
-    raw = os.environ.get("WEAVE_PRECISION_MODE")
-    if raw is None:
-        raw = os.environ.get("WEAVE_KNOB_PRECISION_MODE")
-    if raw is None or not str(raw).strip():
-        return None
-    value = str(raw).strip().lower()
-    return _PRECISION_ENV_TO_NAME.get(value, value)
+    """Canonical precision from WEAVE_PRECISION_MODE (then WEAVE_KNOB_PRECISION_MODE), or None."""
+    found = _precision.precision_from_env()
+    return None if found is None else found[0]
 
 
 def _normalize_mma_type(mma_type: str) -> str:
-    key = str(mma_type).strip().lower()
-    if key == "nvfp4":
-        return "fp4xfp4"
-    if key == "fp8xfp8":
-        return "fp8"
-    if key not in ("fp8xfp4", "fp4xfp4", "fp8", "bf16"):
-        raise ValueError(
-            f"mma_type must be one of {WEAVE_PRECISION_MODES}, got {mma_type!r}")
-    return key
+    """Canonical precision name: 'fp8xfp4', 'fp4xfp4', 'fp8xfp8' or 'bf16'."""
+    return _precision.canonical_precision(mma_type)
+
+
+def _buffer_precision(sym_buffer) -> Optional[str]:
+    """Backend precision a symmetric buffer was built for (None if unknown)."""
+    if isinstance(sym_buffer, SM90SymmBuffer):
+        return "fp8xfp8"
+    if isinstance(sym_buffer, SymmBuffer):
+        return _precision.symm_buffer_precision(sym_buffer.mma_type)
+    return None
 
 
 def weave_mega_moe(y: torch.Tensor,
@@ -550,42 +557,55 @@ def weave_mega_moe(y: torch.Tensor,
                    mma_type: Optional[str] = None,
                    *,
                    precision_mode: Optional[str] = None,
+                   routing_stats=None,
+                   num_global_tokens: Optional[int] = None,
                    **kwargs):
     """Unified MegaMoE entry point for B300 / H20 / MI308X.
 
-    ``mma_type`` is the single first-class precision switch:
+    ``mma_type`` is the single first-class precision switch (``WEAVE_PRECISION_MODE``
+    codes in brackets; spellings are case-insensitive):
 
-    ============  =========================================================
-    mma_type      dispatched kernel
-    ============  =========================================================
-    ``fp8xfp4``   B300 SM100/SM103 ``sm100_fp8_fp4_mega_moe.cuh``
-    ``fp4xfp4``   B300 NVFP4 ``sm100_fp4_fp4_mega_moe.cuh``
-    ``nvfp4``     alias of ``fp4xfp4``
-    ``fp8``       H20 SM90 ``sm90_fp8_mega_moe.cuh``
-    ``bf16``      B300 BF16 ``sm100_bf16_mega_moe.cuh``
-    ============  =========================================================
+    =====================  =====================================================
+    mma_type               dispatched kernel
+    =====================  =====================================================
+    ``fp8xfp4`` [0]        SM10x (SM100 / SM103) ``sm100_fp8_fp4_mega_moe.cuh``
+    ``fp4xfp4`` [1]        SM10x NVFP4 ``sm100_fp4_fp4_mega_moe.cuh`` (alias ``nvfp4``)
+    ``fp8xfp8`` [2]        H20 SM90 ``sm90_fp8_mega_moe.cuh`` (alias ``fp8``)
+    ``bf16`` [3]           SM10x BF16 ``sm100_bf16_mega_moe.cuh`` (alias ``bf16xbf16``)
+    =====================  =====================================================
 
-    ``precision_mode`` is accepted as an explicit alias so callers can wire a
-    CLI/config value without translating names.  All keyword arguments are
-    forwarded to the selected backend unchanged, so the existing DeepGEMM
-    functions remain 100% intact.
+    Precedence: ``mma_type`` / ``precision_mode`` (must agree when both are given)
+    > ``WEAVE_PRECISION_MODE`` > the precision the symmetric buffer was built for.
+    ``None`` and ``'auto'`` mean "not specified".  The resolved precision is
+    checked against the GPU (SM10x: 0/1/3, SM90: 2) and against the buffer: a
+    buffer built for another precision has a different layout, so a mismatch
+    raises ``ValueError`` instead of launching a kernel on the wrong layout.
+    All keyword arguments are forwarded to the selected backend unchanged, so
+    the existing DeepGEMM functions remain 100% intact.
+
+    Zero-config tuning (``deep_gemm/mega/autotune.py``): when no WEAVE_* tuning
+    variable is set, the launch uses the calibrated profile written by
+    ``python -m deep_gemm.mega.autotune`` for this GPU / EP size / MoE shape
+    (bucket nearest to ``S_global = tokens * EP``, adapted by the four calibrated
+    routing rules on eager calls), or architecture-family cold-start defaults
+    when no profile exists.  Explicit WEAVE_* variables always win (manual
+    mode); ``WEAVE_AUTOTUNE=0`` keeps the compiled defaults.  ``routing_stats``
+    (an ``autotune.RoutingStats`` or its dict) skips the on-device statistics
+    pass; ``num_global_tokens`` overrides ``tokens * EP`` when ranks hold
+    different token counts (all ranks must pass the same value).
     """
-    if mma_type is None:
-        if precision_mode is None:
-            mma_type = _precision_mode_from_env()
-        else:
-            mma_type = precision_mode
-    if mma_type is None:
-        mma_type = getattr(sym_buffer, "mma_type", None)
-    elif precision_mode is not None and (
-            _normalize_mma_type(mma_type) != _normalize_mma_type(precision_mode)):
-        raise ValueError(
-            f"mma_type={mma_type!r} conflicts with precision_mode={precision_mode!r}")
-    if mma_type is None:
-        raise ValueError(
-            "weave_mega_moe requires mma_type or a symmetric buffer with mma_type")
+    device = y.device if isinstance(y, torch.Tensor) else None
+    mode = _precision.resolve_weave_precision(
+        mma_type, precision_mode, buffer_precision=_buffer_precision(sym_buffer),
+        arch=_precision.current_gpu_arch(device))
+    if mode in ("fp8xfp4", "fp8xfp8") and isinstance(sym_buffer, (SymmBuffer, SM90SymmBuffer)):
+        selection = _autotune.select_launch_env(sym_buffer, y, mode, routing_stats, num_global_tokens)
+        with _autotune.scoped_env(selection.env):
+            return _weave_dispatch(mode, y, l1_weights, l2_weights, sym_buffer, kwargs)
+    return _weave_dispatch(mode, y, l1_weights, l2_weights, sym_buffer, kwargs)
 
-    mode = _normalize_mma_type(mma_type)
+
+def _weave_dispatch(mode, y, l1_weights, l2_weights, sym_buffer, kwargs):
     if mode == "fp8xfp4":
         if not isinstance(sym_buffer, SymmBuffer):
             raise ValueError("fp8xfp4 requires a SymmBuffer")
@@ -594,12 +614,12 @@ def weave_mega_moe(y: torch.Tensor,
         if not isinstance(sym_buffer, SymmBuffer) or sym_buffer.mma_type != "fp4xfp4":
             raise ValueError("fp4xfp4/NVFP4 requires an fp4xfp4 SymmBuffer")
         return fp4_fp4_mega_moe(y, l1_weights, l2_weights, sym_buffer, **kwargs)
-    if mode == "fp8":
+    if mode == "fp8xfp8":
         if not isinstance(sym_buffer, SM90SymmBuffer):
-            raise ValueError("fp8 (SM90) requires an SM90SymmBuffer")
+            raise ValueError("fp8xfp8 (SM90) requires an SM90SymmBuffer")
         return fp8_mega_moe(y, l1_weights, l2_weights, sym_buffer, **kwargs)
-    if not isinstance(sym_buffer, SymmBuffer):
-        raise ValueError("bf16 requires a SymmBuffer")
+    if not isinstance(sym_buffer, SymmBuffer) or sym_buffer.mma_type != "bf16xbf16":
+        raise ValueError("bf16 requires a bf16xbf16 SymmBuffer")
     return bf16_mega_moe(y, l1_weights, l2_weights, sym_buffer, **kwargs)
 
 
@@ -625,18 +645,26 @@ from .cost_model import (  # noqa: E402
 
 
 # ---------------------------------------------------------------------------
-# Unified Spatial / Temporal / Implementation knob space.
+# Unified Spatial / Temporal / Implementation knob space: 14 public knobs
+# (Spatial 5, Temporal 3, Implementation 6).  The six retired knobs stay internal
+# macros / diagnostics, WEAVE_ADAPT_GEMM_CONFIG / WEAVE_ADAPT_BM stay accepted but
+# are not public (host shape-adaptive GEMM tuple selection is always on), and the
+# two renamed GEMM1/GEMM2 knobs keep their legacy environment
+# names as transparent aliases (see deep_gemm/mega/knobs.py).
 # ---------------------------------------------------------------------------
 from .knobs import (  # noqa: E402
     KNOBS as WEAVE_KNOBS,
     REQUIRED as WEAVE_KNOB_REQUIRED,
+    CATEGORIES as WEAVE_KNOB_CATEGORIES,
+    RETIRED_INTERNAL as WEAVE_KNOB_RETIRED_INTERNAL,
+    LEGACY_ALIASES as WEAVE_KNOB_LEGACY_ALIASES,
     by_name as weave_knob_by_name,
     as_dicts as weave_knob_dicts,
 )
 
 
 def get_weave_knob_schema():
-    """Return the public knob schema (name, category, values, mechanism)."""
+    """Return the public knob schema (name, category, values, mechanism) of the 14 public knobs."""
     try:
         return _C.weave_knobs.schema()
     except AttributeError:
@@ -648,9 +676,13 @@ def get_weave_knob_names():
     return [entry["name"] for entry in get_weave_knob_schema()]
 
 
-def get_weave_knob_defaults(mma_type: str = "fp8xfp4"):
-    """Return the compiled defaults for one backend/precision selection."""
+def get_weave_knob_defaults(mma_type: Optional[str] = "fp8xfp4"):
+    """Return the compiled defaults for one backend/precision selection.
+
+    Any WEAVE_PRECISION_MODE spelling is accepted; ``None`` / ``'auto'`` follow the
+    environment, and ``'mi308x'`` selects the MI308X defaults.
+    """
     try:
-        return dict(_C.weave_knobs.defaults(mma_type))
+        return dict(_C.weave_knobs.defaults(_precision.knob_defaults_key(mma_type)))
     except AttributeError:
         return {k.name: k.default for k in WEAVE_KNOBS}
