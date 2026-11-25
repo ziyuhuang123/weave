@@ -2,7 +2,7 @@
 
 # Weave: Routing-Adaptive Dynamic Scheduling & Turnkey Autotuning for MoE Megakernels
 
-Weave is a **routing-adaptive, barrier-free (zero inter-operator `grid_sync`) fused MoE megakernel** implemented in unified C++/CUDA/HIP ([Weave: Fine-Grained Dynamic SM Scheduling in an MoE Megakernel for Compute-Communication Overlap](https://arxiv.org/abs/2609.21483)), supporting **NVIDIA SM100 / SM103**, **NVIDIA H20 (SM90)**, and **AMD MI308X (CDNA3 gfx942)**. Through **one-time compile-time calibration + zero-env runtime selection**, Weave drives a unified **14-knob surface (Spatial 5 / Temporal 3 / Implementation 6)** to overlap cross-GPU communication with Tensor/Matrix Core execution at fine granularity.
+Weave is a **routing-adaptive, barrier-free (zero inter-operator `grid_sync`) fused MoE megakernel** implemented in unified C++/CUDA/HIP ([Weave: Routing-Adaptive Runtime Warp Scheduling for MoE Megakernels](https://arxiv.org/pdf/2611.27765)), supporting **NVIDIA SM100 / SM103**, **NVIDIA H20 (SM90)**, and **AMD MI308X (CDNA3 gfx942)**. Through **one-time compile-time calibration + zero-env runtime selection**, Weave drives a unified **14-knob surface (Spatial 5 / Temporal 3 / Implementation 6)** to overlap cross-GPU communication with Tensor/Matrix Core execution at fine granularity.
 
 ## Architecture and cross-hardware role partitioning
 
@@ -160,14 +160,14 @@ Summary of measured and audited boundaries (full details in [docs/TUNABLE_PARAME
 
 ## Citation
 
-Ziyu Huang, Yangjie Zhou, Chenhao Zhu, Peng Yu, Zihan Liu, Jinyu Liu, Shulai Zhang, Xingxun Tang, Hongzhe Yan, Xinhao Luo, Minyi Guo, Xiu Lin, Yinghao Yu, Guodong Yang, Liping Zhang, Shixuan Sun, and Jingwen Leng. Weave: Fine-Grained Dynamic SM Scheduling in an MoE Megakernel for Compute-Communication Overlap. arXiv:2609.21483, 2026. <https://arxiv.org/abs/2609.21483>
+Ziyu Huang, Yangjie Zhou, Chenhao Zhu, Hongzhe Yan, Tianwei Qiao, Sicheng He, Zihan Liu, Peng Yu, Shulai Zhang, Xingxun Tang, Xinhao Luo, Minyi Guo, Xiu Lin, Yinghao Yu, Guodong Yang, Liping Zhang, Shixuan Sun, Qingyun Chen, and Jingwen Leng. Weave: Routing-Adaptive Runtime Warp Scheduling for MoE Megakernels. arXiv:2611.27765, 2026. [PDF](https://arxiv.org/pdf/2611.27765) | [arXiv](https://arxiv.org/abs/2611.27765)
 
-    @misc{huang2026weavefinegraineddynamicsm,
-          title={Weave: Fine-Grained Dynamic SM Scheduling in an MoE Megakernel for Compute-Communication Overlap},
-          author={Ziyu Huang and Yangjie Zhou and Chenhao Zhu and Peng Yu and Zihan Liu and Jinyu Liu and Shulai Zhang and Xingxun Tang and Hongzhe Yan and Xinhao Luo and Minyi Guo and Xiu Lin and Yinghao Yu and Guodong Yang and Liping Zhang and Shixuan Sun and Jingwen Leng},
+    @misc{huang2026weaveroutingadaptiveruntimewarp,
+          title={Weave: Routing-Adaptive Runtime Warp Scheduling for MoE Megakernels},
+          author={Ziyu Huang and Yangjie Zhou and Chenhao Zhu and Hongzhe Yan and Tianwei Qiao and Sicheng He and Zihan Liu and Peng Yu and Shulai Zhang and Xingxun Tang and Xinhao Luo and Minyi Guo and Xiu Lin and Yinghao Yu and Guodong Yang and Liping Zhang and Shixuan Sun and Qingyun Chen and Jingwen Leng},
           year={2026},
-          eprint={2609.21483},
+          eprint={2611.27765},
           archivePrefix={arXiv},
           primaryClass={cs.DC},
-          url={https://arxiv.org/abs/2609.21483},
+          url={https://arxiv.org/pdf/2611.27765},
     }

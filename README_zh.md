@@ -2,7 +2,7 @@
 
 # Weave：面向 MoE Megakernel 的路由自适应动态调度与自动调参系统
 
-Weave 是一个面向 MoE 推理的**路由自适应、无算子间全局栅栏（Zero Inter-Op `grid_sync`）融合 Megakernel**（C++/CUDA/HIP 统一实现，论文：[Weave: Fine-Grained Dynamic SM Scheduling in an MoE Megakernel for Compute-Communication Overlap](https://arxiv.org/abs/2609.21483)），支持 **NVIDIA SM100 / SM103**、**NVIDIA H20（SM90）** 与 **AMD MI308X（CDNA3 gfx942）**。系统通过**编译期一次性自动定标 + 运行时零环境变量选参**，驱动统一的 **14 个公开参数（空间 5 / 时间 3 / 实现 6）**，将跨卡通信与 Tensor/Matrix Core 计算细粒度重叠。
+Weave 是一个面向 MoE 推理的**路由自适应、无算子间全局栅栏（Zero Inter-Op `grid_sync`）融合 Megakernel**（C++/CUDA/HIP 统一实现，论文：[Weave: Routing-Adaptive Runtime Warp Scheduling for MoE Megakernels](https://arxiv.org/pdf/2611.27765)），支持 **NVIDIA SM100 / SM103**、**NVIDIA H20（SM90）** 与 **AMD MI308X（CDNA3 gfx942）**。系统通过**编译期一次性自动定标 + 运行时零环境变量选参**，驱动统一的 **14 个公开参数（空间 5 / 时间 3 / 实现 6）**，将跨卡通信与 Tensor/Matrix Core 计算细粒度重叠。
 
 ## 架构概览与跨硬件角色切分
 
@@ -160,14 +160,14 @@ Weave 消除算子间粗粒度全局屏障（`Notify->Pull`、`GEMM1->GEMM2`、`
 
 ## 引用
 
-Ziyu Huang, Yangjie Zhou, Chenhao Zhu, Peng Yu, Zihan Liu, Jinyu Liu, Shulai Zhang, Xingxun Tang, Hongzhe Yan, Xinhao Luo, Minyi Guo, Xiu Lin, Yinghao Yu, Guodong Yang, Liping Zhang, Shixuan Sun, and Jingwen Leng. Weave: Fine-Grained Dynamic SM Scheduling in an MoE Megakernel for Compute-Communication Overlap. arXiv:2609.21483, 2026. <https://arxiv.org/abs/2609.21483>
+Ziyu Huang, Yangjie Zhou, Chenhao Zhu, Hongzhe Yan, Tianwei Qiao, Sicheng He, Zihan Liu, Peng Yu, Shulai Zhang, Xingxun Tang, Xinhao Luo, Minyi Guo, Xiu Lin, Yinghao Yu, Guodong Yang, Liping Zhang, Shixuan Sun, Qingyun Chen, and Jingwen Leng. Weave: Routing-Adaptive Runtime Warp Scheduling for MoE Megakernels. arXiv:2611.27765, 2026. [PDF](https://arxiv.org/pdf/2611.27765) | [arXiv](https://arxiv.org/abs/2611.27765)
 
-    @misc{huang2026weavefinegraineddynamicsm,
-          title={Weave: Fine-Grained Dynamic SM Scheduling in an MoE Megakernel for Compute-Communication Overlap},
-          author={Ziyu Huang and Yangjie Zhou and Chenhao Zhu and Peng Yu and Zihan Liu and Jinyu Liu and Shulai Zhang and Xingxun Tang and Hongzhe Yan and Xinhao Luo and Minyi Guo and Xiu Lin and Yinghao Yu and Guodong Yang and Liping Zhang and Shixuan Sun and Jingwen Leng},
+    @misc{huang2026weaveroutingadaptiveruntimewarp,
+          title={Weave: Routing-Adaptive Runtime Warp Scheduling for MoE Megakernels},
+          author={Ziyu Huang and Yangjie Zhou and Chenhao Zhu and Hongzhe Yan and Tianwei Qiao and Sicheng He and Zihan Liu and Peng Yu and Shulai Zhang and Xingxun Tang and Xinhao Luo and Minyi Guo and Xiu Lin and Yinghao Yu and Guodong Yang and Liping Zhang and Shixuan Sun and Qingyun Chen and Jingwen Leng},
           year={2026},
-          eprint={2609.21483},
+          eprint={2611.27765},
           archivePrefix={arXiv},
           primaryClass={cs.DC},
-          url={https://arxiv.org/abs/2609.21483},
+          url={https://arxiv.org/pdf/2611.27765},
     }
