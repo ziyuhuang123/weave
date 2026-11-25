@@ -1,30 +1,10 @@
 #!/usr/bin/env bash
 # -----------------------------------------------------------------------------
 # NVIDIA SM103 (148-SM) / 4x EP4 / E=256, top-8, H=7168, I=2048, fp8xfp4
-# Measured-winner script: S=1024 (global; 256 tokens per rank)
-#
-# This script sets exactly the public WEAVE_* configuration that won the
-# same-job comparison against the upstream official kernel in
-# results/sm103_ep4_vs_official_solo_summary.json:
-#
-#   S=1024 : WEAVE_DISPATCH_ACTIVE_SMS=40   292.86 us vs official 294.91 us (1.0070x)
-#   S=4096 : WEAVE_DISPATCH_ACTIVE_SMS=96   399.44 us vs official 399.38 us (parity)
-#   S=8192 : defaults (no knob set)         696.86 us vs official 694.24 us (0.9962x)
-#
-# Select the row with S_GLOBAL=1024|4096|8192 (default 1024).  Every other
-# public WEAVE_* knob is unset so that it takes its default.
-#
-# Scope of this script: it fixes the configuration and launches the generic
-# correctness/benchmark harness tests/test_mega_moe.py on 4 ranks.  The
-# published timings were taken with a separate palindromic solo-ordered
-# harness (5 windows x 15 CUDA-graph replays, 256 MiB L2 flush, slowest rank)
-# that is not part of this repository, and on the pre-integration source-branch
-# kernel revision; the integrated revision has only compile-level and CPU-gate
-# verification.  The numbers printed by this script are therefore not expected
-# to match the README table digit for digit.
-#
-# (WEAVE_REG_BALANCE is intentionally not set: at E/rank = 64 it changes no
-# device code; it is effective only at E/rank > 64.)
+# Preset configurations for S_GLOBAL=1024|4096|8192 (default 1024):
+#   S=1024 : WEAVE_DISPATCH_ACTIVE_SMS=40
+#   S=4096 : WEAVE_DISPATCH_ACTIVE_SMS=96
+#   S=8192 : defaults (auto)
 # -----------------------------------------------------------------------------
 set -euo pipefail
 

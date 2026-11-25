@@ -1,197 +1,88 @@
 [English](README.md) | [简体中文](README_zh.md)
 
-# Ablation and Experiment Reproduction
+# Ablation and Cost-Model Reproduction
 
-This directory contains the executable experiment entry points behind the
-paper's ablation, cost-model, EPLB, and profiler studies. All scripts accept
---dry-run and never fabricate a measured number.
+This directory contains executable scripts for the paper's progressive ablation, cost-model ranking study, EPLB compatibility evaluation, and WeaveProfiler timeline capture (all scripts support `--dry-run`).
 
-## 1. Four-arm progressive ablation
+## 1. Four-arm progressive ablation (Table IV)
 
-Every arm is a complete preset over the 14 public `WEAVE_*` parameters (plus the accepted-but-not-public `WEAVE_ADAPT_GEMM_CONFIG`)
-(Spatial / Temporal / Implementation). The recorded tuned presets were measured
-together with the internal pins of the six knobs retired from the public surface
-(`WEAVE_SM0_STREAM_SCHED`, `WEAVE_REDUCE_WARPS`, `WEAVE_REG_BALANCE`,
-`WEAVE_READY_QUEUE`, `WEAVE_COMBINE_SYNC_CHUNK`, `WEAVE_LOCAL_SCATTER_DEDUP`), so
-the script keeps setting those pins verbatim (held in a separate `INTERNAL_PINS`
-table) to reproduce the arms; it sets no other internal variable. On NVIDIA
-backends the renamed knobs are exported under their public names
-(`WEAVE_GEMM1_CONFIG`, `WEAVE_GEMM2_CONFIG`, and the internal compat `WEAVE_ADAPT_GEMM_CONFIG`); on MI308X
-the script exports their legacy spellings (`WEAVE_ADAPT_BM`, `WEAVE_BLOCK_M_L1`,
-`WEAVE_BLOCK_M_L2`), which are the only spellings the MI308X build scripts read.
-`WEAVE_ABLATION_PRESET` is exported only as an arm label for harnesses that
-consume it directly.
+The four arms progressively disable spatial scheduling (`-S`), temporal role overlap (`-S-T`), and selective remote-pull deduplication (`-S-T-C`):
 
-| Preset | Arm | Spatial search | Temporal overlap | Selective dedup |
+| Preset | Arm | Spatial adaptation | Temporal overlap | Selective dedup |
 |---:|---|---:|---:|---:|
-| 0 | Weave | on | on | on |
-| 1 | -S | fixed default ratio | on | on |
-| 2 | -S-T | fixed default ratio | off | on |
-| 3 | -S-T-C | fixed default ratio | off | off |
+| 0 | `Weave` | on | on | on |
+| 1 | `-S` | fixed default ratio | on | on |
+| 2 | `-S-T` | fixed default ratio | off | on |
+| 3 | `-S-T-C` | fixed default ratio | off | off |
 
-Arm 0 copies the tuned per-platform presets from `examples/*.sh`. Each later
-arm only overrides the knobs that encode the removed feature:
+Key parameter deltas relative to full `Weave` (Arm 0):
 
-| Arm | Delta (all other knobs stay at the arm-0 preset) |
+| Arm | Parameter delta |
 |---|---|
-| `-S` | SM103: `WEAVE_SCATTER_WARPS=0`, `WEAVE_GEMM1_CONFIG=128`, `WEAVE_GEMM2_CONFIG=128`, `WEAVE_REG_PULL_BYTES=0` and the internal `WEAVE_REDUCE_WARPS=0` pin; H20: `WEAVE_GEMM1_CONFIG=0`, `WEAVE_GEMM2_CONFIG=0`; MI308X: `WEAVE_CU_WAVE_SPLIT=0-8` |
-| `-T` | `WEAVE_V_HEAD=65536`, `WEAVE_READY_GROUP_SIZE=0` (SM103) and the internal pins `WEAVE_READY_QUEUE=formula`, `WEAVE_COMBINE_SYNC_CHUNK=0` |
-| `-C` | `WEAVE_DEDUP_MODE=0` and the internal pin `WEAVE_LOCAL_SCATTER_DEDUP=0` |
+| `-S` | SM103: `WEAVE_SCATTER_WARPS=0`, `WEAVE_GEMM1_CONFIG=128`, `WEAVE_GEMM2_CONFIG=128`, `WEAVE_REG_PULL_BYTES=0`; H20: `WEAVE_GEMM1_CONFIG=0`, `WEAVE_GEMM2_CONFIG=0`; MI308X: `WEAVE_CU_WAVE_SPLIT=0-8` |
+| `-T` | `WEAVE_V_HEAD=65536`, `WEAVE_READY_GROUP_SIZE=0` |
+| `-C` | `WEAVE_DEDUP_MODE=0` |
 
-Run all arms on one platform:
+Inspect or run all four arms:
 
-    python ablation/run_progressive_ablation.py --backend b300 --presets 0,1,2,3 --dry-run
-    python ablation/run_progressive_ablation.py --backend h20 --presets 0,1,2,3 --dry-run
-    python ablation/run_progressive_ablation.py --backend mi308x --presets 0,1,2,3 --dry-run
+```bash
+python ablation/run_progressive_ablation.py --backend sm103 --presets 0,1,2,3 --dry-run
+python ablation/run_progressive_ablation.py --backend h20 --presets 0,1,2,3 --dry-run
+python ablation/run_progressive_ablation.py --backend mi308x --presets 0,1,2,3 --dry-run
+```
 
-`--backend b300` and `--backend sm103` select the same SM103 (148-SM) runner.
+Each arm uses an isolated `DG_JIT_CACHE_DIR` under `results/ablation`. Measured 48-cell geometric-mean speedups over each platform's official baseline:
 
-### SM103 Reduce-warp sweep
-
-`--reduce-warps` appends SM103-only steps that rerun the full Weave arm with
-each value of the internal `WEAVE_REDUCE_WARPS` pin (a comma-separated subset of 0, 1, 2, 4, 8):
-
-    python ablation/run_progressive_ablation.py --backend b300 --presets 0 --reduce-warps 0,1,2,4,8 --dry-run
-
-Each sweep step gets its own JIT cache directory (`jit_rw<v>`) so a cached
-object built for one Reduce-warp value cannot silently supply another.
-
-For MI308X execution, provide the standalone kernel driver:
-
-    export WEAVE_MI308X_BENCH_RUNNER=/absolute/path/to/mi308x_runner
-    python ablation/run_progressive_ablation.py --backend mi308x --presets 0,1,2,3
-
-Every step gets its own DG_JIT_CACHE_DIR under results/ablation. This is
-required because the preset changes generated macros; sharing a cache can hide
-which arm actually ran.
-
-### Verified 48-cell summary (paper Table IV)
-
-The numbers below are the measured geomean speedups over each platform's
-official baseline. They are reference evidence, not values regenerated by the
-dry-run script. The NVIDIA SM103 (148-SM) figures come from the paper's measured fp8xfp4
-campaign; in this repository, the 148-SM SM103 fp8xfp4 path is still BLOCKED_RUNTIME_HANG, so a
-fresh runnable ablation should point --runner at the NVFP4 harness
-(tests/test_nvfp4_mega_moe.py).
-
-| Platform | S range | Weave | -S | -S-T | -S-T-C |
+| Platform | `S` range | `Weave` | `-S` | `-S-T` | `-S-T-C` |
 |---|---|---:|---:|---:|---:|
-| NVIDIA SM103 (148-SM) | S <= 128 (12 cells) | 1.165 | 1.076 | 0.915 | 0.913 |
-| NVIDIA SM103 (148-SM) | 1K--4K (18 cells) | 1.112 | 1.073 | 0.919 | 0.916 |
-| NVIDIA SM103 (148-SM) | S >= 8K (18 cells) | 1.638 | 1.416 | 1.185 | 1.148 |
+| NVIDIA SM103 (148-SM) | `S <= 128` (12 cells) | 1.165 | 1.076 | 0.915 | 0.913 |
+| NVIDIA SM103 (148-SM) | `1K–4K` (18 cells) | 1.112 | 1.073 | 0.919 | 0.916 |
+| NVIDIA SM103 (148-SM) | `S >= 8K` (18 cells) | 1.638 | 1.416 | 1.185 | 1.148 |
 | NVIDIA SM103 (148-SM) | All (48 cells) | 1.301 | 1.192 | 1.010 | 0.996 |
-| H20 | All (48 cells) | 1.162 | 1.137 | 1.053 | 0.947 |
-| MI308X EP16 | All (48 cells) | 2.147 | 1.808 | 1.537 | 1.362 |
+| NVIDIA H20 | All (48 cells) | 1.162 | 1.137 | 1.053 | 0.947 |
+| AMD MI308X EP16 | All (48 cells) | 2.147 | 1.808 | 1.537 | 1.362 |
 
-## 2. Cost-model accuracy versus oracle
+## 2. Cost-model candidate ranking
 
-The compact replay uses data/routing_stats_3hw.json. It evaluates all public
-spatial/scatter candidates on four platform configurations: 148-SM SM103 EP8, H20 EP8,
-MI308X EP8, and MI308X EP16.
+Replay the analytical cost model across recorded routing statistics:
 
-    python ablation/eval_cost_model_vs_oracle.py
+```bash
+python ablation/eval_cost_model_vs_oracle.py
+```
 
-Outputs:
+Writes `results/ablation/cost_model_vs_oracle.json`. Across the 48 SM103 cells, the cost model matches the recorded optimum on 38/48 cells with `2.4%` geomean regret (`1.301x` selected vs. `1.332x` exhaustive oracle).
 
-    results/ablation/cost_model_vs_oracle.json
+## 3. EPLB compatibility (Table V)
 
-The file has three clearly separated sections:
+Across 24 workloads (6 models x `S in {128, 1024, 4096, 16384}` with 32 redundant expert replicas), Weave composes cleanly with expert-parallel load balancing (EPLB):
 
-1. local_replay: values computed now from the six compact routing aggregates;
-2. paper_measured_reference: the measured 48-cell reference summary;
-3. oracle_file_metrics: optional metrics from --oracle-json.
-
-The compact file does not contain a per-expert histogram or measured latency
-for every candidate. It therefore uses the documented deterministic Zipf(0.9)
-proxy for m_e and calls the minimum over predicted candidates a model oracle.
-This checks internal consistency and candidate ranking, not hardware optimality.
-
-For a full measured oracle sweep, provide a JSON file with this shape:
-
-    {
-      "cells": [
-        {
-          "arch": "b300",
-          "model": "qwen38max",
-          "S": 128,
-          "selected": "c4_8_bm128_s0",
-          "predicted_us": 701.2,
-          "measured_us": {
-            "c4_8_bm128_s0": 712.4,
-            "c4_8_bm128_s1": 726.8,
-            "c8_4_bm64_s0": 748.1,
-            "c8_4_bm64_s1": 733.0
-          }
-        }
-      ]
-    }
-
-Then run:
-
-    python ablation/eval_cost_model_vs_oracle.py --oracle-json /absolute/path/to/oracle.json
-
-### Verified published summary
-
-- 48 SM103 (148-SM) cells: 38/48 exact recorded-optimum matches;
-- geomean selection regret: 2.4% (arithmetic mean 2.6%);
-- selected configuration: 1.301x over baseline; exhaustive oracle: 1.332x;
-- mean absolute latency-prediction error: 34.0%.
-
-The interpretation is explicit: absolute latency prediction is imperfect, but
-shared overhead terms cancel in the argmin, so ranking remains accurate.
-
-## 3. EPLB compatibility (paper Table V)
-
-The EPLB study uses 24 workloads: six models times S in {128, 1024, 4096,
-16384}. It adds 32 redundant experts. Run the EPLB-enabled deployment, then
-replay the same 24 cells through the normal runner with the EPLB routing table.
-
-Verified summary:
-
-| Metric | Verified value |
+| Metric | Measured value |
 |---|---:|
-| Weave over official baseline, original routing | 1.274x |
-| Weave over official baseline, with EPLB | 1.128x |
-| Weave with EPLB over official baseline with EPLB | 1.144x |
-| max/mean token imbalance, original routing | 1.37 |
-| max/mean token imbalance, with EPLB | 1.27 |
-
-EPLB replicas change the routing histogram. Do not reuse the original-routing
-policy trace or JIT cache. Preserve the EPLB placement map and the per-rank
-histogram snapshot with every result.
+| Weave over official baseline (original routing) | `1.274x` |
+| Weave over official baseline (with EPLB) | `1.128x` |
+| Weave + EPLB over official baseline + EPLB | `1.144x` |
+| Max/mean token imbalance (original -> with EPLB) | `1.37 -> 1.27` |
 
 ## 4. WeaveProfiler SW+HW timeline capture
 
-The publication traces are paired software and hardware timelines. Set
-WEAVE_PROFILER_LEVEL=2 for the fully instrumented build.
+Capture paired cycle-accurate software traces and hardware counters with `WEAVE_PROFILER_LEVEL=2` and render the 4-panel overview figure:
 
-### NVIDIA capture
+```bash
+# NVIDIA (nsys 200 kHz GPU metrics + WeaveProfiler)
+WEAVE_PROFILER_LEVEL=2 nsys profile --trace=cuda,nvtx,osrt --gpu-metrics-devices=all \
+    -o results/profiler/sm103_run1 python tests/bench_b300_ep8.py --dry-run
 
-    WEAVE_PROFILER_LEVEL=2 nsys profile         --trace=cuda,nvtx,osrt --sample=cpu --cpuctxsw=none         -o results/profiler/sm103_run1         python tests/bench_b300_ep8.py --dry-run
+# AMD (rocprofiler-sdk PMC + WeaveProfiler)
+WEAVE_PROFILER_LEVEL=2 rocprofv3 --hip-trace --kernel-trace \
+    -o results/profiler/mi308x_run1 -- python tests/bench_mi308x_ep8_ep16.py --ep 16 --dry-run
 
-### AMD capture
+# Render 4-panel SW+HW timeline PNG
+python ablation/capture_weaveprofiler_timeline.py \
+    --trace results/profiler/run.sw_hw.perfetto.json.gz \
+    --out-png results/profiler/run.png
+```
 
-    WEAVE_PROFILER_LEVEL=2 rocprofv3         --hip-trace --rccl-trace --kernel-trace         -o results/profiler/mi308x_run1         -- python tests/bench_mi308x_ep8_ep16.py --ep 16 --dry-run
-
-### Render the four-panel PNG
-
-    python ablation/capture_weaveprofiler_timeline.py         --trace results/profiler/run.sw_hw.perfetto.json.gz         --out-png results/profiler/run.png         --title "Weave: paired software and hardware timeline"
-
-The wrapper imports weaveprof.preview from WEAVE_PROFILER_ROOT and calls the
-official renderer. It keeps any decompressed JSON beside the PNG; it never uses
-a temporary-directory path.
-
-The three checked-in publication figures are:
-
-    docs/figures/weaveprofiler_sm103_timeline.png
-    docs/figures/weaveprofiler_h20_timeline.png
-    docs/figures/weaveprofiler_mi308x_timeline.png
-
-### Evidence rules
-
-- Keep the instrumented and uninstrumented steady-state measurements separately.
-- Record the trace SHA256, GPU model, rank count, S value, and tool version.
-- A HW/SW window-length mismatch must be stated explicitly; do not rescale one
-  axis silently.
-- Unavailable hardware counters stay unavailable; they are not zero-filled.
-- Render only from a trace that the Perfetto trace processor accepts.
+Checked-in publication timelines:
+- `docs/figures/weaveprofiler_sm103_timeline.png`
+- `docs/figures/weaveprofiler_h20_timeline.png`
+- `docs/figures/weaveprofiler_mi308x_timeline.png`

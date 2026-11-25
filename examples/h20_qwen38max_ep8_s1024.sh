@@ -1,16 +1,7 @@
 #!/usr/bin/env bash
-# EP8 example; not measured on the current revision; does not represent the README performance table.
-# The measured winners (4x EP4) are in examples/h20_qwen38max_ep4_s1024.sh.
 # -----------------------------------------------------------------------------
 # NVIDIA H20 (SM90, 78 SMs) / Qwen3.8-Max / EP8 / S=1024
-#
-# Tuned preset expressed with the unified WEAVE_* parameters (15 public knobs:
-# Spatial / Temporal / Implementation, plus the internal pins of the retired knobs
-# this preset was measured with; WEAVE_ADAPT_BM / WEAVE_BLOCK_M_L1 / WEAVE_BLOCK_M_L2
-# are the legacy spellings of WEAVE_ADAPT_GEMM_CONFIG / WEAVE_GEMM1_CONFIG /
-# WEAVE_GEMM2_CONFIG and are accepted as transparent aliases). Selecting WEAVE_BLOCK_M_L1=32 and
-# WEAVE_BLOCK_M_L2=32 synchronously locks the paired BN=256, BK=128, swapAB,
-# 4-warpgroup epilogue, and runtime pipeline stage profile.
+# Unified 14-knob WEAVE_* preset (Spatial / Temporal / Implementation).
 # -----------------------------------------------------------------------------
 set -euo pipefail
 
@@ -43,18 +34,16 @@ export WEAVE_COMBINE_SYNC_CHUNK="${WEAVE_COMBINE_SYNC_CHUNK:-0}"
 
 # ---- Implementation ---------------------------------------------------------
 export WEAVE_PRECISION_MODE="${WEAVE_PRECISION_MODE:-2}"
-export WEAVE_ADAPT_BM="${WEAVE_ADAPT_BM:-0}"
-export WEAVE_BLOCK_M_L1="${WEAVE_BLOCK_M_L1:-32}"
-export WEAVE_BLOCK_M_L2="${WEAVE_BLOCK_M_L2:-32}"
+export WEAVE_GEMM1_CONFIG="${WEAVE_GEMM1_CONFIG:-32}"
+export WEAVE_GEMM2_CONFIG="${WEAVE_GEMM2_CONFIG:-32}"
 export WEAVE_DEDUP_MODE="${WEAVE_DEDUP_MODE:-1}"
 export WEAVE_SCATTER_STAGING="${WEAVE_SCATTER_STAGING:-smem}"
-export WEAVE_LOCAL_SCATTER_DEDUP="${WEAVE_LOCAL_SCATTER_DEDUP:-0}"
 
 echo "==============================================================================="
 echo " NVIDIA H20 / Qwen3.8-Max / EP8 / S=1024 (Unified WEAVE_* Preset)"
-echo " Spatial        : DISPATCH_SMS=$WEAVE_DISPATCH_ACTIVE_SMS SCATTER_SMS=$WEAVE_SCATTER_ACTIVE_SMS SM0_SCHED=$WEAVE_SM0_STREAM_SCHED DISPATCH_WARPS=$WEAVE_DISPATCH_WARPS REG_BALANCE=$WEAVE_REG_BALANCE"
-echo " Temporal       : V_HEAD=$WEAVE_V_HEAD READY_GROUP=$WEAVE_READY_GROUP_SIZE READY_QUEUE=$WEAVE_READY_QUEUE SCATTER_OWNER=$WEAVE_SCATTER_OWNER COMBINE_SYNC_CHUNK=$WEAVE_COMBINE_SYNC_CHUNK"
-echo " Implementation : PRECISION_MODE=$WEAVE_PRECISION_MODE ADAPT_BM=$WEAVE_ADAPT_BM BLOCK_M_L1=$WEAVE_BLOCK_M_L1 BLOCK_M_L2=$WEAVE_BLOCK_M_L2 DEDUP_MODE=$WEAVE_DEDUP_MODE SCATTER_STAGING=$WEAVE_SCATTER_STAGING LOCAL_SCATTER_DEDUP=$WEAVE_LOCAL_SCATTER_DEDUP"
+echo " Spatial        : DISPATCH_SMS=$WEAVE_DISPATCH_ACTIVE_SMS SCATTER_SMS=$WEAVE_SCATTER_ACTIVE_SMS DISPATCH_WARPS=$WEAVE_DISPATCH_WARPS"
+echo " Temporal       : V_HEAD=$WEAVE_V_HEAD READY_GROUP=$WEAVE_READY_GROUP_SIZE SCATTER_OWNER=$WEAVE_SCATTER_OWNER"
+echo " Implementation : PRECISION_MODE=$WEAVE_PRECISION_MODE GEMM1_CONFIG=$WEAVE_GEMM1_CONFIG GEMM2_CONFIG=$WEAVE_GEMM2_CONFIG DEDUP_MODE=$WEAVE_DEDUP_MODE SCATTER_STAGING=$WEAVE_SCATTER_STAGING"
 echo "==============================================================================="
 
 EXTRA=()

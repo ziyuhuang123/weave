@@ -1,13 +1,7 @@
 #!/usr/bin/env bash
 # -----------------------------------------------------------------------------
 # AMD MI308X (gfx942, 80 CUs) / Qwen3.8-Max / EP16 / S=128 (2 nodes x 8 ranks)
-#
-# Tuned build + run preset expressed with the unified WEAVE_* parameters (15
-# public knobs: Spatial / Temporal / Implementation, plus the internal pins of the
-# retired knobs this preset was measured with).  The MI308X build scripts read only
-# the legacy spellings WEAVE_ADAPT_BM / WEAVE_BLOCK_M_L1 / WEAVE_BLOCK_M_L2 of
-# WEAVE_ADAPT_GEMM_CONFIG / WEAVE_GEMM1_CONFIG / WEAVE_GEMM2_CONFIG, so those
-# names are kept here on purpose.
+# Unified 14-knob WEAVE_* build + run preset (Spatial / Temporal / Implementation).
 # -----------------------------------------------------------------------------
 set -euo pipefail
 
@@ -66,11 +60,10 @@ export WEAVE_SCATTER_OWNER="${WEAVE_SCATTER_OWNER:-comm_only}"
 
 # ---- Implementation ---------------------------------------------------------
 export WEAVE_PRECISION_MODE="${WEAVE_PRECISION_MODE:-2}"
-export WEAVE_ADAPT_BM="${WEAVE_ADAPT_BM:-1}"
-export WEAVE_BLOCK_M_L1="${WEAVE_BLOCK_M_L1:-0}"
-export WEAVE_BLOCK_M_L2="${WEAVE_BLOCK_M_L2:-0}"
+export WEAVE_GEMM1_CONFIG="${WEAVE_GEMM1_CONFIG:-0}"
+export WEAVE_GEMM2_CONFIG="${WEAVE_GEMM2_CONFIG:-0}"
 export WEAVE_DEDUP_MODE="${WEAVE_DEDUP_MODE:-1}"
-export WEAVE_LOCAL_SCATTER_DEDUP="${WEAVE_LOCAL_SCATTER_DEDUP:-1}"
+export WEAVE_SCATTER_STAGING="${WEAVE_SCATTER_STAGING:-hbm}"
 
 WEAVE_PROFILER_LEVEL="$PROFILE_LEVEL" "$WEAVE_PY" "$EP16_DIR/build_port.py"
 CO="$EP16_DIR/build/fi0_mode2_p0_m2/P.co"

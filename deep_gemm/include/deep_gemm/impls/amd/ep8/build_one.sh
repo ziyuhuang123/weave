@@ -80,8 +80,16 @@ case "${WEAVE_CU_WAVE_SPLIT:-0}" in
 esac
 weave_uint SCATTER_SMS WEAVE_SCATTER_ACTIVE_SMS 0 80 0
 weave_uint DISPATCH_SMS WEAVE_DISPATCH_ACTIVE_SMS 0 80 0
-weave_choice BM_L1 WEAVE_BLOCK_M_L1 "0 16 32 64 128" 0
-weave_choice BM_L2 WEAVE_BLOCK_M_L2 "0 16 32 64 128" 0
+if [ -n "${WEAVE_GEMM1_CONFIG:-}" ]; then
+  weave_choice BM_L1 WEAVE_GEMM1_CONFIG "0 16 32 64 128" 0
+else
+  weave_choice BM_L1 WEAVE_BLOCK_M_L1 "0 16 32 64 128" 0
+fi
+if [ -n "${WEAVE_GEMM2_CONFIG:-}" ]; then
+  weave_choice BM_L2 WEAVE_GEMM2_CONFIG "0 16 32 64 128" 0
+else
+  weave_choice BM_L2 WEAVE_BLOCK_M_L2 "0 16 32 64 128" 0
+fi
 # WEAVE_V_HEAD: unset/empty/0/auto -> not passed; else a positive decimal integer.
 V_HEAD_DEF=""
 case "${WEAVE_V_HEAD:-auto}" in
@@ -110,10 +118,10 @@ weave_choice LOCAL_DEDUP WEAVE_LOCAL_SCATTER_DEDUP "0 1" 0
 LOCAL_DEDUP_EXPLICIT=$([ -n "${WEAVE_LOCAL_SCATTER_DEDUP:-}" ] && echo 1 || echo 0)
 STAGING_RAW="${WEAVE_SCATTER_STAGING:-}"
 case "$STAGING_RAW" in
-  ''|0|reg_2stage|direct) SCATTER_STAGING=0 ;;
+  ''|0|reg|reg_2stage|direct) SCATTER_STAGING=0 ;;
   1|smem) SCATTER_STAGING=1 ;;
-  2|hbm_dedup) SCATTER_STAGING=2 ;;
-  *) die "Invalid WEAVE_SCATTER_STAGING=${STAGING_RAW} (allowed: 0|reg_2stage|direct, 1|smem, 2|hbm_dedup)" ;;
+  2|hbm|hbm_dedup) SCATTER_STAGING=2 ;;
+  *) die "Invalid WEAVE_SCATTER_STAGING=${STAGING_RAW} (allowed: 0|reg, 1|smem, 2|hbm)" ;;
 esac
 if [ -z "$STAGING_RAW" ] && [ "$LOCAL_DEDUP" = "1" ] && [ "${WEAVE_SCATTER_OWNER:-}" != "0" ] && [ "${WEAVE_SCATTER_OWNER:-}" != "epilogue_only" ]; then
   SCATTER_STAGING=2

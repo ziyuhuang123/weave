@@ -28,51 +28,50 @@ DEFAULT_OUT = ROOT / "docs" / "figures"
 
 BANNERS = {
     "sm103": (
-        "Spatial: WEAVE_DISPATCH_ACTIVE_SMS=40 (measured winner at S=1024); all other spatial knobs at their defaults.\n"
+        "Spatial: WEAVE_DISPATCH_ACTIVE_SMS=40 (S=1024); all other spatial knobs at their defaults.\n"
         "Temporal: all knobs at their defaults.\n"
         "Implementation: WEAVE_PRECISION_MODE=0 (fp8xfp4); all other implementation knobs at their defaults."
     ),
     "h20": (
         "Spatial: all knobs at their defaults; 78 SMs.\n"
         "Temporal: WEAVE_SCATTER_OWNER=comm_only.\n"
-        "Implementation: WEAVE_PRECISION_MODE=2 (fp8xfp8), WEAVE_BLOCK_M_L1=32, WEAVE_BLOCK_M_L2=64, "
+        "Implementation: WEAVE_PRECISION_MODE=2 (fp8xfp8), WEAVE_GEMM1_CONFIG=32, WEAVE_GEMM2_CONFIG=64, "
         "WEAVE_SCATTER_STAGING=smem; all other implementation knobs at their defaults."
     ),
     "mi308x": (
-        "Spatial: WEAVE_DISPATCH_ACTIVE_SMS=0, WEAVE_SCATTER_ACTIVE_SMS=0, WEAVE_SM0_STREAM_SCHED=0, "
+        "Spatial: WEAVE_DISPATCH_ACTIVE_SMS=0, WEAVE_SCATTER_ACTIVE_SMS=0, "
         "WEAVE_CU_WAVE_SPLIT=4-4 (80 CUs; 4/4 hybrid CUs run 4 compute + 4 comm waves).\n"
         "Temporal: WEAVE_V_HEAD=0 (auto), WEAVE_SCATTER_OWNER=comm_only.\n"
-        "Implementation: WEAVE_PRECISION_MODE=2 (fp8xfp8), WEAVE_ADAPT_BM=1, WEAVE_BLOCK_M_L1=0 (auto), "
-        "WEAVE_BLOCK_M_L2=0 (auto), WEAVE_DEDUP_MODE=1, WEAVE_LOCAL_SCATTER_DEDUP=1."
+        "Implementation: WEAVE_PRECISION_MODE=2 (fp8xfp8), WEAVE_GEMM1_CONFIG=0 (auto), "
+        "WEAVE_GEMM2_CONFIG=0 (auto), WEAVE_DEDUP_MODE=1, WEAVE_SCATTER_STAGING=hbm."
     ),
 }
 
 PRESETS = {
     "sm103": dict(
         platform="sm103",
-        title="NVIDIA SM103 (148-SM) / 4x EP4 / E=256 top-8 H=7168 I=2048 / S=1024 (measured winner)",
+        title="NVIDIA SM103 (148-SM) / 4x EP4 / E=256 top-8 H=7168 I=2048 / S=1024",
         script="sm103_qwen38max_ep4_s1024.sh",
         trace_env="WEAVE_SM103_TRACE / WEAVE_SM103_RESULT_ROOT",
         render=True,
         rows=[
-            ("Spatial", "WEAVE_DISPATCH_ACTIVE_SMS", "40", "only 40 SMs pull remote tokens (S=4096 -> 96, S=8192 -> default 0)"),
+            ("Spatial", "WEAVE_DISPATCH_ACTIVE_SMS", "40", "40 SMs pull remote tokens (S=4096 -> 96, S=8192 -> auto)"),
             ("Implementation", "WEAVE_PRECISION_MODE", "0", "fp8xfp4 (default)"),
-            ("-", "all other public knobs", "default", "unset; WEAVE_REDUCE_WARPS > 0 is measured slower than 0"),
+            ("-", "all other knobs", "0 (auto)", "selected automatically"),
         ],
     ),
     "h20": dict(
         platform="h20",
-        title="NVIDIA H20 (SM90, 78 SMs) / Qwen3.8-Max / 4x EP4 / S=1024 (measured tuned winner bm32_64)",
+        title="NVIDIA H20 (SM90, 78 SMs) / Qwen3.8-Max / 4x EP4 / S=1024",
         script="h20_qwen38max_ep4_s1024.sh",
         trace_env="WEAVE_H20_TRACE / WEAVE_H20_RESULT_ROOT",
         render=True,
         rows=[
-            ("Temporal", "WEAVE_SCATTER_OWNER", "comm_only", "communication warps own remote stores"),
+            ("Temporal", "WEAVE_SCATTER_OWNER", "comm_only", "communication warps own cross-GPU scatter"),
             ("Implementation", "WEAVE_PRECISION_MODE", "2", "fp8xfp8"),
-            ("Implementation", "WEAVE_GEMM1_CONFIG", "32", "GEMM1 blockM=32 (decoupled split launch; legacy WEAVE_BLOCK_M_L1)"),
-            ("Implementation", "WEAVE_GEMM2_CONFIG", "64", "GEMM2 blockM=64 (decoupled split launch; legacy WEAVE_BLOCK_M_L2)"),
-            ("Implementation", "WEAVE_SCATTER_STAGING", "smem", "per-SM XOR-swizzled SMEM handoff"),
-            ("-", "default column (CONFIG=default)", "p21", "comm_only + smem + WEAVE_ADAPT_GEMM_CONFIG=1 (legacy WEAVE_ADAPT_BM), fused launch"),
+            ("Implementation", "WEAVE_GEMM1_CONFIG", "32", "independent GEMM1 blockM=32"),
+            ("Implementation", "WEAVE_GEMM2_CONFIG", "64", "independent GEMM2 blockM=64"),
+            ("Implementation", "WEAVE_SCATTER_STAGING", "smem", "per-SM shared-memory async scatter"),
         ],
     ),
     "mi308x_ep8": dict(
@@ -83,16 +82,14 @@ PRESETS = {
         render=True,
         rows=[
             ("Spatial", "WEAVE_SCATTER_ACTIVE_SMS", "0", "all 80 CUs participate"),
-            ("Spatial", "WEAVE_SM0_STREAM_SCHED", "0", "CTA 0 waves participate normally (internal pin, retired from the public surface)"),
             ("Spatial", "WEAVE_CU_WAVE_SPLIT", "4-4", "4 communication waves + 4 compute waves per CU"),
             ("Temporal", "WEAVE_V_HEAD", "0", "automatic opening pull quota"),
             ("Temporal", "WEAVE_SCATTER_OWNER", "comm_only", "communication waves own remote xGMI scatter"),
             ("Implementation", "WEAVE_PRECISION_MODE", "2", "fp8xfp8"),
-            ("Implementation", "WEAVE_ADAPT_BM", "1", "adaptive GEMM config tier (legacy spelling of WEAVE_ADAPT_GEMM_CONFIG, read by the MI308X build)"),
-            ("Implementation", "WEAVE_BLOCK_M_L1", "0", "auto from M_e (legacy spelling of WEAVE_GEMM1_CONFIG)"),
-            ("Implementation", "WEAVE_BLOCK_M_L2", "0", "auto from M_e (legacy spelling of WEAVE_GEMM2_CONFIG)"),
+            ("Implementation", "WEAVE_GEMM1_CONFIG", "0", "auto per-expert tile selection"),
+            ("Implementation", "WEAVE_GEMM2_CONFIG", "0", "auto per-expert tile selection"),
             ("Implementation", "WEAVE_DEDUP_MODE", "1", "unique (src_rank, token) pull + local fanout"),
-            ("Implementation", "WEAVE_LOCAL_SCATTER_DEDUP", "1", "local bf16x2 merge before xGMI send (internal pin, retired from the public surface)"),
+            ("Implementation", "WEAVE_SCATTER_STAGING", "hbm", "local pre-accumulation before xGMI send"),
         ],
     ),
     "mi308x_ep16": dict(
@@ -106,9 +103,10 @@ PRESETS = {
             ("Temporal", "WEAVE_V_HEAD", "0", "automatic opening pull quota"),
             ("Temporal", "WEAVE_SCATTER_OWNER", "comm_only", "communication waves own remote GDA/xGMI scatter"),
             ("Implementation", "WEAVE_PRECISION_MODE", "2", "fp8xfp8"),
-            ("Implementation", "WEAVE_ADAPT_BM", "1", "adaptive GEMM config tier (legacy spelling of WEAVE_ADAPT_GEMM_CONFIG, read by the MI308X build)"),
+            ("Implementation", "WEAVE_GEMM1_CONFIG", "0", "auto per-expert tile selection"),
+            ("Implementation", "WEAVE_GEMM2_CONFIG", "0", "auto per-expert tile selection"),
             ("Implementation", "WEAVE_DEDUP_MODE", "1", "unique (src_rank, token) pull + local fanout"),
-            ("Implementation", "WEAVE_LOCAL_SCATTER_DEDUP", "1", "node-partial local merge before inter-node send (internal pin, retired from the public surface)"),
+            ("Implementation", "WEAVE_SCATTER_STAGING", "hbm", "node-local pre-accumulation before inter-node send"),
         ],
     ),
 }

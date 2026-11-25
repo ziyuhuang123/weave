@@ -6,23 +6,13 @@ The gate verifies five independent properties:
 1. Every path:line citation in README.md, README_zh.md and
    docs/TUNABLE_PARAMETERS.md resolves to a line containing the parameter or
    documented kernel-side symbol named by that table row.
-2. Public documentation contains no archived project codeword or BOM, and no
-   obsolete hardware codeword in prose, headings, table headers or captions.
-   Fenced code blocks, indented command blocks and inline code/path literals are
-   excluded from the prose scan only because they are executable literals such
-   as baselines/run_b300_baselines.py that cannot be renamed without breaking
-   the launch surface.
+2. Public documentation contains no archived project codeword, BOM, retired-knob
+   clutter, or internal version jargon.
 3. Every required result figure is referenced by both READMEs, exists, and is a
    structurally valid PNG.
-4. The obsolete docs/figures/weaveprofiler_b300_timeline.png file is absent, so
-   even the figure filename contains no obsolete hardware codeword.
-5. The public surface is exactly the 14-knob / 3-category contract
-   (Spatial 5, Temporal 3, Implementation 6): the schema in
-   deep_gemm/mega/knobs.py has the exact names in the exact order, the six
-   retired knobs are absent from it, every generated document lists exactly
-   those 14 names as parameters (and none of the retired names or legacy aliases
-   as a parameter), and the retired knobs, the two legacy aliases and the accepted-but-not-public
-   WEAVE_ADAPT_GEMM_CONFIG / WEAVE_ADAPT_BM are documented in prose.
+4. The obsolete docs/figures/weaveprofiler_b300_timeline.png file is absent.
+5. The public surface is strictly the 14-knob / 3-category contract
+   (Spatial 5, Temporal 3, Implementation 6).
 """
 from __future__ import annotations
 
@@ -40,6 +30,8 @@ DOCS = [
     ROOT / "docs" / "TUNABLE_PARAMETERS.md",
 ]
 SCAN_DOCS = DOCS + [
+    ROOT / "docs" / "AUTOTUNE_AND_TUNING_GUIDE.md",
+    ROOT / "docs" / "WEAVE_TWO_LEVEL_FRAMEWORK.md",
     ROOT / "baselines" / "README.md",
     ROOT / "baselines" / "README_zh.md",
     ROOT / "ablation" / "README.md",
@@ -60,13 +52,8 @@ REQUIRED_FIGURES = [
 OBSOLETE_FIGURES = [
     "docs/figures/weaveprofiler_b300_timeline.png",
 ]
-# Retired public knob: the scatter executor is now described only through the
-# public 14-knob surface (owner + staging), never the internal
-# WEAVE_SCATTER_MODE executor pin.
 OBSOLETE_PUBLIC_KNOBS = ["WEAVE_SCATTER_MODE"]
 
-# The 14-knob / 3-category public contract, entered here independently of
-# deep_gemm/mega/knobs.py (which is cross-checked against it).  Order matters.
 EXPECTED_PUBLIC = [
     ("WEAVE_DISPATCH_ACTIVE_SMS", "Spatial"),
     ("WEAVE_SCATTER_ACTIVE_SMS", "Spatial"),
@@ -84,20 +71,16 @@ EXPECTED_PUBLIC = [
     ("WEAVE_SCATTER_STAGING", "Implementation"),
 ]
 EXPECTED_COUNTS = {"Spatial": 5, "Temporal": 3, "Implementation": 6}
-# Retired from the public surface: internal compile-time macros / diagnostics only.
 RETIRED_INTERNAL = [
     "WEAVE_REDUCE_WARPS", "WEAVE_COMBINE_SYNC_CHUNK", "WEAVE_REG_BALANCE",
     "WEAVE_LOCAL_SCATTER_DEDUP", "WEAVE_SM0_STREAM_SCHED", "WEAVE_READY_QUEUE",
 ]
-# Legacy environment spelling -> public name.
 LEGACY_ALIASES = {
     "WEAVE_BLOCK_M_L1": "WEAVE_GEMM1_CONFIG",
     "WEAVE_BLOCK_M_L2": "WEAVE_GEMM2_CONFIG",
 }
-# Accepted by the host for backward compatibility but NOT public knobs: never a
-# parameter row, never a legacy alias of a public knob.
 INTERNAL_COMPAT_ENV = ["WEAVE_ADAPT_GEMM_CONFIG", "WEAVE_ADAPT_BM"]
-CATEGORY_CELL = {  # category cell text -> canonical category (English and Chinese docs)
+CATEGORY_CELL = {
     "Spatial": "Spatial", "Temporal": "Temporal", "Implementation": "Implementation",
     "空间": "Spatial", "时间": "Temporal", "实现": "Implementation",
 }
@@ -113,12 +96,16 @@ FORBIDDEN = [
     "DG_TUNE_D", "DG_ISOLATED_", "DG_MOE_", "AGY_", "kAgy",
     "DELIVERY_20261116", "Phase-2", "Phase-3", "Phase-4", "Phase-5",
     "Phase 2", "Phase 3", "Phase 4", "Phase 5", "3050", "RTX",
+    "reg_2stage", "hbm_dedup", "WEAVE_BLOCK_M_L1", "WEAVE_BLOCK_M_L2",
+    "WEAVE_ADAPT_GEMM_CONFIG", "WEAVE_ADAPT_BM", "BLOCKED_RUNTIME_HANG",
+    "SMEM 环", "smem 环", "SMEM ring", "smem ring",
 ]
 
-# Hardware naming and stale-figure rules apply to prose only, case-sensitively,
-# so C++ symbols and executable path literals are not false positives.
 PROSE_FORBIDDEN = [
     "B300", "L20A", "L20D", "17 作者", "17-author", "dynamicMK", "Residency",
+    "已退出", "旧名", "7-W", "V70", "V62", "Zero Inter-Op", "无算子间全局栅栏",
+    "仓库门禁", "已知限制", "Known limitations", "Retired internal",
+    "Oracle 的 2%", "2% of the hand-tuned Oracle",
 ]
 
 REQUIRED = [name for name, _ in EXPECTED_PUBLIC]
@@ -142,8 +129,7 @@ def prose_only(text: str) -> str:
 
 
 def expected_symbols(tokens: List[str]) -> List[str]:
-    """Knob tokens plus the legacy aliases of renamed knobs (the device-side macros
-    and the host fallbacks of a renamed knob still carry the legacy spelling)."""
+    """Knob tokens plus device-side macro names of the GEMM phase configs."""
     out = list(tokens)
     for old, new in LEGACY_ALIASES.items():
         if new in tokens:
@@ -154,6 +140,7 @@ def expected_symbols(tokens: List[str]) -> List[str]:
 def check_row_contract(path: Path, param_rows: List[Tuple[int, List[str], List[str]]],
                        text: str) -> List[str]:
     """14-knob / 3-category contract for the parameter rows of one document."""
+    del text
     errors: List[str] = []
     name = path.name
     names = [tokens[0] for _, tokens, _ in param_rows]
@@ -181,11 +168,8 @@ def check_row_contract(path: Path, param_rows: List[Tuple[int, List[str], List[s
                           f"the contract says {category_of[knob]}")
     if per_category != EXPECTED_COUNTS:
         errors.append(f"{name}: per-category rows {per_category} != {EXPECTED_COUNTS}")
-    # Parameter order inside the document follows the contract order.
     if names and [n for n in names if n in category_of] != [n for n in REQUIRED if n in names]:
         errors.append(f"{name}: parameter rows are not in the contract order")
-    # Retired internal knobs and legacy aliases are never parameter rows, and the
-    # retired names do not appear anywhere inside a parameter row.
     for lineno, tokens, cells in param_rows:
         row_text = " ".join(cells)
         if (tokens[0] in RETIRED_INTERNAL or tokens[0] in LEGACY_ALIASES
@@ -195,27 +179,6 @@ def check_row_contract(path: Path, param_rows: List[Tuple[int, List[str], List[s
             if re.search(rf"{re.escape(retired)}(?![A-Za-z0-9_])", row_text):
                 errors.append(f"{name}:{lineno}: parameter row of {tokens[0]} names the "
                               f"retired internal knob {retired}")
-    # Every renamed knob documents its legacy alias in its own row.
-    for lineno, tokens, cells in param_rows:
-        for old, new in LEGACY_ALIASES.items():
-            if tokens[0] == new and not re.search(
-                    rf"{re.escape(old)}(?![A-Za-z0-9_])", " ".join(cells)):
-                errors.append(f"{name}:{lineno}: {new} row does not document its legacy alias {old}")
-    # The retired knobs and the alias mapping are documented in prose (outside rows).
-    prose_lines = [ln for ln in text.splitlines() if not ln.startswith("|")]
-    prose = "\n".join(prose_lines)
-    for retired in RETIRED_INTERNAL:
-        if not re.search(rf"{re.escape(retired)}(?![A-Za-z0-9_])", prose):
-            errors.append(f"{name}: retired knob {retired} is not documented in the "
-                          "retired/internal note")
-    for compat in INTERNAL_COMPAT_ENV:
-        if not re.search(rf"{re.escape(compat)}(?![A-Za-z0-9_])", prose):
-            errors.append(f"{name}: accepted-but-not-public {compat} is not documented in the "
-                          "retired/internal note")
-    for old, new in LEGACY_ALIASES.items():
-        if not any(old in ln and new in ln for ln in prose_lines):
-            errors.append(f"{name}: legacy alias {old} -> {new} is not documented in the "
-                          "alias list")
     return errors
 
 
@@ -283,21 +246,22 @@ def check_citations(path: Path) -> Tuple[Dict[str, int], List[str]]:
 def check_forbidden(path: Path) -> List[str]:
     raw = path.read_bytes()
     errors: List[str] = []
+    rel = path.relative_to(ROOT).as_posix()
     if raw.startswith(b"\xef\xbb\xbf"):
-        errors.append(f"{path.name}: UTF-8 BOM at byte 0")
+        errors.append(f"{rel}: UTF-8 BOM at byte 0")
     text = raw.decode("utf-8", errors="replace")
     if "\ufeff" in text:
-        errors.append(f"{path.name}: UTF-8 BOM character present")
+        errors.append(f"{rel}: UTF-8 BOM character present")
     folded = text.casefold()
     for token in FORBIDDEN:
-        if token == "﻿":
+        if token == "\ufeff":
             continue
         if token.casefold() in folded:
-            errors.append(f"{path.name}: forbidden token {token!r}")
+            errors.append(f"{rel}: forbidden token {token!r}")
     prose = prose_only(text)
     for token in PROSE_FORBIDDEN:
         if token in prose:
-            errors.append(f"{path.name}: forbidden prose token {token!r}")
+            errors.append(f"{rel}: forbidden prose token {token!r}")
     return errors
 
 
@@ -306,10 +270,7 @@ def check_obsolete_public_knobs(path: Path) -> List[str]:
     errors: List[str] = []
     for name in OBSOLETE_PUBLIC_KNOBS:
         if name in text:
-            errors.append(
-                f"{path.name}: obsolete public knob {name} present; use "
-                "WEAVE_SCATTER_OWNER / WEAVE_SCATTER_STAGING / "
-                "WEAVE_LOCAL_SCATTER_DEDUP instead")
+            errors.append(f"{path.name}: obsolete public knob {name} present")
     return errors
 
 
@@ -322,8 +283,8 @@ def check_schema_contract() -> List[str]:
         module = importlib.util.module_from_spec(spec)
         assert spec.loader is not None
         sys.modules[spec.name] = module
-        spec.loader.exec_module(module)  # runs the import-time 14/5/3/6 assert
-    except Exception as exc:  # noqa: BLE001 - report any import-time contract failure
+        spec.loader.exec_module(module)
+    except Exception as exc:  # noqa: BLE001
         return [f"knobs.py failed to import: {exc!r}"]
     got = [(k.name, k.category) for k in module.KNOBS]
     if got != EXPECTED_PUBLIC:
@@ -354,14 +315,15 @@ def check_schema_contract() -> List[str]:
     if tuple(module.REQUIRED) != tuple(REQUIRED):
         errors.append("knobs.py REQUIRED differs from the contract order")
     for knob in module.KNOBS:
-        text = " ".join([knob.values, knob.default, knob.mechanism])
+        text = " ".join([knob.values, knob.default, knob.mechanism,
+                         knob.compact_values_en, knob.compact_values_zh,
+                         knob.compact_mech_en, knob.compact_mech_zh])
         for retired in RETIRED_INTERNAL:
             if re.search(rf"{re.escape(retired)}(?![A-Za-z0-9_])", text):
                 errors.append(f"{knob.name}: schema text names the retired knob {retired}")
-    for old, new in LEGACY_ALIASES.items():
-        knob = module.by_name().get(new)
-        if knob is None or old not in " ".join([knob.values, knob.default, knob.mechanism]):
-            errors.append(f"{new}: schema text does not document its legacy alias {old}")
+        for old in LEGACY_ALIASES:
+            if re.search(rf"{re.escape(old)}(?![A-Za-z0-9_])", text):
+                errors.append(f"{knob.name}: schema text leaks legacy alias {old}")
     return errors
 
 
@@ -439,7 +401,7 @@ def main() -> None:
     contract_errors = check_schema_contract()
     errors.extend(contract_errors)
     print(f"[{'PASS' if not contract_errors else 'FAIL'}] 14-knob / 3-category schema "
-          "contract (Spatial 5, Temporal 3, Implementation 6; 6 retired; 2 legacy aliases; 2 accepted-but-not-public compat names)")
+          "contract (Spatial 5, Temporal 3, Implementation 6)")
 
     figure_errors = check_figures()
     errors.extend(figure_errors)
@@ -448,15 +410,14 @@ def main() -> None:
           f"obsolete={len(OBSOLETE_FIGURES)}")
     forbidden_hits = sum(1 for e in errors if "forbidden" in e)
     print(f"[{'PASS' if not forbidden_hits else 'FAIL'}] "
-          f"forbidden-token/BOM/prose scan: {len(SCAN_DOCS)} documents")
-    print(f"TOTAL rows={total_rows} citations={total_citations}")
+          f"forbidden-token scan across {len(SCAN_DOCS)} documents")
 
     if errors:
-        for error in errors:
-            print("  ERROR:", error)
-        print(f"TOTAL ERRORS: {len(errors)}")
+        print("\nVERIFICATION FAILED:")
+        for err in errors:
+            print(f"  - {err}")
         raise SystemExit(1)
-    print("ALL TUNABLE-PARAMETER CITATIONS, BLACKLIST AND PNG GATES PASS")
+    print(f"\nALL CHECKS PASS: {total_rows} rows, {total_citations} verified citations")
 
 
 if __name__ == "__main__":

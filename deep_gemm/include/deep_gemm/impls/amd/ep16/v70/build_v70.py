@@ -209,7 +209,7 @@ def resolve_v70_knobs(preset: Dict, *, ignore_env: bool = False) -> Dict[str, st
     dedup = _choice("WEAVE_DEDUP_MODE", (0, 1), int(defs["WEAVE_DEDUP_MODE"]), ignore_env)
     staging = _named(
         "WEAVE_SCATTER_STAGING",
-        {"0": 0, "reg_2stage": 0, "direct": 0, "1": 1, "smem": 1, "2": 2, "hbm_dedup": 2},
+        {"0": 0, "reg": 0, "reg_2stage": 0, "direct": 0, "1": 1, "smem": 1, "2": 2, "hbm": 2, "hbm_dedup": 2},
         int(defs["WEAVE_SCATTER_STAGING"]), ignore_env)
     if staging != 0 and owner == 0:
         raise SystemExit(f"Invalid WEAVE_SCATTER_STAGING={staging} with WEAVE_SCATTER_OWNER=epilogue_only")

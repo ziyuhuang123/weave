@@ -2,15 +2,15 @@
 # -*- coding: utf-8 -*-
 """Generate the two repository architecture schematics:
   1. docs/figures/weave_design_overview.png
-     Two-stage Compile-Time Autotune + Runtime Zero-Env Selection over the
-     unified 14-knob (Spatial 5 / Temporal 3 / Implementation 6) surface and
-     barrier-free fine-grained atomic megakernel across SM100/SM103, SM90, CDNA3.
+     Per-GPU live routing + hardware profile -> Spatial (cross-GPU, cross-SM/CU &
+     intra-SM/CU), Temporal (head/middle/tail dynamic roles), and Independent
+     4-Operator configurations across SM100/SM103, SM90 H20, and CDNA3 MI308X.
   2. docs/figures/weave_design_rolegraph.png
-     Cross-hardware intra-SM/CU spatial-temporal warp/wave role schedules
-     contrasting (a) Coarse-Barrier Megakernel against Weave on:
-       (b) NVIDIA SM100/SM103 (16 warps/CTA: TMEM + UMMA + SMEM->NVLink Scatter),
-       (c) NVIDIA H20 SM90 (20 warps/CTA: Lag-W K-block bitmap, zero grid_sync),
-       (d) AMD MI308X CDNA3 (8 Wave64/CU, 2-CTA/CU, 0-8 vs 4-4 xGMI+GDA RDMA).
+     Multi-granularity spatial partitioning & phase-aware temporal schedules:
+       (a) Static Megakernel (uniform ratio + head/middle/tail bubbles),
+       (b) Cross-GPU & Cross-SM/CU Spatial Mixing on one GPU (SM 0..k-1 vs SM k..N-1),
+       (c) NVIDIA SM103 (16w/SM) & H20 (20w/SM) Dynamic Temporal Roles,
+       (d) AMD MI308X CDNA3 (8 Wave64/CU: (0,8) Compute CU vs (4,4) Hybrid CU).
 
 Programmatic gates enforce 0 text overlaps, 0 canvas clipping, 0 forbidden
 tokens, and Type 42 vector PDF fonts.
@@ -29,7 +29,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from matplotlib import font_manager
-from matplotlib.patches import Circle, FancyArrowPatch, FancyBboxPatch, Polygon, Rectangle
+from matplotlib.patches import Circle, FancyArrowPatch, FancyBboxPatch, Patch, Rectangle
 from matplotlib.text import Text
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
@@ -37,7 +37,8 @@ FIG_DIR = ROOT / "docs" / "figures"
 
 FORBIDDEN = [
     "B300", "L20D", "dynamicMK", "v33", "v28", "v70", "v62", "v58",
-    "v1864", "D7", "AGY", "Residency", "§",
+    "v1864", "D7", "AGY", "Residency", "§", "ABBA", "0-spill",
+    "7-W", "reg_2stage", "hbm_dedup", "grid_sync", "Oracle",
 ]
 
 FONT = next(
@@ -100,130 +101,128 @@ def badge(ax, cx, cy, txt, fc="#0072B2", r=0.088, fs=6.4, z=15):
 
 
 # ==============================================================================
-# 1. Weave System Design Overview (Two-Stage + 14 Knobs + Barrier-Free Pipeline)
+# 1. Weave System Design Overview
 # ==============================================================================
 def render_overview() -> None:
-    W, H = 9.0, 3.25
+    W, H = 9.2, 3.45
     fig = plt.figure(figsize=(W, H), facecolor="white")
     ax = fig.add_axes([0, 0, 1, 1])
     ax.set_xlim(0, W)
     ax.set_ylim(0, H)
     ax.axis("off")
 
-    # Top banner strip
     ax.text(
-        W / 2, 3.11,
-        "Weave Architecture: Compile-Time Calibration + Zero-Env Runtime Scheduling over 14 Public Knobs",
-        fontsize=8.6, fontweight="bold", color="#0F172A", ha="center", va="center",
+        W / 2, 3.31,
+        "Weave Architecture: Routing-Adaptive Spatial, Temporal, and Operator Scheduling Across GPUs & SMs",
+        fontsize=8.5, fontweight="bold", color="#0F172A", ha="center", va="center",
     )
 
-    # ---------------- Column 1: Stage 1 Offline / Compile-Time Calibration ----------------
+    # ---------------- Column 1: Hardware Profile + Per-GPU Live Routing ----------------
     c1_x0, c1_x1 = 0.10, 2.52
-    rbox(ax, c1_x0, 0.12, c1_x1, 2.94, ec="#B4691E", fc="#FFF9F2", lw=1.0, r=0.06, z=1)
-    badge(ax, c1_x0 + 0.15, 2.77, "1", fc="#C96A1B")
-    ax.text(c1_x0 + 0.29, 2.81, "Stage 1: Compile-Time Autotune", fontsize=7.4, fontweight="bold", color="#8C4308", va="center")
-    ax.text(c1_x0 + 0.29, 2.67, "deep_gemm.mega.autotune (once per SKU)", fontsize=6.0, color="#6B4F35", va="center")
+    rbox(ax, c1_x0, 0.12, c1_x1, 3.14, ec="#B4691E", fc="#FFF9F2", lw=1.0, r=0.06, z=1)
+    badge(ax, c1_x0 + 0.15, 2.97, "1", fc="#C96A1B")
+    ax.text(c1_x0 + 0.29, 3.01, "Inputs: Hardware & Live Routing", fontsize=7.2, fontweight="bold", color="#8C4308", va="center")
+    ax.text(c1_x0 + 0.29, 2.86, "Offline calibration + online per-step stats", fontsize=5.8, color="#6B4F35", va="center")
 
-    # Subbox 1A: Dynamic Hardware Fingerprint
-    rbox(ax, 0.20, 1.88, 2.42, 2.52, ec="#D99B52", fc="white", lw=0.75, r=0.04, z=2)
-    ax.text(1.31, 2.39, "Dynamic Hardware Fingerprint (No SKU Hardcode)", fontsize=6.3, fontweight="bold", color="#1E293B", ha="center", va="center")
-    ax.text(1.31, 2.21, "• NVIDIA SM100 / SM103 (TMEM, UMMA, NVLink)", fontsize=5.8, color="#334155", ha="center", va="center")
-    ax.text(1.31, 2.07, "• NVIDIA SM90 H20 (WGMMA, TMA, NVLink)", fontsize=5.8, color="#334155", ha="center", va="center")
-    ax.text(1.31, 1.93, "• AMD CDNA3 gfx942 (8-Wave CU, MFMA, xGMI+RDMA)", fontsize=5.8, color="#334155", ha="center", va="center")
+    # Subbox 1A: Offline Hardware Profile Theta
+    rbox(ax, 0.20, 1.78, 2.42, 2.72, ec="#D99B52", fc="white", lw=0.8, r=0.04, z=2)
+    ax.text(1.31, 2.58, "Offline Hardware Profile (autotune)", fontsize=6.3, fontweight="bold", color="#7C3A06", ha="center", va="center")
+    ax.text(1.31, 2.40, "• SM100 / SM103: TMEM, UMMA, NVLink", fontsize=5.7, color="#334155", ha="center", va="center")
+    ax.text(1.31, 2.24, "• SM90 (H20): WGMMA, TMA, NVLink", fontsize=5.7, color="#334155", ha="center", va="center")
+    ax.text(1.31, 2.08, "• CDNA3 (MI308X): MFMA, xGMI + RDMA", fontsize=5.7, color="#334155", ha="center", va="center")
+    ax.text(1.31, 1.90, "Measures peak FLOPs, HBM/link BW & legal tiles", fontsize=5.45, color="#64748B", ha="center", va="center")
 
-    arrow(ax, 1.31, 1.87, 1.31, 1.73, color="#8C4308")
+    # Subbox 1B: Live Per-GPU Routing Counts
+    rbox(ax, 0.20, 0.22, 2.42, 1.66, ec="#0284C7", fc="white", lw=0.8, r=0.04, z=2)
+    ax.text(1.31, 1.52, "Per-GPU Live Routing Histogram", fontsize=6.3, fontweight="bold", color="#075985", ha="center", va="center")
+    ax.text(1.31, 1.35, "Per-expert tokens m_e, unique pulls D_in, sends M_out", fontsize=5.55, color="#334155", ha="center", va="center")
 
-    # Subbox 1B: 0-Spill Gate + Bucket ABBA
-    rbox(ax, 0.20, 0.92, 2.42, 1.74, ec="#D99B52", fc="white", lw=0.75, r=0.04, z=2)
-    ax.text(1.31, 1.61, "Two-Pass 0-Spill Gate & Bucket ABBA", fontsize=6.3, fontweight="bold", color="#1E293B", ha="center", va="center")
-    ax.text(1.31, 1.44, "1. Prune GEMM1/2 tuples by M_exp & 0-spill check", fontsize=5.8, color="#334155", ha="center", va="center")
-    ax.text(1.31, 1.29, "2. Palindromic ABBA across S in {16 .. 16384}", fontsize=5.8, color="#334155", ha="center", va="center")
-    ax.text(1.31, 1.14, "3. Calibrate 4 online routing break-even thresholds", fontsize=5.8, color="#334155", ha="center", va="center")
-    ax.text(1.31, 0.995, "4. Guard: cos > 0.99 & >= 0.5% vs. default", fontsize=5.6, color="#64748B", ha="center", va="center")
+    # Mini GPU 0 vs GPU 1 skew illustration
+    rbox(ax, 0.28, 0.78, 1.27, 1.22, ec="#0072B2", fc="#F0F9FF", lw=0.65, r=0.03, z=3)
+    ax.text(0.775, 1.11, "GPU 0 (Comm-Skewed)", fontsize=5.4, fontweight="bold", color="#075985", ha="center", va="center")
+    ax.text(0.775, 0.92, "High D_in -> more Comm SMs", fontsize=5.1, color="#1E293B", ha="center", va="center")
 
-    arrow(ax, 1.31, 0.91, 1.31, 0.79, color="#8C4308")
+    rbox(ax, 1.35, 0.78, 2.34, 1.22, ec="#009E73", fc="#ECFDF5", lw=0.65, r=0.03, z=3)
+    ax.text(1.845, 1.11, "GPU 1 (Compute-Heavy)", fontsize=5.4, fontweight="bold", color="#065F46", ha="center", va="center")
+    ax.text(1.845, 0.92, "Hot experts -> more Math SMs", fontsize=5.1, color="#1E293B", ha="center", va="center")
 
-    # Subbox 1C: JSON Profile Artifact
-    rbox(ax, 0.20, 0.20, 2.42, 0.78, ec="#8C4308", fc="#FEF0E1", lw=0.85, r=0.04, z=2)
-    ax.text(1.31, 0.62, "Calibrated Hardware Profile JSON", fontsize=6.4, fontweight="bold", color="#7C3A06", ha="center", va="center")
-    ax.text(1.31, 0.45, "{hw_id}__E_K_H_I_{mma}.json", fontsize=5.9, color="#334155", ha="center", va="center")
-    ax.text(1.31, 0.29, "Per-S base_env + verified_variants + 4 thresholds", fontsize=5.6, color="#57534E", ha="center", va="center")
+    ax.text(1.31, 0.56, "Each GPU picks its own schedule (r_g, s_g)", fontsize=5.6, fontweight="bold", color="#0F172A", ha="center", va="center")
+    ax.text(1.31, 0.37, "Decoupled across GPUs via peer-to-peer queues", fontsize=5.35, color="#475569", ha="center", va="center")
 
-    # ---------------- Column 2: Stage 2 Runtime Selection + 14 Public Knobs ----------------
-    c2_x0, c2_x1 = 2.74, 5.98
-    rbox(ax, c2_x0, 0.12, c2_x1, 2.94, ec="#0072B2", fc="#F4F9FD", lw=1.0, r=0.06, z=1)
-    badge(ax, c2_x0 + 0.15, 2.77, "2", fc="#0072B2")
-    ax.text(c2_x0 + 0.29, 2.81, "Stage 2: Zero-Env Runtime Selection & 14 Knobs", fontsize=7.3, fontweight="bold", color="#075985", va="center")
-    ax.text(c2_x0 + 0.29, 2.67, "weave_mega_moe(...) — 0 host overhead in CUDA/HIP Graph", fontsize=5.9, color="#334155", va="center")
+    # ---------------- Column 2: 3-Axis Schedule Selection (14 Knobs) ----------------
+    c2_x0, c2_x1 = 2.74, 6.08
+    rbox(ax, c2_x0, 0.12, c2_x1, 3.14, ec="#0072B2", fc="#F4F9FD", lw=1.0, r=0.06, z=1)
+    badge(ax, c2_x0 + 0.15, 2.97, "2", fc="#0072B2")
+    ax.text(c2_x0 + 0.29, 3.01, "Routing-Adaptive Schedule (14 Knobs)", fontsize=7.2, fontweight="bold", color="#075985", va="center")
+    ax.text(c2_x0 + 0.29, 2.86, "Cost model selects Spatial + Temporal + Operator configs", fontsize=5.75, color="#334155", va="center")
 
-    # Selector bar
-    rbox(ax, 2.84, 2.02, 5.88, 2.54, ec="#0284C7", fc="white", lw=0.85, r=0.04, z=2)
-    ax.text(4.36, 2.40, "Live Post-Dispatch Routing Stats + Profile Lookup", fontsize=6.4, fontweight="bold", color="#0F172A", ha="center", va="center")
-    ax.text(4.36, 2.24, "Nearest log2(S) bucket + 4 rules (dedup, scatter, spatial, ready_group)", fontsize=5.8, color="#334155", ha="center", va="center")
-    ax.text(4.36, 2.09, "On-device CTA-0 cost model adapts V_HEAD / wave split on live tokens[e]", fontsize=5.7, color="#475569", ha="center", va="center")
+    arrow(ax, 2.43, 2.25, 2.73, 2.25, color="#8C4308")
+    arrow(ax, 2.43, 0.98, 2.73, 0.98, color="#0284C7")
 
-    # Arrow from Stage 1 JSON -> Stage 2 Selector
-    ax.plot([2.42, 2.62, 2.62, 2.83], [0.51, 0.51, 2.28, 2.28], color="#8C4308", lw=0.95, zorder=7)
-    arrow(ax, 2.76, 2.28, 2.84, 2.28, color="#8C4308")
-    arrow(ax, 4.36, 2.01, 4.36, 1.88, color="#0072B2")
+    # Card 2A: Spatial (with explicit Cross-SM + Intra-SM visual bar!)
+    rbox(ax, 2.84, 1.80, 5.98, 2.72, ec="#0072B2", fc="#EBF5FB", lw=0.85, r=0.04, z=2)
+    ax.text(2.92, 2.58, "Spatial (5 Knobs) — Cross-SM/CU Mix & Intra-SM/CU Ratio", fontsize=6.15, fontweight="bold", color="#0072B2", va="center")
+    # Visual Cross-SM strip on one GPU
+    ax.add_patch(Rectangle((2.92, 2.22), 1.38, 0.23, fc="#0284C7", ec="white", lw=0.5, zorder=4))
+    ax.text(3.61, 2.335, "SM 0..k-1: Comm-Rich (8c:4e)", fontsize=5.2, fontweight="bold", color="white", ha="center", va="center", zorder=5)
+    ax.add_patch(Rectangle((4.32, 2.22), 1.58, 0.23, fc="#009E73", ec="white", lw=0.5, zorder=4))
+    ax.text(5.11, 2.335, "SM k..N-1: Comp-Rich (4c:8e)", fontsize=5.2, fontweight="bold", color="white", ha="center", va="center", zorder=5)
+    ax.text(2.92, 2.07, "• Cross-SM: DISPATCH_ACTIVE_SMS (D), SCATTER_ACTIVE_SMS (K)", fontsize=5.5, color="#1E293B", va="center")
+    ax.text(2.92, 1.90, "• Intra-SM: DISPATCH_WARPS, SCATTER_WARPS, CU_WAVE_SPLIT", fontsize=5.5, color="#1E293B", va="center")
 
-    # 3 Category Cards for the 14 Public Knobs
-    cards = [
-        (1.34, 1.87, "#0072B2", "#EBF5FB", "Spatial (5 Knobs) — SM/CU & Warp/Wave Ratios",
-         "• DISPATCH_ACTIVE_SMS (D)  • SCATTER_ACTIVE_SMS (K, K != D)",
-         "• DISPATCH_WARPS  • SCATTER_WARPS  • CU_WAVE_SPLIT (0-8 / 4-4 / 7-W)"),
-        (0.78, 1.29, "#009E73", "#EAFAF4", "Temporal (3 Knobs) — Head / Middle / Tail Overlap",
-         "• V_HEAD (cooperative head pull quota)  • READY_GROUP_SIZE (N-tile start)",
-         "• SCATTER_OWNER (strict binary: epilogue_only vs. comm_only)"),
-        (0.20, 0.73, "#D55E00", "#FEF3EC", "Implementation (6 Knobs) — Independent 4-Op Configs",
-         "• PRECISION_MODE  • GEMM1_CONFIG (coupled tuple)  • GEMM2_CONFIG",
-         "• REG_PULL_BYTES (1K-4K / 8K)  • DEDUP_MODE  • SCATTER_STAGING"),
-    ]
-    for y0, y1, ec, fc, title, l1, l2 in cards:
-        rbox(ax, 2.84, y0, 5.88, y1, ec=ec, fc=fc, lw=0.8, r=0.038, z=2)
-        ax.text(2.92, y1 - 0.125, title, fontsize=6.2, fontweight="bold", color=ec, va="center")
-        ax.text(2.92, y1 - 0.280, l1, fontsize=5.65, color="#1E293B", va="center")
-        ax.text(2.92, y0 + 0.100, l2, fontsize=5.65, color="#1E293B", va="center")
+    # Card 2B: Temporal
+    rbox(ax, 2.84, 1.02, 5.98, 1.72, ec="#009E73", fc="#EAFAF4", lw=0.85, r=0.04, z=2)
+    ax.text(2.92, 1.58, "Temporal (3 Knobs) — Dynamic Phase Role Transitions", fontsize=6.15, fontweight="bold", color="#047857", va="center")
+    ax.text(2.92, 1.39, "• Head: V_HEAD helper pull + READY_GROUP_SIZE N-tile start", fontsize=5.5, color="#1E293B", va="center")
+    ax.text(2.92, 1.23, "• Middle: SCATTER_OWNER (epilogue direct vs. comm staged)", fontsize=5.5, color="#1E293B", va="center")
+    ax.text(2.92, 1.09, "• Tail: per-token ready (k/k) all-warp cooperative Combine", fontsize=5.5, color="#1E293B", va="center")
 
-    # ---------------- Column 3: Barrier-Free Fused Megakernel Execution ----------------
-    c3_x0, c3_x1 = 6.20, 8.90
-    rbox(ax, c3_x0, 0.12, c3_x1, 2.94, ec="#1E293B", fc="#F8FAFC", lw=1.0, r=0.06, z=1)
-    badge(ax, c3_x0 + 0.15, 2.77, "3", fc="#0F766E")
-    ax.text(c3_x0 + 0.29, 2.81, "Fused MoE Megakernel", fontsize=7.4, fontweight="bold", color="#0F172A", va="center")
-    ax.text(c3_x0 + 0.29, 2.67, "Zero inter-op grid_sync across GPUs", fontsize=6.0, color="#0F766E", fontweight="bold", va="center")
+    # Card 2C: Implementation
+    rbox(ax, 2.84, 0.22, 5.98, 0.94, ec="#D55E00", fc="#FEF3EC", lw=0.85, r=0.04, z=2)
+    ax.text(2.92, 0.81, "Implementation (6 Knobs) — Independent 4-Operator Configs", fontsize=6.15, fontweight="bold", color="#C2410C", va="center")
+    ax.text(2.92, 0.62, "• GEMM1_CONFIG, GEMM2_CONFIG (decoupled tile & multi-stage)", fontsize=5.5, color="#1E293B", va="center")
+    ax.text(2.92, 0.46, "• PRECISION_MODE  • REG_PULL_BYTES (1K-4K / 8K)", fontsize=5.5, color="#1E293B", va="center")
+    ax.text(2.92, 0.30, "• DEDUP_MODE (pull once)  • SCATTER_STAGING (reg / smem / hbm)", fontsize=5.5, color="#1E293B", va="center")
 
-    for yc in (1.60, 1.03, 0.46):
-        arrow(ax, 5.89, yc, 6.20, yc, color="#334155")
+    # ---------------- Column 3: Fused Megakernel Execution ----------------
+    c3_x0, c3_x1 = 6.30, 9.10
+    rbox(ax, c3_x0, 0.12, c3_x1, 3.14, ec="#1E293B", fc="#F8FAFC", lw=1.0, r=0.06, z=1)
+    badge(ax, c3_x0 + 0.15, 2.97, "3", fc="#0F766E")
+    ax.text(c3_x0 + 0.29, 3.01, "Fused MoE Megakernel", fontsize=7.3, fontweight="bold", color="#0F172A", va="center")
+    ax.text(c3_x0 + 0.29, 2.86, "Tensor/Matrix Cores active on all SMs/CUs", fontsize=5.8, color="#0F766E", fontweight="bold", va="center")
 
-    # Mini cross-engine overlap timeline inside Column 3
-    rbox(ax, 6.30, 1.40, 8.80, 2.54, ec="#CBD5E1", fc="white", lw=0.75, r=0.04, z=2)
-    ax.text(7.55, 2.42, "Concurrent Intra-SM / CU Pipeline", fontsize=6.3, fontweight="bold", color="#0F172A", ha="center", va="center")
+    for yc in (2.26, 1.37, 0.58):
+        arrow(ax, 5.99, yc, 6.29, yc, color="#334155")
 
-    tx0, tx1 = 6.82, 8.72
+    # Concurrent pipeline box inside Column 3
+    rbox(ax, 6.40, 1.46, 9.00, 2.72, ec="#CBD5E1", fc="white", lw=0.75, r=0.04, z=2)
+    ax.text(7.70, 2.59, "Concurrent Cross-Engine Execution", fontsize=6.25, fontweight="bold", color="#0F172A", ha="center", va="center")
+
+    tx0, tx1 = 6.92, 8.92
     X = lambda t: tx0 + t * (tx1 - tx0)
     tracks = [
-        ("Epi",   2.15, [(0.00, 0.14, "#0072B2", ""), (0.14, 0.80, "#56B4E9", "GEMM1/2 epi"), (0.80, 1.00, "#475569", "comb")]),
-        ("Math",  1.94, [(0.00, 0.11, "#0072B2", ""), (0.11, 0.77, "#009E73", "UMMA/WGMMA/MFMA"), (0.77, 1.00, "#475569", "")]),
-        ("Load",  1.73, [(0.00, 0.09, "#0072B2", ""), (0.09, 0.74, "#CC79A7", "TMA / Coalesced HBM"), (0.74, 1.00, "#475569", "")]),
-        ("Comm",  1.52, [(0.00, 0.38, "#0072B2", "pull"), (0.38, 0.83, "#E69F00", "async scatter"), (0.83, 1.00, "#475569", "")]),
+        ("Epi",  2.34, [(0.00, 0.14, "#0072B2", "V_h"), (0.14, 0.80, "#56B4E9", "GEMM1/2 epi"), (0.80, 1.00, "#475569", "comb")]),
+        ("Math", 2.11, [(0.00, 0.10, "#0072B2", ""), (0.10, 0.78, "#009E73", "UMMA/WGMMA/MFMA"), (0.78, 1.00, "#475569", "")]),
+        ("Load", 1.88, [(0.00, 0.08, "#0072B2", ""), (0.08, 0.75, "#CC79A7", "Async Weight/Act"), (0.75, 1.00, "#475569", "")]),
+        ("Comm", 1.65, [(0.00, 0.36, "#0072B2", "reg pull"), (0.36, 0.83, "#E69F00", "smem/reg scatter"), (0.83, 1.00, "#475569", "")]),
     ]
-    rh = 0.165
+    rh = 0.175
     for name, yc, segs in tracks:
-        ax.text(tx0 - 0.04, yc, name, fontsize=5.8, fontweight="bold", color="#334155", ha="right", va="center")
+        ax.text(tx0 - 0.04, yc, name, fontsize=5.7, fontweight="bold", color="#334155", ha="right", va="center")
         for s0, s1, col, lab in segs:
             ax.add_patch(Rectangle((X(s0), yc - rh / 2), X(s1) - X(s0), rh, fc=col, ec="white", lw=0.4, zorder=4))
             if lab:
                 tc = "#111111" if col in ("#56B4E9", "#E69F00") else "white"
-                ax.text((X(s0) + X(s1)) / 2, yc, lab, fontsize=5.2, fontweight="bold", color=tc, ha="center", va="center", zorder=6)
+                ax.text((X(s0) + X(s1)) / 2, yc, lab, fontsize=5.0, fontweight="bold", color=tc, ha="center", va="center", zorder=6)
 
-    # Atomic handoff summary box
-    rbox(ax, 6.30, 0.22, 8.80, 1.30, ec="#0F766E", fc="#ECFDF5", lw=0.8, r=0.04, z=2)
-    ax.text(7.55, 1.16, "Fine-Grained Atomic Handoffs", fontsize=6.3, fontweight="bold", color="#065F46", ha="center", va="center")
-    ax.text(7.55, 0.97, "• Notify -> Pull: per-expert atomic count", fontsize=5.7, color="#1E293B", ha="center", va="center")
-    ax.text(7.55, 0.80, "• GEMM1 <-> GEMM2: K-block / ring ready", fontsize=5.7, color="#1E293B", ha="center", va="center")
-    ax.text(7.55, 0.63, "• FC2 Scatter: SMEM ring / owner-node RDMA", fontsize=5.7, color="#1E293B", ha="center", va="center")
-    ax.text(7.55, 0.46, "• Tail Combine: per-token ld.acquire.sys", fontsize=5.7, color="#1E293B", ha="center", va="center")
-    ax.text(7.55, 0.29, "1.30x SM103 · 1.25x H20 · 1.88x MI308X", fontsize=5.8, fontweight="bold", color="#0F766E", ha="center", va="center")
+    # Fine-grained atomic handoff box
+    rbox(ax, 6.40, 0.22, 9.00, 1.35, ec="#0F766E", fc="#ECFDF5", lw=0.8, r=0.04, z=2)
+    ax.text(7.70, 1.22, "Fine-Grained Tile & Token Handoffs", fontsize=6.25, fontweight="bold", color="#065F46", ha="center", va="center")
+    ax.text(7.70, 1.02, "• Dispatch -> GEMM1: N-tile arrival counters", fontsize=5.55, color="#1E293B", ha="center", va="center")
+    ax.text(7.70, 0.84, "• GEMM1 <-> GEMM2: tile-ready bitmap / ring", fontsize=5.55, color="#1E293B", ha="center", va="center")
+    ax.text(7.70, 0.66, "• FC2 Scatter: multi-stage reg / smem / hbm", fontsize=5.55, color="#1E293B", ha="center", va="center")
+    ax.text(7.70, 0.48, "• Combine: per-token (k/k) acquire readiness", fontsize=5.55, color="#1E293B", ha="center", va="center")
+    ax.text(7.70, 0.30, "1.22x SM103 · 1.21x H20 · 1.88x MI308X GM", fontsize=5.7, fontweight="bold", color="#0F766E", ha="center", va="center")
 
     verify_canvas(fig, "weave_design_overview")
     FIG_DIR.mkdir(parents=True, exist_ok=True)
@@ -238,10 +237,10 @@ def render_overview() -> None:
 
 
 # ==============================================================================
-# 2. Cross-Hardware Spatial-Temporal Warp/Wave Role Graph (4-Panel)
+# 2. Multi-Granularity Spatial & Temporal Role Graph (4-Panel)
 # ==============================================================================
 def render_rolegraph() -> None:
-    W, H = 9.4, 3.15
+    W, H = 9.6, 3.35
     fig = plt.figure(figsize=(W, H), facecolor="white")
     ax = fig.add_axes([0, 0, 1, 1])
     ax.set_xlim(0, W)
@@ -249,45 +248,45 @@ def render_rolegraph() -> None:
     ax.axis("off")
 
     COL = {
-        "pull":     "#0072B2",
-        "scatter":  "#E69F00",
-        "load":     "#CC79A7",
-        "mma":      "#009E73",
-        "epi":      "#56B4E9",
-        "combine":  "#475569",
-        "idle":     "#E2E8F0",
+        "pull":    "#0072B2",
+        "scatter": "#E69F00",
+        "load":    "#CC79A7",
+        "mma":     "#009E73",
+        "epi":     "#56B4E9",
+        "combine": "#475569",
+        "idle":    "#E2E8F0",
     }
 
     ax.text(
-        W / 2, 3.01,
-        "Spatial Warp/Wave Partitioning & Barrier-Free Temporal Schedules Across NVIDIA SM103, NVIDIA H20, and AMD MI308X",
-        fontsize=8.3, fontweight="bold", color="#0F172A", ha="center", va="center",
+        W / 2, 3.21,
+        "Multi-Granularity Spatial Partitioning (Cross-GPU, Cross-SM/CU & Intra-SM/CU) and Dynamic Temporal Roles",
+        fontsize=8.2, fontweight="bold", color="#0F172A", ha="center", va="center",
     )
 
     panels = [
-        (0.08, 2.26, "(a) Coarse-Barrier Megakernel", "Global grid_sync + blocking scatter/combine", "#991B1B", "#FEF2F2"),
-        (2.38, 4.64, "(b) NVIDIA SM100 / SM103", "16 Warps/CTA · TMEM + UMMA + SMEM Scatter", "#075985", "#F0F9FF"),
-        (4.76, 7.02, "(c) NVIDIA H20 (SM90)", "20 Warps/CTA · Lag-W K-Bitmap (0 grid_sync)", "#065F46", "#ECFDF5"),
-        (7.14, 9.32, "(d) AMD MI308X (CDNA3)", "8 Wave64/CU · 2-CTA/CU · 0-8 vs 4-4 Split", "#7C2D12", "#FFF7ED"),
+        (0.08, 2.32, "(a) Static Megakernel", "Uniform SM split + head/middle/tail bubbles", "#991B1B", "#FEF2F2"),
+        (2.44, 4.82, "(b) Cross-GPU & Cross-SM Mixing", "Different SMs run different warp ratios", "#075985", "#F0F9FF"),
+        (4.94, 7.22, "(c) NVIDIA SM103 & H20 Roles", "16w (SM103) / 20w (H20) temporal handoff", "#065F46", "#ECFDF5"),
+        (7.34, 9.52, "(d) AMD MI308X (CDNA3)", "8 Wave64/CU · (0,8) vs (4,4) CU mix", "#7C2D12", "#FFF7ED"),
     ]
     for x0, x1, title, sub, ec, fc in panels:
-        rbox(ax, x0, 0.36, x1, 2.86, ec=ec, fc=fc, lw=0.9, r=0.05, z=1)
-        ax.text((x0 + x1) / 2, 2.74, title, fontsize=6.9, fontweight="bold", color=ec, ha="center", va="center")
-        ax.text((x0 + x1) / 2, 2.58, sub, fontsize=5.55, color="#334155", ha="center", va="center")
+        rbox(ax, x0, 0.36, x1, 3.04, ec=ec, fc=fc, lw=0.9, r=0.05, z=1)
+        ax.text((x0 + x1) / 2, 2.91, title, fontsize=6.8, fontweight="bold", color=ec, ha="center", va="center")
+        ax.text((x0 + x1) / 2, 2.74, sub, fontsize=5.5, color="#334155", ha="center", va="center")
 
     def draw_tracks(px0, px1, y_top, y_bot, tracks, time_end=1.0, ref_end_line=False):
-        lx = px0 + 0.48
+        lx = px0 + 0.49
         rx = px1 - 0.08
         X = lambda t: lx + t * (rx - lx)
         total_w = sum(w for _, w, _ in tracks)
-        gap = 0.035
+        gap = 0.036
         avail_h = (y_top - y_bot) - gap * (len(tracks) - 1)
         y = y_top
         boxes = {}
         for label, weight, segs in tracks:
             h = avail_h * (weight / total_w)
             y0 = y - h
-            ax.text(lx - 0.04, y0 + h / 2, label, fontsize=5.5, fontweight="bold", color="#1E293B", ha="right", va="center")
+            ax.text(lx - 0.04, y0 + h / 2, label, fontsize=5.35, fontweight="bold", color="#1E293B", ha="right", va="center")
             for seg in segs:
                 t0, t1, kind, n_sub, txt = seg
                 fc = COL[kind]
@@ -297,7 +296,7 @@ def render_rolegraph() -> None:
                     ax.add_patch(Rectangle((X(s0), y0), X(s1) - X(s0), h, fc=fc, ec="white", lw=0.35, zorder=3))
                 if txt:
                     tc = "#111111" if kind in ("epi", "scatter", "idle") else "white"
-                    ax.text((X(t0) + X(t1)) / 2, y0 + h / 2, txt, fontsize=5.1, fontweight="bold",
+                    ax.text((X(t0) + X(t1)) / 2, y0 + h / 2, txt, fontsize=5.0, fontweight="bold",
                             color=tc, ha="center", va="center", zorder=6)
             boxes[label] = (y0, y0 + h)
             y = y0 - gap
@@ -306,112 +305,128 @@ def render_rolegraph() -> None:
             ax.plot([rx, rx], [y_bot, y_top], ls=(0, (2.2, 1.4)), lw=0.65, color="#64748B", zorder=5)
         return X, boxes
 
-    # --- Panel (a): Baseline Coarse-Barrier Megakernel ---
+    # --- Panel (a): Static Megakernel ---
     alt_es = []
     for k in range(4):
         a = 0.22 + k * 0.12
         alt_es.append((a, a + 0.06, "epi", 1, "epi" if k == 0 else ""))
         alt_es.append((a + 0.06, a + 0.12, "scatter", 1, "scat" if k == 2 else ""))
-    Xa, ba = draw_tracks(0.08, 2.26, 2.44, 0.62, [
+    Xa, ba = draw_tracks(0.08, 2.32, 2.58, 0.64, [
         ("Epi\n×4",  1.15, [(0.00, 0.22, "idle", 1, ""), *alt_es, (0.70, 0.87, "idle", 1, ""), (0.87, 1.00, "combine", 1, "comb")]),
-        ("MMA\n×1",  0.85, [(0.00, 0.22, "idle", 1, ""), (0.22, 0.42, "mma", 2, "GEMM1"), (0.42, 0.54, "idle", 1, ""), (0.54, 0.70, "mma", 2, "GEMM2"), (0.70, 1.00, "idle", 1, "")]),
-        ("Load\n×2", 0.85, [(0.00, 0.22, "idle", 1, ""), (0.22, 0.41, "load", 2, "load"), (0.41, 0.54, "idle", 1, ""), (0.54, 0.68, "load", 2, "load"), (0.68, 1.00, "idle", 1, "")]),
+        ("MMA\n×1",  0.85, [(0.00, 0.22, "idle", 1, ""), (0.22, 0.40, "mma", 2, "GEMM1"), (0.40, 0.55, "idle", 1, ""), (0.55, 0.70, "mma", 2, "GEMM2"), (0.70, 1.00, "idle", 1, "")]),
+        ("Load\n×2", 0.85, [(0.00, 0.22, "idle", 1, ""), (0.22, 0.39, "load", 2, "load"), (0.39, 0.55, "idle", 1, ""), (0.55, 0.69, "load", 2, "load"), (0.69, 1.00, "idle", 1, "")]),
         ("Comm\n×4", 1.05, [(0.00, 0.34, "pull", 2, "pull"), (0.34, 1.00, "idle", 1, "idle comm bubble")]),
     ], time_end=1.0)
-    # Highlight Head bubble, grid_sync gap, and Tail barrier bubble
     ax.add_patch(Rectangle((Xa(0.005), ba["Load\n×2"][0] + 0.01), Xa(0.215) - Xa(0.005),
                            ba["Epi\n×4"][1] - ba["Load\n×2"][0] - 0.02,
                            fc="none", ec="#B91C1C", lw=0.75, ls=(0, (2, 1.2)), zorder=8))
     ax.text(Xa(0.11), (ba["Load\n×2"][0] + ba["Epi\n×4"][1]) / 2, "head\nbubble",
-            fontsize=5.1, fontweight="bold", color="#991B1B", ha="center", va="center", zorder=9)
-    ax.add_patch(Rectangle((Xa(0.425), ba["Load\n×2"][0] + 0.01), Xa(0.535) - Xa(0.425),
+            fontsize=5.0, fontweight="bold", color="#991B1B", ha="center", va="center", zorder=9)
+    ax.add_patch(Rectangle((Xa(0.405), ba["Load\n×2"][0] + 0.01), Xa(0.545) - Xa(0.405),
                            ba["MMA\n×1"][1] - ba["Load\n×2"][0] - 0.02,
                            fc="none", ec="#B91C1C", lw=0.75, ls=(0, (2, 1.2)), zorder=8))
-    ax.text(Xa(0.48), (ba["Load\n×2"][0] + ba["MMA\n×1"][1]) / 2, "grid\nsync",
-            fontsize=4.8, fontweight="bold", color="#991B1B", ha="center", va="center", zorder=10)
+    ax.text(Xa(0.475), (ba["Load\n×2"][0] + ba["MMA\n×1"][1]) / 2, "stage\nsync",
+            fontsize=4.7, fontweight="bold", color="#991B1B", ha="center", va="center", zorder=10)
     ax.add_patch(Rectangle((Xa(0.705), ba["Load\n×2"][0] + 0.01), Xa(0.865) - Xa(0.705),
                            ba["Epi\n×4"][1] - ba["Load\n×2"][0] - 0.02,
                            fc="none", ec="#B91C1C", lw=0.75, ls=(0, (2, 1.2)), zorder=8))
     ax.text(Xa(0.785), (ba["Load\n×2"][0] + ba["Epi\n×4"][1]) / 2, "tail\nsync",
             fontsize=5.0, fontweight="bold", color="#991B1B", ha="center", va="center", zorder=9)
-    ax.text((0.08 + 2.26) / 2, 0.44, "3 coarse barriers stall Tensor/Matrix Cores", fontsize=5.4, color="#991B1B", ha="center", va="center")
+    ax.text((0.08 + 2.32) / 2, 0.45, "Fixed warp split across all SMs stalls compute", fontsize=5.3, color="#991B1B", ha="center", va="center")
 
-    # --- Panel (b): NVIDIA SM100 / SM103 (16 Warps / CTA) ---
-    draw_tracks(2.38, 4.64, 2.44, 0.62, [
-        ("W08-15\nEpi ×8",  1.35, [(0.00, 0.10, "pull", 1, "V_h"), (0.10, 0.63, "epi", 5, "TMEM epi + ring"), (0.63, 0.76, "combine", 2, "comb")]),
-        ("W06-07\nUMMA ×2", 0.85, [(0.06, 0.60, "mma", 5, "CLC + UMMA"), (0.00, 0.06, "idle", 1, ""), (0.60, 0.76, "combine", 2, "")]),
-        ("W04-05\nTMA ×2",  0.85, [(0.03, 0.57, "load", 5, "9-st TMA A/B"), (0.00, 0.03, "idle", 1, ""), (0.57, 0.76, "combine", 2, "")]),
-        ("W00-03\nComm ×4", 1.00, [(0.00, 0.31, "pull", 3, "reg pull"), (0.31, 0.66, "scatter", 4, "SMEM scatter"), (0.66, 0.76, "combine", 2, "")]),
-    ], time_end=0.76, ref_end_line=True)
-    ax.text((2.38 + 4.64) / 2, 0.44, "All 16 warps active · HBM peak 82% · 0 spill", fontsize=5.4, color="#075985", ha="center", va="center")
+    # --- Panel (b): Cross-GPU & Cross-SM/CU Spatial Mixing ---
+    # GPU 0 box: Comm-skewed (larger k_0 Comm-rich SMs, smaller Compute-rich SMs)
+    rbox(ax, 2.52, 1.66, 4.74, 2.60, ec="#0284C7", fc="white", lw=0.75, r=0.035, z=2)
+    ax.text(3.63, 2.48, "GPU 0 (Comm-Heavy): Threshold k_0 = 60% SMs", fontsize=5.45, fontweight="bold", color="#075985", ha="center", va="center")
+    # Draw 10 SM tiles on GPU 0 (6 Comm-Rich + 4 Comp-Rich), each having BOTH Tensor Core green AND Comm blue/orange!
+    sm_x0 = 2.60
+    sm_w = 0.195
+    for i in range(10):
+        sx = sm_x0 + i * (sm_w + 0.018)
+        is_comm_rich = i < 6
+        comm_h = 0.30 if is_comm_rich else 0.13
+        comp_h = 0.46 - comm_h
+        # Bottom: Comm warps; Top: Tensor/Matrix Core + Epi warps (active on EVERY SM!)
+        ax.add_patch(Rectangle((sx, 1.88), sm_w, comm_h, fc=COL["pull"] if i < 4 else COL["scatter"], ec="white", lw=0.4, zorder=4))
+        ax.add_patch(Rectangle((sx, 1.88 + comm_h), sm_w, comp_h, fc=COL["mma"], ec="white", lw=0.4, zorder=4))
+    ax.text(3.22, 1.76, "SM 0..k_0-1: (8c,4e)/(10c,8m)", fontsize=5.0, fontweight="bold", color="#075985", ha="center", va="center")
+    ax.text(4.32, 1.76, "SM k_0..N-1: (4c,8e)", fontsize=5.0, fontweight="bold", color="#065F46", ha="center", va="center")
 
-    # --- Panel (c): NVIDIA H20 SM90 (20 Warps / CTA, Lag-W Zero-grid_sync) ---
-    draw_tracks(4.76, 7.02, 2.44, 0.62, [
-        ("W12-19\nWG0/1 ×8", 1.40, [(0.00, 0.09, "pull", 1, "V_h"), (0.09, 0.66, "mma", 6, "Lag-W GEMM1<->2"), (0.66, 0.78, "combine", 2, "comb")]),
-        ("W08-09\nTMA ×2",   0.85, [(0.00, 0.07, "pull", 1, ""), (0.07, 0.63, "load", 5, "TMA weight/act"), (0.63, 0.78, "combine", 2, "")]),
-        ("W00-07\nComm ×8",  1.20, [(0.00, 0.27, "pull", 3, "dedup pull"), (0.27, 0.69, "scatter", 4, "NVLink scatter"), (0.69, 0.78, "combine", 2, "")]),
+    # GPU 1 box: Compute-heavy (smaller k_1 Comm-rich SMs, larger Compute-rich SMs + D != K)
+    rbox(ax, 2.52, 0.62, 4.74, 1.56, ec="#0F766E", fc="white", lw=0.75, r=0.035, z=2)
+    ax.text(3.63, 1.44, "GPU 1 (Compute-Heavy): Threshold k_1 = 20% SMs", fontsize=5.45, fontweight="bold", color="#065F46", ha="center", va="center")
+    for i in range(10):
+        sx = sm_x0 + i * (sm_w + 0.018)
+        is_comm_rich = i < 2
+        comm_h = 0.28 if is_comm_rich else 0.11
+        comp_h = 0.44 - comm_h
+        ax.add_patch(Rectangle((sx, 0.86), sm_w, comm_h, fc=COL["pull"] if i < 2 else COL["scatter"], ec="white", lw=0.4, zorder=4))
+        ax.add_patch(Rectangle((sx, 0.86 + comm_h), sm_w, comp_h, fc=COL["mma"], ec="white", lw=0.4, zorder=4))
+    ax.text(3.63, 0.73, "Active Dispatch SMs (D) != Scatter SMs (K) · All SMs run MMA", fontsize=5.05, fontweight="bold", color="#1E293B", ha="center", va="center")
+    ax.text((2.44 + 4.82) / 2, 0.45, "Continuous GPU-wide N_c tuning · 100% SM MMA activity", fontsize=5.3, color="#075985", ha="center", va="center")
+
+    # --- Panel (c): NVIDIA SM103 (16w) & H20 (20w) Dynamic Temporal Roles ---
+    draw_tracks(4.94, 7.22, 2.58, 0.64, [
+        ("Epi/WG\n8–16w", 1.35, [(0.00, 0.11, "pull", 1, "V_h"), (0.11, 0.63, "epi", 5, "multi-stage epi / reg"), (0.63, 0.78, "combine", 1, "comb")]),
+        ("MMA\n2–8w",     0.90, [(0.00, 0.07, "idle", 1, ""), (0.07, 0.61, "mma", 5, "UMMA / WGMMA"), (0.61, 0.78, "combine", 1, "")]),
+        ("TMA\n2w",       0.80, [(0.00, 0.04, "idle", 1, ""), (0.04, 0.59, "load", 5, "multi-stage TMA"), (0.59, 0.78, "combine", 1, "")]),
+        ("Comm\n2–10w",   1.05, [(0.00, 0.30, "pull", 3, "reg pull"), (0.30, 0.65, "scatter", 4, "smem scatter"), (0.65, 0.78, "combine", 1, "")]),
     ], time_end=0.78, ref_end_line=True)
-    ax.text((4.76 + 7.02) / 2, 0.44, "K-bitmap L1->L2 · Tensor Active x4 = 75-100%", fontsize=5.4, color="#065F46", ha="center", va="center")
+    ax.text((4.94 + 7.22) / 2, 0.45, "Head V_head pull -> Middle smem/reg -> k/k Combine", fontsize=5.2, color="#065F46", ha="center", va="center")
 
-    # --- Panel (d): AMD MI308X CDNA3 (8 Wave64/CU: 0-8 Decode vs 4-4 Prefill) ---
-    # Upper sub-box: Decode S<=128 (0-8)
-    rbox(ax, 7.22, 1.84, 9.24, 2.46, ec="#EA580C", fc="white", lw=0.65, r=0.03, z=2)
-    ax.text(8.23, 2.35, "Small S <= 128: CU_WAVE_SPLIT = 0-8", fontsize=5.5, fontweight="bold", color="#9A3412", ha="center", va="center")
-    lx_d, rx_d = 7.68, 9.16
+    # --- Panel (d): AMD MI308X CDNA3 (8 Wave64/CU: (0,8) vs (4,4) CUs) ---
+    rbox(ax, 7.42, 1.88, 9.44, 2.58, ec="#EA580C", fc="white", lw=0.65, r=0.03, z=2)
+    ax.text(8.43, 2.46, "Compute-Rich CU: Split = (0, 8)", fontsize=5.45, fontweight="bold", color="#9A3412", ha="center", va="center")
+    lx_d, rx_d = 7.88, 9.36
     Xd = lambda t: lx_d + t * (rx_d - lx_d)
-    ax.text(lx_d - 0.04, 2.07, "W0-7\n×8", fontsize=5.3, fontweight="bold", color="#1E293B", ha="right", va="center")
+    ax.text(lx_d - 0.04, 2.14, "W0-7\n×8", fontsize=5.25, fontweight="bold", color="#1E293B", ha="right", va="center")
     for s0, s1, kind, lab in [
         (0.00, 0.14, "pull", "pull"),
-        (0.14, 0.60, "mma", "8-Wave MFMA"),
-        (0.60, 0.74, "scatter", "scat"),
-        (0.74, 0.88, "combine", "comb"),
+        (0.14, 0.62, "mma", "8-Wave MFMA"),
+        (0.62, 0.75, "scatter", "scat"),
+        (0.75, 0.88, "combine", "comb"),
     ]:
-        ax.add_patch(Rectangle((Xd(s0), 1.92), Xd(s1) - Xd(s0), 0.29, fc=COL[kind], ec="white", lw=0.35, zorder=3))
+        ax.add_patch(Rectangle((Xd(s0), 1.98), Xd(s1) - Xd(s0), 0.31, fc=COL[kind], ec="white", lw=0.35, zorder=3))
         tc = "#111111" if kind == "scatter" else "white"
-        ax.text((Xd(s0) + Xd(s1)) / 2, 2.065, lab, fontsize=4.95, fontweight="bold", color=tc, ha="center", va="center", zorder=5)
+        ax.text((Xd(s0) + Xd(s1)) / 2, 2.135, lab, fontsize=4.9, fontweight="bold", color=tc, ha="center", va="center", zorder=5)
 
-    # Lower sub-box: Prefill / 2-Node EP16 (4-4)
-    rbox(ax, 7.22, 0.64, 9.24, 1.75, ec="#EA580C", fc="white", lw=0.65, r=0.03, z=2)
-    ax.text(8.23, 1.63, "Prefill / EP16: CU_WAVE_SPLIT = 4-4", fontsize=5.5, fontweight="bold", color="#9A3412", ha="center", va="center")
-    # Compute W0-3
-    ax.text(lx_d - 0.04, 1.33, "W0-3\nComp", fontsize=5.2, fontweight="bold", color="#1E293B", ha="right", va="center")
+    rbox(ax, 7.42, 0.64, 9.44, 1.78, ec="#EA580C", fc="white", lw=0.65, r=0.03, z=2)
+    ax.text(8.43, 1.66, "Comm-Rich Hybrid CU: Split = (4, 4)", fontsize=5.45, fontweight="bold", color="#9A3412", ha="center", va="center")
+    ax.text(lx_d - 0.04, 1.35, "W0-3\nComp", fontsize=5.15, fontweight="bold", color="#1E293B", ha="right", va="center")
     for s0, s1, kind, lab in [
         (0.00, 0.10, "load", ""),
-        (0.10, 0.73, "mma", "160x256 MFMA"),
+        (0.10, 0.73, "mma", "GEMM1/2 MFMA"),
         (0.73, 0.88, "combine", "comb"),
     ]:
-        ax.add_patch(Rectangle((Xd(s0), 1.18), Xd(s1) - Xd(s0), 0.29, fc=COL[kind], ec="white", lw=0.35, zorder=3))
+        ax.add_patch(Rectangle((Xd(s0), 1.20), Xd(s1) - Xd(s0), 0.30, fc=COL[kind], ec="white", lw=0.35, zorder=3))
         if lab:
-            ax.text((Xd(s0) + Xd(s1)) / 2, 1.325, lab, fontsize=4.95, fontweight="bold", color="white", ha="center", va="center", zorder=5)
-    # Comm W4-7
-    ax.text(lx_d - 0.04, 0.89, "W4-7\nComm", fontsize=5.2, fontweight="bold", color="#1E293B", ha="right", va="center")
+            ax.text((Xd(s0) + Xd(s1)) / 2, 1.35, lab, fontsize=4.9, fontweight="bold", color="white", ha="center", va="center", zorder=5)
+    ax.text(lx_d - 0.04, 0.90, "W4-7\nComm", fontsize=5.15, fontweight="bold", color="#1E293B", ha="right", va="center")
     for s0, s1, kind, lab in [
         (0.00, 0.34, "pull", "8KB pull"),
         (0.34, 0.76, "scatter", "xGMI+RDMA"),
         (0.76, 0.88, "combine", ""),
     ]:
-        ax.add_patch(Rectangle((Xd(s0), 0.74), Xd(s1) - Xd(s0), 0.29, fc=COL[kind], ec="white", lw=0.35, zorder=3))
+        ax.add_patch(Rectangle((Xd(s0), 0.75), Xd(s1) - Xd(s0), 0.30, fc=COL[kind], ec="white", lw=0.35, zorder=3))
         if lab:
             tc = "#111111" if kind == "scatter" else "white"
-            ax.text((Xd(s0) + Xd(s1)) / 2, 0.885, lab, fontsize=4.95, fontweight="bold", color=tc, ha="center", va="center", zorder=5)
+            ax.text((Xd(s0) + Xd(s1)) / 2, 0.90, lab, fontsize=4.9, fontweight="bold", color=tc, ha="center", va="center", zorder=5)
 
-    ax.text((7.14 + 9.32) / 2, 0.44, "2-CTA/CU · 256 VGPR 0-spill · 1.875x EP16 GM", fontsize=5.4, color="#7C2D12", ha="center", va="center")
+    ax.text((7.34 + 9.52) / 2, 0.45, "Co-resident (0,8) & (4,4) CUs overlap xGMI + GDA RDMA", fontsize=5.2, color="#7C2D12", ha="center", va="center")
 
-    # Shared Bottom Legend (centered using fig.legend so widths are exact)
-    from matplotlib.patches import Patch
     leg_handles = [
         Patch(facecolor=COL["pull"], edgecolor="none", label="Remote Pull / Dedup"),
         Patch(facecolor=COL["load"], edgecolor="none", label="Async Weight/Act Load"),
         Patch(facecolor=COL["mma"], edgecolor="none", label="Tensor / Matrix Core GEMM"),
-        Patch(facecolor=COL["epi"], edgecolor="none", label="Epilogue / Ring Stage"),
-        Patch(facecolor=COL["scatter"], edgecolor="none", label="Async NVLink / xGMI / RDMA Scatter"),
-        Patch(facecolor=COL["combine"], edgecolor="none", label="Ready-Gated Combine"),
-        Patch(facecolor=COL["idle"], edgecolor="#94A3B8", linewidth=0.5, label="Barrier / Idle Bubble"),
+        Patch(facecolor=COL["epi"], edgecolor="none", label="Multi-Stage Epilogue"),
+        Patch(facecolor=COL["scatter"], edgecolor="none", label="Cross-GPU Scatter (reg / smem / hbm)"),
+        Patch(facecolor=COL["combine"], edgecolor="none", label="Per-Token Ready Combine"),
+        Patch(facecolor=COL["idle"], edgecolor="#94A3B8", linewidth=0.5, label="Sync / Idle Bubble"),
     ]
     fig.legend(
         handles=leg_handles, loc="lower center", ncol=7, frameon=False,
-        bbox_to_anchor=(0.5, 0.018), fontsize=5.55,
-        handlelength=1.15, handleheight=0.85, columnspacing=1.05, handletextpad=0.38, borderaxespad=0.0,
+        bbox_to_anchor=(0.5, 0.018), fontsize=5.5,
+        handlelength=1.15, handleheight=0.85, columnspacing=1.0, handletextpad=0.36, borderaxespad=0.0,
     )
 
     verify_canvas(fig, "weave_design_rolegraph")

@@ -76,10 +76,10 @@
 #define WEAVE_REG_BALANCE 0
 #endif
 static_assert(WEAVE_SCATTER_OWNER <= 1, "WEAVE_SCATTER_OWNER: 0 = epilogue_only, 1 = comm_only");
-static_assert(WEAVE_SCATTER_STAGING <= 2, "WEAVE_SCATTER_STAGING: 0 = reg_2stage, 1 = smem, 2 = hbm_dedup");
+static_assert(WEAVE_SCATTER_STAGING <= 2, "WEAVE_SCATTER_STAGING: 0 = reg, 1 = smem, 2 = hbm");
 static_assert(WEAVE_SCATTER_STAGING == 0 or WEAVE_SCATTER_OWNER == 1,
-              "smem / hbm_dedup staging is owned by communication warps (comm_only)");
-static_assert(WEAVE_EPI_REG_STAGES <= 2, "WEAVE_EPI_REG_STAGES: 0 = auto, 1, 2");
+              "smem / hbm staging is owned by communication warps (comm_only)");
+static_assert(WEAVE_EPI_REG_STAGES <= 4, "WEAVE_EPI_REG_STAGES: 0 = auto, 1..4");
 static_assert(WEAVE_SCHED_L2_RATIO >= 1 and WEAVE_SCHED_L2_RATIO <= 4,
               "WEAVE_SCHED_L2_RATIO must be in [1, 4]");
 static_assert(WEAVE_REG_BALANCE <= 1, "WEAVE_REG_BALANCE must be 0 or 1");
@@ -5110,7 +5110,7 @@ sm100_fp8_fp4_mega_moe_impl(void* y,
             ? ((kTmemPipelineMode >= 175u and (BLOCK_M == 80u or BLOCK_M == 96u or BLOCK_M >= 240u) and kEpiRegPrefetchLegal) ? 1u : 0u)
             : static_cast<uint32_t>(WEAVE_EPI_REG_STAGES) - 1u;
         DG_STATIC_ASSERT(kNumEpiPrefetchStages == 0u or kEpiRegPrefetchLegal,
-                         "WEAVE_EPI_REG_STAGES=2 needs one N subtile and a static epilogue");
+                         "WEAVE_EPI_REG_STAGES>=2 needs one N subtile and a static epilogue");
         // Without register prefetch, still load a whole store block from TMEM
         // before the single tcgen05.wait::ld and release the stage right after
         // the last valid block's loads: the upstream epilogue's behaviour for
@@ -5717,7 +5717,9 @@ if constexpr (kAccumOverlapCols > 0u) { if (accum_stage_idx == 0u ? (epilogue_wg
                             shared_storage.tmem_empty_barriers[accum_stage_idx].arrive(0u);
 if constexpr (kAccumOverlapCols > 0u) { if (accum_stage_idx == 0u ? (epilogue_wg_idx == kNumEpilogueWarpgroups - 1u) : (epilogue_wg_idx == 0u)) shared_storage.overlap_empty_barriers[accum_stage_idx].arrive(0u); }
                         } else {
-                            issue_l1_epi_block(0u);
+                            #pragma unroll
+                            for (uint32_t ps = 0; ps < kNumEpiPrefetchStages; ++ ps)
+                                issue_l1_epi_block(ps);
                         }
                     } else if constexpr (kBatchedEpiTmemLoads) {
                         // A warpgroup without valid rows releases the stage at once
@@ -5747,7 +5749,7 @@ if constexpr (kAccumOverlapCols > 0u) { if (accum_stage_idx == 0u ? (epilogue_wg
                         }
                         if constexpr (kNumEpiPrefetchStages > 0) {
                             cutlass::arch::fence_view_async_tmem_load();
-                            issue_l1_epi_block(s + 1u);
+                            issue_l1_epi_block(s + kNumEpiPrefetchStages);
                         } else if constexpr (kBatchedEpiTmemLoads) {
                             // Upstream wait_and_prefetch_next without prefetch: issue
                             // every atom of this store block, then wait once, instead
@@ -6293,7 +6295,9 @@ if constexpr (kAccumOverlapCols > 0u) { if (accum_stage_idx == 0u ? (epilogue_wg
                             shared_storage.tmem_empty_barriers[accum_stage_idx].arrive(0u);
 if constexpr (kAccumOverlapCols > 0u) { if (accum_stage_idx == 0u ? (epilogue_wg_idx == kNumEpilogueWarpgroups - 1u) : (epilogue_wg_idx == 0u)) shared_storage.overlap_empty_barriers[accum_stage_idx].arrive(0u); }
                         } else {
-                            issue_l2_epi_block(0u);
+                            #pragma unroll
+                            for (uint32_t ps = 0; ps < kNumEpiPrefetchStages; ++ ps)
+                                issue_l2_epi_block(ps);
                         }
                     } else if constexpr (kBatchedEpiTmemLoads) {
                         if (num_valid_store_blocks_l2 == 0u) {
@@ -6319,7 +6323,7 @@ if constexpr (kAccumOverlapCols > 0u) { if (accum_stage_idx == 0u ? (epilogue_wg
                         }
                         if constexpr (kNumEpiPrefetchStages > 0) {
                             cutlass::arch::fence_view_async_tmem_load();
-                            issue_l2_epi_block(s + 1u);
+                            issue_l2_epi_block(s + kNumEpiPrefetchStages);
                         } else if constexpr (kBatchedEpiTmemLoads) {
                             // Upstream `wait_and_prefetch_next` without prefetch:
                             // issue every atom of this store block, then wait once

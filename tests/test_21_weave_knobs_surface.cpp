@@ -504,8 +504,8 @@ void test_named_enums() {
          [](const char* e, int fb) { return wk::named_env(e, {"auto", "0-8", "4-4", "8-0"}, fb); }},
         {"WEAVE_SCATTER_OWNER", {"epilogue_only", "comm_only"},
          [](const char* e, int fb) { return wk::named_env(e, {"epilogue_only", "comm_only"}, fb); }},
-        {"WEAVE_SCATTER_STAGING", {"reg_2stage", "smem", "hbm_dedup"},
-         [](const char* e, int fb) { return wk::named_env(e, {"reg_2stage", "smem", "hbm_dedup"}, fb); }},
+        {"WEAVE_SCATTER_STAGING", {"reg", "smem", "hbm"},
+         [](const char* e, int fb) { return wk::scatter_staging_env(e, fb); }},
     };
     for (const auto& c : cases) {
         for (size_t code = 0; code < c.names.size(); ++code) {
@@ -520,7 +520,7 @@ void test_named_enums() {
         }
         const std::vector<std::string> garbage = {
             std::to_string(c.names.size()), "-1", "99", "auto=1", "FORMULA", "Sm0_Fifo",
-            "comm", "epilogue", "reg", "hbm", "fp8", "fp4", "bf16x2", "2-6", "8-8", "1-7",
+            "comm", "epilogue", "fp8", "fp4", "bf16x2", "2-6", "8-8", "1-7",
         };
         for (const auto& bad : garbage) {
             clear_env();
@@ -546,7 +546,9 @@ void test_named_enums() {
         {"WEAVE_SCATTER_OWNER", &weave::WeaveKnobs::scatter_owner,
          {{"epilogue_only", 0}, {"comm_only", 1}, {"0", 0}, {"1", 1}}},
         {"WEAVE_SCATTER_STAGING", &weave::WeaveKnobs::scatter_staging,
-         {{"reg_2stage", 0}, {"smem", 1}, {"hbm_dedup", 2}, {"0", 0}, {"1", 1}, {"2", 2}}},
+         {{"reg", 0}, {"smem", 1}, {"hbm", 2},
+          {"reg_2stage", 0}, {"hbm_dedup", 2},
+          {"0", 0}, {"1", 1}, {"2", 2}}},
     };
     for (const auto& c : field_cases) {
         for (const auto& [text, code] : c.mapping) {
@@ -924,7 +926,7 @@ void test_gemm_config_surface() {
     // Malformed or out-of-range tuples are fail-closed for both phases.
     for (const char* env : {"WEAVE_GEMM1_CONFIG", "WEAVE_GEMM2_CONFIG"}) {
         for (const char* bad : {"64:100", "64:72", "64:32:64", "64:32:128:1", "64:32:128:17",
-                                "64:32:128:6:3", "64:32:128:6:2:1", "abc", "64:", ":32",
+                                "64:32:128:6:5", "64:32:128:6:2:1", "abc", "64:", ":32",
                                 "100", "-1", "4097", "1.5", "64;32"}) {
             clear_env();
             set_env(env, bad);

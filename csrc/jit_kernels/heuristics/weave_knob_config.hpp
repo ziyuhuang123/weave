@@ -60,6 +60,22 @@ static inline int named_env(const char* name,
     return static_cast<int>(value);
 }
 
+// Scatter staging accepts canonical {"reg", "smem", "hbm"}, integer codes 0..2,
+// and backward-compatible spellings {"reg_2stage", "hbm_dedup"}.
+static inline int scatter_staging_env(const char* name, const int fallback) {
+    const char* raw = std::getenv(name);
+    if (raw == nullptr or *raw == '\0')
+        return fallback;
+    if (std::strcmp(raw, "reg") == 0 or std::strcmp(raw, "reg_2stage") == 0 or std::strcmp(raw, "0") == 0)
+        return 0;
+    if (std::strcmp(raw, "smem") == 0 or std::strcmp(raw, "1") == 0)
+        return 1;
+    if (std::strcmp(raw, "hbm") == 0 or std::strcmp(raw, "hbm_dedup") == 0 or std::strcmp(raw, "2") == 0)
+        return 2;
+    DG_HOST_ASSERT(false and "Invalid WEAVE_SCATTER_STAGING (expected reg, smem, hbm or 0..2)");
+    return fallback;
+}
+
 // Whole per-GEMM config tuple (SM103 FP8xFP4 MegaMoE):
 //   WEAVE_GEMM1_CONFIG / WEAVE_GEMM2_CONFIG = "BM[:STORE_BM[:BK[:STAGES[:EPI_REG_STAGES]]]]"
 // (',' is accepted as a separator too).  BM is the phase's M tile, STORE_BM
@@ -105,7 +121,7 @@ static inline GemmPhaseConfig gemm_phase_config_env(const char* primary, const c
     DG_HOST_ASSERT(cfg.store_bm == 0 or (cfg.store_bm % 8 == 0 and (cfg.bm == 0 or cfg.store_bm <= cfg.bm)));
     DG_HOST_ASSERT(cfg.bk == 0 or cfg.bk == 128 or cfg.bk == 256);
     DG_HOST_ASSERT(cfg.stages == 0 or (cfg.stages >= 2 and cfg.stages <= 16));
-    DG_HOST_ASSERT(cfg.epi_reg_stages >= 0 and cfg.epi_reg_stages <= 2);
+    DG_HOST_ASSERT(cfg.epi_reg_stages >= 0 and cfg.epi_reg_stages <= 4);
     return cfg;
 }
 
@@ -203,7 +219,7 @@ static inline weave::WeaveKnobs from_env(
         static_cast<int>(knobs.combine_sync_chunk), 0, 896));
     knobs.epi_reg_stages = static_cast<uint32_t>(bounded_env(
         "WEAVE_EPI_REG_STAGES", nullptr,
-        static_cast<int>(knobs.epi_reg_stages), 0, 2));
+        static_cast<int>(knobs.epi_reg_stages), 0, 4));
     knobs.sched_l2_ratio = static_cast<uint32_t>(bounded_env(
         "WEAVE_SCHED_L2_RATIO", nullptr,
         static_cast<int>(knobs.sched_l2_ratio), 1, 4));
@@ -261,8 +277,8 @@ static inline weave::WeaveKnobs from_env(
         static_cast<int>(knobs.scatter_owner)));
     const bool epilogue_owner_pinned = owner_set and requested_owner == 0u;
     const bool staging_set = std::getenv("WEAVE_SCATTER_STAGING") != nullptr;
-    knobs.scatter_staging = static_cast<uint32_t>(named_env(
-        "WEAVE_SCATTER_STAGING", {"reg_2stage", "smem", "hbm_dedup"},
+    knobs.scatter_staging = static_cast<uint32_t>(scatter_staging_env(
+        "WEAVE_SCATTER_STAGING",
         static_cast<int>(knobs.scatter_staging)));
     if (not staging_set and knobs.local_scatter_dedup != 0u and not epilogue_owner_pinned)
         knobs.scatter_staging = 2u;
@@ -374,7 +390,7 @@ static inline void validate(const weave::WeaveKnobs& knobs,
                    knobs.combine_sync_chunk == 128u or knobs.combine_sync_chunk == 896u);
     if (knobs.combine_sync_chunk != 0u and arch != weave::HardwareArch::B300_SM100)
         DG_HOST_ASSERT(knobs.local_scatter_dedup == 1u);
-    DG_HOST_ASSERT(knobs.epi_reg_stages <= 2u);
+    DG_HOST_ASSERT(knobs.epi_reg_stages <= 4u);
     DG_HOST_ASSERT(knobs.sched_l2_ratio >= 1u and knobs.sched_l2_ratio <= 4u);
     DG_HOST_ASSERT(knobs.reg_balance <= 1u);
 }

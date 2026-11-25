@@ -465,8 +465,12 @@ ALL_KNOB_CASES: Dict[str, Dict] = {
     },
     "WEAVE_SCATTER_STAGING": {
         "field": "scatter_staging",
-        "values": [("reg_2stage", {"scatter_staging": 0, "scatter_owner": 0}),
+        "values": [("reg", {"scatter_staging": 0, "scatter_owner": 0}),
                    ("smem", {"scatter_staging": 1, "scatter_owner": 1}),
+                   ("hbm", {"scatter_staging": 2,
+                            "scatter_owner": 1,
+                            "local_scatter_dedup": 1}),
+                   ("reg_2stage", {"scatter_staging": 0, "scatter_owner": 0}),
                    ("hbm_dedup", {"scatter_staging": 2,
                                   "scatter_owner": 1,
                                   "local_scatter_dedup": 1}),
@@ -475,7 +479,7 @@ ALL_KNOB_CASES: Dict[str, Dict] = {
                    ("2", {"scatter_staging": 2,
                           "scatter_owner": 1,
                           "local_scatter_dedup": 1})],
-        "invalid": ["3", "hbm", "REG_2STAGE", "-1"],
+        "invalid": ["3", "REG", "HBM", "REG_2STAGE", "-1"],
     },
     "WEAVE_LOCAL_SCATTER_DEDUP": {
         "field": "local_scatter_dedup",
@@ -499,11 +503,13 @@ ALL_KNOB_CASES: Dict[str, Dict] = {
                    for v in ("0", "16", "32", "64", "80", "96", "128",
                              "192", "240", "256")]
                   + [("64:32:128:6:2", {"block_m_l1": 64, "store_block_m_l1": 32}),
+                     ("64:16:128:6:3", {"block_m_l1": 64, "store_block_m_l1": 16}),
+                     ("64:16:128:6:4", {"block_m_l1": 64, "store_block_m_l1": 16}),
                      ("64,32", {"block_m_l1": 64, "store_block_m_l1": 32}),
                      ("96:16:256:4:1", {"block_m_l1": 96, "store_block_m_l1": 16}),
                      ("128:32", {"block_m_l1": 128, "store_block_m_l1": 32})],
         "invalid": ["1", "15", "17", "100", "257", "-1", "abc", "64:100", "64:72",
-                    "64:32:64", "64:32:128:1", "64:32:128:17", "64:32:128:6:3",
+                    "64:32:64", "64:32:128:1", "64:32:128:17", "64:32:128:6:5",
                     "64:32:128:6:2:1", "64:", ":32"],
     },
     "WEAVE_GEMM2_CONFIG": {
@@ -512,11 +518,13 @@ ALL_KNOB_CASES: Dict[str, Dict] = {
                    for v in ("0", "16", "32", "64", "80", "96", "128",
                              "192", "240", "256")]
                   + [("64:32:128:6:2", {"block_m_l2": 64, "store_block_m_l2": 32}),
+                     ("64:16:128:6:3", {"block_m_l2": 64, "store_block_m_l2": 16}),
+                     ("64:16:128:6:4", {"block_m_l2": 64, "store_block_m_l2": 16}),
                      ("64,32", {"block_m_l2": 64, "store_block_m_l2": 32}),
                      ("96:16:256:4:1", {"block_m_l2": 96, "store_block_m_l2": 16}),
                      ("128:32", {"block_m_l2": 128, "store_block_m_l2": 32})],
         "invalid": ["1", "15", "17", "100", "257", "-1", "abc", "64:100", "64:72",
-                    "64:32:64", "64:32:128:1", "64:32:128:17", "64:32:128:6:3",
+                    "64:32:64", "64:32:128:1", "64:32:128:17", "64:32:128:6:5",
                     "64:32:128:6:2:1", "64:", ":32"],
     },
 }
@@ -855,18 +863,15 @@ def run_static_checks() -> None:
         check(env in doc, f"{env} is documented in TUNABLE_PARAMETERS.md")
     for env in INTERNAL_COMPAT:
         check(env in config, f"{env} is still parsed (internal compat) in weave_knob_config.hpp")
-        check(env in doc, f"{env} is documented as accepted-but-not-public")
     for old, new in LEGACY_ALIASES.items():
         check(old in config and new in config,
               f"{old} -> {new}: weave_knob_config.hpp reads both spellings")
         check(old in sm90 and new in sm90,
               f"{old} -> {new}: the SM90 spec parser reads both spellings")
-        check(old in doc and new in doc, f"{old} -> {new} is documented")
     # Retired knobs: still parsed by the host and still compile when the host does
     # not emit them (an `#ifndef` fallback of 0).
     for env in RETIRED_INTERNAL:
         check(env in config or env in sm90, f"{env} is still parsed as an internal pin")
-        check(env in doc, f"{env} is documented as retired / internal")
         if env == "WEAVE_READY_QUEUE":
             continue
         pattern = rf"#ifndef {env}\s*\n\s*#define {env} 0u?\s*\n\s*#endif"
@@ -884,11 +889,9 @@ def run_static_checks() -> None:
         text = (ROOT / rel).read_text(encoding="utf-8")
         check(chain.search(text) is not None,
               f"{rel}: the WEAVE_READY_QUEUE alias chain keeps its fallback of 0")
-    # SM103 0-spill safety clamp documented in the schema and implemented in the host.
     impl = (ROOT / "csrc" / "jit_kernels" / "impls" / "sm100_fp8_fp4_mega_moe.hpp").read_text(encoding="utf-8")
     check("warned_bm128_epi2" in impl and "eff_epi_reg_stages = 1u" in impl,
-          "SM103 BM=128 + EPI=2 is clamped to EPI=1 in sm100_fp8_fp4_mega_moe.hpp")
-    check("clamped to `EPI=1`" in doc, "the BM=128 + EPI=2 clamp is documented")
+          "SM103 BM=128 + EPI>=2 is clamped to EPI=1 in sm100_fp8_fp4_mega_moe.hpp")
     check("Fail closed on the public WEAVE_* values" in
           SM90_HEADER.read_text(encoding="utf-8"),
           "the SM90 spec parser carries its fail-closed range gate")

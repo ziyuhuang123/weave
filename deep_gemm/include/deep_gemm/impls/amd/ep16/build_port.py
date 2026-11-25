@@ -157,15 +157,16 @@ def _uint(name, lo, hi, default):
     return value
 
 
-def _choice(name, allowed, default):
+def _choice(name, allowed, default, legacy=None):
     """Integer knob restricted to the tuple `allowed`; unset/empty -> default."""
-    raw = weave_env(name, None, None)
+    raw = weave_env(name, legacy, None)
     if raw is None:
         return default
+    used = name if os.environ.get(name) not in (None, "") else (legacy or name)
     text = " ".join(str(a) for a in allowed)
-    value = _decimal(name, raw, text)
+    value = _decimal(used, raw, text)
     if value not in allowed:
-        raise SystemExit(f"Invalid {name}={raw} (allowed: {text})")
+        raise SystemExit(f"Invalid {used}={raw} (allowed: {text})")
     return value
 
 
@@ -198,8 +199,8 @@ for name, fi in fi_variants:
     v_head_env = weave_env("WEAVE_V_HEAD", None, "auto")
     v_head_raw = 0 if v_head_env == "auto" else _decimal(
         "WEAVE_V_HEAD", v_head_env, "auto|0 or a positive decimal integer")
-    bm_l1 = _choice("WEAVE_BLOCK_M_L1", (0, 16, 32, 64, 128), 0)
-    bm_l2 = _choice("WEAVE_BLOCK_M_L2", (0, 16, 32, 64, 128), 0)
+    bm_l1 = _choice("WEAVE_GEMM1_CONFIG", (0, 16, 32, 64, 128), 0, legacy="WEAVE_BLOCK_M_L1")
+    bm_l2 = _choice("WEAVE_GEMM2_CONFIG", (0, 16, 32, 64, 128), 0, legacy="WEAVE_BLOCK_M_L2")
     # MI308X (gfx942) only has the fp8xfp8 path.  Deliberately NOT passed to the
     # compiler: -DWEAVE_PRECISION_MODE would change the CTA-0 cost-model spec, and
     # the validated build keeps the default spec.
@@ -220,7 +221,7 @@ for name, fi in fi_variants:
     staging_raw = weave_env("WEAVE_SCATTER_STAGING", None, None)
     scatter_staging = weave_named_int(
         "WEAVE_SCATTER_STAGING",
-        {"0": 0, "reg_2stage": 0, "direct": 0, "1": 1, "smem": 1, "2": 2, "hbm_dedup": 2},
+        {"0": 0, "reg": 0, "reg_2stage": 0, "direct": 0, "1": 1, "smem": 1, "2": 2, "hbm": 2, "hbm_dedup": 2},
         default=0)
     if staging_raw is None and local_dedup == 1 and scatter_owner != 0:
         scatter_staging = 2

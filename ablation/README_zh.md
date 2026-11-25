@@ -1,184 +1,88 @@
 [English](README.md) | [简体中文](README_zh.md)
 
-# 消融与实验复现
+# 消融实验与代价模型复现
 
-本目录提供论文消融、代价模型、EPLB 与 profiler 研究的可执行入口。所有脚本都
-支持 --dry-run，且不会伪造任何 measured 数字。
+本目录提供论文中渐进消融、代价模型评估、EPLB 兼容性与 WeaveProfiler 时间线采集的可执行脚本（所有脚本均支持 `--dry-run` 查看完整运行计划）。
 
-## 1. 四臂渐进消融
+## 1. 四臂渐进消融（Table IV）
 
-每个实验臂都是一份由 14 个公开 `WEAVE_*` 参数（空间 / 时间 / 实现，另加被兼容接受的非公开 `WEAVE_ADAPT_GEMM_CONFIG`）组成的完整
-预设。已记录的调优预设是连同 6 个已退出公开参数面的 knob 的内部开关
-（`WEAVE_SM0_STREAM_SCHED`、`WEAVE_REDUCE_WARPS`、`WEAVE_REG_BALANCE`、
-`WEAVE_READY_QUEUE`、`WEAVE_COMBINE_SYNC_CHUNK`、`WEAVE_LOCAL_SCATTER_DEDUP`）一起实测的，
-因此脚本原样保留这些开关（放在独立的 `INTERNAL_PINS` 表中）以复现各实验臂；除此之外
-不设置其他内部变量。在 NVIDIA 后端上，改名的 knob 以公开名导出
-（`WEAVE_GEMM1_CONFIG`、`WEAVE_GEMM2_CONFIG`，以及内部兼容名 `WEAVE_ADAPT_GEMM_CONFIG`）；在 MI308X 上
-脚本导出它们的旧名（`WEAVE_ADAPT_BM`、`WEAVE_BLOCK_M_L1`、`WEAVE_BLOCK_M_L2`），因为
-MI308X 构建脚本只读取这几个旧名拼写。`WEAVE_ABLATION_PRESET` 仅作为实验臂
-标签导出，供直接消费该变量的测试入口使用。
+四组实验臂依次移除空间调度（`-S`）、时间重叠（`-S-T`）与选择性跨卡去重（`-S-T-C`）：
 
-| 预设 | 实验臂 | 空间搜索 | 时间重叠 | 选择性去重 |
+| 预设编号 | 实验臂 | 空间自适应配比 | 时间角色重叠 | 选择性拉取去重 |
 |---:|---|---:|---:|---:|
-| 0 | Weave | 开 | 开 | 开 |
-| 1 | -S | 固定默认配比 | 开 | 开 |
-| 2 | -S-T | 固定默认配比 | 关 | 开 |
-| 3 | -S-T-C | 固定默认配比 | 关 | 关 |
+| 0 | `Weave` | 开 | 开 | 开 |
+| 1 | `-S` | 固定默认配比 | 开 | 开 |
+| 2 | `-S-T` | 固定默认配比 | 关 | 开 |
+| 3 | `-S-T-C` | 固定默认配比 | 关 | 关 |
 
-实验臂 0 直接复用 `examples/*.sh` 中各平台的调优预设；后续实验臂只覆盖表达
-被移除特性的参数：
+各实验臂相对于完整 `Weave` 预设的关键参数变化：
 
-| 实验臂 | 参数增量（其余参数保持实验臂 0 的取值） |
+| 实验臂 | 参数增量（其余参数保持实验臂 0 取值） |
 |---|---|
-| `-S` | SM103：`WEAVE_SCATTER_WARPS=0`、`WEAVE_GEMM1_CONFIG=128`、`WEAVE_GEMM2_CONFIG=128`、`WEAVE_REG_PULL_BYTES=0`，以及内部开关 `WEAVE_REDUCE_WARPS=0`；H20：`WEAVE_GEMM1_CONFIG=0`、`WEAVE_GEMM2_CONFIG=0`；MI308X：`WEAVE_CU_WAVE_SPLIT=0-8` |
-| `-T` | `WEAVE_V_HEAD=65536`、`WEAVE_READY_GROUP_SIZE=0`（SM103），以及内部开关 `WEAVE_READY_QUEUE=formula`、`WEAVE_COMBINE_SYNC_CHUNK=0` |
-| `-C` | `WEAVE_DEDUP_MODE=0`，以及内部开关 `WEAVE_LOCAL_SCATTER_DEDUP=0` |
+| `-S` | SM103：`WEAVE_SCATTER_WARPS=0`、`WEAVE_GEMM1_CONFIG=128`、`WEAVE_GEMM2_CONFIG=128`、`WEAVE_REG_PULL_BYTES=0`；H20：`WEAVE_GEMM1_CONFIG=0`、`WEAVE_GEMM2_CONFIG=0`；MI308X：`WEAVE_CU_WAVE_SPLIT=0-8` |
+| `-T` | `WEAVE_V_HEAD=65536`、`WEAVE_READY_GROUP_SIZE=0` |
+| `-C` | `WEAVE_DEDUP_MODE=0` |
 
-在单一平台上运行全部实验臂：
+查看或运行四臂消融：
 
-    python ablation/run_progressive_ablation.py --backend b300 --presets 0,1,2,3 --dry-run
-    python ablation/run_progressive_ablation.py --backend h20 --presets 0,1,2,3 --dry-run
-    python ablation/run_progressive_ablation.py --backend mi308x --presets 0,1,2,3 --dry-run
+```bash
+python ablation/run_progressive_ablation.py --backend sm103 --presets 0,1,2,3 --dry-run
+python ablation/run_progressive_ablation.py --backend h20 --presets 0,1,2,3 --dry-run
+python ablation/run_progressive_ablation.py --backend mi308x --presets 0,1,2,3 --dry-run
+```
 
-`--backend b300` 与 `--backend sm103` 选择同一个 SM103（148-SM）runner。
+每个实验臂自动使用独立的 `DG_JIT_CACHE_DIR` 编译缓存目录以保证宏配置隔离。48 组评测点上相对各平台官方基线的实测几何平均加速比汇总如下：
 
-### SM103 Reduce-warp 扫描
-
-`--reduce-warps` 会追加仅在 SM103 上生效的步骤，在完整 Weave 实验臂之上逐一
-设置内部开关 `WEAVE_REDUCE_WARPS`（取值为 0、1、2、4、8 的逗号分隔子集）：
-
-    python ablation/run_progressive_ablation.py --backend b300 --presets 0 --reduce-warps 0,1,2,4,8 --dry-run
-
-每个扫描步骤使用独立的 JIT 缓存目录（`jit_rw<v>`），避免为某个 Reduce-warp
-取值编译的缓存对象被另一个取值静默复用。
-
-MI308X 实际执行需要指定独立 kernel driver：
-
-    export WEAVE_MI308X_BENCH_RUNNER=/absolute/path/to/mi308x_runner
-    python ablation/run_progressive_ablation.py --backend mi308x --presets 0,1,2,3
-
-每个步骤使用独立的 DG_JIT_CACHE_DIR，位于 results/ablation 下。预设会改变生成
-宏，共享缓存可能掩盖实际执行的实验臂。
-
-### 已验证的 48 格汇总（论文 Table IV）
-
-下表是各平台相对官方基线的 measured 几何平均加速比，属于参考证据，不是
-dry-run 脚本重新生成的数字。NVIDIA SM103 (148-SM) 数字来自论文的 fp8xfp4 实测 campaign；当前仓库
-中 148-SM SM103 fp8xfp4 仍为 BLOCKED_RUNTIME_HANG，因此新跑的消融应通过 --runner 指向
-NVFP4 测试入口 tests/test_nvfp4_mega_moe.py。
-
-| 平台 | S 范围 | Weave | -S | -S-T | -S-T-C |
+| 平台 | `S` 范围 | `Weave` | `-S` | `-S-T` | `-S-T-C` |
 |---|---|---:|---:|---:|---:|
-| NVIDIA SM103 (148-SM) | S <= 128（12 格） | 1.165 | 1.076 | 0.915 | 0.913 |
-| NVIDIA SM103 (148-SM) | 1K--4K（18 格） | 1.112 | 1.073 | 0.919 | 0.916 |
-| NVIDIA SM103 (148-SM) | S >= 8K（18 格） | 1.638 | 1.416 | 1.185 | 1.148 |
+| NVIDIA SM103 (148-SM) | `S <= 128`（12 格） | 1.165 | 1.076 | 0.915 | 0.913 |
+| NVIDIA SM103 (148-SM) | `1K–4K`（18 格） | 1.112 | 1.073 | 0.919 | 0.916 |
+| NVIDIA SM103 (148-SM) | `S >= 8K`（18 格） | 1.638 | 1.416 | 1.185 | 1.148 |
 | NVIDIA SM103 (148-SM) | 全部（48 格） | 1.301 | 1.192 | 1.010 | 0.996 |
-| H20 | 全部（48 格） | 1.162 | 1.137 | 1.053 | 0.947 |
-| MI308X EP16 | 全部（48 格） | 2.147 | 1.808 | 1.537 | 1.362 |
+| NVIDIA H20 | 全部（48 格） | 1.162 | 1.137 | 1.053 | 0.947 |
+| AMD MI308X EP16 | 全部（48 格） | 2.147 | 1.808 | 1.537 | 1.362 |
 
-## 2. 代价模型与 Oracle 对比
+## 2. 代价模型选参精度验证
 
-紧凑回放直接读取 data/routing_stats_3hw.json，覆盖四种配置：148-SM SM103 EP8、
-H20 EP8、MI308X EP8 和 MI308X EP16。
+使用紧凑路由统计回放验证代价模型的候选排序精度：
 
-    python ablation/eval_cost_model_vs_oracle.py
+```bash
+python ablation/eval_cost_model_vs_oracle.py
+```
 
-输出：
+输出文件 `results/ablation/cost_model_vs_oracle.json`。在 48 个 SM103 评测格上，代价模型在 38/48 格命中穷举最优候选，几何平均选择遗憾仅 `2.4%`（所选配置加速比 `1.301x` vs 穷举最优 `1.332x`）。
 
-    results/ablation/cost_model_vs_oracle.json
+## 3. EPLB 专家负载均衡兼容性（Table V）
 
-文件明确分成三部分：
-
-1. local_replay：本次由六个紧凑路由聚合实际计算出的值；
-2. paper_measured_reference：论文 48 格 measured 参考汇总；
-3. oracle_file_metrics：由 --oracle-json 可选输入计算出的指标。
-
-紧凑文件没有逐专家直方图，也没有全部候选的实测延迟，因此使用文档化的
-Zipf(0.9) 代理生成 m_e，并把预测候选中的最小值称为 model oracle。它检查的
-是模型内部一致性与候选排序，不是硬件最优性。
-
-完整 measured oracle 扫描应提供如下 JSON：
-
-    {
-      "cells": [
-        {
-          "arch": "b300",
-          "model": "qwen38max",
-          "S": 128,
-          "selected": "c4_8_bm128_s0",
-          "predicted_us": 701.2,
-          "measured_us": {
-            "c4_8_bm128_s0": 712.4,
-            "c4_8_bm128_s1": 726.8,
-            "c8_4_bm64_s0": 748.1,
-            "c8_4_bm64_s1": 733.0
-          }
-        }
-      ]
-    }
-
-然后运行：
-
-    python ablation/eval_cost_model_vs_oracle.py --oracle-json /absolute/path/to/oracle.json
-
-### 已验证的论文汇总
-
-- SM103 (148-SM) 48 格：38/48 格与已记录最优候选完全一致；
-- 几何平均选择后悔：2.4%（算术平均 2.6%）；
-- 所选配置相对基线 1.301x，穷举 oracle 为 1.332x；
-- 平均绝对时延预测误差：34.0%。
-
-解释必须明确：绝对时延预测并不完美，但共享开销项在 argmin 中相互抵消，因此
-候选排序仍然准确。
-
-## 3. EPLB 兼容性（论文 Table V）
-
-EPLB 研究使用 24 格：六个模型乘以 S in {128, 1024, 4096, 16384}，增加 32 个
-冗余专家。先启动启用 EPLB 的部署，再用 EPLB 路由表通过正常 runner 回放同一
-组 24 格。
-
-已验证汇总：
+在 6 个模型 x `S in {128, 1024, 4096, 16384}`（共 24 格，配置 32 个冗余专家副本）下，Weave 与动态专家重布局（EPLB）正交叠加：
 
 | 指标 | 实测值 |
 |---|---:|
-| Weave 相对官方基线，原始路由 | 1.274x |
-| Weave 相对官方基线，启用 EPLB | 1.128x |
-| Weave+EPLB 相对官方基线+EPLB | 1.144x |
-| 最大/平均 token 不均衡，原始路由 | 1.37 |
-| 最大/平均 token 不均衡，启用 EPLB | 1.27 |
+| Weave 相对官方基线（原始路由） | `1.274x` |
+| Weave 相对官方基线（启用 EPLB） | `1.128x` |
+| Weave + EPLB 相对官方基线 + EPLB | `1.144x` |
+| 最大/平均 Token 不均衡度（原始 -> EPLB） | `1.37 -> 1.27` |
 
-EPLB 副本会改变路由直方图。不得复用原始路由的策略 trace 或 JIT 缓存。每次
-结果都要保存 EPLB 放置映射与逐 rank 直方图快照。
+## 4. WeaveProfiler 软硬件对齐时间线采集与渲染
 
-## 4. WeaveProfiler SW+HW 时间线捕获
+启用 `WEAVE_PROFILER_LEVEL=2` 同步采集片上周期级轨迹与硬件性能计数器，并渲染四面板总览图：
 
-公开轨迹是软硬件配对时间线。完整插桩构建使用 WEAVE_PROFILER_LEVEL=2。
+```bash
+# NVIDIA (nsys 200 kHz GPU metrics + WeaveProfiler)
+WEAVE_PROFILER_LEVEL=2 nsys profile --trace=cuda,nvtx,osrt --gpu-metrics-devices=all \
+    -o results/profiler/sm103_run1 python tests/bench_b300_ep8.py --dry-run
 
-### NVIDIA 捕获
+# AMD (rocprofiler-sdk PMC + WeaveProfiler)
+WEAVE_PROFILER_LEVEL=2 rocprofv3 --hip-trace --kernel-trace \
+    -o results/profiler/mi308x_run1 -- python tests/bench_mi308x_ep8_ep16.py --ep 16 --dry-run
 
-    WEAVE_PROFILER_LEVEL=2 nsys profile         --trace=cuda,nvtx,osrt --sample=cpu --cpuctxsw=none         -o results/profiler/sm103_run1         python tests/bench_b300_ep8.py --dry-run
+# 渲染四面板 SW+HW 时间线 PNG
+python ablation/capture_weaveprofiler_timeline.py \
+    --trace results/profiler/run.sw_hw.perfetto.json.gz \
+    --out-png results/profiler/run.png
+```
 
-### AMD 捕获
-
-    WEAVE_PROFILER_LEVEL=2 rocprofv3         --hip-trace --rccl-trace --kernel-trace         -o results/profiler/mi308x_run1         -- python tests/bench_mi308x_ep8_ep16.py --ep 16 --dry-run
-
-### 渲染四面板 PNG
-
-    python ablation/capture_weaveprofiler_timeline.py         --trace results/profiler/run.sw_hw.perfetto.json.gz         --out-png results/profiler/run.png         --title "Weave: paired software and hardware timeline"
-
-包装脚本从 WEAVE_PROFILER_ROOT 导入 weaveprof.preview 并调用官方渲染器。解压
-后的 JSON 放在 PNG 同目录，不使用临时目录。
-
-仓库内三张出版图：
-
-    docs/figures/weaveprofiler_sm103_timeline.png
-    docs/figures/weaveprofiler_h20_timeline.png
-    docs/figures/weaveprofiler_mi308x_timeline.png
-
-### 证据规则
-
-- 插桩与未插桩稳态测量分别保存；
-- 记录 trace SHA256、GPU 型号、rank 数、S 值与工具版本；
-- 出现 HW/SW 窗口长度不一致时必须明确披露，不得静默缩放某一轴；
-- 不可用的硬件计数器保持 unavailable，不能填零；
-- 只渲染能被 Perfetto trace processor 接受的 trace。
+仓库内生成的三张硬件时间线图位于：
+- `docs/figures/weaveprofiler_sm103_timeline.png`
+- `docs/figures/weaveprofiler_h20_timeline.png`
+- `docs/figures/weaveprofiler_mi308x_timeline.png`

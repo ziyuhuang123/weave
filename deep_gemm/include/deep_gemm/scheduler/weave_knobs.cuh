@@ -413,14 +413,14 @@
     WEAVE_COMBINE_SYNC_CHUNK != 128 && WEAVE_COMBINE_SYNC_CHUNK != 896
 #error "WEAVE_COMBINE_SYNC_CHUNK must be 0, 16, 32, 64, 128 or 896"
 #endif
-// Epilogue TMEM -> register pipeline: 0 = auto (2 stages at BM>=240 with a
-// TMEM depth of at least 1.75, else 1); 1 = single buffer; 2 = two register
-// stages, prefetching store block s+1 while store block s is converted.
+// Epilogue TMEM -> register pipeline: 0 = auto (2 stages at BM in {80, 96} or
+// BM >= 240 with TMEM depth >= 1.75, else 1); 1..4 = explicit register stages,
+// prefetching up to N-1 upcoming store blocks while converting block s.
 #ifndef WEAVE_EPI_REG_STAGES
 #define WEAVE_EPI_REG_STAGES 0u
 #endif
-#if WEAVE_EPI_REG_STAGES > 2
-#error "WEAVE_EPI_REG_STAGES must be 0 (auto), 1 or 2"
+#if WEAVE_EPI_REG_STAGES > 4
+#error "WEAVE_EPI_REG_STAGES must be 0 (auto) or 1..4"
 #endif
 // L2-to-L1 interleaved scheduling ratio (1..4).
 #ifndef WEAVE_SCHED_L2_RATIO
@@ -476,19 +476,18 @@
 #ifndef WEAVE_LOCAL_SCATTER_DEDUP
 #define WEAVE_LOCAL_SCATTER_DEDUP 0u
 #endif
-// Scatter staging path (all three are kept selectable):
-//   0 = reg_2stage: double-buffered register transfer;
-//   1 = smem:       per-SM on-chip handoff to the same SM's dispatch warps;
-//   2 = hbm_dedup:  L2-resident HBM buffer with bf16x2 atomic dedup and a
-//                   global descriptor queue drained by the scatter SMs.
+// Scatter staging path:
+//   0 = reg:  multi-stage register-direct scatter;
+//   1 = smem: per-SM shared-memory scatter streamed by comm warps;
+//   2 = hbm:  on-device HBM scatter buffer accumulating duplicate local hits.
 #ifndef WEAVE_SCATTER_STAGING
 #define WEAVE_SCATTER_STAGING 0u
 #endif
 #if WEAVE_SCATTER_STAGING > 2
-#error "WEAVE_SCATTER_STAGING must be 0 (reg_2stage), 1 (smem) or 2 (hbm_dedup)"
+#error "WEAVE_SCATTER_STAGING must be 0 (reg), 1 (smem) or 2 (hbm)"
 #endif
 #if WEAVE_SCATTER_STAGING != 0 && WEAVE_SCATTER_OWNER == 0
-#error "smem / hbm_dedup scatter staging requires WEAVE_SCATTER_OWNER=1 (comm_only)"
+#error "smem / hbm scatter staging requires WEAVE_SCATTER_OWNER=1 (comm_only)"
 #endif
 
 namespace weave {

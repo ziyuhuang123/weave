@@ -1,6 +1,6 @@
 {
  "schema": "weave-h20-v9-compile-gates/v2",
- "host": "DESKTOP-3FP24HM",
+ "host": "<sanitized-host>",
  "nvcc": "C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v13.3\\bin\\nvcc.EXE",
  "arch": "sm_90a",
  "regs_limit": 96,
@@ -202,7 +202,7 @@
     "WEAVE_REDUCE_WARPS": "8"
    },
    "pass": true,
-   "host_error": "terminate called after throwing an instance of 'deep_gemm::DGException'\n  what():  Assertion error (/mnt/c/Users/HP/work/wt_clean_15knob/scratch/h20_v9_compile/host/sm90_mega_moe_host.hpp:273): not smem_stream_engine or warps <= 4"
+   "host_error": "terminate called after throwing an instance of 'deep_gemm::DGException'\n  what():  Assertion error (<repo-root> not smem_stream_engine or warps <= 4"
   },
   {
    "arm": "h20_v9_ws_amd_code_fail_closed",
@@ -213,7 +213,7 @@
     "WEAVE_CU_WAVE_SPLIT": "2"
    },
    "pass": true,
-   "host_error": "terminate called after throwing an instance of 'deep_gemm::DGException'\n  what():  Assertion error (/mnt/c/Users/HP/work/wt_clean_15knob/scratch/h20_v9_compile/host/sm90_mega_moe_host.hpp:314): first >= 4 and first <= 1024 and \"WEAVE_CU_WAVE_SPLIT=E on SM90 needs E >= 4 (1/2/3 are MI308X codes)\""
+   "host_error": "terminate called after throwing an instance of 'deep_gemm::DGException'\n  what():  Assertion error (<repo-root> first >= 4 and first <= 1024 and \"WEAVE_CU_WAVE_SPLIT=E on SM90 needs E >= 4 (1/2/3 are MI308X codes)\""
   },
   {
    "arm": "h20_v9_c256_fail_closed",
@@ -224,7 +224,7 @@
     "WEAVE_COMBINE_SYNC_CHUNK": "256"
    },
    "pass": true,
-   "host_error": "terminate called after throwing an instance of 'deep_gemm::DGException'\n  what():  Assertion error (/mnt/c/Users/HP/work/wt_clean_15knob/scratch/h20_v9_compile/host/sm90_mega_moe_host.hpp:526): ok"
+   "host_error": "terminate called after throwing an instance of 'deep_gemm::DGException'\n  what():  Assertion error (<repo-root> ok"
   },
   {
    "arm": "h20_v9_split_bm64_16_fail_closed",
@@ -235,7 +235,7 @@
     "WEAVE_BLOCK_M_L2": "16"
    },
    "pass": true,
-   "host_error": "ssertion error (/mnt/c/Users/HP/work/wt_clean_15knob/scratch/h20_v9_compile/host/sm90_mega_moe_host.hpp:855): not (can_bn256 and decoupled_bm and req_l1_bm == 64) and \"decoupled WEAVE_BLOCK_M_L1=64 split L1 kernel spills at the 4-WG cap; \" \"use WEAVE_BLOCK_M_L1 16/32, or equal L1/L2 BLOCK_M (fused)\""
+   "host_error": "ssertion error (<repo-root> not (can_bn256 and decoupled_bm and req_l1_bm == 64) and \"decoupled WEAVE_BLOCK_M_L1=64 split L1 kernel spills at the 4-WG cap; \" \"use WEAVE_BLOCK_M_L1 16/32, or equal L1/L2 BLOCK_M (fused)\""
   },
   {
    "arm": "h20_v9_split_bm64_32_fail_closed",
@@ -246,7 +246,7 @@
     "WEAVE_BLOCK_M_L2": "32"
    },
    "pass": true,
-   "host_error": "ssertion error (/mnt/c/Users/HP/work/wt_clean_15knob/scratch/h20_v9_compile/host/sm90_mega_moe_host.hpp:855): not (can_bn256 and decoupled_bm and req_l1_bm == 64) and \"decoupled WEAVE_BLOCK_M_L1=64 split L1 kernel spills at the 4-WG cap; \" \"use WEAVE_BLOCK_M_L1 16/32, or equal L1/L2 BLOCK_M (fused)\""
+   "host_error": "ssertion error (<repo-root> not (can_bn256 and decoupled_bm and req_l1_bm == 64) and \"decoupled WEAVE_BLOCK_M_L1=64 split L1 kernel spills at the 4-WG cap; \" \"use WEAVE_BLOCK_M_L1 16/32, or equal L1/L2 BLOCK_M (fused)\""
   }
  ],
  "unique_kernels": 2,

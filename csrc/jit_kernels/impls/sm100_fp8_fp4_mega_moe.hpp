@@ -296,10 +296,10 @@ public:
         // at BM = 128 is therefore clamped to 1 (the adaptive default never
         // selects 2 at BM = 128, see weave::resolve_epi_reg_stages).
         const int eff_block_m_for_epi = d3_bm > 0 ? d3_bm : args.config.block_m;
-        if (eff_block_m_for_epi == 128 and eff_epi_reg_stages == 2u) {
+        if (eff_block_m_for_epi == 128 and eff_epi_reg_stages >= 2u) {
             static bool warned_bm128_epi2 = false;
             if (not warned_bm128_epi2) {
-                printf("[weave] SM103 BLOCK_M=128: epi_reg_stages=2 spills (208 B); clamped to 1 (0-spill)\n");
+                printf("[weave] SM103 BLOCK_M=128: epi_reg_stages=%u spills; clamped to 1\n", eff_epi_reg_stages);
                 warned_bm128_epi2 = true;
             }
             eff_epi_reg_stages = 1u;

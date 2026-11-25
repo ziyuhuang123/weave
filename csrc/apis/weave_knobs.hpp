@@ -77,11 +77,11 @@ static const std::vector<KnobSchemaEntry>& knob_schema_entries() {
          "0 = fp8xfp4; 1 = fp4xfp4; 2 = fp8xfp8; 3 = bf16",
          "Single-op numeric precision and tensor-core mode."},
         {"WEAVE_GEMM1_CONFIG", "Implementation",
-         "0 = auto (host shape-adaptive whole tuple from (M_expected, N, K), always on); BM or BM[:STORE_BM[:BK[:STAGES[:EPI]]]] (legacy alias WEAVE_BLOCK_M_L1)",
-         "Independent GEMM1 config selector (locks blockN/K, mainloop stages, epi M/N/K & stages)."},
+         "0 = auto (shape-adaptive tuple from (M_expected, N, K)); BM or BM[:STORE_BM[:BK[:STAGES[:EPI]]]] (EPI in 0..4)",
+         "Independent GEMM1 config selector (locks blockN/K, mainloop stages, epi M/N/K & multi-stage epilogue)."},
         {"WEAVE_GEMM2_CONFIG", "Implementation",
-         "0 = follow GEMM1/auto; same grammar as WEAVE_GEMM1_CONFIG (legacy alias WEAVE_BLOCK_M_L2)",
-         "Independent GEMM2 config selector (locks blockN/K, mainloop stages, epi M/N/K & stages)."},
+         "0 = follow GEMM1/auto; same grammar as WEAVE_GEMM1_CONFIG (decoupled from GEMM1)",
+         "Independent GEMM2 config selector (locks blockN/K, mainloop stages, epi M/N/K & multi-stage epilogue)."},
         {"WEAVE_REG_PULL_BYTES", "Implementation",
          "0 = SMEM/LDS staging; 1024, 2048, 4096 (32-lane warp) or 8192 (64-lane wavefront) = bytes per pull chunk",
          "Independent Dispatch operator per-warp/wavefront register-direct pull chunk width."},
@@ -89,8 +89,8 @@ static const std::vector<KnobSchemaEntry>& knob_schema_entries() {
          "0 = off; 1 = pull each unique (src_rank, token) once + local multi-expert fanout",
          "Independent Dispatch operator remote token pull deduplication."},
         {"WEAVE_SCATTER_STAGING", "Implementation",
-         "0 = reg_2stage; 1 = smem; 2 = hbm_dedup",
-         "Independent Scatter operator staging implementation."},
+         "0 = reg; 1 = smem; 2 = hbm",
+         "Independent Scatter operator staging path (multi-stage register-direct, shared memory, or HBM buffer)."},
     };
     return entries;
 }

@@ -431,16 +431,33 @@ static AgySm90KnobSpec parse_agy_sm90_spec_string(const char* raw_str) {
         append_env_knob(key, val);
     };
     append_named_env("scatter_owner", "WEAVE_SCATTER_OWNER", {"epilogue_only", "comm_only"});
-    append_named_env("scatter_staging", "WEAVE_SCATTER_STAGING", {"reg_2stage", "smem", "hbm_dedup"});
+    if (const char* st = std::getenv("WEAVE_SCATTER_STAGING"); st != nullptr and *st != '\0') {
+        const auto emit_staging_code = [&](int code) {
+            if (combined.find("scatter_staging=") == std::string::npos) {
+                if (not combined.empty())
+                    combined += ",";
+                combined += "scatter_staging=" + std::to_string(code);
+            }
+        };
+        if (std::strcmp(st, "reg") == 0 or std::strcmp(st, "reg_2stage") == 0) {
+            emit_staging_code(0);
+            append_env_knob("scatter_staging_reg", "1");
+        } else if (std::strcmp(st, "0") == 0) {
+            append_env_knob("scatter_staging_reg", "1");
+        } else if (std::strcmp(st, "smem") == 0 or std::strcmp(st, "1") == 0) {
+            emit_staging_code(1);
+        } else if (std::strcmp(st, "hbm") == 0 or std::strcmp(st, "hbm_dedup") == 0 or std::strcmp(st, "2") == 0) {
+            emit_staging_code(2);
+        } else {
+            append_env_knob("scatter_staging", st);
+        }
+    }
     // Explicit code-0 choices are otherwise indistinguishable from "unset" because
     // code 0 is never appended; record them so SCATTER_WARPS / REDUCE_WARPS defaults
     // (comm_only + staged scatter) never override an explicit user choice.
     if (const char* so = std::getenv("WEAVE_SCATTER_OWNER");
         so != nullptr and (std::strcmp(so, "0") == 0 or std::strcmp(so, "epilogue_only") == 0))
         append_env_knob("scatter_owner_epi", "1");
-    if (const char* st = std::getenv("WEAVE_SCATTER_STAGING");
-        st != nullptr and (std::strcmp(st, "0") == 0 or std::strcmp(st, "reg_2stage") == 0))
-        append_env_knob("scatter_staging_reg", "1");
     // WEAVE_REG_PULL_BYTES: explicit 0 = TMA SMEM staging pull for every token
     // (fast register pull path off); 1024/2048/4096 = register-direct chunk bytes.
     if (const char* rp = std::getenv("WEAVE_REG_PULL_BYTES"); rp != nullptr and *rp != '\0') {

@@ -137,4 +137,4 @@ and the full verified measurements live in
 | NVIDIA SM103 (148-SM), `FP8 x MXFP4` | `Qwen3.8-Max`, `S_rank=1024` (`S=4096`) | `824.7 us` (`BM=96`) | **`779.0 us`** (auto `BM=96, st=16/8, epi2`) | **`1.0553x`** (5/5 rounds) | Bit-exact (`dL2=0.00`, `cos=1.000000`) |
 | NVIDIA SM103 (148-SM), `FP8 x MXFP4` | `416E`, `S_rank=1024` (`S=4096`) | `412.9 us` (`BM=96`) | **`393.8 us`** (auto `BM=80, st=8/8, epi2`) | **`1.0423x`** (5/5 rounds) | Bit-exact (`dL2=0.00`, `cos=1.000000`) |
 
-The winning Weave arms in this table use `reg_2stage` / `smem` scatter staging, which combine in FP32. The optional `hbm_dedup` staging merges duplicate top-k rows with local `bf16x2` atomics before the send and therefore rounds once more than the FP32 combine paths.
+The Weave configurations in this table use `reg` / `smem` scatter staging and combine in FP32; the optional `hbm` staging buffer pre-accumulates duplicate local hits before cross-GPU send.
