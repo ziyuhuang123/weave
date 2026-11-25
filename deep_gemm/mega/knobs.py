@@ -26,8 +26,6 @@ class Knob:
     compact_values_zh: str = ""
     compact_mech_en: str = ""
     compact_mech_zh: str = ""
-    gain_en: str = ""
-    gain_zh: str = ""
 
 
 CATEGORIES: Tuple[str, ...] = ("Spatial", "Temporal", "Implementation")
@@ -73,8 +71,6 @@ KNOBS: Tuple[Knob, ...] = (
         compact_values_zh="`0=auto`，`D=1..N`（与 `K` 独立）",
         compact_mech_en="Cross-SM/CU active Dispatch subset; remaining SMs/CUs prefetch and start GEMM1 immediately",
         compact_mech_zh="跨 SM/CU 独立控制参与远端拉取的 SM/CU 数，其余单元立即预取并启动计算",
-        gain_en="**1.41x** MI308X EP16 (`1431->1015 us`); **1.007x** SM103 (`294.9->292.9 us`)",
-        gain_zh="**1.41x** MI308X EP16（`1431->1015 us`）；**1.007x** SM103（`294.9->292.9 us`）",
     ),
     Knob(
         "WEAVE_SCATTER_ACTIVE_SMS", "Spatial",
@@ -91,8 +87,6 @@ KNOBS: Tuple[Knob, ...] = (
         compact_values_zh="`0=auto`，`K=1..N`（与 `D` 独立）",
         compact_mech_en="Cross-SM/CU active Scatter subset; tail Combine still uses all SMs/CUs",
         compact_mech_zh="跨 SM/CU 独立控制参与异步 Scatter 发出的 SM/CU 数，尾部 Combine 仍用全卡单元",
-        gain_en="**1.015x** MI308X EP16 (`1030->1015 us`); **1.013x** H20 `S=4K` (`5299->5233 us`)",
-        gain_zh="**1.015x** MI308X EP16（`1030->1015 us`）；**1.013x** H20 `S=4K`（`5299->5233 us`）",
     ),
     Knob(
         "WEAVE_DISPATCH_WARPS", "Spatial",
@@ -108,8 +102,6 @@ KNOBS: Tuple[Knob, ...] = (
         compact_values_zh="`0=auto`，`4`，`8`",
         compact_mech_en="Intra-SM communication warps per CTA assigned to remote token/scale pulling",
         compact_mech_zh="单 SM 内分配给远端 token 与缩放因子拉取的通信 warp 数",
-        gain_en="**1.17x** H20 `S=16K` (`8` vs `4`: `1644->1403 us`)",
-        gain_zh="**1.17x** H20 `S=16K`（`8` vs `4`：`1644->1403 us`）",
     ),
     Knob(
         "WEAVE_SCATTER_WARPS", "Spatial",
@@ -125,8 +117,6 @@ KNOBS: Tuple[Knob, ...] = (
         compact_values_zh="`0=auto`，`4`，`8`",
         compact_mech_en="Intra-SM/CU communication warps/waves dedicated to async FC2 scatter",
         compact_mech_zh="单 SM/CU 内分配给异步 FC2 Scatter 跨卡写出的通信 warp/wave 数",
-        gain_en="**1.17x** H20 `S=16K` (`1644->1405 us`); **1.04x** MI308X EP16 (`1015->976 us`)",
-        gain_zh="**1.17x** H20 `S=16K`（`1644->1405 us`）；**1.04x** MI308X EP16（`1015->976 us`）",
     ),
     Knob(
         "WEAVE_CU_WAVE_SPLIT", "Spatial",
@@ -143,8 +133,6 @@ KNOBS: Tuple[Knob, ...] = (
         compact_values_zh="MI308X：`auto, 0-8, 4-4, 8-0`；H20：`auto` 或 `E`",
         compact_mech_en="MI308X per-CU 8-Wave64 comm/compute split; H20 GEMM1/GEMM2 expert-stream interleaving",
         compact_mech_zh="MI308X 单 CU 8-Wave64 通算配比；H20 GEMM1/GEMM2 专家任务流交错粒度",
-        gain_en="**2.15x** MI308X EP16 (`4-4` vs `0-8`: `2185->1015 us`); **1.053x** H20 `S=8K` (`926->880 us`)",
-        gain_zh="**2.15x** MI308X EP16（`4-4` vs `0-8`：`2185->1015 us`）；**1.053x** H20 `S=8K`（`926->880 us`）",
     ),
 
     # ----------------------------------------------------------------- Temporal (3)
@@ -162,8 +150,6 @@ KNOBS: Tuple[Knob, ...] = (
         compact_values_zh="`0=auto`，`N=1..65536`",
         compact_mech_en="Opening pull quota for helper warps before transitioning into GEMM1",
         compact_mech_zh="层首阶段计算/尾声 warp 临时协助远端拉取的任务配额，缩短首块 GEMM1 启动等待",
-        gain_en="**1.088x** H20 `S=8K` (`941.5->865.3 us`); **1.043x** MI308X (`1015->973 us`)",
-        gain_zh="**1.088x** H20 `S=8K`（`941.5->865.3 us`）；**1.043x** MI308X（`1015->973 us`）",
     ),
     Knob(
         "WEAVE_READY_GROUP_SIZE", "Temporal",
@@ -179,8 +165,6 @@ KNOBS: Tuple[Knob, ...] = (
         compact_values_zh="`0=整专家`，`1, 2, 4, 8, 16`",
         compact_mech_en="Publishes readiness every `N` `BLOCK_M` tiles so GEMM1 starts before full expert arrives",
         compact_mech_zh="按 `N` 个 `BLOCK_M` tile 粒度发布到达就绪信号，提前启动热点专家 GEMM1",
-        gain_en="**1.030x** MI308X EP16 (`1015->985 us`); **1.009x** H20 `S=4K` (`5337->5289 us`)",
-        gain_zh="**1.030x** MI308X EP16（`1015->985 us`）；**1.009x** H20 `S=4K`（`5337->5289 us`）",
     ),
     Knob(
         "WEAVE_SCATTER_OWNER", "Temporal",
@@ -196,8 +180,6 @@ KNOBS: Tuple[Knob, ...] = (
         compact_values_zh="`0=epilogue_only`，`1=comm_only`",
         compact_mech_en="Assigns FC2 cross-GPU scatter either to epilogue warps directly or to freed comm warps",
         compact_mech_zh="中部 FC2 跨卡写出角色归属（尾声直写 vs 释放后的通信 warp 后台异步写出）",
-        gain_en="**1.14x** H20 `S=16K` (`1244->1094 us`); **1.034x** MI308X (`1015->981 us`)",
-        gain_zh="**1.14x** H20 `S=16K`（`1244->1094 us`）；**1.034x** MI308X（`1015->981 us`）",
     ),
 
     # -------------------------------------------------------------- Implementation (6)
@@ -215,8 +197,6 @@ KNOBS: Tuple[Knob, ...] = (
         compact_values_zh="`0=fp8xfp4`，`1=fp4xfp4`，`2=fp8`，`3=bf16`",
         compact_mech_en="Tensor/Matrix Core numeric format across GEMM1 and GEMM2",
         compact_mech_zh="选择 GEMM1/GEMM2 的张量核数值精度与指令格式",
-        gain_en="**1.59x** SM103 `S=16K` (`1038->654 us`); **1.010x** H20 (`5276->5224 us`)",
-        gain_zh="**1.59x** SM103 `S=16K`（`1038->654 us`）；**1.010x** H20（`5276->5224 us`）",
     ),
     Knob(
         "WEAVE_GEMM1_CONFIG", "Implementation",
@@ -232,8 +212,6 @@ KNOBS: Tuple[Knob, ...] = (
         compact_values_zh="`0=auto` 或 `BM[:STORE_BM[:BK[:ST[:EPI]]]]`（`EPI=1..4`）",
         compact_mech_en="Independent FC1 tile & multi-stage mainloop/epilogue configuration",
         compact_mech_zh="独立配置 GEMM1（FC1）分块尺寸、主循环流水级数与多级尾声寄存器流水",
-        gain_en="**1.51x** H20 `S=16K` (`BM=128`: `1651->1091 us`); **1.047x** SM103 (`96,16`: `766->731 us`)",
-        gain_zh="**1.51x** H20 `S=16K`（`BM=128`：`1651->1091 us`）；**1.047x** SM103（`96,16`：`766->731 us`）",
     ),
     Knob(
         "WEAVE_GEMM2_CONFIG", "Implementation",
@@ -249,8 +227,6 @@ KNOBS: Tuple[Knob, ...] = (
         compact_values_zh="`0=auto` 或与 GEMM1 独立解耦的 `BM[...]` 元组",
         compact_mech_en="Independent FC2 tile & multi-stage configuration decoupled from GEMM1",
         compact_mech_zh="与 GEMM1 解耦的 GEMM2（FC2）独立分块与多级尾声流水配置",
-        gain_en="**1.036x** MI308X EP16 (`64` vs `32`: `1051->1015 us`); **1.025x** H20 `32/64` (`2234->2178 us`)",
-        gain_zh="**1.036x** MI308X EP16（`64` vs `32`：`1051->1015 us`）；**1.025x** H20 `32/64`（`2234->2178 us`）",
     ),
     Knob(
         "WEAVE_REG_PULL_BYTES", "Implementation",
@@ -266,8 +242,6 @@ KNOBS: Tuple[Knob, ...] = (
         compact_values_zh="`0=SMEM`，NVIDIA `1024/2048/4096`，MI308X `8192`",
         compact_mech_en="Dispatch register-direct pull chunk width per warp/wavefront (preserves SMEM/LDS for GEMM)",
         compact_mech_zh="Dispatch 算子单轮寄存器直传拉取字节宽度，省出片上内存供更深 GEMM 流水使用",
-        gain_en="**1.19x** MI308X EP16 (`8192` vs `1024`: `1212->1015 us`); **1.024x** SM103 (`618.5->604.1 us`)",
-        gain_zh="**1.19x** MI308X EP16（`8192` vs `1024`：`1212->1015 us`）；**1.024x** SM103（`618.5->604.1 us`）",
     ),
     Knob(
         "WEAVE_DEDUP_MODE", "Implementation",
@@ -283,8 +257,6 @@ KNOBS: Tuple[Knob, ...] = (
         compact_values_zh="`0=off`，`1=on`",
         compact_mech_en="Dispatch remote-pull deduplication: pulls unique `(src_rank, token)` once and fans out locally",
         compact_mech_zh="Dispatch 跨卡拉取去重：同一远端 token 命中多个本地专家时只拉一次并片内扇出",
-        gain_en="**1.067x** H20 `S=16K` (`1644->1540 us`); **1.023x** MI308X EP16 (`1038->1015 us`)",
-        gain_zh="**1.067x** H20 `S=16K`（`1644->1540 us`）；**1.023x** MI308X EP16（`1038->1015 us`）",
     ),
     Knob(
         "WEAVE_SCATTER_STAGING", "Implementation",
@@ -300,8 +272,6 @@ KNOBS: Tuple[Knob, ...] = (
         compact_values_zh="`0=reg`，`1=smem`，`2=hbm`",
         compact_mech_en="Scatter staging path: multi-stage register-direct (`reg`), shared memory (`smem`), or HBM buffer (`hbm`)",
         compact_mech_zh="Scatter 算子数据通路：多级寄存器直写（`reg`）、共享内存异步写出（`smem`）或显存缓冲预合并（`hbm`）",
-        gain_en="**1.14x** H20 `S=16K` (`smem` vs `reg`: `1244->1094 us`); **1.010x** MI308X (`1025->1015 us`)",
-        gain_zh="**1.14x** H20 `S=16K`（`smem` vs `reg`：`1244->1094 us`）；**1.010x** MI308X（`1025->1015 us`）",
     ),
 )
 
@@ -335,8 +305,8 @@ def _assert_contract() -> None:
     if set(INTERNAL_COMPAT_ENV) & (set(LEGACY_ALIASES) | set(RETIRED_INTERNAL)):
         raise AssertionError("internal compat env names must be disjoint from aliases / retired pins")
     for k in KNOBS:
-        if not (k.gain_en and k.gain_zh and k.compact_values_en and k.compact_values_zh):
-            raise AssertionError(f"{k.name}: missing compact description or measured gain")
+        if not (k.compact_values_en and k.compact_values_zh and k.compact_mech_en and k.compact_mech_zh):
+            raise AssertionError(f"{k.name}: missing compact description")
 
 
 _assert_contract()

@@ -1,0 +1,1591 @@
+{
+  "schema": "weave.progressive_ablation.mi308x.ep8.48cells.v1",
+  "hardware": "8x AMD Instinct MI308X (CDNA3 gfx942, 80 CUs), EP8, xGMI",
+  "routing": "Real ShareGPT true-prefix routes (calibration seed=20261101, evaluation seed=20261114)",
+  "official_baseline": "RCCL selective-dedup BF16 A2A + aiter.fused_moe FP8 block-scale + RCCL combine A2A (slowest-rank median)",
+  "summary": {
+    "S_le_128": {
+      "cells": 12,
+      "Weave": 1.7685,
+      "-S": 1.5006,
+      "-S-T": 1.3866,
+      "-S-T-C": 1.3485
+    },
+    "S_1k_4k": {
+      "cells": 18,
+      "Weave": 0.808,
+      "-S": 0.7927,
+      "-S-T": 0.7311,
+      "-S-T-C": 0.7123
+    },
+    "S_ge_8k": {
+      "cells": 18,
+      "Weave": 0.7955,
+      "-S": 0.7923,
+      "-S-T": 0.7753,
+      "-S-T-C": 0.6947
+    },
+    "all_48_cells": {
+      "cells": 48,
+      "Weave": 0.977,
+      "-S": 0.9296,
+      "-S-T": 0.8771,
+      "-S-T-C": 0.8277
+    }
+  },
+  "rows": [
+    {
+      "model": "qwen38max",
+      "S": 32,
+      "weave_selected_spatial": "sp_08_d48",
+      "weave_selected_knobs": {
+        "WEAVE_CU_WAVE_SPLIT": "0-8",
+        "WEAVE_DISPATCH_ACTIVE_SMS": "48",
+        "WEAVE_GEMM1_CONFIG": "0",
+        "WEAVE_GEMM2_CONFIG": "0",
+        "WEAVE_SCATTER_OWNER": "comm_only",
+        "WEAVE_V_HEAD": "0",
+        "WEAVE_DEDUP_MODE": "1"
+      },
+      "median_us": {
+        "official": 1052.532,
+        "Weave": 837.949,
+        "-S": 1004.291,
+        "-S-T": 1018.932,
+        "-S-T-C": 1248.874
+      },
+      "speedup_vs_official": {
+        "Weave": 1.2561,
+        "-S": 1.048,
+        "-S-T": 1.033,
+        "-S-T-C": 0.8428
+      },
+      "max_rel_l2": {
+        "Weave": 0.002726,
+        "-S": 0.002726,
+        "-S-T": 0.002726,
+        "-S-T-C": 0.002726
+      }
+    },
+    {
+      "model": "qwen38max",
+      "S": 128,
+      "weave_selected_spatial": "sp_08_d48",
+      "weave_selected_knobs": {
+        "WEAVE_CU_WAVE_SPLIT": "0-8",
+        "WEAVE_DISPATCH_ACTIVE_SMS": "48",
+        "WEAVE_GEMM1_CONFIG": "0",
+        "WEAVE_GEMM2_CONFIG": "0",
+        "WEAVE_SCATTER_OWNER": "comm_only",
+        "WEAVE_V_HEAD": "0",
+        "WEAVE_DEDUP_MODE": "1"
+      },
+      "median_us": {
+        "official": 864.263,
+        "Weave": 1156.173,
+        "-S": 1569.138,
+        "-S-T": 1486.637,
+        "-S-T-C": 1642.059
+      },
+      "speedup_vs_official": {
+        "Weave": 0.7475,
+        "-S": 0.5508,
+        "-S-T": 0.5814,
+        "-S-T-C": 0.5263
+      },
+      "max_rel_l2": {
+        "Weave": 0.00356,
+        "-S": 0.00356,
+        "-S-T": 0.00356,
+        "-S-T-C": 0.00356
+      }
+    },
+    {
+      "model": "qwen38max",
+      "S": 1024,
+      "weave_selected_spatial": "sp_08_adapt",
+      "weave_selected_knobs": {
+        "WEAVE_CU_WAVE_SPLIT": "0-8",
+        "WEAVE_GEMM1_CONFIG": "0",
+        "WEAVE_GEMM2_CONFIG": "0",
+        "WEAVE_SCATTER_OWNER": "comm_only",
+        "WEAVE_V_HEAD": "0",
+        "WEAVE_DEDUP_MODE": "1"
+      },
+      "median_us": {
+        "official": 1902.106,
+        "Weave": 2383.607,
+        "-S": 2594.149,
+        "-S-T": 2686.65,
+        "-S-T-C": 3046.375
+      },
+      "speedup_vs_official": {
+        "Weave": 0.798,
+        "-S": 0.7332,
+        "-S-T": 0.708,
+        "-S-T-C": 0.6244
+      },
+      "max_rel_l2": {
+        "Weave": 0.001773,
+        "-S": 0.001773,
+        "-S-T": 0.001773,
+        "-S-T-C": 0.001773
+      }
+    },
+    {
+      "model": "qwen38max",
+      "S": 2048,
+      "weave_selected_spatial": "sp_08_adapt",
+      "weave_selected_knobs": {
+        "WEAVE_CU_WAVE_SPLIT": "0-8",
+        "WEAVE_GEMM1_CONFIG": "0",
+        "WEAVE_GEMM2_CONFIG": "0",
+        "WEAVE_SCATTER_OWNER": "comm_only",
+        "WEAVE_V_HEAD": "0",
+        "WEAVE_DEDUP_MODE": "1"
+      },
+      "median_us": {
+        "official": 2881.773,
+        "Weave": 3267.817,
+        "-S": 3524.259,
+        "-S-T": 3839.343,
+        "-S-T-C": 4116.586
+      },
+      "speedup_vs_official": {
+        "Weave": 0.8819,
+        "-S": 0.8177,
+        "-S-T": 0.7506,
+        "-S-T-C": 0.7
+      },
+      "max_rel_l2": {
+        "Weave": 0.001444,
+        "-S": 0.001444,
+        "-S-T": 0.001444,
+        "-S-T-C": 0.001444
+      }
+    },
+    {
+      "model": "qwen38max",
+      "S": 4096,
+      "weave_selected_spatial": "sp_08_adapt",
+      "weave_selected_knobs": {
+        "WEAVE_CU_WAVE_SPLIT": "0-8",
+        "WEAVE_GEMM1_CONFIG": "0",
+        "WEAVE_GEMM2_CONFIG": "0",
+        "WEAVE_SCATTER_OWNER": "comm_only",
+        "WEAVE_V_HEAD": "0",
+        "WEAVE_DEDUP_MODE": "1"
+      },
+      "median_us": {
+        "official": 4798.336,
+        "Weave": 4940.136,
+        "-S": 6053.048,
+        "-S-T": 6107.669,
+        "-S-T-C": 5715.845
+      },
+      "speedup_vs_official": {
+        "Weave": 0.9713,
+        "-S": 0.7927,
+        "-S-T": 0.7856,
+        "-S-T-C": 0.8395
+      },
+      "max_rel_l2": {
+        "Weave": 0.001362,
+        "-S": 0.001361,
+        "-S-T": 0.001361,
+        "-S-T-C": 0.001361
+      }
+    },
+    {
+      "model": "qwen38max",
+      "S": 8192,
+      "weave_selected_spatial": "arm_minus_S",
+      "weave_selected_knobs": {
+        "WEAVE_CU_WAVE_SPLIT": "0-8",
+        "WEAVE_GEMM1_CONFIG": "64",
+        "WEAVE_GEMM2_CONFIG": "64",
+        "WEAVE_SCATTER_OWNER": "comm_only",
+        "WEAVE_V_HEAD": "0",
+        "WEAVE_DEDUP_MODE": "1"
+      },
+      "median_us": {
+        "official": 8609.949,
+        "Weave": 8748.118,
+        "-S": 8748.118,
+        "-S-T": 8806.919,
+        "-S-T-C": 10259.537
+      },
+      "speedup_vs_official": {
+        "Weave": 0.9842,
+        "-S": 0.9842,
+        "-S-T": 0.9776,
+        "-S-T-C": 0.8392
+      },
+      "max_rel_l2": {
+        "Weave": 0.001367,
+        "-S": 0.001367,
+        "-S-T": 0.001367,
+        "-S-T-C": 0.001367
+      }
+    },
+    {
+      "model": "qwen38max",
+      "S": 16384,
+      "weave_selected_spatial": "sp_08_adapt",
+      "weave_selected_knobs": {
+        "WEAVE_CU_WAVE_SPLIT": "0-8",
+        "WEAVE_GEMM1_CONFIG": "0",
+        "WEAVE_GEMM2_CONFIG": "0",
+        "WEAVE_SCATTER_OWNER": "comm_only",
+        "WEAVE_V_HEAD": "0",
+        "WEAVE_DEDUP_MODE": "1"
+      },
+      "median_us": {
+        "official": 17375.937,
+        "Weave": 16553.365,
+        "-S": 16955.608,
+        "-S-T": 16752.568,
+        "-S-T-C": 19836.545
+      },
+      "speedup_vs_official": {
+        "Weave": 1.0497,
+        "-S": 1.0248,
+        "-S-T": 1.0372,
+        "-S-T-C": 0.876
+      },
+      "max_rel_l2": {
+        "Weave": 0.001311,
+        "-S": 0.001311,
+        "-S-T": 0.001311,
+        "-S-T-C": 0.001311
+      }
+    },
+    {
+      "model": "qwen38max",
+      "S": 20000,
+      "weave_selected_spatial": "sp_08_adapt",
+      "weave_selected_knobs": {
+        "WEAVE_CU_WAVE_SPLIT": "0-8",
+        "WEAVE_GEMM1_CONFIG": "0",
+        "WEAVE_GEMM2_CONFIG": "0",
+        "WEAVE_SCATTER_OWNER": "comm_only",
+        "WEAVE_V_HEAD": "0",
+        "WEAVE_DEDUP_MODE": "1"
+      },
+      "median_us": {
+        "official": 20777.88,
+        "Weave": 19599.899,
+        "-S": 19975.544,
+        "-S-T": 20573.41,
+        "-S-T-C": 23562.088
+      },
+      "speedup_vs_official": {
+        "Weave": 1.0601,
+        "-S": 1.0402,
+        "-S-T": 1.0099,
+        "-S-T-C": 0.8818
+      },
+      "max_rel_l2": {
+        "Weave": 0.001321,
+        "-S": 0.001321,
+        "-S-T": 0.001321,
+        "-S-T-C": 0.001321
+      }
+    },
+    {
+      "model": "minimax_m3",
+      "S": 32,
+      "weave_selected_spatial": "sp_08_adapt",
+      "weave_selected_knobs": {
+        "WEAVE_CU_WAVE_SPLIT": "0-8",
+        "WEAVE_GEMM1_CONFIG": "0",
+        "WEAVE_GEMM2_CONFIG": "0",
+        "WEAVE_SCATTER_OWNER": "comm_only",
+        "WEAVE_V_HEAD": "0",
+        "WEAVE_DEDUP_MODE": "1"
+      },
+      "median_us": {
+        "official": 1082.492,
+        "Weave": 456.085,
+        "-S": 537.026,
+        "-S-T": 711.428,
+        "-S-T-C": 608.547
+      },
+      "speedup_vs_official": {
+        "Weave": 2.3734,
+        "-S": 2.0157,
+        "-S-T": 1.5216,
+        "-S-T-C": 1.7788
+      },
+      "max_rel_l2": {
+        "Weave": 0.002089,
+        "-S": 0.002089,
+        "-S-T": 0.002089,
+        "-S-T-C": 0.002089
+      }
+    },
+    {
+      "model": "minimax_m3",
+      "S": 128,
+      "weave_selected_spatial": "sp_08_d48",
+      "weave_selected_knobs": {
+        "WEAVE_CU_WAVE_SPLIT": "0-8",
+        "WEAVE_DISPATCH_ACTIVE_SMS": "48",
+        "WEAVE_GEMM1_CONFIG": "0",
+        "WEAVE_GEMM2_CONFIG": "0",
+        "WEAVE_SCATTER_OWNER": "comm_only",
+        "WEAVE_V_HEAD": "0",
+        "WEAVE_DEDUP_MODE": "1"
+      },
+      "median_us": {
+        "official": 1005.184,
+        "Weave": 576.986,
+        "-S": 673.887,
+        "-S-T": 829.549,
+        "-S-T-C": 755.888
+      },
+      "speedup_vs_official": {
+        "Weave": 1.7421,
+        "-S": 1.4916,
+        "-S-T": 1.2117,
+        "-S-T-C": 1.3298
+      },
+      "max_rel_l2": {
+        "Weave": 0.001596,
+        "-S": 0.001596,
+        "-S-T": 0.001596,
+        "-S-T-C": 0.001596
+      }
+    },
+    {
+      "model": "minimax_m3",
+      "S": 1024,
+      "weave_selected_spatial": "arm_minus_S",
+      "weave_selected_knobs": {
+        "WEAVE_CU_WAVE_SPLIT": "0-8",
+        "WEAVE_GEMM1_CONFIG": "64",
+        "WEAVE_GEMM2_CONFIG": "64",
+        "WEAVE_SCATTER_OWNER": "comm_only",
+        "WEAVE_V_HEAD": "0",
+        "WEAVE_DEDUP_MODE": "1"
+      },
+      "median_us": {
+        "official": 1107.024,
+        "Weave": 1282.734,
+        "-S": 1282.734,
+        "-S-T": 1108.613,
+        "-S-T-C": 1135.532
+      },
+      "speedup_vs_official": {
+        "Weave": 0.863,
+        "-S": 0.863,
+        "-S-T": 0.9986,
+        "-S-T-C": 0.9749
+      },
+      "max_rel_l2": {
+        "Weave": 0.001473,
+        "-S": 0.001473,
+        "-S-T": 0.001473,
+        "-S-T-C": 0.001473
+      }
+    },
+    {
+      "model": "minimax_m3",
+      "S": 2048,
+      "weave_selected_spatial": "arm_minus_S",
+      "weave_selected_knobs": {
+        "WEAVE_CU_WAVE_SPLIT": "0-8",
+        "WEAVE_GEMM1_CONFIG": "64",
+        "WEAVE_GEMM2_CONFIG": "64",
+        "WEAVE_SCATTER_OWNER": "comm_only",
+        "WEAVE_V_HEAD": "0",
+        "WEAVE_DEDUP_MODE": "1"
+      },
+      "median_us": {
+        "official": 1790.06,
+        "Weave": 1702.219,
+        "-S": 1702.219,
+        "-S-T": 1741.879,
+        "-S-T-C": 1794.24
+      },
+      "speedup_vs_official": {
+        "Weave": 1.0516,
+        "-S": 1.0516,
+        "-S-T": 1.0277,
+        "-S-T-C": 0.9977
+      },
+      "max_rel_l2": {
+        "Weave": 0.001461,
+        "-S": 0.001461,
+        "-S-T": 0.001461,
+        "-S-T-C": 0.001461
+      }
+    },
+    {
+      "model": "minimax_m3",
+      "S": 4096,
+      "weave_selected_spatial": "sp_08_d48",
+      "weave_selected_knobs": {
+        "WEAVE_CU_WAVE_SPLIT": "0-8",
+        "WEAVE_DISPATCH_ACTIVE_SMS": "48",
+        "WEAVE_GEMM1_CONFIG": "0",
+        "WEAVE_GEMM2_CONFIG": "0",
+        "WEAVE_SCATTER_OWNER": "comm_only",
+        "WEAVE_V_HEAD": "0",
+        "WEAVE_DEDUP_MODE": "1"
+      },
+      "median_us": {
+        "official": 2917.713,
+        "Weave": 2699.489,
+        "-S": 2773.311,
+        "-S-T": 3165.275,
+        "-S-T-C": 3031.054
+      },
+      "speedup_vs_official": {
+        "Weave": 1.0808,
+        "-S": 1.0521,
+        "-S-T": 0.9218,
+        "-S-T-C": 0.9626
+      },
+      "max_rel_l2": {
+        "Weave": 0.001462,
+        "-S": 0.001469,
+        "-S-T": 0.001469,
+        "-S-T-C": 0.001469
+      }
+    },
+    {
+      "model": "minimax_m3",
+      "S": 8192,
+      "weave_selected_spatial": "sp_08_d48",
+      "weave_selected_knobs": {
+        "WEAVE_CU_WAVE_SPLIT": "0-8",
+        "WEAVE_DISPATCH_ACTIVE_SMS": "48",
+        "WEAVE_GEMM1_CONFIG": "0",
+        "WEAVE_GEMM2_CONFIG": "0",
+        "WEAVE_SCATTER_OWNER": "comm_only",
+        "WEAVE_V_HEAD": "0",
+        "WEAVE_DEDUP_MODE": "1"
+      },
+      "median_us": {
+        "official": 5151.457,
+        "Weave": 4790.133,
+        "-S": 4976.295,
+        "-S-T": 5019.796,
+        "-S-T-C": 5457.261
+      },
+      "speedup_vs_official": {
+        "Weave": 1.0754,
+        "-S": 1.0352,
+        "-S-T": 1.0262,
+        "-S-T-C": 0.944
+      },
+      "max_rel_l2": {
+        "Weave": 0.001466,
+        "-S": 0.00147,
+        "-S-T": 0.00147,
+        "-S-T-C": 0.00147
+      }
+    },
+    {
+      "model": "minimax_m3",
+      "S": 16384,
+      "weave_selected_spatial": "sp_08_adapt",
+      "weave_selected_knobs": {
+        "WEAVE_CU_WAVE_SPLIT": "0-8",
+        "WEAVE_GEMM1_CONFIG": "0",
+        "WEAVE_GEMM2_CONFIG": "0",
+        "WEAVE_SCATTER_OWNER": "comm_only",
+        "WEAVE_V_HEAD": "0",
+        "WEAVE_DEDUP_MODE": "1"
+      },
+      "median_us": {
+        "official": 9825.492,
+        "Weave": 10196.353,
+        "-S": 9599.727,
+        "-S-T": 9652.627,
+        "-S-T-C": 10431.978
+      },
+      "speedup_vs_official": {
+        "Weave": 0.9636,
+        "-S": 1.0235,
+        "-S-T": 1.0179,
+        "-S-T-C": 0.9419
+      },
+      "max_rel_l2": {
+        "Weave": 0.001423,
+        "-S": 0.001423,
+        "-S-T": 0.001423,
+        "-S-T-C": 0.001423
+      }
+    },
+    {
+      "model": "minimax_m3",
+      "S": 20000,
+      "weave_selected_spatial": "sp_08_adapt",
+      "weave_selected_knobs": {
+        "WEAVE_CU_WAVE_SPLIT": "0-8",
+        "WEAVE_GEMM1_CONFIG": "0",
+        "WEAVE_GEMM2_CONFIG": "0",
+        "WEAVE_SCATTER_OWNER": "comm_only",
+        "WEAVE_V_HEAD": "0",
+        "WEAVE_DEDUP_MODE": "1"
+      },
+      "median_us": {
+        "official": 11602.77,
+        "Weave": 10952.042,
+        "-S": 11507.387,
+        "-S-T": 13762.473,
+        "-S-T-C": 12368.499
+      },
+      "speedup_vs_official": {
+        "Weave": 1.0594,
+        "-S": 1.0083,
+        "-S-T": 0.8431,
+        "-S-T-C": 0.9381
+      },
+      "max_rel_l2": {
+        "Weave": 0.001413,
+        "-S": 0.001413,
+        "-S-T": 0.001413,
+        "-S-T-C": 0.001413
+      }
+    },
+    {
+      "model": "DeepSeek-V4-Flash",
+      "S": 32,
+      "weave_selected_spatial": "sp_08_adapt",
+      "weave_selected_knobs": {
+        "WEAVE_CU_WAVE_SPLIT": "0-8",
+        "WEAVE_GEMM1_CONFIG": "0",
+        "WEAVE_GEMM2_CONFIG": "0",
+        "WEAVE_SCATTER_OWNER": "comm_only",
+        "WEAVE_V_HEAD": "0",
+        "WEAVE_DEDUP_MODE": "1"
+      },
+      "median_us": {
+        "official": 1098.372,
+        "Weave": 533.866,
+        "-S": 592.687,
+        "-S-T": 721.208,
+        "-S-T-C": 631.527
+      },
+      "speedup_vs_official": {
+        "Weave": 2.0574,
+        "-S": 1.8532,
+        "-S-T": 1.523,
+        "-S-T-C": 1.7392
+      },
+      "max_rel_l2": {
+        "Weave": 0.002025,
+        "-S": 0.002025,
+        "-S-T": 0.002025,
+        "-S-T-C": 0.002025
+      }
+    },
+    {
+      "model": "DeepSeek-V4-Flash",
+      "S": 128,
+      "weave_selected_spatial": "sp_08_d48",
+      "weave_selected_knobs": {
+        "WEAVE_CU_WAVE_SPLIT": "0-8",
+        "WEAVE_DISPATCH_ACTIVE_SMS": "48",
+        "WEAVE_GEMM1_CONFIG": "0",
+        "WEAVE_GEMM2_CONFIG": "0",
+        "WEAVE_SCATTER_OWNER": "comm_only",
+        "WEAVE_V_HEAD": "0",
+        "WEAVE_DEDUP_MODE": "1"
+      },
+      "median_us": {
+        "official": 553.742,
+        "Weave": 728.168,
+        "-S": 812.789,
+        "-S-T": 1007.811,
+        "-S-T-C": 839.31
+      },
+      "speedup_vs_official": {
+        "Weave": 0.7605,
+        "-S": 0.6813,
+        "-S-T": 0.5495,
+        "-S-T-C": 0.6598
+      },
+      "max_rel_l2": {
+        "Weave": 0.001754,
+        "-S": 0.001754,
+        "-S-T": 0.001754,
+        "-S-T-C": 0.001754
+      }
+    },
+    {
+      "model": "DeepSeek-V4-Flash",
+      "S": 1024,
+      "weave_selected_spatial": "sp_08_adapt",
+      "weave_selected_knobs": {
+        "WEAVE_CU_WAVE_SPLIT": "0-8",
+        "WEAVE_GEMM1_CONFIG": "0",
+        "WEAVE_GEMM2_CONFIG": "0",
+        "WEAVE_SCATTER_OWNER": "comm_only",
+        "WEAVE_V_HEAD": "0",
+        "WEAVE_DEDUP_MODE": "1"
+      },
+      "median_us": {
+        "official": 685.923,
+        "Weave": 1000.351,
+        "-S": 950.75,
+        "-S-T": 1030.132,
+        "-S-T-C": 1040.432
+      },
+      "speedup_vs_official": {
+        "Weave": 0.6857,
+        "-S": 0.7215,
+        "-S-T": 0.6659,
+        "-S-T-C": 0.6593
+      },
+      "max_rel_l2": {
+        "Weave": 0.00159,
+        "-S": 0.001591,
+        "-S-T": 0.001591,
+        "-S-T-C": 0.001591
+      }
+    },
+    {
+      "model": "DeepSeek-V4-Flash",
+      "S": 2048,
+      "weave_selected_spatial": "sp_08_adapt",
+      "weave_selected_knobs": {
+        "WEAVE_CU_WAVE_SPLIT": "0-8",
+        "WEAVE_GEMM1_CONFIG": "0",
+        "WEAVE_GEMM2_CONFIG": "0",
+        "WEAVE_SCATTER_OWNER": "comm_only",
+        "WEAVE_V_HEAD": "0",
+        "WEAVE_DEDUP_MODE": "1"
+      },
+      "median_us": {
+        "official": 975.471,
+        "Weave": 1318.635,
+        "-S": 1321.474,
+        "-S-T": 1571.097,
+        "-S-T-C": 1598.338
+      },
+      "speedup_vs_official": {
+        "Weave": 0.7398,
+        "-S": 0.7382,
+        "-S-T": 0.6209,
+        "-S-T-C": 0.6103
+      },
+      "max_rel_l2": {
+        "Weave": 0.001472,
+        "-S": 0.001474,
+        "-S-T": 0.001474,
+        "-S-T-C": 0.001474
+      }
+    },
+    {
+      "model": "DeepSeek-V4-Flash",
+      "S": 4096,
+      "weave_selected_spatial": "sp_08_adapt",
+      "weave_selected_knobs": {
+        "WEAVE_CU_WAVE_SPLIT": "0-8",
+        "WEAVE_GEMM1_CONFIG": "0",
+        "WEAVE_GEMM2_CONFIG": "0",
+        "WEAVE_SCATTER_OWNER": "comm_only",
+        "WEAVE_V_HEAD": "0",
+        "WEAVE_DEDUP_MODE": "1"
+      },
+      "median_us": {
+        "official": 1581.038,
+        "Weave": 1900.281,
+        "-S": 2009.343,
+        "-S-T": 2274.205,
+        "-S-T-C": 2233.925
+      },
+      "speedup_vs_official": {
+        "Weave": 0.832,
+        "-S": 0.7868,
+        "-S-T": 0.6952,
+        "-S-T-C": 0.7077
+      },
+      "max_rel_l2": {
+        "Weave": 0.001445,
+        "-S": 0.001445,
+        "-S-T": 0.001445,
+        "-S-T-C": 0.001445
+      }
+    },
+    {
+      "model": "DeepSeek-V4-Flash",
+      "S": 8192,
+      "weave_selected_spatial": "sp_08_d48",
+      "weave_selected_knobs": {
+        "WEAVE_CU_WAVE_SPLIT": "0-8",
+        "WEAVE_DISPATCH_ACTIVE_SMS": "48",
+        "WEAVE_GEMM1_CONFIG": "0",
+        "WEAVE_GEMM2_CONFIG": "0",
+        "WEAVE_SCATTER_OWNER": "comm_only",
+        "WEAVE_V_HEAD": "0",
+        "WEAVE_DEDUP_MODE": "1"
+      },
+      "median_us": {
+        "official": 2755.25,
+        "Weave": 3925.403,
+        "-S": 3570.38,
+        "-S-T": 3673.66,
+        "-S-T-C": 3897.104
+      },
+      "speedup_vs_official": {
+        "Weave": 0.7019,
+        "-S": 0.7717,
+        "-S-T": 0.75,
+        "-S-T-C": 0.707
+      },
+      "max_rel_l2": {
+        "Weave": 0.001429,
+        "-S": 0.001429,
+        "-S-T": 0.001429,
+        "-S-T-C": 0.001429
+      }
+    },
+    {
+      "model": "DeepSeek-V4-Flash",
+      "S": 16384,
+      "weave_selected_spatial": "sp_08_d48",
+      "weave_selected_knobs": {
+        "WEAVE_CU_WAVE_SPLIT": "0-8",
+        "WEAVE_DISPATCH_ACTIVE_SMS": "48",
+        "WEAVE_GEMM1_CONFIG": "0",
+        "WEAVE_GEMM2_CONFIG": "0",
+        "WEAVE_SCATTER_OWNER": "comm_only",
+        "WEAVE_V_HEAD": "0",
+        "WEAVE_DEDUP_MODE": "1"
+      },
+      "median_us": {
+        "official": 5166.238,
+        "Weave": 6916.995,
+        "-S": 6564.592,
+        "-S-T": 6614.053,
+        "-S-T-C": 7127.68
+      },
+      "speedup_vs_official": {
+        "Weave": 0.7469,
+        "-S": 0.787,
+        "-S-T": 0.7811,
+        "-S-T-C": 0.7248
+      },
+      "max_rel_l2": {
+        "Weave": 0.001444,
+        "-S": 0.001444,
+        "-S-T": 0.001444,
+        "-S-T-C": 0.001444
+      }
+    },
+    {
+      "model": "DeepSeek-V4-Flash",
+      "S": 20000,
+      "weave_selected_spatial": "sp_08_adapt",
+      "weave_selected_knobs": {
+        "WEAVE_CU_WAVE_SPLIT": "0-8",
+        "WEAVE_GEMM1_CONFIG": "0",
+        "WEAVE_GEMM2_CONFIG": "0",
+        "WEAVE_SCATTER_OWNER": "comm_only",
+        "WEAVE_V_HEAD": "0",
+        "WEAVE_DEDUP_MODE": "1"
+      },
+      "median_us": {
+        "official": 6428.912,
+        "Weave": 9008.539,
+        "-S": 7929.307,
+        "-S-T": 7977.829,
+        "-S-T-C": 9515.367
+      },
+      "speedup_vs_official": {
+        "Weave": 0.7136,
+        "-S": 0.8108,
+        "-S-T": 0.8058,
+        "-S-T-C": 0.6756
+      },
+      "max_rel_l2": {
+        "Weave": 0.001409,
+        "-S": 0.001411,
+        "-S-T": 0.001411,
+        "-S-T-C": 0.001411
+      }
+    },
+    {
+      "model": "Qwen3.5-35B-A3B",
+      "S": 32,
+      "weave_selected_spatial": "sp_08_d48",
+      "weave_selected_knobs": {
+        "WEAVE_CU_WAVE_SPLIT": "0-8",
+        "WEAVE_DISPATCH_ACTIVE_SMS": "48",
+        "WEAVE_GEMM1_CONFIG": "0",
+        "WEAVE_GEMM2_CONFIG": "0",
+        "WEAVE_SCATTER_OWNER": "comm_only",
+        "WEAVE_V_HEAD": "0",
+        "WEAVE_DEDUP_MODE": "1"
+      },
+      "median_us": {
+        "official": 1026.152,
+        "Weave": 314.463,
+        "-S": 400.124,
+        "-S-T": 374.184,
+        "-S-T-C": 455.385
+      },
+      "speedup_vs_official": {
+        "Weave": 3.2632,
+        "-S": 2.5646,
+        "-S-T": 2.7424,
+        "-S-T-C": 2.2534
+      },
+      "max_rel_l2": {
+        "Weave": 0.001713,
+        "-S": 0.001713,
+        "-S-T": 0.001713,
+        "-S-T-C": 0.001713
+      }
+    },
+    {
+      "model": "Qwen3.5-35B-A3B",
+      "S": 128,
+      "weave_selected_spatial": "sp_44_adapt",
+      "weave_selected_knobs": {
+        "WEAVE_CU_WAVE_SPLIT": "4-4",
+        "WEAVE_GEMM1_CONFIG": "0",
+        "WEAVE_GEMM2_CONFIG": "0",
+        "WEAVE_SCATTER_OWNER": "comm_only",
+        "WEAVE_V_HEAD": "0",
+        "WEAVE_DEDUP_MODE": "1"
+      },
+      "median_us": {
+        "official": 626.702,
+        "Weave": 409.605,
+        "-S": 444.164,
+        "-S-T": 422.105,
+        "-S-T-C": 482.345
+      },
+      "speedup_vs_official": {
+        "Weave": 1.53,
+        "-S": 1.411,
+        "-S-T": 1.4847,
+        "-S-T-C": 1.2993
+      },
+      "max_rel_l2": {
+        "Weave": 0.001431,
+        "-S": 0.001431,
+        "-S-T": 0.001431,
+        "-S-T-C": 0.001431
+      }
+    },
+    {
+      "model": "Qwen3.5-35B-A3B",
+      "S": 1024,
+      "weave_selected_spatial": "arm_minus_S",
+      "weave_selected_knobs": {
+        "WEAVE_CU_WAVE_SPLIT": "0-8",
+        "WEAVE_GEMM1_CONFIG": "64",
+        "WEAVE_GEMM2_CONFIG": "64",
+        "WEAVE_SCATTER_OWNER": "comm_only",
+        "WEAVE_V_HEAD": "0",
+        "WEAVE_DEDUP_MODE": "1"
+      },
+      "median_us": {
+        "official": 572.742,
+        "Weave": 571.046,
+        "-S": 571.046,
+        "-S-T": 605.267,
+        "-S-T-C": 632.107
+      },
+      "speedup_vs_official": {
+        "Weave": 1.003,
+        "-S": 1.003,
+        "-S-T": 0.9463,
+        "-S-T-C": 0.9061
+      },
+      "max_rel_l2": {
+        "Weave": 0.001321,
+        "-S": 0.001321,
+        "-S-T": 0.001321,
+        "-S-T-C": 0.001321
+      }
+    },
+    {
+      "model": "Qwen3.5-35B-A3B",
+      "S": 2048,
+      "weave_selected_spatial": "arm_minus_S",
+      "weave_selected_knobs": {
+        "WEAVE_CU_WAVE_SPLIT": "0-8",
+        "WEAVE_GEMM1_CONFIG": "64",
+        "WEAVE_GEMM2_CONFIG": "64",
+        "WEAVE_SCATTER_OWNER": "comm_only",
+        "WEAVE_V_HEAD": "0",
+        "WEAVE_DEDUP_MODE": "1"
+      },
+      "median_us": {
+        "official": 604.526,
+        "Weave": 800.249,
+        "-S": 800.249,
+        "-S-T": 844.329,
+        "-S-T-C": 890.31
+      },
+      "speedup_vs_official": {
+        "Weave": 0.7554,
+        "-S": 0.7554,
+        "-S-T": 0.716,
+        "-S-T-C": 0.679
+      },
+      "max_rel_l2": {
+        "Weave": 0.001241,
+        "-S": 0.001241,
+        "-S-T": 0.001241,
+        "-S-T-C": 0.001241
+      }
+    },
+    {
+      "model": "Qwen3.5-35B-A3B",
+      "S": 4096,
+      "weave_selected_spatial": "arm_minus_S",
+      "weave_selected_knobs": {
+        "WEAVE_CU_WAVE_SPLIT": "0-8",
+        "WEAVE_GEMM1_CONFIG": "64",
+        "WEAVE_GEMM2_CONFIG": "64",
+        "WEAVE_SCATTER_OWNER": "comm_only",
+        "WEAVE_V_HEAD": "0",
+        "WEAVE_DEDUP_MODE": "1"
+      },
+      "median_us": {
+        "official": 692.168,
+        "Weave": 1175.453,
+        "-S": 1175.453,
+        "-S-T": 1370.615,
+        "-S-T-C": 1343.655
+      },
+      "speedup_vs_official": {
+        "Weave": 0.5889,
+        "-S": 0.5889,
+        "-S-T": 0.505,
+        "-S-T-C": 0.5151
+      },
+      "max_rel_l2": {
+        "Weave": 0.001184,
+        "-S": 0.001184,
+        "-S-T": 0.001184,
+        "-S-T-C": 0.001184
+      }
+    },
+    {
+      "model": "Qwen3.5-35B-A3B",
+      "S": 8192,
+      "weave_selected_spatial": "sp_08_adapt",
+      "weave_selected_knobs": {
+        "WEAVE_CU_WAVE_SPLIT": "0-8",
+        "WEAVE_GEMM1_CONFIG": "0",
+        "WEAVE_GEMM2_CONFIG": "0",
+        "WEAVE_SCATTER_OWNER": "comm_only",
+        "WEAVE_V_HEAD": "0",
+        "WEAVE_DEDUP_MODE": "1"
+      },
+      "median_us": {
+        "official": 1167.104,
+        "Weave": 1956.981,
+        "-S": 1913.341,
+        "-S-T": 2368.766,
+        "-S-T-C": 2238.265
+      },
+      "speedup_vs_official": {
+        "Weave": 0.5964,
+        "-S": 0.61,
+        "-S-T": 0.4927,
+        "-S-T-C": 0.5214
+      },
+      "max_rel_l2": {
+        "Weave": 0.001147,
+        "-S": 0.001147,
+        "-S-T": 0.001147,
+        "-S-T-C": 0.001147
+      }
+    },
+    {
+      "model": "Qwen3.5-35B-A3B",
+      "S": 16384,
+      "weave_selected_spatial": "sp_08_adapt",
+      "weave_selected_knobs": {
+        "WEAVE_CU_WAVE_SPLIT": "0-8",
+        "WEAVE_GEMM1_CONFIG": "0",
+        "WEAVE_GEMM2_CONFIG": "0",
+        "WEAVE_SCATTER_OWNER": "comm_only",
+        "WEAVE_V_HEAD": "0",
+        "WEAVE_DEDUP_MODE": "1"
+      },
+      "median_us": {
+        "official": 2027.027,
+        "Weave": 3583.839,
+        "-S": 3731.701,
+        "-S-T": 3671.261,
+        "-S-T-C": 4066.246
+      },
+      "speedup_vs_official": {
+        "Weave": 0.5656,
+        "-S": 0.5432,
+        "-S-T": 0.5521,
+        "-S-T-C": 0.4985
+      },
+      "max_rel_l2": {
+        "Weave": 0.001212,
+        "-S": 0.001212,
+        "-S-T": 0.001212,
+        "-S-T-C": 0.001212
+      }
+    },
+    {
+      "model": "Qwen3.5-35B-A3B",
+      "S": 20000,
+      "weave_selected_spatial": "sp_08_adapt",
+      "weave_selected_knobs": {
+        "WEAVE_CU_WAVE_SPLIT": "0-8",
+        "WEAVE_GEMM1_CONFIG": "0",
+        "WEAVE_GEMM2_CONFIG": "0",
+        "WEAVE_SCATTER_OWNER": "comm_only",
+        "WEAVE_V_HEAD": "0",
+        "WEAVE_DEDUP_MODE": "1"
+      },
+      "median_us": {
+        "official": 2418.807,
+        "Weave": 4693.252,
+        "-S": 4592.051,
+        "-S-T": 4647.272,
+        "-S-T-C": 5017.016
+      },
+      "speedup_vs_official": {
+        "Weave": 0.5154,
+        "-S": 0.5267,
+        "-S-T": 0.5205,
+        "-S-T-C": 0.4821
+      },
+      "max_rel_l2": {
+        "Weave": 0.001136,
+        "-S": 0.001136,
+        "-S-T": 0.001136,
+        "-S-T-C": 0.001136
+      }
+    },
+    {
+      "model": "Qwen3.5-122B-A10B",
+      "S": 32,
+      "weave_selected_spatial": "sp_08_adapt",
+      "weave_selected_knobs": {
+        "WEAVE_CU_WAVE_SPLIT": "0-8",
+        "WEAVE_GEMM1_CONFIG": "0",
+        "WEAVE_GEMM2_CONFIG": "0",
+        "WEAVE_SCATTER_OWNER": "comm_only",
+        "WEAVE_V_HEAD": "0",
+        "WEAVE_DEDUP_MODE": "1"
+      },
+      "median_us": {
+        "official": 1351.495,
+        "Weave": 324.184,
+        "-S": 400.125,
+        "-S-T": 428.324,
+        "-S-T-C": 439.385
+      },
+      "speedup_vs_official": {
+        "Weave": 4.1689,
+        "-S": 3.3777,
+        "-S-T": 3.1553,
+        "-S-T-C": 3.0759
+      },
+      "max_rel_l2": {
+        "Weave": 0.001343,
+        "-S": 0.001343,
+        "-S-T": 0.001343,
+        "-S-T-C": 0.001343
+      }
+    },
+    {
+      "model": "Qwen3.5-122B-A10B",
+      "S": 128,
+      "weave_selected_spatial": "sp_08_d48",
+      "weave_selected_knobs": {
+        "WEAVE_CU_WAVE_SPLIT": "0-8",
+        "WEAVE_DISPATCH_ACTIVE_SMS": "48",
+        "WEAVE_GEMM1_CONFIG": "0",
+        "WEAVE_GEMM2_CONFIG": "0",
+        "WEAVE_SCATTER_OWNER": "comm_only",
+        "WEAVE_V_HEAD": "0",
+        "WEAVE_DEDUP_MODE": "1"
+      },
+      "median_us": {
+        "official": 964.803,
+        "Weave": 469.665,
+        "-S": 486.565,
+        "-S-T": 549.146,
+        "-S-T-C": 546.686
+      },
+      "speedup_vs_official": {
+        "Weave": 2.0542,
+        "-S": 1.9829,
+        "-S-T": 1.7569,
+        "-S-T-C": 1.7648
+      },
+      "max_rel_l2": {
+        "Weave": 0.001422,
+        "-S": 0.001422,
+        "-S-T": 0.001422,
+        "-S-T-C": 0.001422
+      }
+    },
+    {
+      "model": "Qwen3.5-122B-A10B",
+      "S": 1024,
+      "weave_selected_spatial": "arm_minus_S",
+      "weave_selected_knobs": {
+        "WEAVE_CU_WAVE_SPLIT": "0-8",
+        "WEAVE_GEMM1_CONFIG": "64",
+        "WEAVE_GEMM2_CONFIG": "64",
+        "WEAVE_SCATTER_OWNER": "comm_only",
+        "WEAVE_V_HEAD": "0",
+        "WEAVE_DEDUP_MODE": "1"
+      },
+      "median_us": {
+        "official": 614.122,
+        "Weave": 712.068,
+        "-S": 712.068,
+        "-S-T": 849.19,
+        "-S-T-C": 789.929
+      },
+      "speedup_vs_official": {
+        "Weave": 0.8624,
+        "-S": 0.8624,
+        "-S-T": 0.7232,
+        "-S-T-C": 0.7774
+      },
+      "max_rel_l2": {
+        "Weave": 0.001299,
+        "-S": 0.001299,
+        "-S-T": 0.001299,
+        "-S-T-C": 0.001299
+      }
+    },
+    {
+      "model": "Qwen3.5-122B-A10B",
+      "S": 2048,
+      "weave_selected_spatial": "arm_minus_S",
+      "weave_selected_knobs": {
+        "WEAVE_CU_WAVE_SPLIT": "0-8",
+        "WEAVE_GEMM1_CONFIG": "64",
+        "WEAVE_GEMM2_CONFIG": "64",
+        "WEAVE_SCATTER_OWNER": "comm_only",
+        "WEAVE_V_HEAD": "0",
+        "WEAVE_DEDUP_MODE": "1"
+      },
+      "median_us": {
+        "official": 723.188,
+        "Weave": 1007.271,
+        "-S": 1007.271,
+        "-S-T": 1071.732,
+        "-S-T-C": 1152.653
+      },
+      "speedup_vs_official": {
+        "Weave": 0.718,
+        "-S": 0.718,
+        "-S-T": 0.6748,
+        "-S-T-C": 0.6274
+      },
+      "max_rel_l2": {
+        "Weave": 0.001244,
+        "-S": 0.001244,
+        "-S-T": 0.001244,
+        "-S-T-C": 0.001244
+      }
+    },
+    {
+      "model": "Qwen3.5-122B-A10B",
+      "S": 4096,
+      "weave_selected_spatial": "arm_minus_S",
+      "weave_selected_knobs": {
+        "WEAVE_CU_WAVE_SPLIT": "0-8",
+        "WEAVE_GEMM1_CONFIG": "64",
+        "WEAVE_GEMM2_CONFIG": "64",
+        "WEAVE_SCATTER_OWNER": "comm_only",
+        "WEAVE_V_HEAD": "0",
+        "WEAVE_DEDUP_MODE": "1"
+      },
+      "median_us": {
+        "official": 1096.912,
+        "Weave": 1592.057,
+        "-S": 1592.057,
+        "-S-T": 1614.618,
+        "-S-T-C": 1767.4
+      },
+      "speedup_vs_official": {
+        "Weave": 0.689,
+        "-S": 0.689,
+        "-S-T": 0.6794,
+        "-S-T-C": 0.6206
+      },
+      "max_rel_l2": {
+        "Weave": 0.001445,
+        "-S": 0.001445,
+        "-S-T": 0.001445,
+        "-S-T-C": 0.001445
+      }
+    },
+    {
+      "model": "Qwen3.5-122B-A10B",
+      "S": 8192,
+      "weave_selected_spatial": "sp_08_d48",
+      "weave_selected_knobs": {
+        "WEAVE_CU_WAVE_SPLIT": "0-8",
+        "WEAVE_DISPATCH_ACTIVE_SMS": "48",
+        "WEAVE_GEMM1_CONFIG": "0",
+        "WEAVE_GEMM2_CONFIG": "0",
+        "WEAVE_SCATTER_OWNER": "comm_only",
+        "WEAVE_V_HEAD": "0",
+        "WEAVE_DEDUP_MODE": "1"
+      },
+      "median_us": {
+        "official": 2022.867,
+        "Weave": 2918.012,
+        "-S": 2807.071,
+        "-S-T": 2851.491,
+        "-S-T-C": 3366.657
+      },
+      "speedup_vs_official": {
+        "Weave": 0.6932,
+        "-S": 0.7206,
+        "-S-T": 0.7094,
+        "-S-T-C": 0.6009
+      },
+      "max_rel_l2": {
+        "Weave": 0.001251,
+        "-S": 0.001251,
+        "-S-T": 0.001251,
+        "-S-T-C": 0.001251
+      }
+    },
+    {
+      "model": "Qwen3.5-122B-A10B",
+      "S": 16384,
+      "weave_selected_spatial": "sp_08_d48",
+      "weave_selected_knobs": {
+        "WEAVE_CU_WAVE_SPLIT": "0-8",
+        "WEAVE_DISPATCH_ACTIVE_SMS": "48",
+        "WEAVE_GEMM1_CONFIG": "0",
+        "WEAVE_GEMM2_CONFIG": "0",
+        "WEAVE_SCATTER_OWNER": "comm_only",
+        "WEAVE_V_HEAD": "0",
+        "WEAVE_DEDUP_MODE": "1"
+      },
+      "median_us": {
+        "official": 3696.532,
+        "Weave": 4893.914,
+        "-S": 5150.116,
+        "-S-T": 5197.537,
+        "-S-T-C": 6525.812
+      },
+      "speedup_vs_official": {
+        "Weave": 0.7553,
+        "-S": 0.7178,
+        "-S-T": 0.7112,
+        "-S-T-C": 0.5664
+      },
+      "max_rel_l2": {
+        "Weave": 0.001304,
+        "-S": 0.001304,
+        "-S-T": 0.001304,
+        "-S-T-C": 0.001304
+      }
+    },
+    {
+      "model": "Qwen3.5-122B-A10B",
+      "S": 20000,
+      "weave_selected_spatial": "sp_08_d48",
+      "weave_selected_knobs": {
+        "WEAVE_CU_WAVE_SPLIT": "0-8",
+        "WEAVE_DISPATCH_ACTIVE_SMS": "48",
+        "WEAVE_GEMM1_CONFIG": "0",
+        "WEAVE_GEMM2_CONFIG": "0",
+        "WEAVE_SCATTER_OWNER": "comm_only",
+        "WEAVE_V_HEAD": "0",
+        "WEAVE_DEDUP_MODE": "1"
+      },
+      "median_us": {
+        "official": 4504.73,
+        "Weave": 5949.405,
+        "-S": 6342.33,
+        "-S-T": 6165.328,
+        "-S-T-C": 7014.258
+      },
+      "speedup_vs_official": {
+        "Weave": 0.7572,
+        "-S": 0.7103,
+        "-S-T": 0.7307,
+        "-S-T-C": 0.6422
+      },
+      "max_rel_l2": {
+        "Weave": 0.001245,
+        "-S": 0.001245,
+        "-S-T": 0.001245,
+        "-S-T-C": 0.001245
+      }
+    },
+    {
+      "model": "Qwen3.5-397B-A17B",
+      "S": 32,
+      "weave_selected_spatial": "sp_08_d48",
+      "weave_selected_knobs": {
+        "WEAVE_CU_WAVE_SPLIT": "0-8",
+        "WEAVE_DISPATCH_ACTIVE_SMS": "48",
+        "WEAVE_GEMM1_CONFIG": "0",
+        "WEAVE_GEMM2_CONFIG": "0",
+        "WEAVE_SCATTER_OWNER": "comm_only",
+        "WEAVE_V_HEAD": "0",
+        "WEAVE_DEDUP_MODE": "1"
+      },
+      "median_us": {
+        "official": 1148.713,
+        "Weave": 494.866,
+        "-S": 550.687,
+        "-S-T": 587.086,
+        "-S-T-C": 641.547
+      },
+      "speedup_vs_official": {
+        "Weave": 2.3213,
+        "-S": 2.086,
+        "-S-T": 1.9566,
+        "-S-T-C": 1.7905
+      },
+      "max_rel_l2": {
+        "Weave": 0.000927,
+        "-S": 0.000927,
+        "-S-T": 0.000927,
+        "-S-T-C": 0.000927
+      }
+    },
+    {
+      "model": "Qwen3.5-397B-A17B",
+      "S": 128,
+      "weave_selected_spatial": "sp_08_d48",
+      "weave_selected_knobs": {
+        "WEAVE_CU_WAVE_SPLIT": "0-8",
+        "WEAVE_DISPATCH_ACTIVE_SMS": "48",
+        "WEAVE_GEMM1_CONFIG": "0",
+        "WEAVE_GEMM2_CONFIG": "0",
+        "WEAVE_SCATTER_OWNER": "comm_only",
+        "WEAVE_V_HEAD": "0",
+        "WEAVE_DEDUP_MODE": "1"
+      },
+      "median_us": {
+        "official": 992.524,
+        "Weave": 639.507,
+        "-S": 843.589,
+        "-S-T": 804.009,
+        "-S-T-C": 940.471
+      },
+      "speedup_vs_official": {
+        "Weave": 1.552,
+        "-S": 1.1765,
+        "-S-T": 1.2345,
+        "-S-T-C": 1.0553
+      },
+      "max_rel_l2": {
+        "Weave": 0.003281,
+        "-S": 0.003281,
+        "-S-T": 0.003281,
+        "-S-T-C": 0.003281
+      }
+    },
+    {
+      "model": "Qwen3.5-397B-A17B",
+      "S": 1024,
+      "weave_selected_spatial": "sp_08_adapt",
+      "weave_selected_knobs": {
+        "WEAVE_CU_WAVE_SPLIT": "0-8",
+        "WEAVE_GEMM1_CONFIG": "0",
+        "WEAVE_GEMM2_CONFIG": "0",
+        "WEAVE_SCATTER_OWNER": "comm_only",
+        "WEAVE_V_HEAD": "0",
+        "WEAVE_DEDUP_MODE": "1"
+      },
+      "median_us": {
+        "official": 744.523,
+        "Weave": 1092.932,
+        "-S": 1073.012,
+        "-S-T": 1265.095,
+        "-S-T-C": 1388.296
+      },
+      "speedup_vs_official": {
+        "Weave": 0.6812,
+        "-S": 0.6939,
+        "-S-T": 0.5885,
+        "-S-T-C": 0.5363
+      },
+      "max_rel_l2": {
+        "Weave": 0.001439,
+        "-S": 0.001446,
+        "-S-T": 0.001446,
+        "-S-T-C": 0.001446
+      }
+    },
+    {
+      "model": "Qwen3.5-397B-A17B",
+      "S": 2048,
+      "weave_selected_spatial": "sp_08_adapt",
+      "weave_selected_knobs": {
+        "WEAVE_CU_WAVE_SPLIT": "0-8",
+        "WEAVE_GEMM1_CONFIG": "0",
+        "WEAVE_GEMM2_CONFIG": "0",
+        "WEAVE_SCATTER_OWNER": "comm_only",
+        "WEAVE_V_HEAD": "0",
+        "WEAVE_DEDUP_MODE": "1"
+      },
+      "median_us": {
+        "official": 1103.032,
+        "Weave": 1676.458,
+        "-S": 1518.917,
+        "-S-T": 1774.66,
+        "-S-T-C": 1906.042
+      },
+      "speedup_vs_official": {
+        "Weave": 0.658,
+        "-S": 0.7262,
+        "-S-T": 0.6215,
+        "-S-T-C": 0.5787
+      },
+      "max_rel_l2": {
+        "Weave": 0.001643,
+        "-S": 0.001644,
+        "-S-T": 0.001644,
+        "-S-T-C": 0.001644
+      }
+    },
+    {
+      "model": "Qwen3.5-397B-A17B",
+      "S": 4096,
+      "weave_selected_spatial": "sp_08_adapt",
+      "weave_selected_knobs": {
+        "WEAVE_CU_WAVE_SPLIT": "0-8",
+        "WEAVE_GEMM1_CONFIG": "0",
+        "WEAVE_GEMM2_CONFIG": "0",
+        "WEAVE_SCATTER_OWNER": "comm_only",
+        "WEAVE_V_HEAD": "0",
+        "WEAVE_DEDUP_MODE": "1"
+      },
+      "median_us": {
+        "official": 1957.121,
+        "Weave": 2195.164,
+        "-S": 2334.525,
+        "-S-T": 2586.589,
+        "-S-T-C": 2556.468
+      },
+      "speedup_vs_official": {
+        "Weave": 0.8916,
+        "-S": 0.8383,
+        "-S-T": 0.7566,
+        "-S-T-C": 0.7656
+      },
+      "max_rel_l2": {
+        "Weave": 0.001351,
+        "-S": 0.001351,
+        "-S-T": 0.001351,
+        "-S-T-C": 0.001351
+      }
+    },
+    {
+      "model": "Qwen3.5-397B-A17B",
+      "S": 8192,
+      "weave_selected_spatial": "sp_08_adapt",
+      "weave_selected_knobs": {
+        "WEAVE_CU_WAVE_SPLIT": "0-8",
+        "WEAVE_GEMM1_CONFIG": "0",
+        "WEAVE_GEMM2_CONFIG": "0",
+        "WEAVE_SCATTER_OWNER": "comm_only",
+        "WEAVE_V_HEAD": "0",
+        "WEAVE_DEDUP_MODE": "1"
+      },
+      "median_us": {
+        "official": 2936.69,
+        "Weave": 3689.62,
+        "-S": 3905.883,
+        "-S-T": 4179.386,
+        "-S-T-C": 4545.291
+      },
+      "speedup_vs_official": {
+        "Weave": 0.7959,
+        "-S": 0.7519,
+        "-S-T": 0.7027,
+        "-S-T-C": 0.6461
+      },
+      "max_rel_l2": {
+        "Weave": 0.001412,
+        "-S": 0.001412,
+        "-S-T": 0.001412,
+        "-S-T-C": 0.001412
+      }
+    },
+    {
+      "model": "Qwen3.5-397B-A17B",
+      "S": 16384,
+      "weave_selected_spatial": "sp_08_d48",
+      "weave_selected_knobs": {
+        "WEAVE_CU_WAVE_SPLIT": "0-8",
+        "WEAVE_DISPATCH_ACTIVE_SMS": "48",
+        "WEAVE_GEMM1_CONFIG": "0",
+        "WEAVE_GEMM2_CONFIG": "0",
+        "WEAVE_SCATTER_OWNER": "comm_only",
+        "WEAVE_V_HEAD": "0",
+        "WEAVE_DEDUP_MODE": "1"
+      },
+      "median_us": {
+        "official": 5532.359,
+        "Weave": 7148.017,
+        "-S": 7371.661,
+        "-S-T": 6870.216,
+        "-S-T-C": 8067.77
+      },
+      "speedup_vs_official": {
+        "Weave": 0.774,
+        "-S": 0.7505,
+        "-S-T": 0.8053,
+        "-S-T-C": 0.6857
+      },
+      "max_rel_l2": {
+        "Weave": 0.001389,
+        "-S": 0.001388,
+        "-S-T": 0.001388,
+        "-S-T-C": 0.001388
+      }
+    },
+    {
+      "model": "Qwen3.5-397B-A17B",
+      "S": 20000,
+      "weave_selected_spatial": "sp_08_d48",
+      "weave_selected_knobs": {
+        "WEAVE_CU_WAVE_SPLIT": "0-8",
+        "WEAVE_DISPATCH_ACTIVE_SMS": "48",
+        "WEAVE_GEMM1_CONFIG": "0",
+        "WEAVE_GEMM2_CONFIG": "0",
+        "WEAVE_SCATTER_OWNER": "comm_only",
+        "WEAVE_V_HEAD": "0",
+        "WEAVE_DEDUP_MODE": "1"
+      },
+      "median_us": {
+        "official": 6721.313,
+        "Weave": 7882.126,
+        "-S": 8872.577,
+        "-S-T": 8251.271,
+        "-S-T-C": 10756.7
+      },
+      "speedup_vs_official": {
+        "Weave": 0.8527,
+        "-S": 0.7575,
+        "-S-T": 0.8146,
+        "-S-T-C": 0.6248
+      },
+      "max_rel_l2": {
+        "Weave": 0.001326,
+        "-S": 0.001326,
+        "-S-T": 0.001326,
+        "-S-T-C": 0.001326
+      }
+    }
+  ]
+}

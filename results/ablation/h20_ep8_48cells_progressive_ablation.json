@@ -1,0 +1,2575 @@
+{
+  "schema": "weave.progressive_ablation.h20.ep8.48cells.v1",
+  "hardware": "8x NVIDIA H20 (SM90, 78 SMs), EP8, NVLink",
+  "routing": "Real ShareGPT true-prefix routes (S <= 20000)",
+  "timing": "aligned eager CUDA events, palindromic 5-arm windows x4, slowest rank per window",
+  "wall_seconds": 953.7,
+  "summary": {
+    "S_le_128": {
+      "cells": 12,
+      "Weave": 1.1942,
+      "-S": 1.1108,
+      "-S-T": 1.1023,
+      "-S-T-C": 1.105
+    },
+    "S_1k_4k": {
+      "cells": 18,
+      "Weave": 1.1277,
+      "-S": 1.1131,
+      "-S-T": 1.0907,
+      "-S-T-C": 1.1486
+    },
+    "S_ge_8k": {
+      "cells": 18,
+      "Weave": 0.9945,
+      "-S": 0.9204,
+      "-S-T": 0.9111,
+      "-S-T-C": 0.9498
+    },
+    "all_48_cells": {
+      "cells": 48,
+      "Weave": 1.0913,
+      "-S": 1.036,
+      "-S-T": 1.0223,
+      "-S-T-C": 1.0593
+    }
+  },
+  "rows": [
+    {
+      "model": "qwen38max",
+      "S": 32,
+      "dims": {
+        "E": 512,
+        "K": 10,
+        "H": 8192,
+        "I": 2048
+      },
+      "weave_selected_env": {
+        "WEAVE_GEMM1_CONFIG": "16",
+        "WEAVE_GEMM2_CONFIG": "16",
+        "WEAVE_V_HEAD": "0",
+        "WEAVE_SCATTER_OWNER": "epilogue_only",
+        "WEAVE_SCATTER_STAGING": "reg",
+        "WEAVE_DEDUP_MODE": "1"
+      },
+      "median_us": {
+        "official": 462.648,
+        "Weave": 392.336,
+        "-S": 424.992,
+        "-S-T": 422.712,
+        "-S-T-C": 422.696
+      },
+      "speedup_vs_official": {
+        "Weave": 1.1792,
+        "-S": 1.0886,
+        "-S-T": 1.0945,
+        "-S-T-C": 1.0945
+      },
+      "accuracy": {
+        "official": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999649
+        },
+        "Weave": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999649
+        },
+        "-S": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999649
+        },
+        "-S-T": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999649
+        },
+        "-S-T-C": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999649
+        }
+      }
+    },
+    {
+      "model": "qwen38max",
+      "S": 128,
+      "dims": {
+        "E": 512,
+        "K": 10,
+        "H": 8192,
+        "I": 2048
+      },
+      "weave_selected_env": {
+        "WEAVE_GEMM1_CONFIG": "16",
+        "WEAVE_GEMM2_CONFIG": "16",
+        "WEAVE_V_HEAD": "0",
+        "WEAVE_SCATTER_OWNER": "epilogue_only",
+        "WEAVE_SCATTER_STAGING": "reg",
+        "WEAVE_DEDUP_MODE": "1"
+      },
+      "median_us": {
+        "official": 735.592,
+        "Weave": 615.328,
+        "-S": 667.824,
+        "-S-T": 664.184,
+        "-S-T-C": 654.752
+      },
+      "speedup_vs_official": {
+        "Weave": 1.1954,
+        "-S": 1.1015,
+        "-S-T": 1.1075,
+        "-S-T-C": 1.1235
+      },
+      "accuracy": {
+        "official": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999643
+        },
+        "Weave": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999643
+        },
+        "-S": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999643
+        },
+        "-S-T": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999643
+        },
+        "-S-T-C": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999643
+        }
+      }
+    },
+    {
+      "model": "qwen38max",
+      "S": 1024,
+      "dims": {
+        "E": 512,
+        "K": 10,
+        "H": 8192,
+        "I": 2048
+      },
+      "weave_selected_env": {
+        "WEAVE_GEMM1_CONFIG": "32",
+        "WEAVE_GEMM2_CONFIG": "64",
+        "WEAVE_V_HEAD": "0",
+        "WEAVE_SCATTER_OWNER": "comm_only",
+        "WEAVE_SCATTER_STAGING": "smem",
+        "WEAVE_DEDUP_MODE": "1"
+      },
+      "median_us": {
+        "official": 1684.72,
+        "Weave": 1173.272,
+        "-S": 1177.416,
+        "-S-T": 1210.032,
+        "-S-T-C": 1151.784
+      },
+      "speedup_vs_official": {
+        "Weave": 1.4359,
+        "-S": 1.4309,
+        "-S-T": 1.3923,
+        "-S-T-C": 1.4627
+      },
+      "accuracy": {
+        "official": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999651
+        },
+        "Weave": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999651
+        },
+        "-S": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999651
+        },
+        "-S-T": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999651
+        },
+        "-S-T-C": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999651
+        }
+      }
+    },
+    {
+      "model": "qwen38max",
+      "S": 2048,
+      "dims": {
+        "E": 512,
+        "K": 10,
+        "H": 8192,
+        "I": 2048
+      },
+      "weave_selected_env": {
+        "WEAVE_GEMM1_CONFIG": "32",
+        "WEAVE_GEMM2_CONFIG": "64",
+        "WEAVE_V_HEAD": "0",
+        "WEAVE_SCATTER_OWNER": "comm_only",
+        "WEAVE_SCATTER_STAGING": "smem",
+        "WEAVE_DEDUP_MODE": "1"
+      },
+      "median_us": {
+        "official": 2282.512,
+        "Weave": 1725.264,
+        "-S": 1745.872,
+        "-S-T": 1813.2,
+        "-S-T-C": 1725.696
+      },
+      "speedup_vs_official": {
+        "Weave": 1.323,
+        "-S": 1.3074,
+        "-S-T": 1.2588,
+        "-S-T-C": 1.3227
+      },
+      "accuracy": {
+        "official": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.99965
+        },
+        "Weave": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.99965
+        },
+        "-S": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.99965
+        },
+        "-S-T": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.99965
+        },
+        "-S-T-C": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.99965
+        }
+      }
+    },
+    {
+      "model": "qwen38max",
+      "S": 4096,
+      "dims": {
+        "E": 512,
+        "K": 10,
+        "H": 8192,
+        "I": 2048
+      },
+      "weave_selected_env": {
+        "WEAVE_GEMM1_CONFIG": "32",
+        "WEAVE_GEMM2_CONFIG": "64",
+        "WEAVE_V_HEAD": "0",
+        "WEAVE_SCATTER_OWNER": "comm_only",
+        "WEAVE_SCATTER_STAGING": "smem",
+        "WEAVE_DEDUP_MODE": "1"
+      },
+      "median_us": {
+        "official": 3232.312,
+        "Weave": 2833.744,
+        "-S": 2867.376,
+        "-S-T": 3000.224,
+        "-S-T-C": 2870.144
+      },
+      "speedup_vs_official": {
+        "Weave": 1.1407,
+        "-S": 1.1273,
+        "-S-T": 1.0774,
+        "-S-T-C": 1.1262
+      },
+      "accuracy": {
+        "official": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.99965
+        },
+        "Weave": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.99965
+        },
+        "-S": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.99965
+        },
+        "-S-T": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.99965
+        },
+        "-S-T-C": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.99965
+        }
+      }
+    },
+    {
+      "model": "qwen38max",
+      "S": 8192,
+      "dims": {
+        "E": 512,
+        "K": 10,
+        "H": 8192,
+        "I": 2048
+      },
+      "weave_selected_env": {
+        "WEAVE_V_HEAD": "0",
+        "WEAVE_SCATTER_OWNER": "comm_only",
+        "WEAVE_SCATTER_STAGING": "smem",
+        "WEAVE_DEDUP_MODE": "1"
+      },
+      "median_us": {
+        "official": 5493.04,
+        "Weave": 5249.792,
+        "-S": 5244.968,
+        "-S-T": 5497.232,
+        "-S-T-C": 5298.512
+      },
+      "speedup_vs_official": {
+        "Weave": 1.0463,
+        "-S": 1.0473,
+        "-S-T": 0.9992,
+        "-S-T-C": 1.0367
+      },
+      "accuracy": {
+        "official": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.99965
+        },
+        "Weave": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.99965
+        },
+        "-S": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.99965
+        },
+        "-S-T": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.99965
+        },
+        "-S-T-C": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.99965
+        }
+      }
+    },
+    {
+      "model": "qwen38max",
+      "S": 16384,
+      "dims": {
+        "E": 512,
+        "K": 10,
+        "H": 8192,
+        "I": 2048
+      },
+      "weave_selected_env": {
+        "WEAVE_V_HEAD": "0",
+        "WEAVE_SCATTER_OWNER": "comm_only",
+        "WEAVE_SCATTER_STAGING": "smem",
+        "WEAVE_DEDUP_MODE": "1"
+      },
+      "median_us": {
+        "official": 10478.72,
+        "Weave": 10726.84,
+        "-S": 10711.408,
+        "-S-T": 11191.2,
+        "-S-T-C": 10836.2
+      },
+      "speedup_vs_official": {
+        "Weave": 0.9769,
+        "-S": 0.9783,
+        "-S-T": 0.9363,
+        "-S-T-C": 0.967
+      },
+      "accuracy": {
+        "official": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.99965
+        },
+        "Weave": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.99965
+        },
+        "-S": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.99965
+        },
+        "-S-T": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.99965
+        },
+        "-S-T-C": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999651
+        }
+      }
+    },
+    {
+      "model": "qwen38max",
+      "S": 20000,
+      "dims": {
+        "E": 512,
+        "K": 10,
+        "H": 8192,
+        "I": 2048
+      },
+      "weave_selected_env": {
+        "WEAVE_GEMM1_CONFIG": "128",
+        "WEAVE_GEMM2_CONFIG": "128",
+        "WEAVE_V_HEAD": "0",
+        "WEAVE_SCATTER_OWNER": "comm_only",
+        "WEAVE_SCATTER_STAGING": "smem",
+        "WEAVE_DEDUP_MODE": "1"
+      },
+      "median_us": {
+        "official": 12362.0,
+        "Weave": 12661.032,
+        "-S": 12699.816,
+        "-S-T": 13260.328,
+        "-S-T-C": 12840.872
+      },
+      "speedup_vs_official": {
+        "Weave": 0.9764,
+        "-S": 0.9734,
+        "-S-T": 0.9323,
+        "-S-T-C": 0.9627
+      },
+      "accuracy": {
+        "official": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999651
+        },
+        "Weave": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999651
+        },
+        "-S": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999651
+        },
+        "-S-T": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999651
+        },
+        "-S-T-C": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999651
+        }
+      }
+    },
+    {
+      "model": "minimax_m3",
+      "S": 32,
+      "dims": {
+        "E": 128,
+        "K": 4,
+        "H": 6144,
+        "I": 3072
+      },
+      "weave_selected_env": {
+        "WEAVE_GEMM1_CONFIG": "16",
+        "WEAVE_GEMM2_CONFIG": "16",
+        "WEAVE_V_HEAD": "0",
+        "WEAVE_SCATTER_OWNER": "epilogue_only",
+        "WEAVE_SCATTER_STAGING": "reg",
+        "WEAVE_DEDUP_MODE": "1"
+      },
+      "median_us": {
+        "official": 213.696,
+        "Weave": 187.592,
+        "-S": 210.08,
+        "-S-T": 201.528,
+        "-S-T-C": 203.6
+      },
+      "speedup_vs_official": {
+        "Weave": 1.1392,
+        "-S": 1.0172,
+        "-S-T": 1.0604,
+        "-S-T-C": 1.0496
+      },
+      "accuracy": {
+        "official": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999637
+        },
+        "Weave": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999637
+        },
+        "-S": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999637
+        },
+        "-S-T": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999637
+        },
+        "-S-T-C": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999637
+        }
+      }
+    },
+    {
+      "model": "minimax_m3",
+      "S": 128,
+      "dims": {
+        "E": 128,
+        "K": 4,
+        "H": 6144,
+        "I": 3072
+      },
+      "weave_selected_env": {
+        "WEAVE_GEMM1_CONFIG": "16",
+        "WEAVE_GEMM2_CONFIG": "16",
+        "WEAVE_V_HEAD": "0",
+        "WEAVE_SCATTER_OWNER": "epilogue_only",
+        "WEAVE_SCATTER_STAGING": "reg",
+        "WEAVE_DEDUP_MODE": "1"
+      },
+      "median_us": {
+        "official": 305.0,
+        "Weave": 244.872,
+        "-S": 277.56,
+        "-S-T": 267.096,
+        "-S-T-C": 266.584
+      },
+      "speedup_vs_official": {
+        "Weave": 1.2455,
+        "-S": 1.0989,
+        "-S-T": 1.1419,
+        "-S-T-C": 1.1441
+      },
+      "accuracy": {
+        "official": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999636
+        },
+        "Weave": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999636
+        },
+        "-S": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999636
+        },
+        "-S-T": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999636
+        },
+        "-S-T-C": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999636
+        }
+      }
+    },
+    {
+      "model": "minimax_m3",
+      "S": 1024,
+      "dims": {
+        "E": 128,
+        "K": 4,
+        "H": 6144,
+        "I": 3072
+      },
+      "weave_selected_env": {
+        "WEAVE_GEMM1_CONFIG": "32",
+        "WEAVE_GEMM2_CONFIG": "64",
+        "WEAVE_V_HEAD": "0",
+        "WEAVE_SCATTER_OWNER": "comm_only",
+        "WEAVE_SCATTER_STAGING": "smem",
+        "WEAVE_DEDUP_MODE": "1"
+      },
+      "median_us": {
+        "official": 666.36,
+        "Weave": 527.664,
+        "-S": 540.648,
+        "-S-T": 541.448,
+        "-S-T-C": 524.456
+      },
+      "speedup_vs_official": {
+        "Weave": 1.2628,
+        "-S": 1.2325,
+        "-S-T": 1.2307,
+        "-S-T-C": 1.2706
+      },
+      "accuracy": {
+        "official": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.99964
+        },
+        "Weave": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.99964
+        },
+        "-S": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.99964
+        },
+        "-S-T": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.99964
+        },
+        "-S-T-C": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.99964
+        }
+      }
+    },
+    {
+      "model": "minimax_m3",
+      "S": 2048,
+      "dims": {
+        "E": 128,
+        "K": 4,
+        "H": 6144,
+        "I": 3072
+      },
+      "weave_selected_env": {
+        "WEAVE_GEMM1_CONFIG": "32",
+        "WEAVE_GEMM2_CONFIG": "64",
+        "WEAVE_V_HEAD": "0",
+        "WEAVE_SCATTER_OWNER": "comm_only",
+        "WEAVE_SCATTER_STAGING": "smem",
+        "WEAVE_DEDUP_MODE": "1"
+      },
+      "median_us": {
+        "official": 1079.904,
+        "Weave": 912.032,
+        "-S": 924.024,
+        "-S-T": 944.304,
+        "-S-T-C": 918.072
+      },
+      "speedup_vs_official": {
+        "Weave": 1.1841,
+        "-S": 1.1687,
+        "-S-T": 1.1436,
+        "-S-T-C": 1.1763
+      },
+      "accuracy": {
+        "official": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999641
+        },
+        "Weave": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999641
+        },
+        "-S": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999641
+        },
+        "-S-T": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999641
+        },
+        "-S-T-C": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999641
+        }
+      }
+    },
+    {
+      "model": "minimax_m3",
+      "S": 4096,
+      "dims": {
+        "E": 128,
+        "K": 4,
+        "H": 6144,
+        "I": 3072
+      },
+      "weave_selected_env": {
+        "WEAVE_V_HEAD": "0",
+        "WEAVE_SCATTER_OWNER": "comm_only",
+        "WEAVE_SCATTER_STAGING": "smem",
+        "WEAVE_DEDUP_MODE": "1"
+      },
+      "median_us": {
+        "official": 1690.288,
+        "Weave": 1658.264,
+        "-S": 1662.208,
+        "-S-T": 1706.4,
+        "-S-T-C": 1655.432
+      },
+      "speedup_vs_official": {
+        "Weave": 1.0193,
+        "-S": 1.0169,
+        "-S-T": 0.9906,
+        "-S-T-C": 1.0211
+      },
+      "accuracy": {
+        "official": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999641
+        },
+        "Weave": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999641
+        },
+        "-S": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999641
+        },
+        "-S-T": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999641
+        },
+        "-S-T-C": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999641
+        }
+      }
+    },
+    {
+      "model": "minimax_m3",
+      "S": 8192,
+      "dims": {
+        "E": 128,
+        "K": 4,
+        "H": 6144,
+        "I": 3072
+      },
+      "weave_selected_env": {
+        "WEAVE_V_HEAD": "0",
+        "WEAVE_SCATTER_OWNER": "comm_only",
+        "WEAVE_SCATTER_STAGING": "smem",
+        "WEAVE_DEDUP_MODE": "1"
+      },
+      "median_us": {
+        "official": 2918.24,
+        "Weave": 3008.496,
+        "-S": 3007.904,
+        "-S-T": 3104.776,
+        "-S-T-C": 3029.784
+      },
+      "speedup_vs_official": {
+        "Weave": 0.97,
+        "-S": 0.9702,
+        "-S-T": 0.9399,
+        "-S-T-C": 0.9632
+      },
+      "accuracy": {
+        "official": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999642
+        },
+        "Weave": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999642
+        },
+        "-S": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999642
+        },
+        "-S-T": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999642
+        },
+        "-S-T-C": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999642
+        }
+      }
+    },
+    {
+      "model": "minimax_m3",
+      "S": 16384,
+      "dims": {
+        "E": 128,
+        "K": 4,
+        "H": 6144,
+        "I": 3072
+      },
+      "weave_selected_env": {
+        "WEAVE_GEMM1_CONFIG": "128",
+        "WEAVE_GEMM2_CONFIG": "128",
+        "WEAVE_V_HEAD": "0",
+        "WEAVE_SCATTER_OWNER": "comm_only",
+        "WEAVE_SCATTER_STAGING": "smem",
+        "WEAVE_DEDUP_MODE": "1"
+      },
+      "median_us": {
+        "official": 5490.928,
+        "Weave": 5684.608,
+        "-S": 5821.976,
+        "-S-T": 6028.176,
+        "-S-T-C": 5869.608
+      },
+      "speedup_vs_official": {
+        "Weave": 0.9659,
+        "-S": 0.9431,
+        "-S-T": 0.9109,
+        "-S-T-C": 0.9355
+      },
+      "accuracy": {
+        "official": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999642
+        },
+        "Weave": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999642
+        },
+        "-S": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999642
+        },
+        "-S-T": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999642
+        },
+        "-S-T-C": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999642
+        }
+      }
+    },
+    {
+      "model": "minimax_m3",
+      "S": 20000,
+      "dims": {
+        "E": 128,
+        "K": 4,
+        "H": 6144,
+        "I": 3072
+      },
+      "weave_selected_env": {
+        "WEAVE_GEMM1_CONFIG": "128",
+        "WEAVE_GEMM2_CONFIG": "128",
+        "WEAVE_V_HEAD": "0",
+        "WEAVE_SCATTER_OWNER": "comm_only",
+        "WEAVE_SCATTER_STAGING": "smem",
+        "WEAVE_DEDUP_MODE": "1"
+      },
+      "median_us": {
+        "official": 6434.68,
+        "Weave": 6646.552,
+        "-S": 6864.24,
+        "-S-T": 7121.544,
+        "-S-T-C": 6927.936
+      },
+      "speedup_vs_official": {
+        "Weave": 0.9681,
+        "-S": 0.9374,
+        "-S-T": 0.9036,
+        "-S-T-C": 0.9288
+      },
+      "accuracy": {
+        "official": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999638
+        },
+        "Weave": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999638
+        },
+        "-S": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999639
+        },
+        "-S-T": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999638
+        },
+        "-S-T-C": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999638
+        }
+      }
+    },
+    {
+      "model": "DeepSeek-V4-Flash",
+      "S": 32,
+      "dims": {
+        "E": 256,
+        "K": 6,
+        "H": 4096,
+        "I": 2048
+      },
+      "weave_selected_env": {
+        "WEAVE_GEMM1_CONFIG": "16",
+        "WEAVE_GEMM2_CONFIG": "16",
+        "WEAVE_V_HEAD": "0",
+        "WEAVE_SCATTER_OWNER": "epilogue_only",
+        "WEAVE_SCATTER_STAGING": "reg",
+        "WEAVE_DEDUP_MODE": "1"
+      },
+      "median_us": {
+        "official": 218.944,
+        "Weave": 186.168,
+        "-S": 199.376,
+        "-S-T": 199.224,
+        "-S-T-C": 198.56
+      },
+      "speedup_vs_official": {
+        "Weave": 1.1761,
+        "-S": 1.0981,
+        "-S-T": 1.099,
+        "-S-T-C": 1.1027
+      },
+      "accuracy": {
+        "official": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999632
+        },
+        "Weave": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999632
+        },
+        "-S": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999632
+        },
+        "-S-T": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999632
+        },
+        "-S-T-C": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999632
+        }
+      }
+    },
+    {
+      "model": "DeepSeek-V4-Flash",
+      "S": 128,
+      "dims": {
+        "E": 256,
+        "K": 6,
+        "H": 4096,
+        "I": 2048
+      },
+      "weave_selected_env": {
+        "WEAVE_GEMM1_CONFIG": "16",
+        "WEAVE_GEMM2_CONFIG": "16",
+        "WEAVE_V_HEAD": "0",
+        "WEAVE_SCATTER_OWNER": "epilogue_only",
+        "WEAVE_SCATTER_STAGING": "reg",
+        "WEAVE_DEDUP_MODE": "1"
+      },
+      "median_us": {
+        "official": 325.544,
+        "Weave": 266.304,
+        "-S": 290.752,
+        "-S-T": 290.848,
+        "-S-T-C": 292.392
+      },
+      "speedup_vs_official": {
+        "Weave": 1.2225,
+        "-S": 1.1197,
+        "-S-T": 1.1193,
+        "-S-T-C": 1.1134
+      },
+      "accuracy": {
+        "official": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999637
+        },
+        "Weave": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999637
+        },
+        "-S": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999637
+        },
+        "-S-T": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999637
+        },
+        "-S-T-C": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999637
+        }
+      }
+    },
+    {
+      "model": "DeepSeek-V4-Flash",
+      "S": 1024,
+      "dims": {
+        "E": 256,
+        "K": 6,
+        "H": 4096,
+        "I": 2048
+      },
+      "weave_selected_env": {
+        "WEAVE_GEMM1_CONFIG": "32",
+        "WEAVE_GEMM2_CONFIG": "64",
+        "WEAVE_V_HEAD": "0",
+        "WEAVE_SCATTER_OWNER": "comm_only",
+        "WEAVE_SCATTER_STAGING": "smem",
+        "WEAVE_DEDUP_MODE": "1"
+      },
+      "median_us": {
+        "official": 432.464,
+        "Weave": 384.176,
+        "-S": 382.912,
+        "-S-T": 385.592,
+        "-S-T-C": 368.376
+      },
+      "speedup_vs_official": {
+        "Weave": 1.1257,
+        "-S": 1.1294,
+        "-S-T": 1.1216,
+        "-S-T-C": 1.174
+      },
+      "accuracy": {
+        "official": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999644
+        },
+        "Weave": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999644
+        },
+        "-S": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999644
+        },
+        "-S-T": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999644
+        },
+        "-S-T-C": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999644
+        }
+      }
+    },
+    {
+      "model": "DeepSeek-V4-Flash",
+      "S": 2048,
+      "dims": {
+        "E": 256,
+        "K": 6,
+        "H": 4096,
+        "I": 2048
+      },
+      "weave_selected_env": {
+        "WEAVE_V_HEAD": "0",
+        "WEAVE_SCATTER_OWNER": "comm_only",
+        "WEAVE_SCATTER_STAGING": "smem",
+        "WEAVE_DEDUP_MODE": "1"
+      },
+      "median_us": {
+        "official": 659.128,
+        "Weave": 551.408,
+        "-S": 551.992,
+        "-S-T": 572.648,
+        "-S-T-C": 545.688
+      },
+      "speedup_vs_official": {
+        "Weave": 1.1954,
+        "-S": 1.1941,
+        "-S-T": 1.151,
+        "-S-T-C": 1.2079
+      },
+      "accuracy": {
+        "official": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999643
+        },
+        "Weave": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999643
+        },
+        "-S": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999643
+        },
+        "-S-T": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999643
+        },
+        "-S-T-C": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999643
+        }
+      }
+    },
+    {
+      "model": "DeepSeek-V4-Flash",
+      "S": 4096,
+      "dims": {
+        "E": 256,
+        "K": 6,
+        "H": 4096,
+        "I": 2048
+      },
+      "weave_selected_env": {
+        "WEAVE_GEMM1_CONFIG": "32",
+        "WEAVE_GEMM2_CONFIG": "64",
+        "WEAVE_V_HEAD": "0",
+        "WEAVE_SCATTER_OWNER": "comm_only",
+        "WEAVE_SCATTER_STAGING": "smem",
+        "WEAVE_DEDUP_MODE": "1"
+      },
+      "median_us": {
+        "official": 952.36,
+        "Weave": 934.904,
+        "-S": 928.848,
+        "-S-T": 964.184,
+        "-S-T-C": 925.0
+      },
+      "speedup_vs_official": {
+        "Weave": 1.0187,
+        "-S": 1.0253,
+        "-S-T": 0.9877,
+        "-S-T-C": 1.0296
+      },
+      "accuracy": {
+        "official": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999645
+        },
+        "Weave": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999645
+        },
+        "-S": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999645
+        },
+        "-S-T": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999645
+        },
+        "-S-T-C": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999645
+        }
+      }
+    },
+    {
+      "model": "DeepSeek-V4-Flash",
+      "S": 8192,
+      "dims": {
+        "E": 256,
+        "K": 6,
+        "H": 4096,
+        "I": 2048
+      },
+      "weave_selected_env": {
+        "WEAVE_V_HEAD": "0",
+        "WEAVE_SCATTER_OWNER": "comm_only",
+        "WEAVE_SCATTER_STAGING": "smem",
+        "WEAVE_DEDUP_MODE": "1"
+      },
+      "median_us": {
+        "official": 1722.096,
+        "Weave": 1748.416,
+        "-S": 1750.872,
+        "-S-T": 1817.672,
+        "-S-T-C": 1761.888
+      },
+      "speedup_vs_official": {
+        "Weave": 0.9849,
+        "-S": 0.9836,
+        "-S-T": 0.9474,
+        "-S-T-C": 0.9774
+      },
+      "accuracy": {
+        "official": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999644
+        },
+        "Weave": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999644
+        },
+        "-S": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999644
+        },
+        "-S-T": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999644
+        },
+        "-S-T-C": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999644
+        }
+      }
+    },
+    {
+      "model": "DeepSeek-V4-Flash",
+      "S": 16384,
+      "dims": {
+        "E": 256,
+        "K": 6,
+        "H": 4096,
+        "I": 2048
+      },
+      "weave_selected_env": {
+        "WEAVE_GEMM1_CONFIG": "128",
+        "WEAVE_GEMM2_CONFIG": "128",
+        "WEAVE_V_HEAD": "0",
+        "WEAVE_SCATTER_OWNER": "comm_only",
+        "WEAVE_SCATTER_STAGING": "smem",
+        "WEAVE_DEDUP_MODE": "1"
+      },
+      "median_us": {
+        "official": 3013.016,
+        "Weave": 3196.616,
+        "-S": 3246.912,
+        "-S-T": 3386.232,
+        "-S-T-C": 3278.128
+      },
+      "speedup_vs_official": {
+        "Weave": 0.9426,
+        "-S": 0.928,
+        "-S-T": 0.8898,
+        "-S-T-C": 0.9191
+      },
+      "accuracy": {
+        "official": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999644
+        },
+        "Weave": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999644
+        },
+        "-S": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999644
+        },
+        "-S-T": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999644
+        },
+        "-S-T-C": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999644
+        }
+      }
+    },
+    {
+      "model": "DeepSeek-V4-Flash",
+      "S": 20000,
+      "dims": {
+        "E": 256,
+        "K": 6,
+        "H": 4096,
+        "I": 2048
+      },
+      "weave_selected_env": {
+        "WEAVE_GEMM1_CONFIG": "128",
+        "WEAVE_GEMM2_CONFIG": "128",
+        "WEAVE_V_HEAD": "0",
+        "WEAVE_SCATTER_OWNER": "comm_only",
+        "WEAVE_SCATTER_STAGING": "smem",
+        "WEAVE_DEDUP_MODE": "1"
+      },
+      "median_us": {
+        "official": 3599.432,
+        "Weave": 3830.272,
+        "-S": 3948.128,
+        "-S-T": 4116.048,
+        "-S-T-C": 3987.064
+      },
+      "speedup_vs_official": {
+        "Weave": 0.9397,
+        "-S": 0.9117,
+        "-S-T": 0.8745,
+        "-S-T-C": 0.9028
+      },
+      "accuracy": {
+        "official": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999644
+        },
+        "Weave": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999644
+        },
+        "-S": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999644
+        },
+        "-S-T": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999644
+        },
+        "-S-T-C": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999644
+        }
+      }
+    },
+    {
+      "model": "Qwen3.5-35B-A3B",
+      "S": 32,
+      "dims": {
+        "E": 256,
+        "K": 8,
+        "H": 2048,
+        "I": 512
+      },
+      "weave_selected_env": {
+        "WEAVE_GEMM1_CONFIG": "16",
+        "WEAVE_GEMM2_CONFIG": "16",
+        "WEAVE_V_HEAD": "0",
+        "WEAVE_SCATTER_OWNER": "epilogue_only",
+        "WEAVE_SCATTER_STAGING": "reg",
+        "WEAVE_DEDUP_MODE": "1"
+      },
+      "median_us": {
+        "official": 71.592,
+        "Weave": 75.592,
+        "-S": 75.368,
+        "-S-T": 81.024,
+        "-S-T-C": 76.816
+      },
+      "speedup_vs_official": {
+        "Weave": 0.9471,
+        "-S": 0.9499,
+        "-S-T": 0.8836,
+        "-S-T-C": 0.932
+      },
+      "accuracy": {
+        "official": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999604
+        },
+        "Weave": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999604
+        },
+        "-S": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999604
+        },
+        "-S-T": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999604
+        },
+        "-S-T-C": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999604
+        }
+      }
+    },
+    {
+      "model": "Qwen3.5-35B-A3B",
+      "S": 128,
+      "dims": {
+        "E": 256,
+        "K": 8,
+        "H": 2048,
+        "I": 512
+      },
+      "weave_selected_env": {
+        "WEAVE_GEMM1_CONFIG": "16",
+        "WEAVE_GEMM2_CONFIG": "16",
+        "WEAVE_V_HEAD": "0",
+        "WEAVE_SCATTER_OWNER": "epilogue_only",
+        "WEAVE_SCATTER_STAGING": "reg",
+        "WEAVE_DEDUP_MODE": "1"
+      },
+      "median_us": {
+        "official": 98.688,
+        "Weave": 95.488,
+        "-S": 96.376,
+        "-S-T": 110.384,
+        "-S-T-C": 106.576
+      },
+      "speedup_vs_official": {
+        "Weave": 1.0335,
+        "-S": 1.024,
+        "-S-T": 0.894,
+        "-S-T-C": 0.926
+      },
+      "accuracy": {
+        "official": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999638
+        },
+        "Weave": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999638
+        },
+        "-S": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999638
+        },
+        "-S-T": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999638
+        },
+        "-S-T-C": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999638
+        }
+      }
+    },
+    {
+      "model": "Qwen3.5-35B-A3B",
+      "S": 1024,
+      "dims": {
+        "E": 256,
+        "K": 8,
+        "H": 2048,
+        "I": 512
+      },
+      "weave_selected_env": {
+        "WEAVE_GEMM1_CONFIG": "32",
+        "WEAVE_GEMM2_CONFIG": "32",
+        "WEAVE_V_HEAD": "0",
+        "WEAVE_SCATTER_OWNER": "comm_only",
+        "WEAVE_SCATTER_STAGING": "smem",
+        "WEAVE_DEDUP_MODE": "1"
+      },
+      "median_us": {
+        "official": 155.024,
+        "Weave": 155.04,
+        "-S": 166.68,
+        "-S-T": 175.48,
+        "-S-T-C": 161.744
+      },
+      "speedup_vs_official": {
+        "Weave": 0.9999,
+        "-S": 0.9301,
+        "-S-T": 0.8834,
+        "-S-T-C": 0.9585
+      },
+      "accuracy": {
+        "official": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999644
+        },
+        "Weave": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999644
+        },
+        "-S": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999644
+        },
+        "-S-T": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999644
+        },
+        "-S-T-C": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999644
+        }
+      }
+    },
+    {
+      "model": "Qwen3.5-35B-A3B",
+      "S": 2048,
+      "dims": {
+        "E": 256,
+        "K": 8,
+        "H": 2048,
+        "I": 512
+      },
+      "weave_selected_env": {
+        "WEAVE_GEMM1_CONFIG": "0",
+        "WEAVE_GEMM2_CONFIG": "0",
+        "WEAVE_DISPATCH_WARPS": "0",
+        "WEAVE_DISPATCH_ACTIVE_SMS": "0",
+        "WEAVE_SCATTER_ACTIVE_SMS": "0",
+        "WEAVE_V_HEAD": "0",
+        "WEAVE_READY_GROUP_SIZE": "2",
+        "WEAVE_SCATTER_OWNER": "comm_only",
+        "WEAVE_SCATTER_STAGING": "smem",
+        "WEAVE_DEDUP_MODE": "1"
+      },
+      "median_us": {
+        "official": 216.784,
+        "Weave": 232.536,
+        "-S": 231.416,
+        "-S-T": 217.368,
+        "-S-T-C": 210.304
+      },
+      "speedup_vs_official": {
+        "Weave": 0.9323,
+        "-S": 0.9368,
+        "-S-T": 0.9973,
+        "-S-T-C": 1.0308
+      },
+      "accuracy": {
+        "official": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999641
+        },
+        "Weave": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999641
+        },
+        "-S": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999641
+        },
+        "-S-T": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999641
+        },
+        "-S-T-C": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999641
+        }
+      }
+    },
+    {
+      "model": "Qwen3.5-35B-A3B",
+      "S": 4096,
+      "dims": {
+        "E": 256,
+        "K": 8,
+        "H": 2048,
+        "I": 512
+      },
+      "weave_selected_env": {
+        "WEAVE_V_HEAD": "0",
+        "WEAVE_SCATTER_OWNER": "comm_only",
+        "WEAVE_SCATTER_STAGING": "smem",
+        "WEAVE_DEDUP_MODE": "1"
+      },
+      "median_us": {
+        "official": 300.744,
+        "Weave": 293.008,
+        "-S": 342.44,
+        "-S-T": 313.52,
+        "-S-T-C": 294.84
+      },
+      "speedup_vs_official": {
+        "Weave": 1.0264,
+        "-S": 0.8782,
+        "-S-T": 0.9592,
+        "-S-T-C": 1.02
+      },
+      "accuracy": {
+        "official": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999644
+        },
+        "Weave": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999644
+        },
+        "-S": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999644
+        },
+        "-S-T": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999644
+        },
+        "-S-T-C": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999644
+        }
+      }
+    },
+    {
+      "model": "Qwen3.5-35B-A3B",
+      "S": 8192,
+      "dims": {
+        "E": 256,
+        "K": 8,
+        "H": 2048,
+        "I": 512
+      },
+      "weave_selected_env": {
+        "WEAVE_V_HEAD": "0",
+        "WEAVE_SCATTER_OWNER": "comm_only",
+        "WEAVE_SCATTER_STAGING": "smem",
+        "WEAVE_DEDUP_MODE": "1"
+      },
+      "median_us": {
+        "official": 457.024,
+        "Weave": 435.352,
+        "-S": 563.496,
+        "-S-T": 474.952,
+        "-S-T-C": 454.152
+      },
+      "speedup_vs_official": {
+        "Weave": 1.0498,
+        "-S": 0.8111,
+        "-S-T": 0.9623,
+        "-S-T-C": 1.0063
+      },
+      "accuracy": {
+        "official": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999642
+        },
+        "Weave": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999642
+        },
+        "-S": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999642
+        },
+        "-S-T": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999642
+        },
+        "-S-T-C": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999642
+        }
+      }
+    },
+    {
+      "model": "Qwen3.5-35B-A3B",
+      "S": 16384,
+      "dims": {
+        "E": 256,
+        "K": 8,
+        "H": 2048,
+        "I": 512
+      },
+      "weave_selected_env": {
+        "WEAVE_V_HEAD": "0",
+        "WEAVE_SCATTER_OWNER": "comm_only",
+        "WEAVE_SCATTER_STAGING": "smem",
+        "WEAVE_DEDUP_MODE": "1"
+      },
+      "median_us": {
+        "official": 822.424,
+        "Weave": 764.872,
+        "-S": 1084.728,
+        "-S-T": 885.672,
+        "-S-T-C": 839.896
+      },
+      "speedup_vs_official": {
+        "Weave": 1.0752,
+        "-S": 0.7582,
+        "-S-T": 0.9286,
+        "-S-T-C": 0.9792
+      },
+      "accuracy": {
+        "official": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999638
+        },
+        "Weave": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999638
+        },
+        "-S": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999638
+        },
+        "-S-T": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999638
+        },
+        "-S-T-C": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999638
+        }
+      }
+    },
+    {
+      "model": "Qwen3.5-35B-A3B",
+      "S": 20000,
+      "dims": {
+        "E": 256,
+        "K": 8,
+        "H": 2048,
+        "I": 512
+      },
+      "weave_selected_env": {
+        "WEAVE_GEMM1_CONFIG": "128",
+        "WEAVE_GEMM2_CONFIG": "128",
+        "WEAVE_DISPATCH_WARPS": "8",
+        "WEAVE_V_HEAD": "0",
+        "WEAVE_SCATTER_OWNER": "epilogue_only",
+        "WEAVE_SCATTER_STAGING": "reg",
+        "WEAVE_DEDUP_MODE": "1"
+      },
+      "median_us": {
+        "official": 976.336,
+        "Weave": 919.008,
+        "-S": 1297.752,
+        "-S-T": 1051.008,
+        "-S-T-C": 995.336
+      },
+      "speedup_vs_official": {
+        "Weave": 1.0624,
+        "-S": 0.7523,
+        "-S-T": 0.929,
+        "-S-T-C": 0.9809
+      },
+      "accuracy": {
+        "official": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999643
+        },
+        "Weave": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999643
+        },
+        "-S": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999643
+        },
+        "-S-T": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999643
+        },
+        "-S-T-C": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999643
+        }
+      }
+    },
+    {
+      "model": "Qwen3.5-122B-A10B",
+      "S": 32,
+      "dims": {
+        "E": 256,
+        "K": 8,
+        "H": 3072,
+        "I": 1024
+      },
+      "weave_selected_env": {
+        "WEAVE_GEMM1_CONFIG": "16",
+        "WEAVE_GEMM2_CONFIG": "16",
+        "WEAVE_V_HEAD": "0",
+        "WEAVE_SCATTER_OWNER": "epilogue_only",
+        "WEAVE_SCATTER_STAGING": "reg",
+        "WEAVE_DEDUP_MODE": "1"
+      },
+      "median_us": {
+        "official": 115.92,
+        "Weave": 92.04,
+        "-S": 100.552,
+        "-S-T": 100.336,
+        "-S-T-C": 105.28
+      },
+      "speedup_vs_official": {
+        "Weave": 1.2595,
+        "-S": 1.1528,
+        "-S-T": 1.1553,
+        "-S-T-C": 1.1011
+      },
+      "accuracy": {
+        "official": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999639
+        },
+        "Weave": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999639
+        },
+        "-S": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999639
+        },
+        "-S-T": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999639
+        },
+        "-S-T-C": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999639
+        }
+      }
+    },
+    {
+      "model": "Qwen3.5-122B-A10B",
+      "S": 128,
+      "dims": {
+        "E": 256,
+        "K": 8,
+        "H": 3072,
+        "I": 1024
+      },
+      "weave_selected_env": {
+        "WEAVE_GEMM1_CONFIG": "16",
+        "WEAVE_GEMM2_CONFIG": "16",
+        "WEAVE_V_HEAD": "0",
+        "WEAVE_SCATTER_OWNER": "epilogue_only",
+        "WEAVE_SCATTER_STAGING": "reg",
+        "WEAVE_DEDUP_MODE": "1"
+      },
+      "median_us": {
+        "official": 169.856,
+        "Weave": 130.656,
+        "-S": 141.92,
+        "-S-T": 138.856,
+        "-S-T-C": 141.808
+      },
+      "speedup_vs_official": {
+        "Weave": 1.3,
+        "-S": 1.1968,
+        "-S-T": 1.2233,
+        "-S-T-C": 1.1978
+      },
+      "accuracy": {
+        "official": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999641
+        },
+        "Weave": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999641
+        },
+        "-S": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999641
+        },
+        "-S-T": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999641
+        },
+        "-S-T-C": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999641
+        }
+      }
+    },
+    {
+      "model": "Qwen3.5-122B-A10B",
+      "S": 1024,
+      "dims": {
+        "E": 256,
+        "K": 8,
+        "H": 3072,
+        "I": 1024
+      },
+      "weave_selected_env": {
+        "WEAVE_GEMM1_CONFIG": "32",
+        "WEAVE_GEMM2_CONFIG": "64",
+        "WEAVE_V_HEAD": "0",
+        "WEAVE_SCATTER_OWNER": "comm_only",
+        "WEAVE_SCATTER_STAGING": "smem",
+        "WEAVE_DEDUP_MODE": "1"
+      },
+      "median_us": {
+        "official": 283.368,
+        "Weave": 240.328,
+        "-S": 231.576,
+        "-S-T": 230.04,
+        "-S-T-C": 221.136
+      },
+      "speedup_vs_official": {
+        "Weave": 1.1791,
+        "-S": 1.2237,
+        "-S-T": 1.2318,
+        "-S-T-C": 1.2814
+      },
+      "accuracy": {
+        "official": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999643
+        },
+        "Weave": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999643
+        },
+        "-S": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999643
+        },
+        "-S-T": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999643
+        },
+        "-S-T-C": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999643
+        }
+      }
+    },
+    {
+      "model": "Qwen3.5-122B-A10B",
+      "S": 2048,
+      "dims": {
+        "E": 256,
+        "K": 8,
+        "H": 3072,
+        "I": 1024
+      },
+      "weave_selected_env": {
+        "WEAVE_GEMM1_CONFIG": "32",
+        "WEAVE_GEMM2_CONFIG": "64",
+        "WEAVE_V_HEAD": "0",
+        "WEAVE_SCATTER_OWNER": "comm_only",
+        "WEAVE_SCATTER_STAGING": "smem",
+        "WEAVE_DEDUP_MODE": "1"
+      },
+      "median_us": {
+        "official": 352.992,
+        "Weave": 359.856,
+        "-S": 347.384,
+        "-S-T": 356.312,
+        "-S-T-C": 340.056
+      },
+      "speedup_vs_official": {
+        "Weave": 0.9809,
+        "-S": 1.0161,
+        "-S-T": 0.9907,
+        "-S-T-C": 1.038
+      },
+      "accuracy": {
+        "official": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999642
+        },
+        "Weave": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999642
+        },
+        "-S": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999642
+        },
+        "-S-T": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999642
+        },
+        "-S-T-C": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999642
+        }
+      }
+    },
+    {
+      "model": "Qwen3.5-122B-A10B",
+      "S": 4096,
+      "dims": {
+        "E": 256,
+        "K": 8,
+        "H": 3072,
+        "I": 1024
+      },
+      "weave_selected_env": {
+        "WEAVE_GEMM1_CONFIG": "0",
+        "WEAVE_GEMM2_CONFIG": "0",
+        "WEAVE_DISPATCH_WARPS": "0",
+        "WEAVE_DISPATCH_ACTIVE_SMS": "0",
+        "WEAVE_SCATTER_ACTIVE_SMS": "0",
+        "WEAVE_V_HEAD": "0",
+        "WEAVE_READY_GROUP_SIZE": "2",
+        "WEAVE_SCATTER_OWNER": "comm_only",
+        "WEAVE_SCATTER_STAGING": "smem",
+        "WEAVE_DEDUP_MODE": "1"
+      },
+      "median_us": {
+        "official": 571.232,
+        "Weave": 559.44,
+        "-S": 558.216,
+        "-S-T": 585.016,
+        "-S-T-C": 559.776
+      },
+      "speedup_vs_official": {
+        "Weave": 1.0211,
+        "-S": 1.0233,
+        "-S-T": 0.9764,
+        "-S-T-C": 1.0205
+      },
+      "accuracy": {
+        "official": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999642
+        },
+        "Weave": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999642
+        },
+        "-S": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999642
+        },
+        "-S-T": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999642
+        },
+        "-S-T-C": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999642
+        }
+      }
+    },
+    {
+      "model": "Qwen3.5-122B-A10B",
+      "S": 8192,
+      "dims": {
+        "E": 256,
+        "K": 8,
+        "H": 3072,
+        "I": 1024
+      },
+      "weave_selected_env": {
+        "WEAVE_GEMM1_CONFIG": "128",
+        "WEAVE_GEMM2_CONFIG": "128",
+        "WEAVE_V_HEAD": "0",
+        "WEAVE_SCATTER_OWNER": "comm_only",
+        "WEAVE_SCATTER_STAGING": "smem",
+        "WEAVE_DEDUP_MODE": "1"
+      },
+      "median_us": {
+        "official": 968.352,
+        "Weave": 958.0,
+        "-S": 1016.296,
+        "-S-T": 1080.36,
+        "-S-T-C": 1032.248
+      },
+      "speedup_vs_official": {
+        "Weave": 1.0108,
+        "-S": 0.9528,
+        "-S-T": 0.8963,
+        "-S-T-C": 0.9381
+      },
+      "accuracy": {
+        "official": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999643
+        },
+        "Weave": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999643
+        },
+        "-S": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999643
+        },
+        "-S-T": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999643
+        },
+        "-S-T-C": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999643
+        }
+      }
+    },
+    {
+      "model": "Qwen3.5-122B-A10B",
+      "S": 16384,
+      "dims": {
+        "E": 256,
+        "K": 8,
+        "H": 3072,
+        "I": 1024
+      },
+      "weave_selected_env": {
+        "WEAVE_GEMM1_CONFIG": "128",
+        "WEAVE_GEMM2_CONFIG": "128",
+        "WEAVE_V_HEAD": "0",
+        "WEAVE_SCATTER_OWNER": "comm_only",
+        "WEAVE_SCATTER_STAGING": "smem",
+        "WEAVE_DEDUP_MODE": "1"
+      },
+      "median_us": {
+        "official": 1690.704,
+        "Weave": 1688.256,
+        "-S": 1853.064,
+        "-S-T": 1987.088,
+        "-S-T-C": 1890.056
+      },
+      "speedup_vs_official": {
+        "Weave": 1.0015,
+        "-S": 0.9124,
+        "-S-T": 0.8508,
+        "-S-T-C": 0.8945
+      },
+      "accuracy": {
+        "official": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999645
+        },
+        "Weave": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999645
+        },
+        "-S": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999645
+        },
+        "-S-T": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999645
+        },
+        "-S-T-C": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999645
+        }
+      }
+    },
+    {
+      "model": "Qwen3.5-122B-A10B",
+      "S": 20000,
+      "dims": {
+        "E": 256,
+        "K": 8,
+        "H": 3072,
+        "I": 1024
+      },
+      "weave_selected_env": {
+        "WEAVE_V_HEAD": "0",
+        "WEAVE_SCATTER_OWNER": "comm_only",
+        "WEAVE_SCATTER_STAGING": "smem",
+        "WEAVE_DEDUP_MODE": "1"
+      },
+      "median_us": {
+        "official": 1982.888,
+        "Weave": 1982.248,
+        "-S": 2197.016,
+        "-S-T": 2363.296,
+        "-S-T-C": 2242.088
+      },
+      "speedup_vs_official": {
+        "Weave": 1.0003,
+        "-S": 0.9025,
+        "-S-T": 0.839,
+        "-S-T-C": 0.8844
+      },
+      "accuracy": {
+        "official": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999643
+        },
+        "Weave": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999643
+        },
+        "-S": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999643
+        },
+        "-S-T": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999643
+        },
+        "-S-T-C": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999643
+        }
+      }
+    },
+    {
+      "model": "Qwen3.5-397B-A17B",
+      "S": 32,
+      "dims": {
+        "E": 512,
+        "K": 10,
+        "H": 4096,
+        "I": 1024
+      },
+      "weave_selected_env": {
+        "WEAVE_GEMM1_CONFIG": "16",
+        "WEAVE_GEMM2_CONFIG": "16",
+        "WEAVE_V_HEAD": "0",
+        "WEAVE_SCATTER_OWNER": "epilogue_only",
+        "WEAVE_SCATTER_STAGING": "reg",
+        "WEAVE_DEDUP_MODE": "1"
+      },
+      "median_us": {
+        "official": 213.88,
+        "Weave": 158.488,
+        "-S": 168.512,
+        "-S-T": 169.616,
+        "-S-T-C": 169.44
+      },
+      "speedup_vs_official": {
+        "Weave": 1.3495,
+        "-S": 1.2692,
+        "-S-T": 1.261,
+        "-S-T-C": 1.2623
+      },
+      "accuracy": {
+        "official": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999643
+        },
+        "Weave": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999643
+        },
+        "-S": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999643
+        },
+        "-S-T": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999643
+        },
+        "-S-T-C": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999643
+        }
+      }
+    },
+    {
+      "model": "Qwen3.5-397B-A17B",
+      "S": 128,
+      "dims": {
+        "E": 512,
+        "K": 10,
+        "H": 4096,
+        "I": 1024
+      },
+      "weave_selected_env": {
+        "WEAVE_GEMM1_CONFIG": "16",
+        "WEAVE_GEMM2_CONFIG": "16",
+        "WEAVE_V_HEAD": "0",
+        "WEAVE_SCATTER_OWNER": "epilogue_only",
+        "WEAVE_SCATTER_STAGING": "reg",
+        "WEAVE_DEDUP_MODE": "1"
+      },
+      "median_us": {
+        "official": 321.232,
+        "Weave": 237.44,
+        "-S": 255.392,
+        "-S-T": 253.664,
+        "-S-T-C": 252.472
+      },
+      "speedup_vs_official": {
+        "Weave": 1.3529,
+        "-S": 1.2578,
+        "-S-T": 1.2664,
+        "-S-T-C": 1.2723
+      },
+      "accuracy": {
+        "official": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999644
+        },
+        "Weave": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999644
+        },
+        "-S": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999644
+        },
+        "-S-T": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999644
+        },
+        "-S-T-C": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999644
+        }
+      }
+    },
+    {
+      "model": "Qwen3.5-397B-A17B",
+      "S": 1024,
+      "dims": {
+        "E": 512,
+        "K": 10,
+        "H": 4096,
+        "I": 1024
+      },
+      "weave_selected_env": {
+        "WEAVE_V_HEAD": "0",
+        "WEAVE_SCATTER_OWNER": "epilogue_only",
+        "WEAVE_SCATTER_STAGING": "reg",
+        "WEAVE_DEDUP_MODE": "1",
+        "WEAVE_GEMM1_CONFIG": "64",
+        "WEAVE_GEMM2_CONFIG": "64"
+      },
+      "median_us": {
+        "official": 554.32,
+        "Weave": 420.624,
+        "-S": 419.416,
+        "-S-T": 433.896,
+        "-S-T-C": 398.24
+      },
+      "speedup_vs_official": {
+        "Weave": 1.3179,
+        "-S": 1.3216,
+        "-S-T": 1.2775,
+        "-S-T-C": 1.3919
+      },
+      "accuracy": {
+        "official": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999644
+        },
+        "Weave": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999644
+        },
+        "-S": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999644
+        },
+        "-S-T": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999644
+        },
+        "-S-T-C": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999644
+        }
+      }
+    },
+    {
+      "model": "Qwen3.5-397B-A17B",
+      "S": 2048,
+      "dims": {
+        "E": 512,
+        "K": 10,
+        "H": 4096,
+        "I": 1024
+      },
+      "weave_selected_env": {
+        "WEAVE_DISPATCH_ACTIVE_SMS": "66",
+        "WEAVE_V_HEAD": "0",
+        "WEAVE_SCATTER_OWNER": "comm_only",
+        "WEAVE_SCATTER_STAGING": "smem",
+        "WEAVE_DEDUP_MODE": "1"
+      },
+      "median_us": {
+        "official": 688.88,
+        "Weave": 584.512,
+        "-S": 591.352,
+        "-S-T": 628.192,
+        "-S-T-C": 571.648
+      },
+      "speedup_vs_official": {
+        "Weave": 1.1786,
+        "-S": 1.1649,
+        "-S-T": 1.0966,
+        "-S-T-C": 1.2051
+      },
+      "accuracy": {
+        "official": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999644
+        },
+        "Weave": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999644
+        },
+        "-S": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999644
+        },
+        "-S-T": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999644
+        },
+        "-S-T-C": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999644
+        }
+      }
+    },
+    {
+      "model": "Qwen3.5-397B-A17B",
+      "S": 4096,
+      "dims": {
+        "E": 512,
+        "K": 10,
+        "H": 4096,
+        "I": 1024
+      },
+      "weave_selected_env": {
+        "WEAVE_GEMM1_CONFIG": "32",
+        "WEAVE_GEMM2_CONFIG": "64",
+        "WEAVE_V_HEAD": "0",
+        "WEAVE_SCATTER_OWNER": "comm_only",
+        "WEAVE_SCATTER_STAGING": "smem",
+        "WEAVE_DEDUP_MODE": "1"
+      },
+      "median_us": {
+        "official": 1000.36,
+        "Weave": 914.224,
+        "-S": 931.416,
+        "-S-T": 992.072,
+        "-S-T-C": 920.76
+      },
+      "speedup_vs_official": {
+        "Weave": 1.0942,
+        "-S": 1.074,
+        "-S-T": 1.0084,
+        "-S-T-C": 1.0865
+      },
+      "accuracy": {
+        "official": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999645
+        },
+        "Weave": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999645
+        },
+        "-S": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999645
+        },
+        "-S-T": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999645
+        },
+        "-S-T-C": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999645
+        }
+      }
+    },
+    {
+      "model": "Qwen3.5-397B-A17B",
+      "S": 8192,
+      "dims": {
+        "E": 512,
+        "K": 10,
+        "H": 4096,
+        "I": 1024
+      },
+      "weave_selected_env": {
+        "WEAVE_GEMM1_CONFIG": "0",
+        "WEAVE_GEMM2_CONFIG": "0",
+        "WEAVE_DISPATCH_WARPS": "0",
+        "WEAVE_DISPATCH_ACTIVE_SMS": "0",
+        "WEAVE_SCATTER_ACTIVE_SMS": "0",
+        "WEAVE_V_HEAD": "0",
+        "WEAVE_READY_GROUP_SIZE": "2",
+        "WEAVE_SCATTER_OWNER": "comm_only",
+        "WEAVE_SCATTER_STAGING": "smem",
+        "WEAVE_DEDUP_MODE": "1"
+      },
+      "median_us": {
+        "official": 1526.128,
+        "Weave": 1547.664,
+        "-S": 1547.496,
+        "-S-T": 1637.488,
+        "-S-T-C": 1551.624
+      },
+      "speedup_vs_official": {
+        "Weave": 0.9861,
+        "-S": 0.9862,
+        "-S-T": 0.932,
+        "-S-T-C": 0.9836
+      },
+      "accuracy": {
+        "official": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999644
+        },
+        "Weave": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999644
+        },
+        "-S": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999644
+        },
+        "-S-T": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999644
+        },
+        "-S-T-C": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999644
+        }
+      }
+    },
+    {
+      "model": "Qwen3.5-397B-A17B",
+      "S": 16384,
+      "dims": {
+        "E": 512,
+        "K": 10,
+        "H": 4096,
+        "I": 1024
+      },
+      "weave_selected_env": {
+        "WEAVE_GEMM1_CONFIG": "128",
+        "WEAVE_GEMM2_CONFIG": "128",
+        "WEAVE_V_HEAD": "0",
+        "WEAVE_SCATTER_OWNER": "comm_only",
+        "WEAVE_SCATTER_STAGING": "smem",
+        "WEAVE_DEDUP_MODE": "1"
+      },
+      "median_us": {
+        "official": 2681.496,
+        "Weave": 2756.88,
+        "-S": 2841.208,
+        "-S-T": 3061.44,
+        "-S-T-C": 2878.64
+      },
+      "speedup_vs_official": {
+        "Weave": 0.9727,
+        "-S": 0.9438,
+        "-S-T": 0.8759,
+        "-S-T-C": 0.9315
+      },
+      "accuracy": {
+        "official": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999643
+        },
+        "Weave": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999643
+        },
+        "-S": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999643
+        },
+        "-S-T": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999643
+        },
+        "-S-T-C": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999643
+        }
+      }
+    },
+    {
+      "model": "Qwen3.5-397B-A17B",
+      "S": 20000,
+      "dims": {
+        "E": 512,
+        "K": 10,
+        "H": 4096,
+        "I": 1024
+      },
+      "weave_selected_env": {
+        "WEAVE_GEMM1_CONFIG": "128",
+        "WEAVE_GEMM2_CONFIG": "128",
+        "WEAVE_V_HEAD": "0",
+        "WEAVE_SCATTER_OWNER": "comm_only",
+        "WEAVE_SCATTER_STAGING": "smem",
+        "WEAVE_DEDUP_MODE": "1"
+      },
+      "median_us": {
+        "official": 3191.544,
+        "Weave": 3243.28,
+        "-S": 3415.456,
+        "-S-T": 3676.176,
+        "-S-T-C": 3470.552
+      },
+      "speedup_vs_official": {
+        "Weave": 0.984,
+        "-S": 0.9344,
+        "-S-T": 0.8682,
+        "-S-T-C": 0.9196
+      },
+      "accuracy": {
+        "official": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999643
+        },
+        "Weave": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999643
+        },
+        "-S": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999643
+        },
+        "-S-T": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999644
+        },
+        "-S-T-C": {
+          "all_finite": true,
+          "min_cos_vs_fp32": 0.999643
+        }
+      }
+    }
+  ]
+}

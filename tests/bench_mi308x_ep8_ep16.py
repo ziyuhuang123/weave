@@ -37,13 +37,9 @@ def main() -> None:
         raise SystemExit("bench_mi308x_ep8_ep16.py requires a ROCm PyTorch build")
     if not runner:
         raise SystemExit(
-            "No MI308X runner supplied.  The public archive does not contain "
-            "official_m16_m32_configs_v1262.hpp, gemm2_configs_v1010_hip.hpp, "
-            "v956_stage1_body.hpp, m16_packet_support.hpp, or fi_lite_hip.h, "
-            "so this repository cannot honestly claim a buildable MI308X "
-            "end-to-end harness.  Supply --runner <path> or "
-            "WEAVE_MI308X_BENCH_RUNNER=<path> after installing the missing "
-            "AITER/CK snapshot.")
+            "No MI308X runner supplied. Build the standalone HIP driver under "
+            "deep_gemm/include/deep_gemm/impls/amd/ and pass --runner <path> "
+            "or set WEAVE_MI308X_BENCH_RUNNER=<path>.")
     raise SystemExit(subprocess.call(cmd, cwd=Path(__file__).parents[1]))
 
 if __name__ == "__main__":

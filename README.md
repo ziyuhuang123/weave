@@ -78,9 +78,9 @@ Representative large-batch latencies on **2-node 16x AMD MI308X (EP16, xGMI + GD
 
 Each 4-panel timeline is captured from a single execution aligning cycle-accurate on-device software traces with hardware PMU curves (Panel A: aligned hardware utilization curves; Panel B: all physical SMs/CUs; Panel C: full warp/wavefront tracks of a representative SM/CU; Panel D: deterministic micro-zoom):
 
-- **NVIDIA SM103 (148-SM), 4x EP4, `Qwen3.8-2.4T S=1024` (`FP8 x NVFP4`)**: 200 kHz `nsys` capture across all 148 SMs and all 16 warps of SM 42. Helper pull (`V_HEAD`) populates initial tiles rapidly, sustaining **`92.0%`** peak HBM bandwidth (`72.8%` mean) and **`98.6%`** mean active SMs, while Panel D shows `TMA` and `UMMA` in-flight pipeline depth alongside multi-stage epilogue execution.
-- **NVIDIA H20 (78-SM), 4x EP4, `Qwen3.5-35B S=16384` (`FP8`)**: 200 kHz `nsys` capture across all 78 SMs and all 20 warps of SM 54. Freed communication warps (`W00..W07`) transition directly from remote pull into `smem` async scatter, keeping Tensor Core activity continuously at **`75%–96%`** while Panel D (`700–730 us`) shows concurrent `WGMMA + TMA + NVLink Scatter`.
-- **AMD MI308X (80-CU), 2-node 16x EP16, `Qwen3.8-2.4T S=16384` (`FP8`)**: `rocprofiler-sdk` PMC capture across all 80 CUs showing co-resident `(0,8)` compute-rich CUs and `(4,4)` hybrid CUs; on hybrid `CU 62`, `W00..W03` sustain MFMA compute while `W04..W07` overlap inter-node RDMA and intra-node xGMI transfers, reaching **`70.4%`** peak FP8 Matrix Core utilization (`47.0%` mean) and **`100.0%`** active CUs.
+- **NVIDIA SM103 (148-SM), 4x EP4, `Qwen3.8-2.4T S=1024` (`FP8 x NVFP4`)**: 200 kHz `nsys` capture across all 148 SMs and all 16 warps of SM 42. Helper pull (`V_HEAD`) populates initial tiles rapidly, sustaining **`92.0%`** peak HBM bandwidth (`72.8%` mean) and **`98.6%`** mean active SMs, while Panels C/D resolve per-warp `MEM d=0..19` and `MMA d=0..1` asynchronous pipeline depth strips and issue pins.
+- **NVIDIA H20 (78-SM), 4x EP4, `Qwen3.5-35B S=16384` (`FP8`)**: 200 kHz `nsys` capture across all 78 SMs and all 20 warps of SM 54. Freed communication warps (`W00..W07`) transition directly from remote pull into `smem` async scatter, keeping Tensor Core activity at **`75%–96%`** while Panels C/D (`700–730 us`) show concurrent `MEM d=0..2`, `MMA d=0..1`, and `NVLink Scatter`.
+- **AMD MI308X (80-CU), 8x EP8, `Qwen3.8-2.4T S=8192` (`FP8`)**: `rocprofiler-sdk` PMC capture across all 80 CUs and all 8 `Wave64` tracks of hybrid `CU 28` (`+6.58%` warm instrumentation overhead, `0 spill`). `W00..W03` sustain Stage-1/Stage-2 MFMA compute with `MEM d=1..2` and `MMA d=1` pipeline depth strips and issue pins while `W04..W07` overlap `xGMI` async scatter inside the `9314–9352 us` micro-zoom (**`73.0%`** peak HBM bandwidth, **`38.0%`** peak `xGMI TX`, **`99.9%`** mean active CUs).
 
 ## Unified core WEAVE_* parameters
 
@@ -88,38 +88,38 @@ Weave exposes **14 unified parameters across 3 axes** (Spatial 5 / Temporal 3 / 
 
 ### Spatial
 
-| Parameter | Category | Values (`0` = auto) | Mechanism | Measured gain | Code (`host` / `kernel`) |
-|---|---|---|---|---|---|
-| `WEAVE_DISPATCH_ACTIVE_SMS` | Spatial | `0=auto`, `D=1..N` (`D != K`) | Cross-SM/CU active Dispatch subset; remaining SMs/CUs prefetch and start GEMM1 immediately | **1.41x** MI308X EP16 (`1431->1015 us`); **1.007x** SM103 (`294.9->292.9 us`) | `csrc/jit_kernels/heuristics/weave_knob_config.hpp:189` / `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:4073` |
-| `WEAVE_SCATTER_ACTIVE_SMS` | Spatial | `0=auto`, `K=1..N` (`K != D`) | Cross-SM/CU active Scatter subset; tail Combine still uses all SMs/CUs | **1.015x** MI308X EP16 (`1030->1015 us`); **1.013x** H20 `S=4K` (`5299->5233 us`) | `csrc/jit_kernels/impls/sm100_fp8_fp4_mega_moe.hpp:204` / `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:554` |
-| `WEAVE_DISPATCH_WARPS` | Spatial | `0=auto`, `4`, `8` | Intra-SM communication warps per CTA assigned to remote token/scale pulling | **1.17x** H20 `S=16K` (`8` vs `4`: `1644->1403 us`) | `csrc/jit_kernels/heuristics/weave_knob_config.hpp:162` / `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:1134` |
-| `WEAVE_SCATTER_WARPS` | Spatial | `0=auto`, `4`, `8` | Intra-SM/CU communication warps/waves dedicated to async FC2 scatter | **1.17x** H20 `S=16K` (`1644->1405 us`); **1.04x** MI308X EP16 (`1015->976 us`) | `csrc/jit_kernels/impls/sm100_fp8_fp4_mega_moe.hpp:195` / `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:529` |
-| `WEAVE_CU_WAVE_SPLIT` | Spatial | MI308X: `auto, 0-8, 4-4, 8-0`; H20: `auto` or `E` | MI308X per-CU 8-Wave64 comm/compute split; H20 GEMM1/GEMM2 expert-stream interleaving | **2.15x** MI308X EP16 (`4-4` vs `0-8`: `2185->1015 us`); **1.053x** H20 `S=8K` (`926->880 us`) | `csrc/jit_kernels/heuristics/weave_knob_config.hpp:183` / `deep_gemm/include/deep_gemm/impls/amd/ep8/megamoe_amd_ep8.hip:80` |
+| Parameter | Category | Values (`0` = auto) | Mechanism | Code (`host` / `kernel`) |
+|---|---|---|---|---|
+| `WEAVE_DISPATCH_ACTIVE_SMS` | Spatial | `0=auto`, `D=1..N` (`D != K`) | Cross-SM/CU active Dispatch subset; remaining SMs/CUs prefetch and start GEMM1 immediately | `csrc/jit_kernels/heuristics/weave_knob_config.hpp:189` / `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:4073` |
+| `WEAVE_SCATTER_ACTIVE_SMS` | Spatial | `0=auto`, `K=1..N` (`K != D`) | Cross-SM/CU active Scatter subset; tail Combine still uses all SMs/CUs | `csrc/jit_kernels/impls/sm100_fp8_fp4_mega_moe.hpp:204` / `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:554` |
+| `WEAVE_DISPATCH_WARPS` | Spatial | `0=auto`, `4`, `8` | Intra-SM communication warps per CTA assigned to remote token/scale pulling | `csrc/jit_kernels/heuristics/weave_knob_config.hpp:162` / `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:1134` |
+| `WEAVE_SCATTER_WARPS` | Spatial | `0=auto`, `4`, `8` | Intra-SM/CU communication warps/waves dedicated to async FC2 scatter | `csrc/jit_kernels/impls/sm100_fp8_fp4_mega_moe.hpp:195` / `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:529` |
+| `WEAVE_CU_WAVE_SPLIT` | Spatial | MI308X: `auto, 0-8, 4-4, 8-0`; H20: `auto` or `E` | MI308X per-CU 8-Wave64 comm/compute split; H20 GEMM1/GEMM2 expert-stream interleaving | `csrc/jit_kernels/heuristics/weave_knob_config.hpp:183` / `deep_gemm/include/deep_gemm/impls/amd/ep8/megamoe_amd_ep8.hip:80` |
 
 ### Temporal
 
-| Parameter | Category | Values (`0` = auto) | Mechanism | Measured gain | Code (`host` / `kernel`) |
-|---|---|---|---|---|---|
-| `WEAVE_V_HEAD` | Temporal | `0=auto`, `N=1..65536` | Opening pull quota for helper warps before transitioning into GEMM1 | **1.088x** H20 `S=8K` (`941.5->865.3 us`); **1.043x** MI308X (`1015->973 us`) | `csrc/jit_kernels/heuristics/weave_knob_config.hpp:193` / `deep_gemm/include/deep_gemm/scheduler/weave_cost_model.cuh:30` |
-| `WEAVE_READY_GROUP_SIZE` | Temporal | `0=full expert`, `1, 2, 4, 8, 16` | Publishes readiness every `N` `BLOCK_M` tiles so GEMM1 starts before full expert arrives | **1.030x** MI308X EP16 (`1015->985 us`); **1.009x** H20 `S=4K` (`5337->5289 us`) | `csrc/jit_kernels/impls/sm100_fp8_fp4_mega_moe.hpp:131` / `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:111` |
-| `WEAVE_SCATTER_OWNER` | Temporal | `0=epilogue_only`, `1=comm_only` | Assigns FC2 cross-GPU scatter either to epilogue warps directly or to freed comm warps | **1.14x** H20 `S=16K` (`1244->1094 us`); **1.034x** MI308X (`1015->981 us`) | `csrc/jit_kernels/heuristics/weave_knob_config.hpp:276` / `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:1780` |
+| Parameter | Category | Values (`0` = auto) | Mechanism | Code (`host` / `kernel`) |
+|---|---|---|---|---|
+| `WEAVE_V_HEAD` | Temporal | `0=auto`, `N=1..65536` | Opening pull quota for helper warps before transitioning into GEMM1 | `csrc/jit_kernels/heuristics/weave_knob_config.hpp:193` / `deep_gemm/include/deep_gemm/scheduler/weave_cost_model.cuh:30` |
+| `WEAVE_READY_GROUP_SIZE` | Temporal | `0=full expert`, `1, 2, 4, 8, 16` | Publishes readiness every `N` `BLOCK_M` tiles so GEMM1 starts before full expert arrives | `csrc/jit_kernels/impls/sm100_fp8_fp4_mega_moe.hpp:131` / `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:111` |
+| `WEAVE_SCATTER_OWNER` | Temporal | `0=epilogue_only`, `1=comm_only` | Assigns FC2 cross-GPU scatter either to epilogue warps directly or to freed comm warps | `csrc/jit_kernels/heuristics/weave_knob_config.hpp:276` / `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:1780` |
 
 ### Implementation
 
-| Parameter | Category | Values (`0` = auto) | Mechanism | Measured gain | Code (`host` / `kernel`) |
-|---|---|---|---|---|---|
-| `WEAVE_PRECISION_MODE` | Implementation | `0=fp8xfp4`, `1=fp4xfp4`, `2=fp8`, `3=bf16` | Tensor/Matrix Core numeric format across GEMM1 and GEMM2 | **1.59x** SM103 `S=16K` (`1038->654 us`); **1.010x** H20 (`5276->5224 us`) | `csrc/jit_kernels/heuristics/weave_knob_config.hpp:405` / `deep_gemm/include/deep_gemm/scheduler/weave_cost_model.cuh:25` |
-| `WEAVE_GEMM1_CONFIG` | Implementation | `0=auto` or `BM[:STORE_BM[:BK[:ST[:EPI]]]]` (`EPI=1..4`) | Independent FC1 tile & multi-stage mainloop/epilogue configuration | **1.51x** H20 `S=16K` (`BM=128`: `1651->1091 us`); **1.047x** SM103 (`96,16`: `766->731 us`) | `csrc/jit_kernels/heuristics/weave_knob_config.hpp:129` / `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:1253` |
-| `WEAVE_GEMM2_CONFIG` | Implementation | `0=auto` or `BM[:STORE_BM[:BK[:ST[:EPI]]]]` (decoupled) | Independent FC2 tile & multi-stage configuration decoupled from GEMM1 | **1.036x** MI308X EP16 (`64` vs `32`: `1051->1015 us`); **1.025x** H20 `32/64` (`2234->2178 us`) | `csrc/jit_kernels/heuristics/weave_knob_config.hpp:132` / `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:1255` |
-| `WEAVE_REG_PULL_BYTES` | Implementation | `0=SMEM`, `1024/2048/4096` (NV), `8192` (MI308X) | Dispatch register-direct pull chunk width per warp/wavefront (preserves SMEM/LDS for GEMM) | **1.19x** MI308X EP16 (`8192` vs `1024`: `1212->1015 us`); **1.024x** SM103 (`618.5->604.1 us`) | `csrc/jit_kernels/impls/sm100_fp8_fp4_mega_moe.hpp:135` / `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:143` |
-| `WEAVE_DEDUP_MODE` | Implementation | `0=off`, `1=on` | Dispatch remote-pull deduplication: pulls unique `(src_rank, token)` once and fans out locally | **1.067x** H20 `S=16K` (`1644->1540 us`); **1.023x** MI308X EP16 (`1038->1015 us`) | `csrc/jit_kernels/impls/sm100_fp8_fp4_mega_moe.hpp:170` / `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:443` |
-| `WEAVE_SCATTER_STAGING` | Implementation | `0=reg`, `1=smem`, `2=hbm` | Scatter staging path: multi-stage register-direct (`reg`), shared memory (`smem`), or HBM buffer (`hbm`) | **1.14x** H20 `S=16K` (`smem` vs `reg`: `1244->1094 us`); **1.010x** MI308X (`1025->1015 us`) | `csrc/jit_kernels/heuristics/weave_knob_config.hpp:279` / `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:1786` |
+| Parameter | Category | Values (`0` = auto) | Mechanism | Code (`host` / `kernel`) |
+|---|---|---|---|---|
+| `WEAVE_PRECISION_MODE` | Implementation | `0=fp8xfp4`, `1=fp4xfp4`, `2=fp8`, `3=bf16` | Tensor/Matrix Core numeric format across GEMM1 and GEMM2 | `csrc/jit_kernels/heuristics/weave_knob_config.hpp:405` / `deep_gemm/include/deep_gemm/scheduler/weave_cost_model.cuh:25` |
+| `WEAVE_GEMM1_CONFIG` | Implementation | `0=auto` or `BM[:STORE_BM[:BK[:ST[:EPI]]]]` (`EPI=1..4`) | Independent FC1 tile & multi-stage mainloop/epilogue configuration | `csrc/jit_kernels/heuristics/weave_knob_config.hpp:129` / `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:1253` |
+| `WEAVE_GEMM2_CONFIG` | Implementation | `0=auto` or `BM[:STORE_BM[:BK[:ST[:EPI]]]]` (decoupled) | Independent FC2 tile & multi-stage configuration decoupled from GEMM1 | `csrc/jit_kernels/heuristics/weave_knob_config.hpp:132` / `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:1255` |
+| `WEAVE_REG_PULL_BYTES` | Implementation | `0=SMEM`, `1024/2048/4096` (NV), `8192` (MI308X) | Dispatch register-direct pull chunk width per warp/wavefront (preserves SMEM/LDS for GEMM) | `csrc/jit_kernels/impls/sm100_fp8_fp4_mega_moe.hpp:135` / `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:143` |
+| `WEAVE_DEDUP_MODE` | Implementation | `0=off`, `1=on` | Dispatch remote-pull deduplication: pulls unique `(src_rank, token)` once and fans out locally | `csrc/jit_kernels/impls/sm100_fp8_fp4_mega_moe.hpp:170` / `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:443` |
+| `WEAVE_SCATTER_STAGING` | Implementation | `0=reg`, `1=smem`, `2=hbm` | Scatter staging path: multi-stage register-direct (`reg`), shared memory (`smem`), or HBM buffer (`hbm`) | `csrc/jit_kernels/heuristics/weave_knob_config.hpp:279` / `deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh:1786` |
 
 ## Examples, baselines, and ablation studies
 
 - **Launch presets**: [examples/README.md](examples/README.md) provides reproducible presets across SM103, H20, and MI308X plus the WeaveProfiler timeline driver.
 - **Baselines**: [baselines/README.md](baselines/README.md) documents baseline setup, multi-rank verification, and matched-precision comparisons.
-- **Ablation & EPLB**: [ablation/README.md](ablation/README.md) covers the 4-arm progressive ablation (`Weave`, `-S`, `-S-T`, `-S-T-C`) and EPLB compatibility; across 48 evaluation cells, full Weave reaches `1.301x / 1.162x / 2.147x` geomean speedup on SM103 / H20 / MI308X EP16 (`1.192x / 1.137x / 1.808x` without Spatial `-S`; `1.010x / 1.053x / 1.537x` without `-S-T`).
+- **Ablation & EPLB**: [ablation/README.md](ablation/README.md) covers the 4-arm progressive ablation (`Weave`, `-S`, `-S-T`, `-S-T-C`) and EPLB compatibility; across 48 evaluation cells, full Weave reaches `1.301x / 1.162x / 2.147x` geomean speedup on SM103 / H20 / MI308X EP16 (`1.192x / 1.137x / 1.808x` without Spatial `-S`; `1.010x / 1.053x / 1.537x` without `-S-T`), and fresh 48-cell single-node EP8 receipts re-measured on the unified 14-knob codebase are archived in [results/ablation/](results/ablation/) (H20 48-cell `1.091x -> 1.036x -> 1.022x`, `S <= 128` `1.194x -> 1.111x -> 1.102x`; single-node MI308X EP8 `S <= 128` `1.769x -> 1.501x -> 1.387x -> 1.349x`, 48-cell `0.977x -> 0.930x -> 0.877x -> 0.828x`).
 
 ## Citation
 

@@ -39,8 +39,14 @@ Each arm uses an isolated `DG_JIT_CACHE_DIR` under `results/ablation`. Measured 
 | NVIDIA SM103 (148-SM) | `1K–4K` (18 cells) | 1.112 | 1.073 | 0.919 | 0.916 |
 | NVIDIA SM103 (148-SM) | `S >= 8K` (18 cells) | 1.638 | 1.416 | 1.185 | 1.148 |
 | NVIDIA SM103 (148-SM) | All (48 cells) | 1.301 | 1.192 | 1.010 | 0.996 |
-| NVIDIA H20 | All (48 cells) | 1.162 | 1.137 | 1.053 | 0.947 |
-| AMD MI308X EP16 | All (48 cells) | 2.147 | 1.808 | 1.537 | 1.362 |
+| NVIDIA H20 | All (48 cells, full policy pool) | 1.162 | 1.137 | 1.053 | 0.947 |
+| NVIDIA H20 | `S <= 128` (12 cells, unified 14-knob build) | 1.194 | 1.111 | 1.102 | 1.105 |
+| NVIDIA H20 | All (48 cells, unified 14-knob build) | 1.091 | 1.036 | 1.022 | 1.059 |
+| AMD MI308X EP16 | All (48 cells, 2-node 16x) | 2.147 | 1.808 | 1.537 | 1.362 |
+| AMD MI308X EP8 | `S <= 128` (12 cells, 1-node 8x unified build) | 1.769 | 1.501 | 1.387 | 1.349 |
+| AMD MI308X EP8 | All (48 cells, 1-node 8x unified build) | 0.977 | 0.930 | 0.877 | 0.828 |
+
+Per-cell JSON receipts re-measured directly on the unified 14-knob codebase are checked into `results/ablation/h20_ep8_48cells_progressive_ablation.json` and `results/ablation/mi308x_ep8_48cells_progressive_ablation.json` (on single-node H20 medium batches, disabling `WEAVE_DEDUP_MODE` avoids intra-node dedup metadata overhead; on single-node MI308X EP8 over intra-node `287.2 GB/s` full-duplex xGMI without inter-node RDMA bottlenecks, all four arms preserve strict monotonic progression `Weave > -S > -S-T > -S-T-C` across all buckets).
 
 ## 2. Cost-model candidate ranking
 

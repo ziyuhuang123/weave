@@ -27,16 +27,16 @@ CATEGORY_ZH = {"Spatial": "空间", "Temporal": "时间", "Implementation": "实
 
 HEADERS_FULL_EN = [
     "Parameter", "Category", "Accepted values",
-    "Default", "Mechanism", "Measured single-knob gain", "Host parse", "Kernel consumption",
+    "Default", "Mechanism", "Host parse", "Kernel consumption",
 ]
 
 HEADERS_COMPACT_EN = [
     "Parameter", "Category", "Values (`0` = auto)", "Mechanism",
-    "Measured gain", "Code (`host` / `kernel`)",
+    "Code (`host` / `kernel`)",
 ]
 HEADERS_COMPACT_ZH = [
     "参数", "分类", "取值（`0` = 自动）", "作用机制",
-    "实测单参收益", "代码位置（`Host` / `Kernel`）",
+    "代码位置（`Host` / `Kernel`）",
 ]
 
 
@@ -65,7 +65,7 @@ def row_full(knob) -> str:
     kernel = resolve(knob.kernel_file, knob.kernel_needle)
     cells = [
         f"`{knob.name}`", knob.category, knob.values, knob.default,
-        knob.mechanism, knob.gain_en, f"`{host}`", f"`{kernel}`",
+        knob.mechanism, f"`{host}`", f"`{kernel}`",
     ]
     return "| " + " | ".join(cells) + " |"
 
@@ -76,12 +76,12 @@ def row_compact(knob, lang: str) -> str:
     if lang == "zh":
         cells = [
             f"`{knob.name}`", CATEGORY_ZH[knob.category], knob.compact_values_zh,
-            knob.compact_mech_zh, knob.gain_zh, f"`{host}` / `{kernel}`",
+            knob.compact_mech_zh, f"`{host}` / `{kernel}`",
         ]
     else:
         cells = [
             f"`{knob.name}`", knob.category, knob.compact_values_en,
-            knob.compact_mech_en, knob.gain_en, f"`{host}` / `{kernel}`",
+            knob.compact_mech_en, f"`{host}` / `{kernel}`",
         ]
     return "| " + " | ".join(cells) + " |"
 
