@@ -80,7 +80,7 @@ python -c "from deep_gemm.mega import SymmBuffer, weave_mega_moe"
 
 - **NVIDIA SM103 (148-SM)，4x EP4，`Qwen3.8-2.4T S=1024`（`FP8 x NVFP4`）**：200 kHz `nsys` 硬件采样对齐全部 148 个物理 SM 与 SM 42 的 16 个 warp。首部 `V_HEAD` 协助拉取快速喂满首轮输入，主体阶段 HBM 带宽峰值达 **`92.0%`**（全程均值 `72.8%`）、活跃 SM 均值 **`98.6%`**，Panel C/D 同步呈现逐 warp 的 `MEM d=0..19` 与 `MMA d=0..1` 异步流水线在途深度带及发射针标。
 - **NVIDIA H20 (78-SM)，4x EP4，`Qwen3.5-35B S=16384`（`FP8`）**：200 kHz `nsys` 硬件采样对齐 78 个物理 SM 与 SM 54 的 20 个 warp。通信 warp（`W00..W07`）在完成远端拉取后无缝切换为后台 `smem` 异步 Scatter，使 Tensor Core 利用率持续稳定在 **`75%–96%`**，Panel C/D（`700–730 us`）清晰展示 `MEM d=0..2`、`MMA d=0..1` 异步流水深度与 `NVLink Scatter` 的三路并发重叠。
-- **AMD MI308X (80-CU)，8x EP8，`Qwen3.8-2.4T S=8192`（`FP8`）**：`rocprofiler-sdk` 硬件计数器同步对齐全部 80 个物理 CU 与混合单元 `CU 28` 的 8 个 `Wave64`（预热插桩开销 `+6.58%`，`0 spill`）。`W00..W03` 持续运行 Stage-1/Stage-2 MFMA 计算并记录 `MEM d=1..2` 与 `MMA d=1` 流水深度及发射针标，`W04..W07` 在 `9314–9352 us` 微观窗口内并发执行 `xGMI` 异步 Scatter（HBM 带宽峰值 **`73.0%`**，`xGMI TX` 峰值 **`38.0%`**，活跃 CU 均值 **`99.9%`**）。
+- **AMD MI308X (80-CU)，双机 16x EP16，`Qwen3.8-2.4T S=16384`（`FP8`）**：`rocprofiler-sdk` 硬件计数器同步对齐全部 80 个物理 CU（`0–6,633.0 us`，`overflow 0`，`256 VGPR / 0 spill`），展示 `(0,8)` 纯计算 CU 与 `(4,4)` 通算混合 CU 的跨单元协同；在混合单元 `CU 62`（`3520–3820 us` 微观窗口）上，`W00..W03` 持续运行 Stage-1/Stage-2 MFMA 计算，`W04..W07` 并发重叠节点间 RDMA 与节点内 `xGMI` 传输，FP8 Matrix Core 峰值利用率达 **`70.4%`**（全程均值 `47.0%`）、节点内 `xGMI TX` 峰值 **`60.5%`**、活跃 CU **`100.0%`**。
 
 ## 统一核心 WEAVE_* 参数
 
