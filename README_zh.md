@@ -51,11 +51,11 @@ python -c "from deep_gemm.mega import SymmBuffer, weave_mega_moe"
 
 在三类硬件平台、6 个主流 MoE 模型与 5 档全局 Token 数 `S in {16, 128, 1K, 8K, 16K}` 组成的 **90 个真实 ShareGPT 路由评测点**（数据见 [results/bound_utilization_90cells_3hw.json](results/bound_utilization_90cells_3hw.json)）上，定义瓶颈硬件利用率为 `100 * T_bound / 实测时延`（`T_bound` 为关键 rank 上 HBM 带宽、跨卡互连与张量核峰值三项物理下界的最大值），Weave 在全部评测点均取得最优端到端延迟：
 
-| 平台配置 | 对比基线 | 30 组几何平均加速比（区间） | 瓶颈硬件利用率（几何平均 / 区间） | 代表性大批量表现 |
-|---|---|---|---|---|
-| **8x NVIDIA SM103 (148-SM)**, EP8 | DeepGEMM-MegaMoE, FlashInfer, SGLang, mKernel, FlashMoE, NanoFlow | **`1.219x`**（`1.05x–1.97x`） | `42.9%`（`5.8%–97.6%`） | `Qwen3.5-35B S=16K` 达 **`1.97x`**（峰值利用率 `97.6%`） |
-| **8x NVIDIA H20 (SM90)**, EP8 | DeepGEMM-MegaMoE, FlashInfer | **`1.212x`**（`1.01x–1.61x`） | `53.6%`（`13.3%–85.5%`） | `S <= 1K` 达 **`1.18x–1.61x`**；`S=16K` 达 `85.5%` 算力峰值 |
-| **16x AMD MI308X (CDNA3)**, 双机 EP16 | AITER-1stage, vLLM (RCCL + 2-stage CK) | **`1.875x`**（`1.06x–2.87x`） | `21.6%`（算术均值 `34.2%`，`1.4%–92.0%`） | `S=16K` 六模型达 **`1.94x–2.75x`**（瓶颈利用率 **`58.0%–92.0%`**） |
+| 平台配置 | 对比基线 | 30 组加速比（几何平均 / 峰值） | 瓶颈硬件利用率（几何平均 / 峰值） |
+|---|---|---|---|
+| **8x NVIDIA SM103 (148-SM)**, EP8 | DeepGEMM-MegaMoE, FlashInfer, SGLang, mKernel, FlashMoE, NanoFlow | **`1.219x`** / **`1.97x`** | `42.9%` / **`97.6%`** |
+| **8x NVIDIA H20 (SM90)**, EP8 | DeepGEMM-MegaMoE, FlashInfer | **`1.212x`** / **`1.61x`** | `53.6%` / **`85.5%`** |
+| **16x AMD MI308X (CDNA3)**, 双机 EP16 | AITER-1stage, vLLM (RCCL + 2-stage CK) | **`1.875x`** / **`2.87x`** | `21.6%` / **`92.0%`** |
 
 ## WeaveProfiler 软硬件对齐时间线
 

@@ -51,11 +51,11 @@ python -c "from deep_gemm.mega import SymmBuffer, weave_mega_moe"
 
 Across **90 evaluation cells** (3 hardware platforms x 6 MoE models x 5 global token counts `S in {16, 128, 1K, 8K, 16K}` under real ShareGPT routing; ledger in [results/bound_utilization_90cells_3hw.json](results/bound_utilization_90cells_3hw.json)), bound-resource utilization is `100 * T_bound / measured_latency`, where `T_bound` is the critical-rank roofline floor across HBM bandwidth, interconnect bandwidth, and peak compute. Weave achieves the lowest latency across all 90 cells:
 
-| Platform | Baselines compared | 30-cell geomean speedup (range) | Bound-resource util. (GM / range) | Large-`S` highlight |
-|---|---|---|---|---|
-| **8x NVIDIA SM103 (148-SM)**, EP8 | DeepGEMM-MegaMoE, FlashInfer, SGLang, mKernel, FlashMoE, NanoFlow | **`1.219x`** (`1.05x–1.97x`) | `42.9%` (`5.8%–97.6%`) | **`1.97x`** (`97.6%` peak util.) on `Qwen3.5-35B S=16K` |
-| **8x NVIDIA H20 (SM90)**, EP8 | DeepGEMM-MegaMoE, FlashInfer | **`1.212x`** (`1.01x–1.61x`) | `53.6%` (`13.3%–85.5%`) | **`1.18x–1.61x`** at `S <= 1K`; `85.5%` compute peak at `S=16K` |
-| **16x AMD MI308X (CDNA3)**, 2-node EP16 | AITER-1stage, vLLM (RCCL + 2-stage CK) | **`1.875x`** (`1.06x–2.87x`) | `21.6%` (mean `34.2%`, `1.4%–92.0%`) | **`1.94x–2.75x`** (`58.0%–92.0%` bound util.) across all 6 models at `S=16K` |
+| Platform | Baselines compared | 30-cell speedup (geomean / peak) | Bound-resource util. (geomean / peak) |
+|---|---|---|---|
+| **8x NVIDIA SM103 (148-SM)**, EP8 | DeepGEMM-MegaMoE, FlashInfer, SGLang, mKernel, FlashMoE, NanoFlow | **`1.219x`** / **`1.97x`** | `42.9%` / **`97.6%`** |
+| **8x NVIDIA H20 (SM90)**, EP8 | DeepGEMM-MegaMoE, FlashInfer | **`1.212x`** / **`1.61x`** | `53.6%` / **`85.5%`** |
+| **16x AMD MI308X (CDNA3)**, 2-node EP16 | AITER-1stage, vLLM (RCCL + 2-stage CK) | **`1.875x`** / **`2.87x`** | `21.6%` / **`92.0%`** |
 
 ## WeaveProfiler software + hardware timelines
 
