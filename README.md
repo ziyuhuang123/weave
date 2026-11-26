@@ -55,29 +55,7 @@ Across **90 evaluation cells** (3 hardware platforms x 6 MoE models x 5 global t
 |---|---|---|---|---|
 | **8x NVIDIA SM103 (148-SM)**, EP8 | DeepGEMM-MegaMoE, FlashInfer, SGLang, mKernel, FlashMoE, NanoFlow | **`1.219x`** (`1.05x–1.97x`) | `42.9%` (`5.8%–97.6%`) | **`1.97x`** (`97.6%` peak util.) on `Qwen3.5-35B S=16K` |
 | **8x NVIDIA H20 (SM90)**, EP8 | DeepGEMM-MegaMoE, FlashInfer | **`1.212x`** (`1.01x–1.61x`) | `53.6%` (`13.3%–85.5%`) | **`1.18x–1.61x`** at `S <= 1K`; `85.5%` compute peak at `S=16K` |
-| **16x AMD MI308X (CDNA3)**, 2-node EP16 | AITER-1stage, vLLM (RCCL + 2-stage CK) | **`1.875x`** (`1.06x–2.87x`) | `21.6%` (mean `34.2%`, `1.4%–92.0%`) | **`58.0%–92.0%`** bound util. across all 6 models at `S=16K` |
-
-Representative large-batch latencies on **2-node 16x AMD MI308X (EP16, xGMI + GDA RDMA)** against fastest official baseline (`AITER-1stage` / `vLLM 2-stage`, matching [results/mi308x_ep16_weave_best_30cells.csv](results/mi308x_ep16_weave_best_30cells.csv)):
-
-| Model (16x MI308X EP16) | Global tokens `S` | Weave | Fastest official | Speedup |
-|---|---:|---:|---:|---:|
-| `Qwen3.8-Max` 2.4T | `16384` | **`6,981.1 us`** | `17,840.4 us` | **`2.556x`** |
-| `Qwen3.5-397B` | `16384` | **`2,363.4 us`** | `6,499.1 us` | **`2.750x`** |
-| `MiniMax M3` | `16384` | **`3,519.2 us`** | `8,100.0 us` | **`2.302x`** |
-| `DeepSeek-V4-Flash` | `16384` | **`2,573.0 us`** | `4,989.0 us` | **`1.939x`** |
-| `Qwen3.5-122B` | `16384` | **`1,728.6 us`** | `4,172.8 us` | **`2.414x`** |
-| `Qwen3.5-35B` | `16384` | **`1,284.7 us`** | `2,665.1 us` | **`2.075x`** |
-
-On **single-node 8x AMD MI308X (EP8)**, integrating the CDNA3 AGPR double-accumulator `BK=128` MFMA core (`443.4 TFLOPS` standalone dense FP8 GEMM = `96.1%` of dynamic-clock pipe peak at `~1.408 GHz`) with Stage-2 `BN=256` Split-B and `BM=64` XCD-L2 reuse (`232 VGPR / 0 spill`, `1 CTA/CU`) achieves **`1.255x`** 30-cell geometric-mean speedup over `AITER` (`6/6` models faster than `AITER`, **`1.084x`** over the strongest official EP8 baseline; full ledger in [results/ep8_mi308x_agpr_champion_30cells.json](results/ep8_mi308x_agpr_champion_30cells.json)):
-
-| Model (8x MI308X EP8) | 5-`S` geomean vs `AITER` | `S=1024` latency | `S=8192` latency | `S=16384` latency |
-|---|---:|---:|---:|---:|
-| `MiniMax M3` | **`1.471x`** | `1,005.5 us` | `4,264.3 us` | `7,960.9 us` |
-| `Qwen3.5-122B` | **`1.417x`** | `691.5 us` | `2,410.5 us` | `4,457.0 us` |
-| `Qwen3.5-35B` | **`1.375x`** | `545.7 us` | `1,685.8 us` | `3,122.5 us` |
-| `Qwen3.5-397B` | **`1.194x`** | `1,045.9 us` | `3,238.5 us` | `6,134.6 us` |
-| `Qwen3.8-Max` 2.4T | **`1.073x`** | `2,005.5 us` | `7,722.2 us` | `14,605.4 us` |
-| `DeepSeek-V4-Flash` | **`1.063x`** | `971.0 us` | `2,966.5 us` | `5,902.6 us` |
+| **16x AMD MI308X (CDNA3)**, 2-node EP16 | AITER-1stage, vLLM (RCCL + 2-stage CK) | **`1.875x`** (`1.06x–2.87x`) | `21.6%` (mean `34.2%`, `1.4%–92.0%`) | **`1.94x–2.75x`** (`58.0%–92.0%` bound util.) across all 6 models at `S=16K` |
 
 ## WeaveProfiler software + hardware timelines
 

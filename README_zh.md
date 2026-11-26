@@ -55,29 +55,7 @@ python -c "from deep_gemm.mega import SymmBuffer, weave_mega_moe"
 |---|---|---|---|---|
 | **8x NVIDIA SM103 (148-SM)**, EP8 | DeepGEMM-MegaMoE, FlashInfer, SGLang, mKernel, FlashMoE, NanoFlow | **`1.219x`**（`1.05x–1.97x`） | `42.9%`（`5.8%–97.6%`） | `Qwen3.5-35B S=16K` 达 **`1.97x`**（峰值利用率 `97.6%`） |
 | **8x NVIDIA H20 (SM90)**, EP8 | DeepGEMM-MegaMoE, FlashInfer | **`1.212x`**（`1.01x–1.61x`） | `53.6%`（`13.3%–85.5%`） | `S <= 1K` 达 **`1.18x–1.61x`**；`S=16K` 达 `85.5%` 算力峰值 |
-| **16x AMD MI308X (CDNA3)**, 双机 EP16 | AITER-1stage, vLLM (RCCL + 2-stage CK) | **`1.875x`**（`1.06x–2.87x`） | `21.6%`（算术均值 `34.2%`，`1.4%–92.0%`） | `S=16K` 六模型瓶颈利用率达 **`58.0%–92.0%`** |
-
-在双节点 **16x AMD MI308X（EP16，xGMI + GDA RDMA）** 大批量场景下，Weave 与最强官方基线（`AITER-1stage` / `vLLM 2-stage`，与图及 [results/mi308x_ep16_weave_best_30cells.csv](results/mi308x_ep16_weave_best_30cells.csv) 严格一致）的实测延迟对比如下：
-
-| 模型（16x MI308X EP16） | 全局 Token 数 `S` | Weave | 最强官方基线 | 加速比 |
-|---|---:|---:|---:|---:|
-| `Qwen3.8-Max` 2.4T | `16384` | **`6,981.1 us`** | `17,840.4 us` | **`2.556x`** |
-| `Qwen3.5-397B` | `16384` | **`2,363.4 us`** | `6,499.1 us` | **`2.750x`** |
-| `MiniMax M3` | `16384` | **`3,519.2 us`** | `8,100.0 us` | **`2.302x`** |
-| `DeepSeek-V4-Flash` | `16384` | **`2,573.0 us`** | `4,989.0 us` | **`1.939x`** |
-| `Qwen3.5-122B` | `16384` | **`1,728.6 us`** | `4,172.8 us` | **`2.414x`** |
-| `Qwen3.5-35B` | `16384` | **`1,284.7 us`** | `2,665.1 us` | **`2.075x`** |
-
-在单机 **8x AMD MI308X（EP8）** 上，引入 CDNA3 AGPR 双累加器 `BK=128` MFMA 主循环（单算子稠密 FP8 GEMM 实测 **`443.4 TFLOPS`**，达动态主频管线上限 `461.3T` 的 **`96.1%`**）并融合 Stage-2 `BN=256` Split-B 与 `BM=64` XCD-L2 复用（`232 VGPR / 0 spill`，`1 CTA/CU`）后，全 30 格相对 `AITER` 几何平均加速 **`1.255x`**（**6/6 模型全部领先 `AITER`**，相对最强官方 EP8 基线 **`1.084x`**；完整回执见 [results/ep8_mi308x_agpr_champion_30cells.json](results/ep8_mi308x_agpr_champion_30cells.json)）：
-
-| 模型（8x MI308X EP8） | 5 档 `S` 几何平均 vs `AITER` | `S=1024` 延迟 | `S=8192` 延迟 | `S=16384` 延迟 |
-|---|---:|---:|---:|---:|
-| `MiniMax M3` | **`1.471x`** | `1,005.5 us` | `4,264.3 us` | `7,960.9 us` |
-| `Qwen3.5-122B` | **`1.417x`** | `691.5 us` | `2,410.5 us` | `4,457.0 us` |
-| `Qwen3.5-35B` | **`1.375x`** | `545.7 us` | `1,685.8 us` | `3,122.5 us` |
-| `Qwen3.5-397B` | **`1.194x`** | `1,045.9 us` | `3,238.5 us` | `6,134.6 us` |
-| `Qwen3.8-Max` 2.4T | **`1.073x`** | `2,005.5 us` | `7,722.2 us` | `14,605.4 us` |
-| `DeepSeek-V4-Flash` | **`1.063x`** | `971.0 us` | `2,966.5 us` | `5,902.6 us` |
+| **16x AMD MI308X (CDNA3)**, 双机 EP16 | AITER-1stage, vLLM (RCCL + 2-stage CK) | **`1.875x`**（`1.06x–2.87x`） | `21.6%`（算术均值 `34.2%`，`1.4%–92.0%`） | `S=16K` 六模型达 **`1.94x–2.75x`**（瓶颈利用率 **`58.0%–92.0%`**） |
 
 ## WeaveProfiler 软硬件对齐时间线
 
