@@ -127,7 +127,7 @@ HW_SPEC = {
                 interconnect="NVLink", interconnect_gbps=321.4537855645814,
                 bound_source="weave_roofline_90cells.csv (H20 rows)"),
     "MI308X": dict(ep=16, world=16, nodes=2, gpus_per_node=8, label="16x MI308X (CDNA3), 2-node EP=16",
-                   compute_tflops=398.7, compute_dtype="FP8 Matrix Core (MI308X SKU)", hbm_gbps=3684.0, hbm_kind="HBM3",
+                   compute_tflops=461.3, compute_dtype="FP8 Matrix Core (dynamic clock ~1.408 GHz; nominal SKU 398.7T)", hbm_gbps=3684.0, hbm_kind="HBM3",
                    interconnect="inter-node GDA RDMA (4x 400GbE per 8-GPU node) + intra-node xGMI",
                    rdma_gbps_per_gpu=25.0, xgmi_gbps=287.194329,
                    bound_source="computed in this script on ShareGPT S262144 routing sliced to [:S]"),
@@ -366,7 +366,7 @@ def rebuild_ledger() -> dict:
         mi308x_bound_model=dict(
             world=16, nodes=2, gpus_per_node=8, experts_per_rank="E // 16",
             token_ownership="contiguous S // 16 tokens per rank (rank r owns tokens [r*S/16, (r+1)*S/16))",
-            T_compute_us="p[r] * 6 * H * I / 398.7e12 * 1e6  (p = routed (token, expert) pairs on rank r; MI308X SKU peak)",
+            T_compute_us="p[r] * 6 * H * I / 461.3e12 * 1e6  (p = routed (token, expert) pairs on rank r; dynamic-clock ~1.408 GHz FP8 pipe peak; nominal SKU 398.7T)",
             T_memory_us="t[r] * 3 * H * I / 3684.0e9 * 1e6  (t = touched local experts, FP8 weights)",
             dispatch_bytes="disp_b = H + ceil(H/128) * 4", combine_bytes="comb_b = 2 * H",
             rdma_rx_bytes="rem_uniq_to_r * disp_b + own_disp_to_other * comb_b",

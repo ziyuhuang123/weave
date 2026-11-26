@@ -57,16 +57,27 @@ python -c "from deep_gemm.mega import SymmBuffer, weave_mega_moe"
 | **8x NVIDIA H20 (SM90)**, EP8 | DeepGEMM-MegaMoE, FlashInfer | **`1.212x`**（`1.01x–1.61x`） | `53.6%`（`13.3%–85.5%`） | `S <= 1K` 达 **`1.18x–1.61x`**；`S=16K` 达 `85.5%` 算力峰值 |
 | **16x AMD MI308X (CDNA3)**, 双机 EP16 | AITER-1stage, vLLM (RCCL + 2-stage CK) | **`1.875x`**（`1.06x–2.87x`） | `21.6%`（算术均值 `34.2%`，`1.4%–92.0%`） | `S=16K` 六模型瓶颈利用率达 **`58.0%–92.0%`** |
 
-在双节点 **16x AMD MI308X（EP16，xGMI + GDA RDMA）** 大批量场景下，Weave 与官方 `RCCL + AITER` 分离基线的实测延迟对比如下：
+在双节点 **16x AMD MI308X（EP16，xGMI + GDA RDMA）** 大批量场景下，Weave 与最强官方基线（`AITER-1stage` / `vLLM 2-stage`，与图及 [results/mi308x_ep16_weave_best_30cells.csv](results/mi308x_ep16_weave_best_30cells.csv) 严格一致）的实测延迟对比如下：
 
-| 模型（16x MI308X EP16） | 全局 Token 数 `S` | Weave | RCCL + AITER | 加速比 |
+| 模型（16x MI308X EP16） | 全局 Token 数 `S` | Weave | 最强官方基线 | 加速比 |
 |---|---:|---:|---:|---:|
-| `Qwen3.8-Max` 2.4T | `16384` | **`6,981.1 us`** | `17,156.9 us` | **`2.458x`** |
-| `Qwen3.5-397B` | `16384` | **`2,363.4 us`** | `6,955.1 us` | **`2.943x`** |
-| `MiniMax M3` | `16384` | **`3,519.2 us`** | `7,876.9 us` | **`2.238x`** |
-| `DeepSeek-V4-Flash` | `16384` | **`2,573.0 us`** | `5,969.4 us` | **`2.320x`** |
-| `Qwen3.5-122B` | `8192` | **`1,091.1 us`** | `2,374.1 us` | **`2.176x`** |
-| `Qwen3.5-35B` | `8192` | **`850.0 us`** | `1,562.2 us` | **`1.838x`** |
+| `Qwen3.8-Max` 2.4T | `16384` | **`6,981.1 us`** | `17,840.4 us` | **`2.556x`** |
+| `Qwen3.5-397B` | `16384` | **`2,363.4 us`** | `6,499.1 us` | **`2.750x`** |
+| `MiniMax M3` | `16384` | **`3,519.2 us`** | `8,100.0 us` | **`2.302x`** |
+| `DeepSeek-V4-Flash` | `16384` | **`2,573.0 us`** | `4,989.0 us` | **`1.939x`** |
+| `Qwen3.5-122B` | `16384` | **`1,728.6 us`** | `4,172.8 us` | **`2.414x`** |
+| `Qwen3.5-35B` | `16384` | **`1,284.7 us`** | `2,665.1 us` | **`2.075x`** |
+
+在单机 **8x AMD MI308X（EP8）** 上，引入 CDNA3 AGPR 双累加器 `BK=128` MFMA 主循环（单算子稠密 FP8 GEMM 实测 **`443.4 TFLOPS`**，达动态主频管线上限 `461.3T` 的 **`96.1%`**）并融合 Stage-2 `BN=256` Split-B 与 `BM=64` XCD-L2 复用（`232 VGPR / 0 spill`，`1 CTA/CU`）后，全 30 格相对 `AITER` 几何平均加速 **`1.255x`**（**6/6 模型全部领先 `AITER`**，相对最强官方 EP8 基线 **`1.084x`**；完整回执见 [results/ep8_mi308x_agpr_champion_30cells.json](results/ep8_mi308x_agpr_champion_30cells.json)）：
+
+| 模型（8x MI308X EP8） | 5 档 `S` 几何平均 vs `AITER` | `S=1024` 延迟 | `S=8192` 延迟 | `S=16384` 延迟 |
+|---|---:|---:|---:|---:|
+| `MiniMax M3` | **`1.471x`** | `1,005.5 us` | `4,264.3 us` | `7,960.9 us` |
+| `Qwen3.5-122B` | **`1.417x`** | `691.5 us` | `2,410.5 us` | `4,457.0 us` |
+| `Qwen3.5-35B` | **`1.375x`** | `545.7 us` | `1,685.8 us` | `3,122.5 us` |
+| `Qwen3.5-397B` | **`1.194x`** | `1,045.9 us` | `3,238.5 us` | `6,134.6 us` |
+| `Qwen3.8-Max` 2.4T | **`1.073x`** | `2,005.5 us` | `7,722.2 us` | `14,605.4 us` |
+| `DeepSeek-V4-Flash` | **`1.063x`** | `971.0 us` | `2,966.5 us` | `5,902.6 us` |
 
 ## WeaveProfiler 软硬件对齐时间线
 
@@ -74,13 +85,16 @@ python -c "from deep_gemm.mega import SymmBuffer, weave_mega_moe"
 
 ![NVIDIA H20 WeaveProfiler SW+HW 时间线](docs/figures/weaveprofiler_h20_timeline.png)
 
-![AMD MI308X WeaveProfiler SW+HW 时间线](docs/figures/weaveprofiler_mi308x_timeline.png)
+![AMD MI308X 双机 16x EP16 WeaveProfiler SW+HW 时间线](docs/figures/weaveprofiler_mi308x_timeline.png)
 
-三张四面板时间线均由 WeaveProfiler 在同一次内核执行中同步采集软件阶段轨迹与硬件性能计数器（Panel A：对齐的硬件资源利用率曲线；Panel B：全卡物理 SM/CU 瀑布图；Panel C：代表性 SM/CU 全量 Warp/Wave64 角色轨道；Panel D：确定性微观时间窗放大）：
+![AMD MI308X 单机 8x EP8 WeaveProfiler SW+HW 时间线](docs/figures/weaveprofiler_mi308x_ep8_timeline.png)
+
+四张四面板时间线均由 WeaveProfiler 在同一次内核执行中同步采集软件阶段轨迹与硬件性能计数器（Panel A：对齐的硬件资源利用率曲线；Panel B：全卡物理 SM/CU 瀑布图；Panel C：代表性 SM/CU 全量 Warp/Wave64 角色轨道；Panel D：确定性微观时间窗放大）。AMD MI308X 的 Panel A 统一采用动态主频周期域占空比 `100 * dSQ_VALU_MFMA_BUSY_CYCLES / (80 * dGRBM_GUI_ACTIVE)` 标定，消除规格表 `398.7T` 静态分母失真：
 
 - **NVIDIA SM103 (148-SM)，4x EP4，`Qwen3.8-2.4T S=1024`（`FP8 x NVFP4`）**：200 kHz `nsys` 硬件采样对齐全部 148 个物理 SM 与 SM 42 的 16 个 warp。首部 `V_HEAD` 协助拉取快速喂满首轮输入，主体阶段 HBM 带宽峰值达 **`92.0%`**（全程均值 `72.8%`）、活跃 SM 均值 **`98.6%`**，Panel C/D 同步呈现逐 warp 的 `MEM d=0..19` 与 `MMA d=0..1` 异步流水线在途深度带及发射针标。
 - **NVIDIA H20 (78-SM)，4x EP4，`Qwen3.5-35B S=16384`（`FP8`）**：200 kHz `nsys` 硬件采样对齐 78 个物理 SM 与 SM 54 的 20 个 warp。通信 warp（`W00..W07`）在完成远端拉取后无缝切换为后台 `smem` 异步 Scatter，使 Tensor Core 利用率持续稳定在 **`75%–96%`**，Panel C/D（`700–730 us`）清晰展示 `MEM d=0..2`、`MMA d=0..1` 异步流水深度与 `NVLink Scatter` 的三路并发重叠。
-- **AMD MI308X (80-CU)，双机 16x EP16，`Qwen3.8-2.4T S=16384`（`FP8`）**：`rocprofiler-sdk` 硬件计数器同步对齐全部 80 个物理 CU（`0–6,633.0 us`，`overflow 0`，`256 VGPR / 0 spill`），展示 `(0,8)` 纯计算 CU 与 `(4,4)` 通算混合 CU 的跨单元协同；在混合单元 `CU 62`（`3520–3820 us` 微观窗口）上，`W00..W03` 持续运行 Stage-1/Stage-2 MFMA 计算，`W04..W07` 并发重叠节点间 RDMA 与节点内 `xGMI` 传输，FP8 Matrix Core 峰值利用率达 **`70.4%`**（全程均值 `47.0%`）、节点内 `xGMI TX` 峰值 **`60.5%`**、活跃 CU **`100.0%`**。
+- **AMD MI308X (80-CU)，双机 16x EP16，`Qwen3.8-2.4T S=16384`（`FP8`）**：`rocprofiler-sdk` DCS 硬件计数器同步对齐全部 80 个物理 CU（`0–6,633.0 us`，`overflow 0`，`0 spill`），展示 `(0,8)` 纯计算 CU 与 `(4,4)` 通算混合 CU 的跨单元协同；在混合单元 `CU 62`（`3520–3820 us` 微观窗口）上，`W00..W03` 持续运行 Stage-1/Stage-2 MFMA 计算，`W04..W07` 并发重叠节点间 RDMA 与节点内 `xGMI` 传输。经动态主频周期域标定后，整卡 FP8 Matrix Core 管线占空比峰值达 **`62.2%`**（全程均值 `41.4%`；`540/640` 计算 Wave 池等效 **`73.7%`**），HBM3 带宽峰值 **`33.1%`**（均值 `20.5%`）、节点内 `xGMI TX` 峰值 **`60.5%`**、`xGMI RX` 峰值 **`15.0%`**、活跃 CU **`100.0%`**（GPU 直发绕过主机网卡统计的跨机 RDMA 计数器显式标注而不补零）。
+- **AMD MI308X (80-CU)，单机 8x EP8，`Qwen3.8-2.4T S=8192`（`FP8`）**：基于最新 AGPR/MFMA 单核的 `rocprofiler-sdk` DCS 同次采集（`0–7,679.9 us`，`overflow 0`，`239 VGPR / 0 spill`），对齐全部 80 个物理 CU 与 `CU 0` 的 8 条 Wave（`5750–6450 us` 微观窗口展示 `GEMM2 -> Scatter_xGMI -> Home_Combine` 的全 8-Wave 时间角色切换）。8 条 Wave 在完成开场分发后全部切入 8-Wave 全算力矩阵计算，FP8 Matrix Core 管线占空比峰值达 **`51.8%`**（均值 `30.5%`）、HBM3 带宽峰值 **`30.4%`**（均值 `19.9%`）、`xGMI TX` 峰值 **`47.3%`**、活跃 CU 峰值 **`100.0%`**（均值 `99.9%`）。
 
 ## 统一核心 WEAVE_* 参数
 

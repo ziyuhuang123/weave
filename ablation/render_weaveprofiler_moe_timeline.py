@@ -400,6 +400,7 @@ PLATFORMS = {
         unit="CU", n_units=80, pid_base=100, counter_pid=1, rank_label="rank 0",
         hw_tool="rocprof", comm_name="xGMI", arch_prefixes=("gfx942",),
         curves={
+            "compute_util [FP8 Matrix Core Pipe Active %]": ("compute", "Compute \u2014 FP8 Matrix Core Pipe Active %"),
             "compute_util [FP8 Matrix Core % of 606.2T]": ("compute", "Compute \u2014 FP8 Matrix Core % of 606.2T"),
             "memory_util [HBM3 Bandwidth % of 3684GB/s]": ("hbm", "HBM \u2014 HBM3 Bandwidth % of 3684GB/s"),
             "communication_util [xGMI P2P % of 287.2GB/s]": ("comm", "xGMI \u2014 P2P % of 287.2GB/s"),

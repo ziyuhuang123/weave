@@ -57,16 +57,27 @@ Across **90 evaluation cells** (3 hardware platforms x 6 MoE models x 5 global t
 | **8x NVIDIA H20 (SM90)**, EP8 | DeepGEMM-MegaMoE, FlashInfer | **`1.212x`** (`1.01x–1.61x`) | `53.6%` (`13.3%–85.5%`) | **`1.18x–1.61x`** at `S <= 1K`; `85.5%` compute peak at `S=16K` |
 | **16x AMD MI308X (CDNA3)**, 2-node EP16 | AITER-1stage, vLLM (RCCL + 2-stage CK) | **`1.875x`** (`1.06x–2.87x`) | `21.6%` (mean `34.2%`, `1.4%–92.0%`) | **`58.0%–92.0%`** bound util. across all 6 models at `S=16K` |
 
-Representative large-batch latencies on **2-node 16x AMD MI308X (EP16, xGMI + GDA RDMA)** against `RCCL + AITER`:
+Representative large-batch latencies on **2-node 16x AMD MI308X (EP16, xGMI + GDA RDMA)** against fastest official baseline (`AITER-1stage` / `vLLM 2-stage`, matching [results/mi308x_ep16_weave_best_30cells.csv](results/mi308x_ep16_weave_best_30cells.csv)):
 
-| Model (16x MI308X EP16) | Global tokens `S` | Weave | RCCL + AITER | Speedup |
+| Model (16x MI308X EP16) | Global tokens `S` | Weave | Fastest official | Speedup |
 |---|---:|---:|---:|---:|
-| `Qwen3.8-Max` 2.4T | `16384` | **`6,981.1 us`** | `17,156.9 us` | **`2.458x`** |
-| `Qwen3.5-397B` | `16384` | **`2,363.4 us`** | `6,955.1 us` | **`2.943x`** |
-| `MiniMax M3` | `16384` | **`3,519.2 us`** | `7,876.9 us` | **`2.238x`** |
-| `DeepSeek-V4-Flash` | `16384` | **`2,573.0 us`** | `5,969.4 us` | **`2.320x`** |
-| `Qwen3.5-122B` | `8192` | **`1,091.1 us`** | `2,374.1 us` | **`2.176x`** |
-| `Qwen3.5-35B` | `8192` | **`850.0 us`** | `1,562.2 us` | **`1.838x`** |
+| `Qwen3.8-Max` 2.4T | `16384` | **`6,981.1 us`** | `17,840.4 us` | **`2.556x`** |
+| `Qwen3.5-397B` | `16384` | **`2,363.4 us`** | `6,499.1 us` | **`2.750x`** |
+| `MiniMax M3` | `16384` | **`3,519.2 us`** | `8,100.0 us` | **`2.302x`** |
+| `DeepSeek-V4-Flash` | `16384` | **`2,573.0 us`** | `4,989.0 us` | **`1.939x`** |
+| `Qwen3.5-122B` | `16384` | **`1,728.6 us`** | `4,172.8 us` | **`2.414x`** |
+| `Qwen3.5-35B` | `16384` | **`1,284.7 us`** | `2,665.1 us` | **`2.075x`** |
+
+On **single-node 8x AMD MI308X (EP8)**, integrating the CDNA3 AGPR double-accumulator `BK=128` MFMA core (`443.4 TFLOPS` standalone dense FP8 GEMM = `96.1%` of dynamic-clock pipe peak at `~1.408 GHz`) with Stage-2 `BN=256` Split-B and `BM=64` XCD-L2 reuse (`232 VGPR / 0 spill`, `1 CTA/CU`) achieves **`1.255x`** 30-cell geometric-mean speedup over `AITER` (`6/6` models faster than `AITER`, **`1.084x`** over the strongest official EP8 baseline; full ledger in [results/ep8_mi308x_agpr_champion_30cells.json](results/ep8_mi308x_agpr_champion_30cells.json)):
+
+| Model (8x MI308X EP8) | 5-`S` geomean vs `AITER` | `S=1024` latency | `S=8192` latency | `S=16384` latency |
+|---|---:|---:|---:|---:|
+| `MiniMax M3` | **`1.471x`** | `1,005.5 us` | `4,264.3 us` | `7,960.9 us` |
+| `Qwen3.5-122B` | **`1.417x`** | `691.5 us` | `2,410.5 us` | `4,457.0 us` |
+| `Qwen3.5-35B` | **`1.375x`** | `545.7 us` | `1,685.8 us` | `3,122.5 us` |
+| `Qwen3.5-397B` | **`1.194x`** | `1,045.9 us` | `3,238.5 us` | `6,134.6 us` |
+| `Qwen3.8-Max` 2.4T | **`1.073x`** | `2,005.5 us` | `7,722.2 us` | `14,605.4 us` |
+| `DeepSeek-V4-Flash` | **`1.063x`** | `971.0 us` | `2,966.5 us` | `5,902.6 us` |
 
 ## WeaveProfiler software + hardware timelines
 
@@ -74,13 +85,16 @@ Representative large-batch latencies on **2-node 16x AMD MI308X (EP16, xGMI + GD
 
 ![NVIDIA H20 WeaveProfiler SW+HW Timeline](docs/figures/weaveprofiler_h20_timeline.png)
 
-![AMD MI308X WeaveProfiler SW+HW Timeline](docs/figures/weaveprofiler_mi308x_timeline.png)
+![AMD MI308X 16x EP16 WeaveProfiler SW+HW Timeline](docs/figures/weaveprofiler_mi308x_timeline.png)
 
-Each 4-panel timeline is captured from a single execution aligning cycle-accurate on-device software traces with hardware PMU curves (Panel A: aligned hardware utilization curves; Panel B: all physical SMs/CUs; Panel C: full warp/wavefront tracks of a representative SM/CU; Panel D: deterministic micro-zoom):
+![AMD MI308X 8x EP8 WeaveProfiler SW+HW Timeline](docs/figures/weaveprofiler_mi308x_ep8_timeline.png)
+
+Each 4-panel timeline is captured from a single execution aligning cycle-accurate on-device software traces with hardware PMU curves (Panel A: aligned hardware utilization curves; Panel B: all physical SMs/CUs; Panel C: full warp/wavefront tracks of a representative SM/CU; Panel D: deterministic micro-zoom). On AMD MI308X, Panel A computes exact dynamic-clock Matrix Core pipe duty (`100 * dSQ_VALU_MFMA_BUSY_CYCLES / (80 * dGRBM_GUI_ACTIVE)`), eliminating static `398.7T` SKU denominator distortion:
 
 - **NVIDIA SM103 (148-SM), 4x EP4, `Qwen3.8-2.4T S=1024` (`FP8 x NVFP4`)**: 200 kHz `nsys` capture across all 148 SMs and all 16 warps of SM 42. Helper pull (`V_HEAD`) populates initial tiles rapidly, sustaining **`92.0%`** peak HBM bandwidth (`72.8%` mean) and **`98.6%`** mean active SMs, while Panels C/D resolve per-warp `MEM d=0..19` and `MMA d=0..1` asynchronous pipeline depth strips and issue pins.
 - **NVIDIA H20 (78-SM), 4x EP4, `Qwen3.5-35B S=16384` (`FP8`)**: 200 kHz `nsys` capture across all 78 SMs and all 20 warps of SM 54. Freed communication warps (`W00..W07`) transition directly from remote pull into `smem` async scatter, keeping Tensor Core activity at **`75%–96%`** while Panels C/D (`700–730 us`) show concurrent `MEM d=0..2`, `MMA d=0..1`, and `NVLink Scatter`.
-- **AMD MI308X (80-CU), 2-node 16x EP16, `Qwen3.8-2.4T S=16384` (`FP8`)**: `rocprofiler-sdk` PMC capture across all 80 CUs (`0–6,633.0 us`, `overflow 0`, `256 VGPR / 0 spill`) showing co-resident `(0,8)` compute-rich CUs and `(4,4)` hybrid CUs; on hybrid `CU 62` (`3520–3820 us` micro-zoom), `W00..W03` sustain Stage-1/Stage-2 MFMA compute while `W04..W07` overlap inter-node RDMA and intra-node `xGMI` transfers, reaching **`70.4%`** peak FP8 Matrix Core utilization (`47.0%` mean), **`60.5%`** peak intra-node `xGMI TX`, and **`100.0%`** active CUs.
+- **AMD MI308X (80-CU), 2-node 16x EP16, `Qwen3.8-2.4T S=16384` (`FP8`)**: `rocprofiler-sdk` DCS hardware capture across all 80 physical CUs (`0–6,633.0 us`, `overflow 0`, `0 spill`) showing co-resident `(0,8)` compute-rich CUs and `(4,4)` hybrid CUs; on hybrid `CU 62` (`3520–3820 us` micro-zoom), `W00..W03` sustain Stage-1/Stage-2 MFMA compute while `W04..W07` concurrently overlap inter-node RDMA and intra-node `xGMI` transfers. Calibrated GPU-wide FP8 Matrix Core pipe duty reaches **`62.2%`** peak (`41.4%` mean; `73.7%` effective across the `540/640` compute wave pool), with **`33.1%`** peak HBM3 bandwidth (`20.5%` mean), **`60.5%`** peak intra-node `xGMI TX`, **`15.0%`** peak `xGMI RX`, and **`100.0%`** active CUs (inter-node RDMA NIC counters are omitted rather than zero-filled when bypassed by GPU-initiated rings).
+- **AMD MI308X (80-CU), 1-node 8x EP8, `Qwen3.8-2.4T S=8192` (`FP8`)**: `rocprofiler-sdk` DCS hardware capture of the AGPR/MFMA EP8 megakernel (`0–7,679.9 us`, `overflow 0`, `239 VGPR / 0 spill`) across all 80 physical CUs and all 8 waves of `CU 0` (`5750–6450 us` micro-zoom across the `GEMM2 -> Scatter_xGMI -> Home_Combine` temporal role transition). All 8 waves dynamically transition from opening Dispatch/Plan into full 8-wave compute and then collective Scatter/Combine, reaching **`51.8%`** peak FP8 Matrix Core pipe duty (`30.5%` mean), **`30.4%`** peak HBM3 bandwidth (`19.9%` mean), **`47.3%`** peak `xGMI TX`, and **`100.0%`** peak (`99.9%` mean) active CUs.
 
 ## Unified core WEAVE_* parameters
 

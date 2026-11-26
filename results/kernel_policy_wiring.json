@@ -5,7 +5,7 @@
     "b300": {
       "exists": true,
       "path": "deep_gemm\\include\\deep_gemm\\impls\\sm100_fp8_fp4_mega_moe.cuh",
-      "bytes": 421580,
+      "bytes": 421868,
       "checks": {
         "scheduler_include": {
           "needle": "scheduler/mega_moe.cuh",

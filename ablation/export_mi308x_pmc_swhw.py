@@ -135,7 +135,7 @@ FORBIDDEN = [base64.b64decode(x).decode("utf-8") for x in _FORBIDDEN_B64]
 KNOWN_EVENT_IDS = set(RAW_EVENT_SPECS) | set(EP16_RAW_EVENT_SPECS)
 
 CURVE_NAMES = {
-    "compute": "compute_util [FP8 Matrix Core % of 606.2T]",
+    "compute": "compute_util [FP8 Matrix Core Pipe Active %]",
     "hbm": "memory_util [HBM3 Bandwidth % of 3684GB/s]",
     "comm": "communication_util [xGMI P2P % of 287.2GB/s]",
     "comm_rx": "communication_rx_util [xGMI RX (In) % of 287.2GB/s]",
@@ -143,6 +143,9 @@ CURVE_NAMES = {
     "active": "sm_active [Active MI308X CUs % of 80]",
 }
 P2P_LANDING_RX_NAME = "communication_rx_util [xGMI P2P RX (In) % of 287.2GB/s]"
+PEAK_FP8_TFLOPS = 461.27
+NOMINAL_SKU_FP8_TFLOPS = 398.7
+FP8_FLOPS_PER_MFMA_BUSY_CYCLE = 1024.0
 PEAK_HBM_GBPS = 3684.0
 PEAK_XGMI_GBPS = 287.2
 PMC_MAGIC = 0x504D4353414D504C
@@ -359,7 +362,9 @@ def build_hw_series(meta, samples, t0_ns: int, t1_ns: int, n_xcc: int, n_cu: int
         if dt_ns <= 0:
             continue
         dt_s = dt_ns / 1e9
-        ts_us = round((b[1] - t0_ns) / 1000.0, 3)
+        # Stamp each interval delta C[b] - C[a] at the interval midpoint (a + b) / 2
+        # so hardware curves align without a +dt/2 (~67 us) right-edge lag relative to SW spans.
+        ts_us = round((0.5 * (a[1] + b[1]) - t0_ns) / 1000.0, 3)
         gui = d("GRBM_GUI_ACTIVE", a, b)
         if gui <= 0:
             continue
@@ -370,7 +375,13 @@ def build_hw_series(meta, samples, t0_ns: int, t1_ns: int, n_xcc: int, n_cu: int
             compute = d("SQ_BUSY_CYCLES", a, b) / (gui_xcc * 4.0 * n_cu) * 100.0
         elif compute_mode == "valu_thread_cycles":
             compute = d("SQ_THREAD_CYCLES_VALU", a, b) / (gui_xcc * 4.0 * n_cu) * 100.0
+        elif compute_mode == "nominal_398t":
+            compute = (d("SQ_VALU_MFMA_BUSY_CYCLES", a, b) * FP8_FLOPS_PER_MFMA_BUSY_CYCLE) \
+                / dt_s / (NOMINAL_SKU_FP8_TFLOPS * 1e12) * 100.0
         else:
+            # Exact CDNA3 cycle-domain Matrix Core pipe duty:
+            # GRBM_GUI_ACTIVE / 4 counts real elapsed shader cycles per XCC at live dynamic clock
+            # (~1.38-1.41 GHz -> 451.5-461.3 TFLOPS ceiling; 443.4T dense GEMM = 96.1% <= 100%).
             compute = 100.0 * d("SQ_VALU_MFMA_BUSY_CYCLES", a, b) / (n_cu * gui)
         # HBM3 is a shared half-duplex bus: Read + Write MUST be summed.
         hbm = (d("TCC_EA0_RDREQ_DRAM", a, b) + d("TCC_EA0_WRREQ_DRAM", a, b)) * 64.0 \
@@ -790,7 +801,9 @@ def build_trace(dump: str, pmc_bin: str, pmc_json: str, out_gz: str, model: str,
         "compute": ("SQ_THREAD_CYCLES_VALU (SQ event 118) / (GRBM_GUI_ACTIVE/4 * 4 SIMD * "
                     f"{n_cu} CU) * 100"
                     if compute_mode == "valu_thread_cycles" else
-                    f"100 * SQ_VALU_MFMA_BUSY_CYCLES / ({n_cu} * GRBM_GUI_ACTIVE)"),
+                    f"100 * (SQ_VALU_MFMA_BUSY_CYCLES * 1024 FLOPs) / dt / {NOMINAL_SKU_FP8_TFLOPS}T"
+                    if compute_mode == "nominal_398t" else
+                    f"100 * SQ_VALU_MFMA_BUSY_CYCLES / ({n_cu} * GRBM_GUI_ACTIVE) (exact CDNA3 Matrix Core cycle duty)"),
         "hbm": "(TCC_EA0_RDREQ_DRAM + TCC_EA0_WRREQ_DRAM) * 64B / dt / 3684GB/s (half-duplex shared HBM3 bus)",
         "comm_rx": (f"TCC_EA0_WRREQ_DRAM * 64B / dt / {PEAK_XGMI_GBPS}GB/s (incoming xGMI P2P RX landing only, unmerged)"
                     if comm_mode == "p2p_landing" else
@@ -901,10 +914,10 @@ def main() -> None:
                     help="expert-parallel world size of the capture (8 = EP8, 16 = 2-node EP16)")
     ap.add_argument("--compute-pass", nargs=3, metavar=("BIN", "JSON", "DUMP"), default=None,
                     help="second DCS pass (pmc bin, pmc json, FI dump) supplying the MFMA compute curve")
-    ap.add_argument("--compute-pass-mode", default="mfma_busy",
-                    choices=("mfma_busy", "sq_busy", "valu_thread_cycles", "none"))
+    ap.add_argument("--compute-pass-mode", default="mfma_pipe_duty",
+                    choices=("mfma_busy", "mfma_pipe_duty", "nominal_398t", "sq_busy", "valu_thread_cycles", "none"))
     a = ap.parse_args()
-    compute_mode = "none" if (a.ep == 16 and a.compute_pass) else "mfma_busy"
+    compute_mode = "none" if a.compute_pass else "mfma_busy"
     rep, hwrep = build_trace(a.dump_bin, a.pmc_bin, a.pmc_json, a.out, a.model, a.seqlen,
                              a.uninstrumented_us, a.rank, a.arm, json.loads(a.env_cfg),
                              a.comm_mode, a.comm_counter, a.n_xcc, a.n_cu, a.pad_us,

@@ -646,11 +646,15 @@ __device__ __forceinline__ bool v1864_wave_wait_ge(
 // w5 6-model generalization).  The carrier already declares g_v1262_phase_arena
 // via v1262_subwave_barrier.hpp, so suppress the winner's redeclaration.
 // ===========================================================================
+#ifndef WEAVE_CO_PROFILE
+#define WEAVE_CO_PROFILE 0
+#endif
 #define WEAVE_BK64_ARENA_DECLARED 1
 #include "gemm_bk64_winner.hpp"
 #define WEAVE_STAGE1_GATHER_IDS(env) \
   (reinterpret_cast<int*>((env).ck.ck_sorted_token_ids))
 #include "direct_gather_and_greedy_tiles.hpp"
+#include "weave_ep8_agpr_champion.hpp"
 #include "weave_comm_4wave_turbo.hpp"
 #include "sub6_6models_generalize.hpp"
 
@@ -814,6 +818,7 @@ __device__ __forceinline__ int32_t* weave_v4_small_tile_scratch(
 
 __device__ __forceinline__ void weave_v4_gemm1_direct(
     const V968DispatchExt& env, const V983Ov1Ext& o, unsigned char* arena, bool split_128 FI_CTX_PARAM) {
+  (void)split_128;
   const V964DispatchExt& e = env.base;
   const V968CkExt& ck = env.ck;
   const unsigned cta = blockIdx.x, tid = threadIdx.x & 255u;
@@ -827,7 +832,6 @@ __device__ __forceinline__ void weave_v4_gemm1_direct(
   const unsigned num_tokens = e.world * e.capacity;
   const int32_t* stage1_ids = reinterpret_cast<const int32_t*>(ck.ck_sorted_token_ids);
   const unsigned* recv_ready = reinterpret_cast<const unsigned*>(o.recv_payload_ready);
-  volatile WeaveBk64LocalU32* sh_tile = reinterpret_cast<volatile WeaveBk64LocalU32*>(reinterpret_cast<uintptr_t>(g_v1262_phase_arena + 65472u + grp_sh));
 
   for (;;) {
     const unsigned tile = weave_v4_next_tile(trace + 11u, arena);
@@ -835,13 +839,6 @@ __device__ __forceinline__ void weave_v4_gemm1_direct(
     if (tile >= total_m_tiles * n1_blocks) break;
     const unsigned mt = __builtin_amdgcn_readfirstlane(tile / n1_blocks);
     const unsigned n1 = __builtin_amdgcn_readfirstlane(tile - mt * n1_blocks);
-    const WeaveMTileDesc d_raw = tiles[mt];
-    WeaveMTileDesc d;
-    d.expert_id  = __builtin_amdgcn_readfirstlane(d_raw.expert_id);
-    d.row_start  = __builtin_amdgcn_readfirstlane(d_raw.row_start);
-    d.bm         = static_cast<uint16_t>(__builtin_amdgcn_readfirstlane(d_raw.bm));
-    d.valid_rows = static_cast<uint16_t>(__builtin_amdgcn_readfirstlane(d_raw.valid_rows));
-    d.tile_idx   = __builtin_amdgcn_readfirstlane(d_raw.tile_idx);
     const unsigned run = __builtin_amdgcn_readfirstlane(plan->total_padded_rows);
     const unsigned pad_gather = __builtin_amdgcn_readfirstlane(plan->pad_gather_slot);
     const unsigned char* recv_payload = reinterpret_cast<const unsigned char*>(
@@ -850,14 +847,21 @@ __device__ __forceinline__ void weave_v4_gemm1_direct(
     const float* recv_scale = reinterpret_cast<const float*>(
         reinterpret_cast<const uint64_t*>(e.peer_scale_table)[e.rank]) -
         static_cast<uint64_t>(e.rank) * e.capacity * e.scale_groups;
+    const WeaveMTileDesc d_raw = tiles[mt];
+    WeaveMTileDesc d;
+    d.expert_id  = __builtin_amdgcn_readfirstlane(d_raw.expert_id);
+    d.row_start  = __builtin_amdgcn_readfirstlane(d_raw.row_start);
+    d.bm         = static_cast<uint16_t>(__builtin_amdgcn_readfirstlane(d_raw.bm));
+    d.valid_rows = static_cast<uint16_t>(__builtin_amdgcn_readfirstlane(d_raw.valid_rows));
+    d.tile_idx   = __builtin_amdgcn_readfirstlane(d_raw.tile_idx);
     // Cache one validated readiness bit per M tile; every launch resets this array.
     auto* cached_ready = reinterpret_cast<unsigned*>(o.a_tile_ready) + mt;
-    volatile WeaveBk64LocalU32* cached_sh = reinterpret_cast<volatile WeaveBk64LocalU32*>(reinterpret_cast<uintptr_t>(g_v1262_phase_arena + 65488u + grp_sh));
+    volatile WeaveBk64LocalU32* cached_sh = reinterpret_cast<volatile WeaveBk64LocalU32*>(
+        reinterpret_cast<uintptr_t>(g_v1262_phase_arena + 65488u + grp_sh));
     if (tid == 0u)
       *cached_sh = __hip_atomic_load(cached_ready, __ATOMIC_RELAXED, __HIP_MEMORY_SCOPE_AGENT);
     weave_4wave_barrier_65440(arena);
     if (*cached_sh != 0u) {
-      // Each participating thread acquires the producer's validated payload state.
       const unsigned ready = __hip_atomic_load(cached_ready, __ATOMIC_ACQUIRE,
                                                __HIP_MEMORY_SCOPE_AGENT);
       asm volatile("" :: "v"(ready) : "memory");
@@ -876,134 +880,79 @@ __device__ __forceinline__ void weave_v4_gemm1_direct(
     FI_BG(V1988_FI_CORE, V1988_EV_GEMM1_TILE, g1_aux);
     const int32_t* ids = stage1_ids + d.row_start;
 #if (WEAVE_BLOCK_M_L1) != 0
-    // WEAVE_BLOCK_M_L1 = C: Stage-1 execution blockM cap.  A plan tile with
-    // bm > C runs as ceil(valid_rows / C) chunks of the BM=C kernel (same
-    // ids/row offsets as the split_128 chunk loop below).  Under the 8-wave
-    // split each group owns half the LDS, so C = 128 defers to that 64-row loop.
-    if (d.bm > (WEAVE_BLOCK_M_L1) && ((WEAVE_BLOCK_M_L1) <= 64u || !split_128)) {
+    if (d.bm > (WEAVE_BLOCK_M_L1)) {
       #pragma clang loop unroll(disable)
       for (unsigned r_off = 0u; r_off < d.valid_rows; r_off += (WEAVE_BLOCK_M_L1)) {
         const unsigned r_rem = d.valid_rows - r_off;
         const unsigned chunk = (r_rem > (WEAVE_BLOCK_M_L1)) ? (WEAVE_BLOCK_M_L1) : r_rem;
-        weave_dispatch_stage1_bk64<(WEAVE_BLOCK_M_L1)>(ids + r_off, (int32_t)d.expert_id, recv_payload,
+        weave_ep8_dispatch_stage1_agpr<(WEAVE_BLOCK_M_L1)>(ids + r_off, (int32_t)d.expert_id, recv_payload,
             reinterpret_cast<const uint8_t*>(ck.ck_b), recv_scale,
-            reinterpret_cast<const float*>(ck.ck_b_scale), nullptr,
+            reinterpret_cast<const float*>(ck.ck_b_scale),
             reinterpret_cast<uint8_t*>(ck.ck_quant_output),
             reinterpret_cast<float*>(ck.ck_quant_scale), d.row_start + r_off, chunk, n1,
             num_tokens, run, ck.ck_intermediate, ck.ck_hidden, arena);
       }
     } else
 #endif
-    if (split_128 && (d.bm == 128u || d.bm == 256u)) {
+    if (d.bm >= 128u) {
       #pragma clang loop unroll(disable)
       for (unsigned r_off = 0u; r_off < d.valid_rows; r_off += 64u) {
+        if (r_off > 0u) weave_4wave_lds_barrier_65440(arena);
         const unsigned r_rem = d.valid_rows - r_off;
         const unsigned chunk = (r_rem > 64u) ? 64u : r_rem;
+        const int32_t* ids_c = ids + r_off;
+        const unsigned rs_c = d.row_start + r_off;
         if (chunk > 32u) {
-          weave_dispatch_stage1_bk64<64u>(ids + r_off, (int32_t)d.expert_id, recv_payload,
+          weave_ep8_dispatch_stage1_agpr<64u>(ids_c, (int32_t)d.expert_id, recv_payload,
               reinterpret_cast<const uint8_t*>(ck.ck_b), recv_scale,
-              reinterpret_cast<const float*>(ck.ck_b_scale), nullptr,
+              reinterpret_cast<const float*>(ck.ck_b_scale),
               reinterpret_cast<uint8_t*>(ck.ck_quant_output),
-              reinterpret_cast<float*>(ck.ck_quant_scale), d.row_start + r_off, chunk, n1,
+              reinterpret_cast<float*>(ck.ck_quant_scale), rs_c, chunk, n1,
               num_tokens, run, ck.ck_intermediate, ck.ck_hidden, arena);
         } else if (chunk > 16u) {
-          weave_dispatch_stage1_bk64<32u>(ids + r_off, (int32_t)d.expert_id, recv_payload,
+          weave_ep8_dispatch_stage1_agpr<32u>(ids_c, (int32_t)d.expert_id, recv_payload,
               reinterpret_cast<const uint8_t*>(ck.ck_b), recv_scale,
-              reinterpret_cast<const float*>(ck.ck_b_scale), nullptr,
+              reinterpret_cast<const float*>(ck.ck_b_scale),
               reinterpret_cast<uint8_t*>(ck.ck_quant_output),
-              reinterpret_cast<float*>(ck.ck_quant_scale), d.row_start + r_off, chunk, n1,
+              reinterpret_cast<float*>(ck.ck_quant_scale), rs_c, chunk, n1,
               num_tokens, run, ck.ck_intermediate, ck.ck_hidden, arena);
         } else {
-          weave_dispatch_stage1_bk64<16u>(ids + r_off, (int32_t)d.expert_id, recv_payload,
+          weave_ep8_dispatch_stage1_agpr<16u>(ids_c, (int32_t)d.expert_id, recv_payload,
               reinterpret_cast<const uint8_t*>(ck.ck_b), recv_scale,
-              reinterpret_cast<const float*>(ck.ck_b_scale), nullptr,
+              reinterpret_cast<const float*>(ck.ck_b_scale),
               reinterpret_cast<uint8_t*>(ck.ck_quant_output),
-              reinterpret_cast<float*>(ck.ck_quant_scale), d.row_start + r_off, chunk, n1,
+              reinterpret_cast<float*>(ck.ck_quant_scale), rs_c, chunk, n1,
               num_tokens, run, ck.ck_intermediate, ck.ck_hidden, arena);
         }
       }
-    } else if (d.bm == 256u) {
-      const unsigned v0 = (d.valid_rows < 128u) ? d.valid_rows : 128u;
-      weave_dispatch_stage1_bk64<128u>(ids, (int32_t)d.expert_id, recv_payload,
-          reinterpret_cast<const uint8_t*>(ck.ck_b), recv_scale,
-          reinterpret_cast<const float*>(ck.ck_b_scale),
-          nullptr,
-          reinterpret_cast<uint8_t*>(ck.ck_quant_output),
-          reinterpret_cast<float*>(ck.ck_quant_scale), d.row_start, v0, n1,
-          num_tokens, run, ck.ck_intermediate, ck.ck_hidden, arena);
-      if (d.valid_rows > 128u) {
-        const unsigned rem = d.valid_rows - 128u;
-        const int32_t* ids1 = ids + 128u;
-        const unsigned rs1 = d.row_start + 128u;
-        if (rem > 64u) {
-          weave_dispatch_stage1_bk64<128u>(ids1, (int32_t)d.expert_id, recv_payload,
-              reinterpret_cast<const uint8_t*>(ck.ck_b), recv_scale,
-              reinterpret_cast<const float*>(ck.ck_b_scale), nullptr,
-              reinterpret_cast<uint8_t*>(ck.ck_quant_output),
-              reinterpret_cast<float*>(ck.ck_quant_scale), rs1, rem, n1,
-              num_tokens, run, ck.ck_intermediate, ck.ck_hidden, arena);
-        } else if (rem > 32u) {
-          weave_dispatch_stage1_bk64<64u>(ids1, (int32_t)d.expert_id, recv_payload,
-              reinterpret_cast<const uint8_t*>(ck.ck_b), recv_scale,
-              reinterpret_cast<const float*>(ck.ck_b_scale), nullptr,
-              reinterpret_cast<uint8_t*>(ck.ck_quant_output),
-              reinterpret_cast<float*>(ck.ck_quant_scale), rs1, rem, n1,
-              num_tokens, run, ck.ck_intermediate, ck.ck_hidden, arena);
-        } else if (rem > 16u) {
-          weave_dispatch_stage1_bk64<32u>(ids1, (int32_t)d.expert_id, recv_payload,
-              reinterpret_cast<const uint8_t*>(ck.ck_b), recv_scale,
-              reinterpret_cast<const float*>(ck.ck_b_scale), nullptr,
-              reinterpret_cast<uint8_t*>(ck.ck_quant_output),
-              reinterpret_cast<float*>(ck.ck_quant_scale), rs1, rem, n1,
-              num_tokens, run, ck.ck_intermediate, ck.ck_hidden, arena);
-        } else {
-          weave_dispatch_stage1_bk64<16u>(ids1, (int32_t)d.expert_id, recv_payload,
-              reinterpret_cast<const uint8_t*>(ck.ck_b), recv_scale,
-              reinterpret_cast<const float*>(ck.ck_b_scale), nullptr,
-              reinterpret_cast<uint8_t*>(ck.ck_quant_output),
-              reinterpret_cast<float*>(ck.ck_quant_scale), rs1, rem, n1,
-              num_tokens, run, ck.ck_intermediate, ck.ck_hidden, arena);
-        }
-      }
-    } else if (d.bm == 128u) {
-      weave_dispatch_stage1_bk64<128u>(ids, (int32_t)d.expert_id, recv_payload,
-          reinterpret_cast<const uint8_t*>(ck.ck_b), recv_scale,
-          reinterpret_cast<const float*>(ck.ck_b_scale),
-          nullptr,
-          reinterpret_cast<uint8_t*>(ck.ck_quant_output),
-          reinterpret_cast<float*>(ck.ck_quant_scale), d.row_start, d.valid_rows, n1,
-          num_tokens, run, ck.ck_intermediate, ck.ck_hidden, arena);
     } else if (d.bm == 32u) {
-      weave_dispatch_stage1_bk64<32u>(ids, (int32_t)d.expert_id, recv_payload,
+      weave_ep8_dispatch_stage1_agpr<32u>(ids, (int32_t)d.expert_id, recv_payload,
           reinterpret_cast<const uint8_t*>(ck.ck_b), recv_scale,
           reinterpret_cast<const float*>(ck.ck_b_scale),
-          nullptr,
           reinterpret_cast<uint8_t*>(ck.ck_quant_output),
           reinterpret_cast<float*>(ck.ck_quant_scale), d.row_start, d.valid_rows, n1,
           num_tokens, run, ck.ck_intermediate, ck.ck_hidden, arena);
     } else if (d.bm == 16u) {
-      weave_dispatch_stage1_bk64<16u>(ids, (int32_t)d.expert_id, recv_payload,
+      weave_ep8_dispatch_stage1_agpr<16u>(ids, (int32_t)d.expert_id, recv_payload,
           reinterpret_cast<const uint8_t*>(ck.ck_b), recv_scale,
           reinterpret_cast<const float*>(ck.ck_b_scale),
-          nullptr,
           reinterpret_cast<uint8_t*>(ck.ck_quant_output),
           reinterpret_cast<float*>(ck.ck_quant_scale), d.row_start, d.valid_rows, n1,
           num_tokens, run, ck.ck_intermediate, ck.ck_hidden, arena);
     } else {
-      weave_dispatch_stage1_bk64<64u>(ids, (int32_t)d.expert_id, recv_payload,
+      weave_ep8_dispatch_stage1_agpr<64u>(ids, (int32_t)d.expert_id, recv_payload,
           reinterpret_cast<const uint8_t*>(ck.ck_b), recv_scale,
           reinterpret_cast<const float*>(ck.ck_b_scale),
-          nullptr,
           reinterpret_cast<uint8_t*>(ck.ck_quant_output),
           reinterpret_cast<float*>(ck.ck_quant_scale), d.row_start, d.valid_rows, n1,
           num_tokens, run, ck.ck_intermediate, ck.ck_hidden, arena);
     }
+    asm volatile("s_waitcnt vmcnt(0)" ::: "memory");
     __threadfence_block();
     weave_4wave_barrier_65440(arena);
     FI_EG(V1988_FI_CORE, V1988_EV_GEMM1_TILE, g1_aux);
     if (tid == 0u) {
-      const unsigned done_mt = sh_tile[0] / n1_blocks;
-      __hip_atomic_fetch_add(reinterpret_cast<unsigned*>(o.stage1_tile_done) + done_mt,
+      __hip_atomic_fetch_add(reinterpret_cast<unsigned*>(o.stage1_tile_done) + mt,
                              1u, __ATOMIC_RELEASE, __HIP_MEMORY_SCOPE_AGENT);
     }
   }
@@ -1011,6 +960,7 @@ __device__ __forceinline__ void weave_v4_gemm1_direct(
 
 __device__ __forceinline__ void weave_v4_gemm2_direct(
     const V968DispatchExt& env, const V983Ov1Ext& o, unsigned char* arena, bool split_128 FI_CTX_PARAM) {
+  (void)split_128;
   const V964DispatchExt& e = env.base;
   const V968CkExt& ck = env.ck;
   const unsigned cta = blockIdx.x, tid = threadIdx.x & 255u;
@@ -1022,14 +972,15 @@ __device__ __forceinline__ void weave_v4_gemm2_direct(
   if (plan->total_m_tiles == 0u || plan->total_padded_rows == 0u) return;
   const unsigned n1_blocks = ck.ck_intermediate / 128u;
   const unsigned n2_blocks = o.hidden / 128u;
+  const unsigned init_m_tiles = __builtin_amdgcn_readfirstlane(plan->total_m_tiles);
+  const unsigned run = __builtin_amdgcn_readfirstlane(plan->total_padded_rows);
   const int32_t* stage2_ids = reinterpret_cast<const int32_t*>(ck.ck_m64_sorted_ids);
   const float* weights = reinterpret_cast<const float*>(o.stage2_weights);
   const unsigned* row_route_id = reinterpret_cast<const unsigned*>(o.row_route_id);
   const unsigned region_bytes = V809_META_HEADER + e.capacity * V809_META_STRIDE;
-  volatile WeaveBk64LocalU32* sh_done = reinterpret_cast<volatile WeaveBk64LocalU32*>(reinterpret_cast<uintptr_t>(g_v1262_phase_arena + 65480u + grp_sh));
-  volatile WeaveBk64LocalU32* sh_tile = reinterpret_cast<volatile WeaveBk64LocalU32*>(reinterpret_cast<uintptr_t>(g_v1262_phase_arena + 65472u + grp_sh));
+  volatile WeaveBk64LocalU32* sh_done = reinterpret_cast<volatile WeaveBk64LocalU32*>(
+      reinterpret_cast<uintptr_t>(g_v1262_phase_arena + 65480u + grp_sh));
 
-  const unsigned init_m_tiles = __builtin_amdgcn_readfirstlane(plan->total_m_tiles);
 #if WEAVE_BN2_MODE == 64
   const bool use_bn64 = true;
 #elif WEAVE_BN2_MODE == 128
@@ -1040,14 +991,8 @@ __device__ __forceinline__ void weave_v4_gemm2_direct(
 #if WEAVE_S2_NGROUP_MODE >= 1
   const unsigned n2_group = (!use_bn64 && ((n2_blocks % WEAVE_S2_NGROUP_MODE) == 0u)) ? WEAVE_S2_NGROUP_MODE : 1u;
 #else
-  // Auto Stage-2 N grouping.  The occupancy test below is the only gate: the
-  // former `!split_128 && ck_intermediate <= 1024` cap forced n2_group = 1 on
-  // the whole 8-wave dual-group path and on every I > 1024 model, so the
-  // default auto build never reached the measured 4-wide grouping on
-  // Qwen3.8-Max (H=8192, I=2048).  Grouping is a claim-granularity choice and
-  // is independent of the wave split and of the Stage-1 K extent.
   const unsigned n2_group = (!use_bn64)
-      ? ((((n2_blocks & 3u) == 0u) && (init_m_tiles * (n2_blocks >> 2u) >= 160u)) ? 4u
+      ? ((((n2_blocks & 3u) == 0u) && (init_m_tiles * (n2_blocks >> 2u) >= 320u)) ? 4u
          : ((((n2_blocks & 1u) == 0u) && (init_m_tiles * (n2_blocks >> 1u) >= 160u)) ? 2u : 1u))
       : 1u;
 #endif
@@ -1067,7 +1012,6 @@ __device__ __forceinline__ void weave_v4_gemm2_direct(
     d.bm         = static_cast<uint16_t>(__builtin_amdgcn_readfirstlane(d_raw.bm));
     d.valid_rows = static_cast<uint16_t>(__builtin_amdgcn_readfirstlane(d_raw.valid_rows));
     d.tile_idx   = __builtin_amdgcn_readfirstlane(d_raw.tile_idx);
-    const unsigned run = __builtin_amdgcn_readfirstlane(plan->total_padded_rows);
     FI_BG(V1988_FI_DETAIL, V1988_EV_GEMM2_TILE_WAIT, mt);
     const bool s1_ok = weave_v4_wait_ge_4wave(
             reinterpret_cast<const unsigned*>(o.stage1_tile_done) + mt, n1_blocks,
@@ -1076,6 +1020,8 @@ __device__ __forceinline__ void weave_v4_gemm2_direct(
     FI_EG(V1988_FI_DETAIL, V1988_EV_GEMM2_TILE_WAIT, mt);
     if (!s1_ok) return;
 
+    uint16_t* const c_out_base = reinterpret_cast<uint16_t*>(o.gemm2_output);
+
     const unsigned g2_aux = ((use_bn64 && d.bm <= 64u) ? 0x80000000u : 0u) |
                             (((n2_group & 0x7u) << 28u)) |
                             (((unsigned)d.bm & 0xfffu) << 16u) |
@@ -1083,26 +1029,91 @@ __device__ __forceinline__ void weave_v4_gemm2_direct(
     FI_BG(V1988_FI_CORE, V1988_EV_GEMM2_TILE, g2_aux);
     const int32_t* ids = stage2_ids + d.row_start;
     #pragma clang loop unroll(disable)
-    for (unsigned g = 0u; g < n2_group; ++g) {
+    for (unsigned g = 0u; g < n2_group;) {
       const unsigned n2_eff = claim_idx * n2_group + g;
       const unsigned n2 = use_bn64 ? (n2_eff >> 1u) : n2_eff;
+#if (WEAVE_BLOCK_M_L2) == 0
+      if (!use_bn64 && d.bm >= 32u && (g + 2u <= n2_group) && (n2 + 1u < n2_blocks)) {
+        if (d.bm == 32u) {
+          weave_ep8_s2_agpr_bn256<32u>(ids, (int32_t)d.expert_id,
+              reinterpret_cast<const uint8_t*>(ck.ck_quant_output),
+              reinterpret_cast<const uint8_t*>(o.ck_w2),
+              reinterpret_cast<const float*>(ck.ck_quant_scale),
+              reinterpret_cast<const float*>(o.ck_w2_scale), weights + d.row_start,
+              c_out_base, d.row_start, d.valid_rows, n2, run,
+              o.hidden, ck.ck_intermediate, arena);
+        } else if (d.bm == 64u) {
+          weave_ep8_s2_agpr_bn256<64u>(ids, (int32_t)d.expert_id,
+              reinterpret_cast<const uint8_t*>(ck.ck_quant_output),
+              reinterpret_cast<const uint8_t*>(o.ck_w2),
+              reinterpret_cast<const float*>(ck.ck_quant_scale),
+              reinterpret_cast<const float*>(o.ck_w2_scale), weights + d.row_start,
+              c_out_base, d.row_start, d.valid_rows, n2, run,
+              o.hidden, ck.ck_intermediate, arena);
+        } else {
+          #pragma clang loop unroll(disable)
+          for (unsigned r_off = 0u; r_off < d.valid_rows; r_off += 64u) {
+            if (r_off > 0u) weave_4wave_lds_barrier_65440(arena);
+            const unsigned r_rem = d.valid_rows - r_off;
+            const unsigned chunk = (r_rem > 64u) ? 64u : r_rem;
+            const int32_t* ids_c = ids + r_off;
+            const unsigned rs_c = d.row_start + r_off;
+            const float* w_c = weights + rs_c;
+            if (chunk > 32u) {
+              weave_ep8_s2_agpr_bn256<64u>(ids_c, (int32_t)d.expert_id,
+                  reinterpret_cast<const uint8_t*>(ck.ck_quant_output),
+                  reinterpret_cast<const uint8_t*>(o.ck_w2),
+                  reinterpret_cast<const float*>(ck.ck_quant_scale),
+                  reinterpret_cast<const float*>(o.ck_w2_scale), w_c,
+                  c_out_base, rs_c, chunk, n2, run,
+                  o.hidden, ck.ck_intermediate, arena);
+            } else if (chunk > 16u) {
+              weave_ep8_s2_agpr_bn256<32u>(ids_c, (int32_t)d.expert_id,
+                  reinterpret_cast<const uint8_t*>(ck.ck_quant_output),
+                  reinterpret_cast<const uint8_t*>(o.ck_w2),
+                  reinterpret_cast<const float*>(ck.ck_quant_scale),
+                  reinterpret_cast<const float*>(o.ck_w2_scale), w_c,
+                  c_out_base, rs_c, chunk, n2, run,
+                  o.hidden, ck.ck_intermediate, arena);
+            } else {
+              weave_dispatch_stage2_bk64<16u>(ids_c, (int32_t)d.expert_id,
+                  reinterpret_cast<const uint8_t*>(ck.ck_quant_output),
+                  reinterpret_cast<const uint8_t*>(o.ck_w2),
+                  reinterpret_cast<const float*>(ck.ck_quant_scale),
+                  reinterpret_cast<const float*>(o.ck_w2_scale), w_c,
+                  c_out_base, rs_c, chunk, n2, run,
+                  o.hidden, ck.ck_intermediate, arena);
+              weave_4wave_lds_barrier_65440(arena);
+              weave_dispatch_stage2_bk64<16u>(ids_c, (int32_t)d.expert_id,
+                  reinterpret_cast<const uint8_t*>(ck.ck_quant_output),
+                  reinterpret_cast<const uint8_t*>(o.ck_w2),
+                  reinterpret_cast<const float*>(ck.ck_quant_scale),
+                  reinterpret_cast<const float*>(o.ck_w2_scale), w_c,
+                  c_out_base, rs_c, chunk, n2 + 1u, run,
+                  o.hidden, ck.ck_intermediate, arena);
+            }
+          }
+        }
+        g += 2u;
+        continue;
+      }
+#endif
+      ++g;
       if (use_bn64 && d.bm <= 64u) {
 #if (WEAVE_BLOCK_M_L2) == 16 || (WEAVE_BLOCK_M_L2) == 32
-        // WEAVE_BLOCK_M_L2 = C cap on the BN64 small-tile path: tiles with
-        // bm > C run as C-row chunks of the BM=C BN64 kernel (ids / weights /
-        // row offset advanced by r_off, rows = chunk, same n2_eff).
         if (d.bm > (WEAVE_BLOCK_M_L2)) {
           #pragma clang loop unroll(disable)
           for (unsigned r_off = 0u; r_off < d.valid_rows; r_off += (WEAVE_BLOCK_M_L2)) {
+            if (r_off > 0u) weave_4wave_lds_barrier_65440(arena);
             const unsigned r_rem = d.valid_rows - r_off;
             const unsigned chunk = (r_rem > (WEAVE_BLOCK_M_L2)) ? (WEAVE_BLOCK_M_L2) : r_rem;
             const unsigned rs_c = d.row_start + r_off;
-            weave_s2_small_1x4_bn64<(WEAVE_BLOCK_M_L2)>(ids + r_off, (int32_t)d.expert_id,
+            weave_ep8_s2_agpr_bn64<(WEAVE_BLOCK_M_L2)>(ids + r_off, (int32_t)d.expert_id,
                 reinterpret_cast<const uint8_t*>(ck.ck_quant_output),
                 reinterpret_cast<const uint8_t*>(o.ck_w2),
                 reinterpret_cast<const float*>(ck.ck_quant_scale),
                 reinterpret_cast<const float*>(o.ck_w2_scale), weights + rs_c,
-                reinterpret_cast<uint16_t*>(o.gemm2_output), rs_c, chunk, n2_eff, run,
+                c_out_base, rs_c, chunk, n2_eff, run,
                 o.hidden, ck.ck_intermediate, arena);
           }
         } else
@@ -1113,164 +1124,108 @@ __device__ __forceinline__ void weave_v4_gemm2_direct(
               reinterpret_cast<const uint8_t*>(o.ck_w2),
               reinterpret_cast<const float*>(ck.ck_quant_scale),
               reinterpret_cast<const float*>(o.ck_w2_scale), weights + d.row_start,
-              reinterpret_cast<uint16_t*>(o.gemm2_output), d.row_start, d.valid_rows, n2_eff, run,
+              c_out_base, d.row_start, d.valid_rows, n2_eff, run,
               o.hidden, ck.ck_intermediate, arena);
         } else if (d.bm == 32u) {
-          weave_s2_small_1x4_bn64<32u>(ids, (int32_t)d.expert_id,
+          weave_ep8_s2_agpr_bn64<32u>(ids, (int32_t)d.expert_id,
               reinterpret_cast<const uint8_t*>(ck.ck_quant_output),
               reinterpret_cast<const uint8_t*>(o.ck_w2),
               reinterpret_cast<const float*>(ck.ck_quant_scale),
               reinterpret_cast<const float*>(o.ck_w2_scale), weights + d.row_start,
-              reinterpret_cast<uint16_t*>(o.gemm2_output), d.row_start, d.valid_rows, n2_eff, run,
+              c_out_base, d.row_start, d.valid_rows, n2_eff, run,
               o.hidden, ck.ck_intermediate, arena);
         } else {
-          weave_s2_small_1x4_bn64<64u>(ids, (int32_t)d.expert_id,
+          weave_ep8_s2_agpr_bn64<64u>(ids, (int32_t)d.expert_id,
               reinterpret_cast<const uint8_t*>(ck.ck_quant_output),
               reinterpret_cast<const uint8_t*>(o.ck_w2),
               reinterpret_cast<const float*>(ck.ck_quant_scale),
               reinterpret_cast<const float*>(o.ck_w2_scale), weights + d.row_start,
-              reinterpret_cast<uint16_t*>(o.gemm2_output), d.row_start, d.valid_rows, n2_eff, run,
+              c_out_base, d.row_start, d.valid_rows, n2_eff, run,
               o.hidden, ck.ck_intermediate, arena);
         }
       } else if (use_bn64 && (n2_eff & 1u) != 0u) {
         // Odd half of >=128 row tile already computed by even half (BN=128)
       }
 #if (WEAVE_BLOCK_M_L2) != 0
-      // WEAVE_BLOCK_M_L2 = C: Stage-2 execution blockM cap (independent of
-      // WEAVE_BLOCK_M_L1).  Placed after the BN64 branches so their claim
-      // semantics are untouched; tiles with bm > C run as C-row chunks of the
-      // BM=C kernel (same convention as the split_128 loop below).  C = 128
-      // defers to that 64-row loop under the 8-wave LDS halving.
-      else if (d.bm > (WEAVE_BLOCK_M_L2) && ((WEAVE_BLOCK_M_L2) <= 64u || !split_128)) {
+      else if (d.bm > (WEAVE_BLOCK_M_L2)) {
         #pragma clang loop unroll(disable)
         for (unsigned r_off = 0u; r_off < d.valid_rows; r_off += (WEAVE_BLOCK_M_L2)) {
+          if (r_off > 0u) weave_4wave_lds_barrier_65440(arena);
           const unsigned r_rem = d.valid_rows - r_off;
           const unsigned chunk = (r_rem > (WEAVE_BLOCK_M_L2)) ? (WEAVE_BLOCK_M_L2) : r_rem;
           const unsigned rs_c = d.row_start + r_off;
-          weave_dispatch_stage2_bk64<(WEAVE_BLOCK_M_L2)>(ids + r_off, (int32_t)d.expert_id,
+          weave_ep8_dispatch_stage2_agpr<(WEAVE_BLOCK_M_L2)>(ids + r_off, (int32_t)d.expert_id,
               reinterpret_cast<const uint8_t*>(ck.ck_quant_output),
               reinterpret_cast<const uint8_t*>(o.ck_w2),
               reinterpret_cast<const float*>(ck.ck_quant_scale),
               reinterpret_cast<const float*>(o.ck_w2_scale), weights + rs_c,
-              reinterpret_cast<uint16_t*>(o.gemm2_output), rs_c, chunk, n2, run,
+              c_out_base, rs_c, chunk, n2, run,
               o.hidden, ck.ck_intermediate, arena);
         }
       }
 #endif
-      else if (split_128 && (d.bm == 128u || d.bm == 256u)) {
+      else if (d.bm >= 128u) {
         #pragma clang loop unroll(disable)
         for (unsigned r_off = 0u; r_off < d.valid_rows; r_off += 64u) {
+          if (r_off > 0u) weave_4wave_lds_barrier_65440(arena);
           const unsigned r_rem = d.valid_rows - r_off;
           const unsigned chunk = (r_rem > 64u) ? 64u : r_rem;
           const unsigned rs_c = d.row_start + r_off;
+          const int32_t* ids_c = ids + r_off;
+          const float* w_c = weights + rs_c;
           if (chunk > 32u) {
-            weave_dispatch_stage2_bk64<64u>(ids + r_off, (int32_t)d.expert_id,
+            weave_ep8_dispatch_stage2_agpr<64u>(ids_c, (int32_t)d.expert_id,
                 reinterpret_cast<const uint8_t*>(ck.ck_quant_output),
                 reinterpret_cast<const uint8_t*>(o.ck_w2),
                 reinterpret_cast<const float*>(ck.ck_quant_scale),
-                reinterpret_cast<const float*>(o.ck_w2_scale), weights + rs_c,
-                reinterpret_cast<uint16_t*>(o.gemm2_output), rs_c, chunk, n2, run,
+                reinterpret_cast<const float*>(o.ck_w2_scale), w_c,
+                c_out_base, rs_c, chunk, n2, run,
                 o.hidden, ck.ck_intermediate, arena);
           } else if (chunk > 16u) {
-            weave_dispatch_stage2_bk64<32u>(ids + r_off, (int32_t)d.expert_id,
+            weave_ep8_dispatch_stage2_agpr<32u>(ids_c, (int32_t)d.expert_id,
                 reinterpret_cast<const uint8_t*>(ck.ck_quant_output),
                 reinterpret_cast<const uint8_t*>(o.ck_w2),
                 reinterpret_cast<const float*>(ck.ck_quant_scale),
-                reinterpret_cast<const float*>(o.ck_w2_scale), weights + rs_c,
-                reinterpret_cast<uint16_t*>(o.gemm2_output), rs_c, chunk, n2, run,
+                reinterpret_cast<const float*>(o.ck_w2_scale), w_c,
+                c_out_base, rs_c, chunk, n2, run,
                 o.hidden, ck.ck_intermediate, arena);
           } else {
-            weave_dispatch_stage2_bk64<16u>(ids + r_off, (int32_t)d.expert_id,
+            weave_ep8_dispatch_stage2_agpr<16u>(ids_c, (int32_t)d.expert_id,
                 reinterpret_cast<const uint8_t*>(ck.ck_quant_output),
                 reinterpret_cast<const uint8_t*>(o.ck_w2),
                 reinterpret_cast<const float*>(ck.ck_quant_scale),
-                reinterpret_cast<const float*>(o.ck_w2_scale), weights + rs_c,
-                reinterpret_cast<uint16_t*>(o.gemm2_output), rs_c, chunk, n2, run,
+                reinterpret_cast<const float*>(o.ck_w2_scale), w_c,
+                c_out_base, rs_c, chunk, n2, run,
                 o.hidden, ck.ck_intermediate, arena);
           }
         }
-      } else if (d.bm == 256u) {
-        const unsigned v0 = (d.valid_rows > 128u) ? 128u : d.valid_rows;
-        weave_dispatch_stage2_bk64<128u>(ids, (int32_t)d.expert_id,
-            reinterpret_cast<const uint8_t*>(ck.ck_quant_output),
-            reinterpret_cast<const uint8_t*>(o.ck_w2),
-            reinterpret_cast<const float*>(ck.ck_quant_scale),
-            reinterpret_cast<const float*>(o.ck_w2_scale), weights + d.row_start,
-            reinterpret_cast<uint16_t*>(o.gemm2_output), d.row_start, v0, n2, run,
-            o.hidden, ck.ck_intermediate, arena);
-        if (d.valid_rows > 128u) {
-          const unsigned rem = d.valid_rows - 128u;
-          const unsigned rs1 = d.row_start + 128u;
-          const int32_t* ids1 = ids + 128u;
-          const float* w1 = weights + rs1;
-          if (rem > 64u) {
-            weave_dispatch_stage2_bk64<128u>(ids1, (int32_t)d.expert_id,
-                reinterpret_cast<const uint8_t*>(ck.ck_quant_output),
-                reinterpret_cast<const uint8_t*>(o.ck_w2),
-                reinterpret_cast<const float*>(ck.ck_quant_scale),
-                reinterpret_cast<const float*>(o.ck_w2_scale), w1,
-                reinterpret_cast<uint16_t*>(o.gemm2_output), rs1, rem, n2, run,
-                o.hidden, ck.ck_intermediate, arena);
-          } else if (rem > 32u) {
-            weave_dispatch_stage2_bk64<64u>(ids1, (int32_t)d.expert_id,
-                reinterpret_cast<const uint8_t*>(ck.ck_quant_output),
-                reinterpret_cast<const uint8_t*>(o.ck_w2),
-                reinterpret_cast<const float*>(ck.ck_quant_scale),
-                reinterpret_cast<const float*>(o.ck_w2_scale), w1,
-                reinterpret_cast<uint16_t*>(o.gemm2_output), rs1, rem, n2, run,
-                o.hidden, ck.ck_intermediate, arena);
-          } else if (rem > 16u) {
-            weave_dispatch_stage2_bk64<32u>(ids1, (int32_t)d.expert_id,
-                reinterpret_cast<const uint8_t*>(ck.ck_quant_output),
-                reinterpret_cast<const uint8_t*>(o.ck_w2),
-                reinterpret_cast<const float*>(ck.ck_quant_scale),
-                reinterpret_cast<const float*>(o.ck_w2_scale), w1,
-                reinterpret_cast<uint16_t*>(o.gemm2_output), rs1, rem, n2, run,
-                o.hidden, ck.ck_intermediate, arena);
-          } else {
-            weave_dispatch_stage2_bk64<16u>(ids1, (int32_t)d.expert_id,
-                reinterpret_cast<const uint8_t*>(ck.ck_quant_output),
-                reinterpret_cast<const uint8_t*>(o.ck_w2),
-                reinterpret_cast<const float*>(ck.ck_quant_scale),
-                reinterpret_cast<const float*>(o.ck_w2_scale), w1,
-                reinterpret_cast<uint16_t*>(o.gemm2_output), rs1, rem, n2, run,
-                o.hidden, ck.ck_intermediate, arena);
-          }
-        }
-      } else if (d.bm == 128u) {
-        weave_dispatch_stage2_bk64<128u>(ids, (int32_t)d.expert_id,
-            reinterpret_cast<const uint8_t*>(ck.ck_quant_output),
-            reinterpret_cast<const uint8_t*>(o.ck_w2),
-            reinterpret_cast<const float*>(ck.ck_quant_scale),
-            reinterpret_cast<const float*>(o.ck_w2_scale), weights + d.row_start,
-            reinterpret_cast<uint16_t*>(o.gemm2_output), d.row_start, d.valid_rows, n2, run,
-            o.hidden, ck.ck_intermediate, arena);
       } else if (d.bm == 32u) {
-        weave_dispatch_stage2_bk64<32u>(ids, (int32_t)d.expert_id,
+        weave_ep8_dispatch_stage2_agpr<32u>(ids, (int32_t)d.expert_id,
             reinterpret_cast<const uint8_t*>(ck.ck_quant_output),
             reinterpret_cast<const uint8_t*>(o.ck_w2),
             reinterpret_cast<const float*>(ck.ck_quant_scale),
             reinterpret_cast<const float*>(o.ck_w2_scale), weights + d.row_start,
-            reinterpret_cast<uint16_t*>(o.gemm2_output), d.row_start, d.valid_rows, n2, run,
+            c_out_base, d.row_start, d.valid_rows, n2, run,
             o.hidden, ck.ck_intermediate, arena);
       } else if (d.bm == 16u) {
-        weave_dispatch_stage2_bk64<16u>(ids, (int32_t)d.expert_id,
+        weave_ep8_dispatch_stage2_agpr<16u>(ids, (int32_t)d.expert_id,
             reinterpret_cast<const uint8_t*>(ck.ck_quant_output),
             reinterpret_cast<const uint8_t*>(o.ck_w2),
             reinterpret_cast<const float*>(ck.ck_quant_scale),
             reinterpret_cast<const float*>(o.ck_w2_scale), weights + d.row_start,
-            reinterpret_cast<uint16_t*>(o.gemm2_output), d.row_start, d.valid_rows, n2, run,
+            c_out_base, d.row_start, d.valid_rows, n2, run,
             o.hidden, ck.ck_intermediate, arena);
       } else {
-        weave_dispatch_stage2_bk64<64u>(ids, (int32_t)d.expert_id,
+        weave_ep8_dispatch_stage2_agpr<64u>(ids, (int32_t)d.expert_id,
             reinterpret_cast<const uint8_t*>(ck.ck_quant_output),
             reinterpret_cast<const uint8_t*>(o.ck_w2),
             reinterpret_cast<const float*>(ck.ck_quant_scale),
             reinterpret_cast<const float*>(o.ck_w2_scale), weights + d.row_start,
-            reinterpret_cast<uint16_t*>(o.gemm2_output), d.row_start, d.valid_rows, n2, run,
+            c_out_base, d.row_start, d.valid_rows, n2, run,
             o.hidden, ck.ck_intermediate, arena);
       }
     }
+    asm volatile("s_waitcnt vmcnt(0)" ::: "memory");
     __threadfence_block();
     weave_4wave_barrier_65440(arena);
     FI_EG(V1988_FI_CORE, V1988_EV_GEMM2_TILE, g2_aux);
@@ -1430,7 +1385,7 @@ v1864_ov1_runtime_roles(V983Envelope envelope) {
   const bool use_8wave = (WEAVE_CU_WAVE_SPLIT == 1) ? true
       : ((WEAVE_CU_WAVE_SPLIT == 3) ? !is_comm_only_cu
          : ((WEAVE_CU_WAVE_SPLIT == 2) ? false
-            : (e.t_local >= WEAVE_AMD_8WAVE_MIN_TOK)));
+            : (e.t_local >= ((WEAVE_AMD_8WAVE_MIN_TOK == 64) ? 8u : WEAVE_AMD_8WAVE_MIN_TOK))));
   if (wave < 4u && !is_comm_only_cu) {
     // COMPUTE half (Group 0, waves 0..3): 80-CTA parallel route plan then direct-gather GEMM1 + GEMM2.
     FI_BG(V1988_FI_PHASE, V1988_EV_ROUTE_PLAN, cta);
