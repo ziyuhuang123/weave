@@ -87,14 +87,11 @@ python -c "from deep_gemm.mega import SymmBuffer, weave_mega_moe"
 
 ![AMD MI308X 双机 16x EP16 WeaveProfiler SW+HW 时间线](docs/figures/weaveprofiler_mi308x_timeline.png)
 
-![AMD MI308X 单机 8x EP8 WeaveProfiler SW+HW 时间线](docs/figures/weaveprofiler_mi308x_ep8_timeline.png)
-
-四张四面板时间线均由 WeaveProfiler 在同一次内核执行中同步采集软件阶段轨迹与硬件性能计数器（Panel A：对齐的硬件资源利用率曲线；Panel B：全卡物理 SM/CU 瀑布图；Panel C：代表性 SM/CU 全量 Warp/Wave64 角色轨道；Panel D：确定性微观时间窗放大）。AMD MI308X 的 Panel A 统一采用动态主频周期域占空比 `100 * dSQ_VALU_MFMA_BUSY_CYCLES / (80 * dGRBM_GUI_ACTIVE)` 标定，消除规格表 `398.7T` 静态分母失真：
+三张四面板时间线均由 WeaveProfiler 在同一次内核执行中同步采集软件阶段轨迹与硬件性能计数器（Panel A：对齐的硬件资源利用率曲线；Panel B：全卡物理 SM/CU 瀑布图；Panel C：代表性 SM/CU 全量 Warp/Wave64 角色轨道；Panel D：确定性微观时间窗放大）。AMD MI308X 的 Panel A 统一采用动态主频周期域占空比 `100 * dSQ_VALU_MFMA_BUSY_CYCLES / (80 * dGRBM_GUI_ACTIVE)` 标定，消除规格表 `398.7T` 静态分母失真：
 
 - **NVIDIA SM103 (148-SM)，4x EP4，`Qwen3.8-2.4T S=1024`（`FP8 x NVFP4`）**：200 kHz `nsys` 硬件采样对齐全部 148 个物理 SM 与 SM 42 的 16 个 warp。首部 `V_HEAD` 协助拉取快速喂满首轮输入，主体阶段 HBM 带宽峰值达 **`92.0%`**（全程均值 `72.8%`）、活跃 SM 均值 **`98.6%`**，Panel C/D 同步呈现逐 warp 的 `MEM d=0..19` 与 `MMA d=0..1` 异步流水线在途深度带及发射针标。
 - **NVIDIA H20 (78-SM)，4x EP4，`Qwen3.5-35B S=16384`（`FP8`）**：200 kHz `nsys` 硬件采样对齐 78 个物理 SM 与 SM 54 的 20 个 warp。通信 warp（`W00..W07`）在完成远端拉取后无缝切换为后台 `smem` 异步 Scatter，使 Tensor Core 利用率持续稳定在 **`75%–96%`**，Panel C/D（`700–730 us`）清晰展示 `MEM d=0..2`、`MMA d=0..1` 异步流水深度与 `NVLink Scatter` 的三路并发重叠。
 - **AMD MI308X (80-CU)，双机 16x EP16，`Qwen3.8-2.4T S=16384`（`FP8`）**：`rocprofiler-sdk` DCS 硬件计数器同步对齐全部 80 个物理 CU（`0–6,633.0 us`，`overflow 0`，`0 spill`），展示 `(0,8)` 纯计算 CU 与 `(4,4)` 通算混合 CU 的跨单元协同；在混合单元 `CU 62`（`3520–3820 us` 微观窗口）上，`W00..W03` 持续运行 Stage-1/Stage-2 MFMA 计算，`W04..W07` 并发重叠节点间 RDMA 与节点内 `xGMI` 传输。经动态主频周期域标定后，整卡 FP8 Matrix Core 管线占空比峰值达 **`62.2%`**（全程均值 `41.4%`；`540/640` 计算 Wave 池等效 **`73.7%`**），HBM3 带宽峰值 **`33.1%`**（均值 `20.5%`）、节点内 `xGMI TX` 峰值 **`60.5%`**、`xGMI RX` 峰值 **`15.0%`**、活跃 CU **`100.0%`**（GPU 直发绕过主机网卡统计的跨机 RDMA 计数器显式标注而不补零）。
-- **AMD MI308X (80-CU)，单机 8x EP8，`Qwen3.8-2.4T S=8192`（`FP8`）**：基于最新 AGPR/MFMA 单核的 `rocprofiler-sdk` DCS 同次采集（`0–7,679.9 us`，`overflow 0`，`239 VGPR / 0 spill`），对齐全部 80 个物理 CU 与 `CU 0` 的 8 条 Wave（`5750–6450 us` 微观窗口展示 `GEMM2 -> Scatter_xGMI -> Home_Combine` 的全 8-Wave 时间角色切换）。8 条 Wave 在完成开场分发后全部切入 8-Wave 全算力矩阵计算，FP8 Matrix Core 管线占空比峰值达 **`51.8%`**（均值 `30.5%`）、HBM3 带宽峰值 **`30.4%`**（均值 `19.9%`）、`xGMI TX` 峰值 **`47.3%`**、活跃 CU 峰值 **`100.0%`**（均值 `99.9%`）。
 
 ## 统一核心 WEAVE_* 参数
 
